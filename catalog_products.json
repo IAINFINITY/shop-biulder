@@ -1,0 +1,1766 @@
+[
+  {
+    "name": "Whey Mais Ella Isolado + Colágeno sabor Neutro",
+    "description": "Cod. 5840 - Lata c/400 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Ella",
+    "meta": {
+      "code": "5840",
+      "ean": "7899592836516",
+      "qty": "9 x 400 g",
+      "dun": "17899592836513",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais Ella Isolado + Colágeno sabor Banana Flambada",
+    "description": "Cod. 6273 - Lata c/400 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Ella",
+    "meta": {
+      "code": "6273",
+      "ean": "7899592840322",
+      "qty": "9 x 400 g",
+      "dun": "17899592840329",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais Ella Isolado + Colágeno sabor Mousse de Limão",
+    "description": "Cod. 7513 - Lata c/400 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Ella",
+    "meta": {
+      "code": "7513",
+      "ean": "7899592850833",
+      "qty": "9 x 400 g",
+      "dun": "17899592850830",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais Pleno Isolado sabor Baunilha",
+    "description": "Cod. 5844 - Lata c/ 300 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Pleno",
+    "meta": {
+      "code": "5844",
+      "ean": "7899592836554",
+      "qty": "9 x 300g",
+      "dun": "17899592836551",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais ISO sabor Neutro",
+    "description": "Cod. 7178 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais ISO",
+    "meta": {
+      "code": "7178",
+      "ean": "7899592848663",
+      "qty": "6 x 900 g",
+      "dun": "17899592848660",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais ISO sabor Neutro",
+    "description": "Cod. 7179 - Lata c/400 g",
+    "type": "Solúvel",
+    "family": "Whey Mais ISO",
+    "meta": {
+      "code": "7179",
+      "ean": "7899592848670",
+      "qty": "9 x 400 g",
+      "dun": "17899592848677",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais 100% Concentrate sabor Morango",
+    "description": "Cod. 6947 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais 100%",
+    "meta": {
+      "code": "6947",
+      "ean": "7899592845037",
+      "qty": "6 x 900 g",
+      "dun": "17899592845034",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais 100% Concentrate sabor Chocolate Belga",
+    "description": "Cod. 6946 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais 100%",
+    "meta": {
+      "code": "6946",
+      "ean": "7899592845051",
+      "qty": "6 x 900 g",
+      "dun": "17899592845058",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais 100% Concentrate sabor Baunilha e Banana Caramelizada",
+    "description": "Cod. 6945 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais 100%",
+    "meta": {
+      "code": "6945",
+      "ean": "7899592845044",
+      "qty": "6 x 900 g",
+      "dun": "17899592845041",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais Concentrado sabor Chocolate",
+    "description": "Cod. 6981 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Concentrado",
+    "meta": {
+      "code": "6981",
+      "ean": "7899592845419",
+      "qty": "6 x 900 g",
+      "dun": "17899592845416",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais Concentrado sabor Morango",
+    "description": "Cod. 6980 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Concentrado",
+    "meta": {
+      "code": "6980",
+      "ean": "7899592845426",
+      "qty": "6 x 900 g",
+      "dun": "17899592845423",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Whey Mais Concentrado sabor Baunilha e Quatro Leites",
+    "description": "Cod. 6979 - Pote c/900 g",
+    "type": "Solúvel",
+    "family": "Whey Mais Concentrado",
+    "meta": {
+      "code": "6979",
+      "ean": "7899592845402",
+      "qty": "6 x 900 g",
+      "dun": "17899592845409",
+      "ncm": "3502.20.00",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Protein Mais Colágeno Hidrolisado BODYBALANCE® sabor Neutro",
+    "description": "Cod. 7431 - Lata c/450 g",
+    "type": "Solúvel",
+    "family": "Protein Mais Colágeno",
+    "meta": {
+      "code": "7431",
+      "ean": "7899592850147",
+      "qty": "12 x 450 g",
+      "dun": "17899592850144",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgenderma9 Colágeno Premium sabor Laranja com Gengibre",
+    "description": "Cod. 4461 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "Peptgenderma9 Colágeno",
+    "meta": {
+      "code": "4461",
+      "ean": "7899592827880",
+      "qty": "12 x 300 g",
+      "dun": "17899592827887",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgenderma9 Colágeno Premium sabor Limão Siciliano",
+    "description": "Cod. 4463 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "Peptgenderma9 Colágeno",
+    "meta": {
+      "code": "4463",
+      "ean": "7899592827873",
+      "qty": "12 x 300 g",
+      "dun": "17899592827870",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgenderma9 Colágeno Premium sabor Neutro",
+    "description": "Cod. 4465 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "Peptgenderma9 Colágeno",
+    "meta": {
+      "code": "4465",
+      "ean": "7899592827903",
+      "qty": "12 x 300 g",
+      "dun": "17899592827900",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgenderma9 Colágeno Premium sabor Abacaxi e Hortelã",
+    "description": "Cod. 7897 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "Peptgenderma9 Colágeno",
+    "meta": {
+      "code": "7897",
+      "ean": "7899592854701",
+      "qty": "12 x 300 g",
+      "dun": "17899592854708",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgenderma9 Colágeno Premium sabor Frutas Vermelhas",
+    "description": "Cod. 7896 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "Peptgenderma9 Colágeno",
+    "meta": {
+      "code": "7896",
+      "ean": "7899592854695",
+      "qty": "12 x 300 g",
+      "dun": "17899592854692",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgen Care Colágeno VERISOL® e Ácido Hialurônico sabor Neutro",
+    "description": "Cod. 5902 - Lata c/200 g",
+    "type": "Solúvel",
+    "family": "Peptgen Care",
+    "meta": {
+      "code": "5902",
+      "ean": "7899592836950",
+      "qty": "12 x 200 g",
+      "dun": "17899592836957",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgen Care Colágeno VERISOL® sabor Laranja",
+    "description": "Cod. 5900 - Lata c/200 g",
+    "type": "Solúvel",
+    "family": "Peptgen Care",
+    "meta": {
+      "code": "5900",
+      "ean": "7899592836936",
+      "qty": "12 x 200 g",
+      "dun": "17899592836933",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgen Care Colágeno VERISOL® sabor Neutro",
+    "description": "Cod. 5899 - Lata c/200 g",
+    "type": "Solúvel",
+    "family": "Peptgen Care",
+    "meta": {
+      "code": "5899",
+      "ean": "7899592836943",
+      "qty": "12 x 200 g",
+      "dun": "17899592836940",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgen Care Colágeno VERISOL® sabor Piña Colada",
+    "description": "Cod. 5901 - Lata c/200 g",
+    "type": "Solúvel",
+    "family": "Peptgen Care",
+    "meta": {
+      "code": "5901",
+      "ean": "7899592836929",
+      "qty": "12 x 200 g",
+      "dun": "17899592836926",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Artimag Mais Colágeno Tipo II sabor Neutro",
+    "description": "Cod. 3599 - Lata c/150 g",
+    "type": "Solúvel",
+    "family": "Artimag Mais Colágeno",
+    "meta": {
+      "code": "3599",
+      "ean": "7899592824247",
+      "qty": "15 x 150 g",
+      "dun": "17899592824244",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Hyaluron+ - Colágeno 9 g e Ácido Hialurônico sabor Neutro",
+    "description": "Cod. 4439 - Lata c/ 275 g",
+    "type": "Solúvel",
+    "family": "Hyaluron+",
+    "meta": {
+      "code": "4439",
+      "ean": "7899592827781",
+      "qty": "15 x 275g",
+      "dun": "17899592827788",
+      "ncm": "3504.00.19",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Shake Mais com Chia BioForma sabor Banana com Canela",
+    "description": "Cod. 6797 - Pote c/ 400 g",
+    "type": "Solúvel",
+    "family": "Shake Mais com",
+    "meta": {
+      "code": "6797",
+      "ean": "7899592844054",
+      "qty": "9 x 400 g",
+      "dun": "17899592844051",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Shake Mais com Chia BioForma sabor Morango",
+    "description": "Cod. 6747 - Pote c/ 400 g",
+    "type": "Solúvel",
+    "family": "Shake Mais com",
+    "meta": {
+      "code": "6747",
+      "ean": "7899592843651",
+      "qty": "12 x 400 g",
+      "dun": "17899592843658",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Leveza 30 Shake com chia sabor Baunilha e 4 Leites",
+    "description": "Cod. 7889 - Lata c/ 400 g",
+    "type": "Solúvel",
+    "family": "Leveza 30",
+    "meta": {
+      "code": "7889",
+      "ean": "7899592854664",
+      "qty": "9 x 400 g",
+      "dun": "17899592854661",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Choco Mais sabor Chocolate",
+    "description": "Cod. 6743 - Lata c/ 150 g",
+    "type": "Solúvel",
+    "family": "Choco Mais sabor",
+    "meta": {
+      "code": "6743",
+      "ean": "7899592843545",
+      "qty": "15 x 150 g",
+      "dun": "17899592843542",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Mune + (Wellmune e Lactoferrina) - sabor Cranberry e Laranja",
+    "description": "Cod. 12596 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Mune + (Wellmune e Lactoferrina)",
+    "meta": {
+      "code": "12596",
+      "ean": "7899592812077",
+      "qty": "8 x 50 g",
+      "dun": "17899592812074",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "4 Fiber sabor Neutro",
+    "description": "Cod. 16060 - Lata c/ 200 g",
+    "type": "Solúvel",
+    "family": "4 Fiber",
+    "meta": {
+      "code": "16060",
+      "ean": "7899592819236",
+      "qty": "12 x 200 g",
+      "dun": "17899592819233",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Acetilcisteína com Vitamina C e Zinco sabor Laranja",
+    "description": "Cod. 7719 - Caixa c/ 16 sachês",
+    "type": "Solúvel",
+    "family": "Acetilcisteína com",
+    "meta": {
+      "code": "7719",
+      "ean": "7899592852561",
+      "qty": "22 x 80 g",
+      "dun": "17899592852568",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "BioFit sabor Abacaxi e Hortelã",
+    "description": "Cod. 4009 - Lata c/ 200 g",
+    "type": "Solúvel",
+    "family": "BioFit sabor",
+    "meta": {
+      "code": "4009",
+      "ean": "7899592824896",
+      "qty": "12 x 200 g",
+      "dun": "17899592824893",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "BioFit Hibisco sabor Frutas Vermelhas",
+    "description": "Cod. 7912 - Lata c/ 200 g",
+    "type": "Solúvel",
+    "family": "BioFit Hibisco",
+    "meta": {
+      "code": "7912",
+      "ean": "7899592854879",
+      "qty": "12 x 200 g",
+      "dun": "17899592854876",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Creatina Monohidratada em pó",
+    "description": "Cod. 7487 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "Creatina Monohidratada",
+    "meta": {
+      "code": "7487",
+      "ean": "7899592850581",
+      "qty": "12 x 300 g",
+      "dun": "17899592850588",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Creatina Monohidratada em pó",
+    "description": "Cod. 6741 - Lata c/150 g",
+    "type": "Solúvel",
+    "family": "Creatina Monohidratada",
+    "meta": {
+      "code": "6741",
+      "ean": "7899592843613",
+      "qty": "15 x 150 g",
+      "dun": "17899592843610",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "L-glutamina 100% - L-glutamina em pó",
+    "description": "Cod. 14210 - Lata c/300 g",
+    "type": "Solúvel",
+    "family": "L-glutamina 100%",
+    "meta": {
+      "code": "14210",
+      "ean": "7899592814804",
+      "qty": "12 x 300 g",
+      "dun": "17899592814801",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Pré-treino Beta-alanina sabor Frutas Vermelhas",
+    "description": "Cod. 7703 - Pote c/ 240 g",
+    "type": "Solúvel",
+    "family": "Pré-treino Beta-alanina",
+    "meta": {
+      "code": "7703",
+      "ean": "7899592853247",
+      "qty": "12 x 220 g",
+      "dun": "17899592853244",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Termogênic Mais Café sabor Chocolate - Pré-treino",
+    "description": "Cod. 7203 - Lata c/ 220 g",
+    "type": "Solúvel",
+    "family": "Termogênic Mais Café sabor Chocolate",
+    "meta": {
+      "code": "7203",
+      "ean": "7899592848861",
+      "qty": "15 x 220 g",
+      "dun": "17899592848868",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Cloreto de Magnésio em pó",
+    "description": "Cod. 6562 - Caixa c/ 20 sachês",
+    "type": "Solúvel",
+    "family": "Cloreto de",
+    "meta": {
+      "code": "6562",
+      "ean": "7899592842159",
+      "qty": "8 x 660 g",
+      "dun": "17899592842156",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sal Amargo (Sulfato de Magnésio) em pó",
+    "description": "Cod. 6866 - Pote c/ 30 g",
+    "type": "Solúvel",
+    "family": "Sal Amargo",
+    "meta": {
+      "code": "6866",
+      "ean": "7899592844238",
+      "qty": "15 x 30 g",
+      "dun": "17899592844235",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Creatina Gummies sabor Maçã Verde",
+    "description": "Cod. 7678 - Pote c/ 60 und",
+    "type": "Solúvel",
+    "family": "Creatina Gummies",
+    "meta": {
+      "code": "7678",
+      "ean": "7899592852998",
+      "qty": "15 x 300 g",
+      "dun": "17899592852995",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Melatonina Gummies sabor Maracujá",
+    "description": "Cod. 7671 - Pote c/ 30 und",
+    "type": "Solúvel",
+    "family": "Melatonina Gummies",
+    "meta": {
+      "code": "7671",
+      "ean": "7899592852776",
+      "qty": "15 x 135 g",
+      "dun": "17899592852773",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Vit.C+Zinco Gummies sabor Laranja",
+    "description": "Cod. 7666 - Pote c/ 30 und.",
+    "type": "Solúvel",
+    "family": "Vit.C+Zinco Gummies",
+    "meta": {
+      "code": "7666",
+      "ean": "7899592852813",
+      "qty": "15 x 135 g",
+      "dun": "17899592852810",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "3 Ômegas - Óleo de Peixe, Linhaça, Borragem e Vitamina E em cápsulas",
+    "description": "Cod. 6705 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "3 Ômegas",
+    "meta": {
+      "code": "6705",
+      "ean": "7898538353940",
+      "qty": "15 x 84 g",
+      "dun": "17898538353947",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "5 ?leos - ?leo de linha?a, ?leo de girassol, ?leo de c?rtamo, ?leo de borragem e ?leo de chia em c?psulas",
+    "description": "Cod. 7161 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "5 ?leos",
+    "meta": {
+      "code": "7161",
+      "ean": "7899592848571",
+      "qty": "15 x 84 g",
+      "dun": "17899592848578",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "CA - Óleo de Cártamo em cápsulas",
+    "description": "Cod. 7463 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "CA",
+    "meta": {
+      "code": "7463",
+      "ean": "7899592850383",
+      "qty": "15 x 84 g",
+      "dun": "17899592850380",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Cart+Chia+Coco - Óleo de Chia, Cártamo e Coco em cápsulas",
+    "description": "Cod. 7501 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Cart+Chia+Coco",
+    "meta": {
+      "code": "7501",
+      "ean": "7899592850758",
+      "qty": "15 x 84 g",
+      "dun": "17899592850755",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Cártamo+Coco - Óleo de Cártamo e Óleo de Coco em cápsulas",
+    "description": "Cod. 6355 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Cártamo+Coco",
+    "meta": {
+      "code": "6355",
+      "ean": "7898538353933",
+      "qty": "15 x 84 g",
+      "dun": "17898538353930",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chia+Coco - Óleo de Chia e Óleo de Coco em cápsulas",
+    "description": "Cod. 6793 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Chia+Coco",
+    "meta": {
+      "code": "6793",
+      "ean": "7898538355968",
+      "qty": "15 x 84 g",
+      "dun": "17898538355965",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Alho Desodorizado em cápsulas",
+    "description": "Cod. 4540 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "4540",
+      "ean": "7899592828337",
+      "qty": "15 x 42 g",
+      "dun": "17899592828334",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Abacate e Vitamina em cápsulas",
+    "description": "Cod. 7177 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "7177",
+      "ean": "7899592848687",
+      "qty": "15 x 84 g",
+      "dun": "17899592848684",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Coco em cápsulas",
+    "description": "Cod. 5284 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "5284",
+      "ean": "7898538352226",
+      "qty": "15 x 84 g",
+      "dun": "17898538352223",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Linhaça Dourada em cápsulas",
+    "description": "Cod. 6263 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "6263",
+      "ean": "7898538354374",
+      "qty": "15 x 84 g",
+      "dun": "17898538354371",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Prímula e Borragem + L-triptofano em cápsulas",
+    "description": "Cod. 7475 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "7475",
+      "ean": "7899592850437",
+      "qty": "15 x 84 g",
+      "dun": "17899592850434",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Prímula e Vitamina E em cápsulas",
+    "description": "Cod. 6358 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "6358",
+      "ean": "7898538354695",
+      "qty": "15 x 84 g",
+      "dun": "17898538354692",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Óleo de Semente de Abóbora em cápsulas",
+    "description": "Cod. 6560 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Óleo de",
+    "meta": {
+      "code": "6560",
+      "ean": "7899592842302",
+      "qty": "15 x 84 g",
+      "dun": "17899592842309",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Ômega-3 do Alaska - Óleo de Peixe e Vitamina E em cápsulas",
+    "description": "Cod. 7523 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Ômega-3 do Alaska",
+    "meta": {
+      "code": "7523",
+      "ean": "7899592850864",
+      "qty": "15 x 84 g",
+      "dun": "17899552850861",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Ômega-3 Mais 1000 - Óleo de Peixe e Vitamina E em cápsulas",
+    "description": "Cod. 7230 - Pote c/ 90 cáps",
+    "type": "Cápsula",
+    "family": "Ômega-3 Mais 1000",
+    "meta": {
+      "code": "7230",
+      "ean": "7899592849172",
+      "qty": "15 x 126 g",
+      "dun": "17899552849179",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Vitamina D3 2000 UI em cápsulas",
+    "description": "Cod. 5037 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Vitamina D3",
+    "meta": {
+      "code": "5037",
+      "ean": "7899592831894",
+      "qty": "15 x 21 g",
+      "dun": "17899592831891",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Acetilcisteína - NAC em cápsulas",
+    "description": "Cod. 8075 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Acetilcisteína",
+    "meta": {
+      "code": "8075",
+      "ean": "7899592855784",
+      "qty": "15 x 31,8 g",
+      "dun": "17899592855781",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Ansiozen - Magnésio e L-triptofano em cápsulas",
+    "description": "Cod. 4266 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Ansiozen",
+    "meta": {
+      "code": "4266",
+      "ean": "7899592825084",
+      "qty": "15 x 27 g",
+      "dun": "17899592825081",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "ArtiMag Mais Colágeno Tipo II e Magnésio em cápsulas",
+    "description": "Cod. 7909 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "ArtiMag Mais Colágeno",
+    "meta": {
+      "code": "7909",
+      "ean": "7899592854824",
+      "qty": "15 x 43,2g",
+      "dun": "17899592854821",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Bio Femme Mais cápsulas",
+    "description": "Cod. 7740 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Bio Femme",
+    "meta": {
+      "code": "7740",
+      "ean": "7899592852721",
+      "qty": "12 x 22,2 g",
+      "dun": "17899592852728",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "BioBeard - Vitaminas e Minerais em cápsulas",
+    "description": "Cod. 6746 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "BioBeard",
+    "meta": {
+      "code": "6746",
+      "ean": "7899592842814",
+      "qty": "15 x 14,4 g",
+      "dun": "17899592842811",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Bio Bella Cor cápsulas",
+    "description": "Cod. 7685 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Bio Bella",
+    "meta": {
+      "code": "7685",
+      "ean": "7899592852226",
+      "qty": "15 x 16,5 g",
+      "dun": "17899592852223",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "BioBella - Vitaminas e Minerais em cápsulas",
+    "description": "Cod. 3699 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "BioBella",
+    "meta": {
+      "code": "3699",
+      "ean": "7899592824230",
+      "qty": "15 x 14,4 g",
+      "dun": "17899592824237",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Caffeine Mais - Cafeína em cápsulas",
+    "description": "Cod. 7511 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Caffeine Mais",
+    "meta": {
+      "code": "7511",
+      "ean": "7899592850789",
+      "qty": "15 x 28,8 g",
+      "dun": "17899592850786",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Calmais Alga Lithothamniom cápsulas",
+    "description": "Cod. 7592 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Calmais Alga",
+    "meta": {
+      "code": "7592",
+      "ean": "7899592851519",
+      "qty": "15 x 46,8 g",
+      "dun": "17899592851516",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Calmais K2D3 com Magnésio e Cúrcuma em cápsulas",
+    "description": "Cod. 7876 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Calmais K2D3",
+    "meta": {
+      "code": "7876",
+      "ean": "7899592854480",
+      "qty": "15 x 38,4 g",
+      "dun": "17899592854487",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Cranberry em cápsulas",
+    "description": "Cod. 7585 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Cranberry em",
+    "meta": {
+      "code": "7585",
+      "ean": "7899592851526",
+      "qty": "15 x 13,5 g",
+      "dun": "17899592851526",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Creatina Monohidratada em cápsulas",
+    "description": "Cod. 7229 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Creatina Monohidratada",
+    "meta": {
+      "code": "7229",
+      "ean": "7899592849189",
+      "qty": "15 x 39 g",
+      "dun": "17899592849186",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Cúrcuma em cápsulas",
+    "description": "Cod. 7509 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Cúrcuma em",
+    "meta": {
+      "code": "7509",
+      "ean": "7899592850772",
+      "qty": "15 x 12,9 g",
+      "dun": "17899592850779",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Feno Grego - Trigonella foenum-graecum L. em cápsulas",
+    "description": "Cod. 7446 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Feno Grego",
+    "meta": {
+      "code": "7446",
+      "ean": "7899592850277",
+      "qty": "15 x 18 g",
+      "dun": "17899592850274",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Glucosamina MSM Colágeno Tipo II em cápsulas",
+    "description": "Cod. 7507 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Glucosamina MSM",
+    "meta": {
+      "code": "7507",
+      "ean": "7899592850420",
+      "qty": "15 x 39,6 g",
+      "dun": "17899592850427",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Green + Clorella - Ácido alfa-linolênico N3 obtido de Chlorella vulgaris",
+    "description": "Cod. 7405 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Green + Clorella",
+    "meta": {
+      "code": "7405",
+      "ean": "7899592850024",
+      "qty": "15 x 36 g",
+      "dun": "17899592850021",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Hyaluron + Ácido Hialurônico em cápsulas",
+    "description": "Cod. 5551 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Hyaluron +",
+    "meta": {
+      "code": "5551",
+      "ean": "7899592834666",
+      "qty": "15 x 12 g",
+      "dun": "17899592834663",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Licopeno + Trans-resveratrol + Vitamina E + Selênio em cápsulas",
+    "description": "Cod. 7226 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Licopeno +",
+    "meta": {
+      "code": "7226",
+      "ean": "7899592849233",
+      "qty": "15 x 16,5 g",
+      "dun": "17899592849230",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "L&Z Luteína e Zeaxantina em cápsulas",
+    "description": "Cod. 6731 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "L&Z Luteína",
+    "meta": {
+      "code": "6731",
+      "ean": "7899592842807",
+      "qty": "15 x 13,5 g",
+      "dun": "17899592842804",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Melatonina em cápsulas",
+    "description": "Cod. 6404 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Melatonina em",
+    "meta": {
+      "code": "6404",
+      "ean": "7899592841305",
+      "qty": "15 x 15,6 g",
+      "dun": "17899592841302",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Moro Mais - Café Verde, Laranja Moro e Cromo em cápsulas",
+    "description": "Cod. 7525 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Moro Mais",
+    "meta": {
+      "code": "7525",
+      "ean": "7899592850857",
+      "qty": "15 x 39 g",
+      "dun": "17899592850854",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Multivitaminas Mais - Multivitaminas e Multiminerais de A a Z",
+    "description": "Cod. 7457 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Multivitaminas Mais",
+    "meta": {
+      "code": "7457",
+      "ean": "7899592850291",
+      "qty": "15 x 43,2 g",
+      "dun": "17899592850298",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Peptgenderma Colágeno Hidrolisado Fragmentado",
+    "description": "Cod. 6767 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Peptgenderma Colágeno",
+    "meta": {
+      "code": "6767",
+      "ean": "7899592843743",
+      "qty": "15 x 34,2 g",
+      "dun": "17899592843740",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Pré-Treino Beta-Alanina",
+    "description": "Cod. 7597 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Pré-Treino Beta-Alanina",
+    "meta": {
+      "code": "7597",
+      "ean": "7899592851618",
+      "qty": "15 x 39 g",
+      "dun": "17899592851615",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Rejuvecel Coenzima Q10 + Semente de Uva em cápsulas",
+    "description": "Cod. 7518 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Rejuvecel Coenzima",
+    "meta": {
+      "code": "7518",
+      "ean": "7899592850413",
+      "qty": "15 x 13,5 g",
+      "dun": "17899592850410",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Spirulina Arthrospira platensis em cápsulas",
+    "description": "Cod. 7139 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Spirulina Arthrospira",
+    "meta": {
+      "code": "7139",
+      "ean": "7899592848410",
+      "qty": "15 x 36 g",
+      "dun": "17899592848417",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Cloreto de Magnésio em cápsulas",
+    "description": "Cod. 7739 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7739",
+      "ean": "7899592853452",
+      "qty": "15 x 34,8 g",
+      "dun": "17899592853459",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Magnésio e Treonina em cápsulas",
+    "description": "Cod. 7408 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7408",
+      "ean": "7899592850031",
+      "qty": "15 x 31,8 g",
+      "dun": "17899592850038",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Magnésio Malato em cápsulas",
+    "description": "Cod. 7464 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7464",
+      "ean": "7899592850369",
+      "qty": "15 x 31,8 g",
+      "dun": "17899592850366",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento Mix 5 Magnésios em cápsulas",
+    "description": "Cod. 7500 - Pote c/ 90 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento Mix",
+    "meta": {
+      "code": "7500",
+      "ean": "7899592850406",
+      "qty": "15 x 63 g",
+      "dun": "17899592850403",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Picolinato de Cromo em cápsulas",
+    "description": "Cod. 9835 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "9835",
+      "ean": "7899592805338",
+      "qty": "15 x 30 g",
+      "dun": "17899592805335",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Selênio em cápsulas",
+    "description": "Cod. 6754 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "6754",
+      "ean": "7899592843736",
+      "qty": "15 x 30 g",
+      "dun": "17899592843733",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento Treonat Mais - Magnésio e L-treonina em cápsulas",
+    "description": "Cod. 7197 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento Treonat Mais",
+    "meta": {
+      "code": "7197",
+      "ean": "7899592848816",
+      "qty": "15 x 31,8 g",
+      "dun": "17899592848813",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Vitamina B12 em cápsulas",
+    "description": "Cod. 7187 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7187",
+      "ean": "7899592848724",
+      "qty": "15 x 15 g",
+      "dun": "17899592848721",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Vitamina C + Zinco em cápsulas",
+    "description": "Cod. 7136 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7136",
+      "ean": "7899592848311",
+      "qty": "15 x 25,5 g",
+      "dun": "7899592848318",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Vitamina E em cápsulas",
+    "description": "Cod. 7208 - Pote c/30 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7208",
+      "ean": "7899592848939",
+      "qty": "15 x 20,1 g",
+      "dun": "17899592848936",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Vitamina K2+D3 2000 UI em cápsulas",
+    "description": "Cod. 6931 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "6931",
+      "ean": "7899592845129",
+      "qty": "15 x 15 g",
+      "dun": "17899592845126",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Vitamina K2 (MK-7) em cápsulas",
+    "description": "Cod. 4031 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "4031",
+      "ean": "7899592842333",
+      "qty": "15 x 16,5 g",
+      "dun": "17899592842330",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Vitaminas do Complexo B em cápsulas",
+    "description": "Cod. 7462 - Pote c/ 60 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "7462",
+      "ean": "7899592850376",
+      "qty": "15 x 32,4 g",
+      "dun": "17899592850373",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Suplemento de Zinco Quelato em cápsulas",
+    "description": "Cod. 5978 - Pote c/ 30 cáps",
+    "type": "Cápsula",
+    "family": "Suplemento de",
+    "meta": {
+      "code": "5978",
+      "ean": "7899592837698",
+      "qty": "15 x 15 g",
+      "dun": "17899592837695",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá misto 30 Ervas, Flores e Frutas",
+    "description": "Cod. 4187 - Caixa c/ 60 sachês",
+    "type": "Chá",
+    "family": "Chá misto",
+    "meta": {
+      "code": "4187",
+      "ean": "7899592826135",
+      "qty": "21 x 66 g",
+      "dun": "17899592826132",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá Leveza 30 - Dia e Noite",
+    "description": "Cod. 4160 - Caixa c/ 60 sachês",
+    "type": "Chá",
+    "family": "Chá Leveza 30",
+    "meta": {
+      "code": "4160",
+      "ean": "7899592825718",
+      "qty": "21 x 81 g",
+      "dun": "17899592825715",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Leveza 30 Pink Lemonade",
+    "description": "Cod. 7596 - Caixa c/ 15 sachês",
+    "type": "Solúvel",
+    "family": "Leveza 30",
+    "meta": {
+      "code": "7596",
+      "ean": "7899592851625",
+      "qty": "14 x 22,5 g",
+      "dun": "17899592851622",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá misto Bio Resfrin sabor Laranja",
+    "description": "Cod. 5058 - Caixa c/ 30 sachês",
+    "type": "Chá",
+    "family": "Chá misto",
+    "meta": {
+      "code": "5058",
+      "ean": "7899592831719",
+      "qty": "16 x 45 g",
+      "dun": "17899592831716",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá Sublime Noite e Melatonina em cápsulas",
+    "description": "Cod. 7854 - Caixa c/ 30 sachês e 36 cápsulas",
+    "type": "Chá",
+    "family": "Chá Sublime",
+    "meta": {
+      "code": "7854",
+      "ean": "7899592854039",
+      "qty": "16 x 54,72 g",
+      "dun": "17899592854036",
+      "ncm": "2106.90.30",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá misto Bom Dia Mais sabor Frutas Negras",
+    "description": "Cod. 7438 - Caixa c/ 15 sachês",
+    "type": "Chá",
+    "family": "Chá misto",
+    "meta": {
+      "code": "7438",
+      "ean": "7899592848540",
+      "qty": "14 x 22,5 g",
+      "dun": "17899592848547",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá misto Boa Tarde Mais sabor Hortelã e Abacaxi",
+    "description": "Cod. 7439 - Caixa c/ 15 sachês",
+    "type": "Chá",
+    "family": "Chá misto",
+    "meta": {
+      "code": "7439",
+      "ean": "7899592848533",
+      "qty": "14 x 22,5 g",
+      "dun": "17899592848530",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Chá misto Boa Noite Mais sabor Maracujá",
+    "description": "Cod. 7437 - Caixa c/ 15 sachês",
+    "type": "Chá",
+    "family": "Chá misto",
+    "meta": {
+      "code": "7437",
+      "ean": "7899592848557",
+      "qty": "14 x 18 g",
+      "dun": "17899592848554",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Brisa sabor Maracujá",
+    "description": "Cod. 12322 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Brisa",
+    "meta": {
+      "code": "12322",
+      "ean": "7899592812619",
+      "qty": "30 x 12 g",
+      "dun": "17899592812616",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Diva",
+    "description": "Cod. 12324 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Diva",
+    "meta": {
+      "code": "12324",
+      "ean": "7899592812626",
+      "qty": "30 x 12 g",
+      "dun": "17899592812623",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Energia sabor Laranja e Guaraná",
+    "description": "Cod. 12326 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Energia",
+    "meta": {
+      "code": "12326",
+      "ean": "7899592812633",
+      "qty": "30 x 12 g",
+      "dun": "17899592812630",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Essência",
+    "description": "Cod. 12328 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Essência",
+    "meta": {
+      "code": "12328",
+      "ean": "7899592812640",
+      "qty": "30 x 12 g",
+      "dun": "17899592812647",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Harmonia",
+    "description": "Cod. 12332 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Harmonia",
+    "meta": {
+      "code": "12332",
+      "ean": "7899592812657",
+      "qty": "30 x 10 g",
+      "dun": "17899592812654",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Inocência",
+    "description": "Cod. 12334 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Inocência",
+    "meta": {
+      "code": "12334",
+      "ean": "7899592812664",
+      "qty": "30 x 10 g",
+      "dun": "17899592812661",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Inverno sabor Laranja e Mel",
+    "description": "Cod. 12336 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Inverno",
+    "meta": {
+      "code": "12336",
+      "ean": "7899592812671",
+      "qty": "30 x 15 g",
+      "dun": "17899592812678",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Leveza sabor Abacaxi",
+    "description": "Cod. 12338 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Leveza",
+    "meta": {
+      "code": "12338",
+      "ean": "7899592812688",
+      "qty": "30 x 15 g",
+      "dun": "17899592812685",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Liberdade",
+    "description": "Cod. 12340 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Liberdade",
+    "meta": {
+      "code": "12340",
+      "ean": "7899592812695",
+      "qty": "30 x 10 g",
+      "dun": "17899592812692",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Noite",
+    "description": "Cod. 12342 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Noite",
+    "meta": {
+      "code": "12342",
+      "ean": "7899592812701",
+      "qty": "30 x 12 g",
+      "dun": "17899592812708",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Paixão sabor Cereja e Framboesa",
+    "description": "Cod. 12344 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Paixão",
+    "meta": {
+      "code": "12344",
+      "ean": "7899592812718",
+      "qty": "30 x 15 g",
+      "dun": "17899592812715",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Sublime Ternura",
+    "description": "Cod. 12348 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Sublime Ternura",
+    "meta": {
+      "code": "12348",
+      "ean": "7899592812732",
+      "qty": "30 x 12 g",
+      "dun": "17899592812739",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Anis-estrelado",
+    "description": "Cod. 2188 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Anis-estrelado",
+    "meta": {
+      "code": "2188",
+      "ean": "7898298366174",
+      "qty": "30 x 10 g",
+      "dun": "17898298366171",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Camomila e Laranja sabor Mel",
+    "description": "Cod. 4282 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Camomila e",
+    "meta": {
+      "code": "4282",
+      "ean": "7899592826838",
+      "qty": "30 x 10 g",
+      "dun": "17899592826835",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Mate e Capim-cidreira com Alecrim sabor Limão",
+    "description": "Cod. 5288 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Mate e",
+    "meta": {
+      "code": "5288",
+      "ean": "7899592832648",
+      "qty": "30 x 12 g",
+      "dun": "17899592832645",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Funcho",
+    "description": "Cod. 7413 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Funcho",
+    "meta": {
+      "code": "7413",
+      "ean": "7899592850055",
+      "qty": "30 x 15 g 1789959285005 2106.90.90 2 anos",
+      "dun": "",
+      "ncm": "",
+      "validity": ""
+    }
+  },
+  {
+    "name": "Hibisco",
+    "description": "Cod. 1359 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Hibisco",
+    "meta": {
+      "code": "1359",
+      "ean": "7898298364569",
+      "qty": "30 x 13 g",
+      "dun": "17898298364566",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Frutas Vermelhas sabor artificial de Morango",
+    "description": "Cod. 4280 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Frutas Vermelhas",
+    "meta": {
+      "code": "4280",
+      "ean": "7899592826821",
+      "qty": "30 x 15 g",
+      "dun": "17899592826828",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  },
+  {
+    "name": "Silvestre sabor artificial de Cereja e Framboesa",
+    "description": "Cod. 4283 - Caixa c/ 10 sachês",
+    "type": "Solúvel",
+    "family": "Silvestre sabor",
+    "meta": {
+      "code": "4283",
+      "ean": "7899592826814",
+      "qty": "30 x 15 g",
+      "dun": "17899592826811",
+      "ncm": "2106.90.90",
+      "validity": "2 anos"
+    }
+  }
+]

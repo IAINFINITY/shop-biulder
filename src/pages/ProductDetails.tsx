@@ -1,10 +1,12 @@
-﻿import { useParams, Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PRODUCTS_TABLE, Product, getCart, saveCart } from "@/lib/products";
+import { PRODUCTS_TABLE, Product, CartItem, getCart, saveCart } from "@/lib/products";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CartDrawer } from "@/components/CartDrawer";
 import { toast } from "sonner";
 
 const typeIcons: Record<string, any> = {
@@ -21,6 +23,31 @@ const typeColors: Record<string, string> = {
 
 export default function ProductDetails() {
   const { id } = useParams();
+
+  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  useEffect(() => { saveCart(cart); }, [cart]);
+
+  const openCart = useCallback(() => setIsCartOpen(true), []);
+
+  const updateQuantity = useCallback((id: string, delta: number) => {
+    setCart((prev) => prev.map((c) =>
+      c.product.id === id ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c
+    ));
+  }, []);
+
+  const removeFromCart = useCallback((id: string) => {
+    setCart((prev) => prev.filter((c) => c.product.id !== id));
+  }, []);
+
+  const updateNotes = useCallback((id: string, notes: string) => {
+    setCart((prev) => prev.map((c) =>
+      c.product.id === id ? { ...c, notes } : c
+    ));
+  }, []);
+
+  const clearCart = useCallback(() => { setCart([]); }, []);
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["product", id],
@@ -39,13 +66,20 @@ export default function ProductDetails() {
 
   const handleAdd = () => {
     if (!product) return;
-    const cart = getCart();
-    if (cart.some((c) => c.product.id === product.id)) {
-      toast.info("Produto já está no carrinho");
-      return;
-    }
-    saveCart([...cart, { product, quantity: 1 }]);
-    toast.success(`${product.name} adicionado!`);
+    setCart((prev) => {
+      const existing = prev.find((c) => c.product.id === product.id);
+      if (existing) {
+        toast.info("Produto já está no carrinho");
+        return prev;
+      }
+      toast.success(`${product.name} adicionado!`, {
+        action: {
+          label: "Ver meu carrinho",
+          onClick: openCart,
+        },
+      });
+      return [...prev, { product, quantity: 1 }];
+    });
   };
 
   if (isLoading) {
@@ -83,6 +117,17 @@ export default function ProductDetails() {
             </Button>
           </Link>
           <span className="font-semibold text-foreground">Detalhes do Produto</span>
+          <div className="ml-auto">
+            <CartDrawer
+              cart={cart}
+              onUpdateQuantity={updateQuantity}
+              onRemove={removeFromCart}
+              onUpdateNotes={updateNotes}
+              onClear={clearCart}
+              open={isCartOpen}
+              onOpenChange={setIsCartOpen}
+            />
+          </div>
         </div>
       </header>
 

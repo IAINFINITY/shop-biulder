@@ -8,11 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
+import { useOrders } from "@/hooks/useOrders";
 import { useAdminProductTypes } from "@/hooks/useAdminProductTypes";
 import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE } from "@/lib/products";
+import { ORDERS_TABLE } from "@/lib/orders";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -69,17 +72,36 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
 export default function Admin() {
   const { user, isAdmin, loading, signIn, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts();
+  const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin);
   const { data: adminTypes = [] } = useAdminProductTypes();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<ProductForm | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [newType, setNewType] = useState("");
+  const [activeTab, setActiveTab] = useState("produtos");
+  const [orderSearch, setOrderSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const derivedTypes = useMemo(() => {
     return [...new Set(products.map((p) => p.type))].sort();
   }, [products]);
+
+  const filteredOrders = useMemo(() => {
+    const term = orderSearch.trim().toLowerCase();
+    if (!term) return orders;
+    return orders.filter((order) => {
+      const fields = [
+        order.customer_name,
+        order.customer_company,
+        order.customer_phone,
+        order.customer_cnpj,
+        order.status,
+        order.id,
+      ];
+      return fields.some((value) => value?.toLowerCase().includes(term));
+    });
+  }, [orders, orderSearch]);
 
   const typeOptions = adminTypes.length
     ? adminTypes.map((t) => t.name)
@@ -101,6 +123,7 @@ export default function Admin() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["products"] });
   const refreshTypes = () => queryClient.invalidateQueries({ queryKey: ["product-types"] });
+  const refreshOrders = () => queryClient.invalidateQueries({ queryKey: ["orders"] });
 
   const startNew = () => { setEditing({ ...emptyForm }); setIsNew(true); };
   const startEdit = (p: any) => { setEditing({ id: p.id, name: p.name, description: p.description, type: p.type, family: p.family, image_url: p.image_url, active: p.active }); setIsNew(false); };
@@ -167,6 +190,17 @@ export default function Admin() {
     toast.success("Tipo removido.");
     refreshTypes();
   };
+
+  const deleteOrder = async (id: string) => {
+    const shouldDelete = window.confirm("Deseja remover este pedido?");
+    if (!shouldDelete) return;
+    const { error } = await supabase.from(ORDERS_TABLE).delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Pedido removido.");
+    refreshOrders();
+  };
+
+  const formatDate = (value: string) => new Date(value).toLocaleString("pt-BR");
 
   const renderForm = (title: string, className?: string) => {
     if (!editing) return null;
@@ -258,57 +292,139 @@ export default function Admin() {
             <Leaf className="w-5 h-5 text-primary" />
             <span className="font-bold text-foreground">Clinic<span className="text-accent">+</span></span>
           </div>
-          <span className="text-sm text-muted-foreground">Gerenciar Produtos</span>
+          <span className="text-sm text-muted-foreground">Painel Administrativo</span>
           <div className="ml-auto flex items-center gap-2">
-            <Button onClick={startNew} size="sm" className="gap-1"><Plus className="w-4 h-4" /> Novo Produto</Button>
+            {activeTab === "produtos" && (
+              <Button onClick={startNew} size="sm" className="gap-1"><Plus className="w-4 h-4" /> Novo Produto</Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => signOut()}><LogOut className="w-4 h-4" /></Button>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
-        {editing && isNew && renderForm("Novo Produto", "mb-6")}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="produtos">Produtos</TabsTrigger>
+            <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
+          </TabsList>
 
-        {isLoading ? (
-          <p className="text-muted-foreground text-center py-10">Carregando produtos...</p>
-        ) : (
-          <div className="space-y-2">
-            {products.map((p) => (
-              editing && !isNew && editing.id === p.id ? (
-                <div key={p.id} className="rounded-lg border border-primary/20 bg-card p-4">
-                  {renderForm("Editar Produto")}
-                </div>
-              ) : (
-                <div key={p.id} className={`flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors ${!p.active ? "opacity-50" : ""}`}>
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg" />
+          <TabsContent value="produtos">
+            {editing && isNew && renderForm("Novo Produto", "mb-6")}
+
+            {isLoading ? (
+              <p className="text-muted-foreground text-center py-10">Carregando produtos...</p>
+            ) : (
+              <div className="space-y-2">
+                {products.map((p) => (
+                  editing && !isNew && editing.id === p.id ? (
+                    <div key={p.id} className="rounded-lg border border-primary/20 bg-card p-4">
+                      {renderForm("Editar Produto")}
+                    </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
-                      <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
+                    <div key={p.id} className={`flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors ${!p.active ? "opacity-50" : ""}`}>
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
+                          <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{p.name}</p>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">{p.type}</Badge>
+                          <Badge variant="secondary" className="text-xs">{p.family}</Badge>
+                          {!p.active && <Badge variant="destructive" className="text-xs">Inativo</Badge>}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleActive(p.id, p.active)}>
+                        {p.active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(p)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(p.id)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground truncate">{p.name}</p>
-                    <div className="flex gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">{p.type}</Badge>
-                      <Badge variant="secondary" className="text-xs">{p.family}</Badge>
-                      {!p.active && <Badge variant="destructive" className="text-xs">Inativo</Badge>}
+                  )
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="pedidos">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <Input
+                placeholder="Pesquisar pedido (nome, empresa, telefone, CNPJ, status)"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                className="sm:max-w-md"
+              />
+              <span className="text-xs text-muted-foreground">
+                {ordersLoading ? "Carregando..." : `${filteredOrders.length} pedido(s)`}
+              </span>
+            </div>
+            {ordersLoading ? (
+              <p className="text-muted-foreground text-center py-10">Carregando pedidos...</p>
+            ) : filteredOrders.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">
+                Nenhum pedido recebido ainda.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredOrders.map((order) => {
+                  const items = Array.isArray(order.items) ? order.items : [];
+                  return (
+                    <div key={order.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">{order.customer_name}</p>
+                          <p className="text-sm text-muted-foreground">{order.customer_company}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{order.status}</Badge>
+                          <span className="text-xs text-muted-foreground">{formatDate(order.created_at)}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => deleteOrder(order.id)}
+                            title="Excluir pedido"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Telefone: <span className="text-foreground">{order.customer_phone}</span>{" "}
+                        · CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {items.map((item: any, index: number) => (
+                          <div key={`${order.id}-${index}`} className="rounded-md border border-border p-2">
+                            <p className="text-sm font-medium text-foreground">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.type} · {item.family}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Quantidade: <span className="text-foreground">{item.quantity}</span>
+                            </p>
+                            {item.notes && (
+                              <p className="text-xs text-muted-foreground">Obs: {item.notes}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Total de itens: <span className="text-foreground">{order.total_items}</span>
+                      </div>
                     </div>
-                  </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleActive(p.id, p.active)}>
-                    {p.active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(p)}>
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(p.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              )
-            ))}
-          </div>
-        )}
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

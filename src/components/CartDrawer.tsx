@@ -1,37 +1,44 @@
 import { Minus, Plus, Trash2, ShoppingBag, Send, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { CartItem } from "@/lib/products";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
-
 interface CartDrawerProps {
   cart: CartItem[];
   onUpdateQuantity: (productId: string, delta: number) => void;
   onRemove: (productId: string) => void;
   onUpdateNotes: (productId: string, notes: string) => void;
   onClear: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CartDrawer({ cart, onUpdateQuantity, onRemove, onUpdateNotes, onClear }: CartDrawerProps) {
+export function CartDrawer({
+  cart,
+  onUpdateQuantity,
+  onRemove,
+  onUpdateNotes,
+  onClear,
+  open,
+  onOpenChange,
+}: CartDrawerProps) {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const navigate = useNavigate();
 
   const handleSend = () => {
-    if (cart.length === 0) return;
-    const phone = "554998380268";
-    const header = "Ola! Gostaria de informacoes sobre os produtos do Catalogo Clinic+:";
-    const lines = cart.map((item) => {
-      const base = `${item.quantity}x ${item.product.name} (${item.product.type} · ${item.product.family})`;
-      return item.notes ? `${base} | Obs: ${item.notes}` : base;
-    });
-    const message = [header, "", ...lines].join("\n");
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.location.href = url;
+    if (cart.length === 0) {
+      toast.info("Carrinho vazio");
+      return;
+    }
+    onOpenChange?.(false);
+    navigate("/pedido");
   };
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
         <Button variant="default" className="gap-2 relative shadow-lg">
           <ShoppingBag className="w-5 h-5" />

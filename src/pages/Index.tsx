@@ -13,6 +13,7 @@ import heroImage from "@/assets/hero-products.jpg";
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
   const [cart, setCart] = useState<CartItem[]>(getCart);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
@@ -30,6 +31,8 @@ export default function Index() {
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
 
+  const openCart = useCallback(() => setIsCartOpen(true), []);
+
   const addToCart = useCallback((product: Product) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.product.id === product.id);
@@ -37,10 +40,15 @@ export default function Index() {
         toast.info("Produto já está no carrinho");
         return prev;
       }
-      toast.success(`${product.name} adicionado!`);
+      toast.success(`${product.name} adicionado!`, {
+        action: {
+          label: "Ver meu carrinho",
+          onClick: openCart,
+        },
+      });
       return [...prev, { product, quantity: 1 }];
     });
-  }, []);
+  }, [openCart]);
 
   const updateQuantity = useCallback((id: string, delta: number) => {
     setCart((prev) => prev.map((c) =>
@@ -99,6 +107,8 @@ export default function Index() {
               onRemove={removeFromCart}
               onUpdateNotes={updateNotes}
               onClear={clearCart}
+              open={isCartOpen}
+              onOpenChange={setIsCartOpen}
             />
             <Link to="/admin">
               <Button variant="ghost" size="icon" className="text-muted-foreground">

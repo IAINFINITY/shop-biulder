@@ -152,11 +152,9 @@ export default function OrderForm() {
       status: "NOVO CARRINHO",
     };
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from(ORDERS_TABLE)
-      .insert(payload)
-      .select("*")
-      .single();
+      .insert(payload);
     if (error) {
       console.error("Erro ao inserir pedido no Supabase", { error, payload });
       const lowerMessage = error.message?.toLowerCase() ?? "";
@@ -194,7 +192,7 @@ export default function OrderForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          order: data ?? payload,
+          order: payload,
           items: payload.items,
           total_items: payload.total_items,
           status: payload.status,

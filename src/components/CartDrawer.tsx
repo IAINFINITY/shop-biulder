@@ -103,7 +103,7 @@ export function CartDrawer({
             <div className="border-t border-border pt-4 space-y-2">
               <Button onClick={handleSend} className="w-full gap-2" size="lg">
                 <Send className="w-4 h-4" />
-                Enviar ao Consultor
+                Finalizar pedido
               </Button>
               <Button variant="ghost" size="sm" className="w-full text-muted-foreground gap-1" onClick={onClear}>
                 <X className="w-3 h-3" /> Limpar carrinho

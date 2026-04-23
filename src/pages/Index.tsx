@@ -111,7 +111,7 @@ export default function Index() {
               onOpenChange={setIsCartOpen}
             />
             <Link to="/admin">
-              <Button variant="ghost" size="icon" className="text-muted-foreground">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                 <Settings className="w-5 h-5" />
               </Button>
             </Link>

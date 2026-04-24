@@ -146,7 +146,7 @@ export default function Index() {
                 <p className="text-sm mt-1">Tente ajustar os filtros.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch auto-rows-fr">
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch auto-rows-fr">
                 {filtered.map((product) => (
                   <ProductCard
                     key={product.id}

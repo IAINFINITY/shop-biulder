@@ -42,36 +42,46 @@ export function ProductCard({ product, onAdd, inCart }: ProductCardProps) {
           </div>
         )}
 
-        <div className="p-5 pb-3 flex flex-col flex-1">
-          <div className="flex items-start justify-between mb-3">
+        <div className="p-3 pb-2 sm:p-5 flex flex-col flex-1">
+          <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
             <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
               <Icon className="w-3 h-3 mr-1" />
               {product.type}
             </Badge>
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs shrink-0">
               {product.family}
             </Badge>
           </div>
 
-          <h3 className="font-semibold text-card-foreground text-lg leading-tight mb-2">
+          <h3 className="font-semibold text-card-foreground text-sm sm:text-lg leading-snug mb-1.5 sm:mb-2 line-clamp-2">
             {product.name}
           </h3>
 
-          <p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-3 flex-1">
+          <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-2 sm:mb-4 line-clamp-2 sm:line-clamp-3 flex-1">
             {product.description}
           </p>
         </div>
       </Link>
 
-      <div className="px-5 pb-5">
+      <div className="px-3 pb-3 pt-1 sm:px-5 sm:pb-5 sm:pt-0">
         <Button
           onClick={() => onAdd(product)}
           variant={inCart ? "secondary" : "default"}
-          className="w-full gap-2"
+          className="w-full gap-1.5 text-xs sm:text-sm h-9 sm:h-10"
           size="sm"
         >
           <Plus className="w-4 h-4" />
-          {inCart ? "Já no carrinho" : "Adicionar ao carrinho"}
+          {inCart ? (
+            <>
+              <span className="sm:hidden">No carrinho</span>
+              <span className="hidden sm:inline">Já no carrinho</span>
+            </>
+          ) : (
+            <>
+              <span className="sm:hidden">Adicionar</span>
+              <span className="hidden sm:inline">Adicionar ao carrinho</span>
+            </>
+          )}
         </Button>
       </div>
     </div>

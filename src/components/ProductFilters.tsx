@@ -25,14 +25,14 @@ export function ProductFilters({
   const hasFilters = search || selectedType || selectedFamily;
 
   return (
-    <div className="space-y-5 p-4 bg-gradient-to-b from-slate-50 to-slate-100 rounded-lg border border-slate-200 shadow-sm">
+    <div className="space-y-5 p-4 bg-card rounded-xl border border-border shadow-sm">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Buscar produtos..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 bg-white border-slate-300 focus:border-green-500 transition-colors"
+          className="pl-10 bg-background border-border focus:border-primary transition-colors"
         />
       </div>
 
@@ -41,7 +41,7 @@ export function ProductFilters({
           <CollapsibleTrigger asChild>
             <Button
               variant="default"
-              className="w-full justify-between flex items-center gap-2 h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
+              className="w-full justify-between flex items-center gap-2 h-11 text-base font-semibold shadow-sm hover:shadow transition-all duration-200"
             >
               <span className="flex items-center gap-2">
                 <Filter className="w-5 h-5" />
@@ -61,8 +61,8 @@ export function ProductFilters({
                 variant={selectedType === type ? "default" : "outline"}
                 className={`cursor-pointer transition-all duration-200 text-sm font-medium px-3 py-2 ${
                   selectedType === type
-                    ? "shadow-md scale-100"
-                    : "hover:shadow-md hover:scale-105 hover:border-green-400"
+                    ? "shadow-sm"
+                    : "hover:shadow-sm hover:border-primary/40"
                 }`}
                 onClick={() => onTypeChange(selectedType === type ? null : type)}
               >
@@ -78,7 +78,7 @@ export function ProductFilters({
           <CollapsibleTrigger asChild>
             <Button
               variant="default"
-              className="w-full justify-between flex items-center gap-2 h-11 text-base font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
+              className="w-full justify-between flex items-center gap-2 h-11 text-base font-semibold shadow-sm hover:shadow transition-all duration-200"
             >
               <span className="flex items-center gap-2">
                 <Filter className="w-5 h-5" />
@@ -98,8 +98,8 @@ export function ProductFilters({
                 variant={selectedFamily === fam ? "default" : "outline"}
                 className={`cursor-pointer transition-all duration-200 text-sm font-medium px-3 py-2 ${
                   selectedFamily === fam
-                    ? "shadow-md scale-100"
-                    : "hover:shadow-md hover:scale-105 hover:border-green-400"
+                    ? "shadow-sm"
+                    : "hover:shadow-sm hover:border-primary/40"
                 }`}
                 onClick={() => onFamilyChange(selectedFamily === fam ? null : fam)}
               >
@@ -114,7 +114,7 @@ export function ProductFilters({
         <Button
           variant="outline"
           size="sm"
-          className="w-full gap-2 text-slate-600 hover:text-slate-900 hover:border-slate-400 transition-all duration-200 border-slate-300 font-medium"
+          className="w-full gap-2 text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-200 border-border font-medium"
           onClick={() => { onSearchChange(""); onTypeChange(null); onFamilyChange(null); }}
         >
           <X className="w-4 h-4" /> Limpar filtros

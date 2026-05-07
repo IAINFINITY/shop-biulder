@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Leaf, Upload, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Upload, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,7 @@ import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE } from "@/lib/prod
 import { ORDERS_TABLE } from "@/lib/orders";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import clinicMaisLogo from "@/assets/clinicmais-logo.png";
 
 interface ProductForm {
   id?: string;
@@ -48,10 +49,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <Leaf className="w-6 h-6 text-primary" />
-            <span className="text-2xl font-bold text-foreground">Clinic<span className="text-accent">+</span></span>
-          </div>
+          <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-10 w-auto mx-auto" />
           <p className="text-muted-foreground text-sm">Acesso Administrativo</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -289,8 +287,7 @@ export default function Admin() {
         <div className="container mx-auto px-4 h-14 flex items-center gap-4">
           <Link to="/"><Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button></Link>
           <div className="flex items-center gap-2">
-            <Leaf className="w-5 h-5 text-primary" />
-            <span className="font-bold text-foreground">Clinic<span className="text-accent">+</span></span>
+            <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto" />
           </div>
           <span className="text-sm text-muted-foreground">Painel Administrativo</span>
           <div className="ml-auto flex items-center gap-2">

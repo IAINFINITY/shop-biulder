@@ -1,14 +1,14 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Settings, Leaf } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProductCard } from "@/components/ProductCard";
+import { ProductListItem } from "@/components/ProductListItem";
 import { ProductFilters } from "@/components/ProductFilters";
 import { CartDrawer } from "@/components/CartDrawer";
 import { Product, CartItem, getCart, saveCart } from "@/lib/products";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
-import heroImage from "@/assets/hero-products.jpg";
+import clinicMaisLogo from "@/assets/clinicmais-logo.png";
 
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
@@ -33,7 +33,7 @@ export default function Index() {
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
-  const addToCart = useCallback((product: Product) => {
+  const addToCart = useCallback((product: Product, quantity: number) => {
     setCart((prev) => {
       const existing = prev.find((c) => c.product.id === product.id);
       if (existing) {
@@ -46,7 +46,7 @@ export default function Index() {
           onClick: openCart,
         },
       });
-      return [...prev, { product, quantity: 1 }];
+      return [...prev, { product, quantity: Math.max(1, quantity) }];
     });
   }, [openCart]);
 
@@ -70,32 +70,28 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <div className="relative h-56 sm:h-72 overflow-hidden">
-        <img src={heroImage} alt="Produtos Clinic+" width={1920} height={800} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-foreground/70 to-foreground/30" />
-        <div className="absolute inset-0 flex items-center">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-                <Leaf className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-bold text-background tracking-tight">
-                Clinic<span className="text-accent">+</span>
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-3xl font-bold text-background max-w-lg">
+      <header className="border-b border-border bg-card">
+        <div className="h-1 bg-primary" />
+        <div className="container mx-auto px-4 py-4 sm:py-5 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-9 sm:h-11 w-auto mb-2" />
+            <h1 className="text-lg sm:text-2xl font-semibold text-foreground leading-tight">
               Monte seu carrinho de interesse
             </h1>
-            <p className="text-background/80 mt-1 text-sm sm:text-base max-w-md">
-              Selecione os produtos desejados para seu atendimento personalizado.
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Selecione os produtos para montar seu pedido personalizado.
             </p>
           </div>
+          <Link to="/admin">
+            <Button variant="outline" size="icon" className="shrink-0 border-primary/20 text-primary hover:bg-primary/10 hover:text-primary">
+              <Settings className="w-5 h-5" />
+            </Button>
+          </Link>
         </div>
-      </div>
+      </header>
 
       {/* Toolbar */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border shadow-sm">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             {isLoading ? "Carregando..." : `${filtered.length} produto(s) encontrado(s)`}
@@ -110,11 +106,6 @@ export default function Index() {
               open={isCartOpen}
               onOpenChange={setIsCartOpen}
             />
-            <Link to="/admin">
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </Link>
           </div>
         </div>
       </div>
@@ -146,9 +137,9 @@ export default function Index() {
                 <p className="text-sm mt-1">Tente ajustar os filtros.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch auto-rows-fr">
+              <div className="space-y-3">
                 {filtered.map((product) => (
-                  <ProductCard
+                  <ProductListItem
                     key={product.id}
                     product={product}
                     onAdd={addToCart}

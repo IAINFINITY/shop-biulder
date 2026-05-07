@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useMemo } from "react";
+﻿import { useState, useRef, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Upload, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
 }
 
 export default function Admin() {
-  const { user, isAdmin, loading, adminLoading, signIn, signOut } = useAuth();
+  const { user, isAdmin, loading, signIn, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts();
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin);
   const { data: adminTypes = [] } = useAdminProductTypes();
@@ -80,6 +80,29 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState("produtos");
   const [orderSearch, setOrderSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let didSignOut = false;
+    const forceRelogin = () => {
+      if (didSignOut) return;
+      didSignOut = true;
+      void signOut();
+    };
+
+    const handlePageExit = () => {
+      forceRelogin();
+    };
+
+    window.addEventListener("beforeunload", handlePageExit);
+    window.addEventListener("pagehide", handlePageExit);
+
+    return () => {
+      window.removeEventListener("beforeunload", handlePageExit);
+      window.removeEventListener("pagehide", handlePageExit);
+    };
+  }, [user, signOut]);
 
   const derivedTypes = useMemo(() => {
     return [...new Set(products.map((p) => p.type))].sort();
@@ -107,10 +130,7 @@ export default function Admin() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
   if (!user) return <LoginForm onLogin={signIn} />;
-  if (user && isAdmin === null && adminLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
-  }
-  if (isAdmin !== true) return (
+  if (!isAdmin) return (
     <div className="min-h-screen flex items-center justify-center p-4 text-center">
       <div className="space-y-4">
         <p className="text-muted-foreground">Você não tem permissão de administrador.</p>

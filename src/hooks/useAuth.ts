@@ -4,9 +4,8 @@ import type { User } from "@supabase/supabase-js";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [adminLoading, setAdminLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -17,23 +16,14 @@ export function useAuth() {
 
       if (!u) {
         setIsAdmin(false);
-        setAdminLoading(false);
         return;
       }
 
-      setAdminLoading(true);
       try {
-        const rolePromise = supabase.rpc("has_role", {
+        const { data, error } = await supabase.rpc("has_role", {
           _user_id: u.id,
           _role: "admin",
         });
-
-        // Avoid keeping admin screen blocked forever on flaky networks.
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("role-check-timeout")), 7000);
-        });
-
-        const { data, error } = await Promise.race([rolePromise, timeoutPromise]);
         if (error) {
           setIsAdmin(false);
           return;
@@ -41,8 +31,6 @@ export function useAuth() {
         setIsAdmin(!!data);
       } catch {
         setIsAdmin(false);
-      } finally {
-        if (mounted) setAdminLoading(false);
       }
     };
 
@@ -88,5 +76,5 @@ export function useAuth() {
 
   const signOut = () => supabase.auth.signOut();
 
-  return { user, isAdmin, loading, adminLoading, signIn, signUp, signOut };
+  return { user, isAdmin, loading, signIn, signUp, signOut };
 }

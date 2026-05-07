@@ -68,7 +68,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
 }
 
 export default function Admin() {
-  const { user, isAdmin, loading, signIn, signOut } = useAuth();
+  const { user, isAdmin, loading, adminLoading, signIn, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts();
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin);
   const { data: adminTypes = [] } = useAdminProductTypes();
@@ -107,7 +107,10 @@ export default function Admin() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
   if (!user) return <LoginForm onLogin={signIn} />;
-  if (!isAdmin) return (
+  if (user && isAdmin === null && adminLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  }
+  if (isAdmin !== true) return (
     <div className="min-h-screen flex items-center justify-center p-4 text-center">
       <div className="space-y-4">
         <p className="text-muted-foreground">Você não tem permissão de administrador.</p>

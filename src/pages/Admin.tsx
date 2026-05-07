@@ -79,6 +79,7 @@ export default function Admin() {
   const [newType, setNewType] = useState("");
   const [activeTab, setActiveTab] = useState("produtos");
   const [orderSearch, setOrderSearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,6 +124,15 @@ export default function Admin() {
       return fields.some((value) => value?.toLowerCase().includes(term));
     });
   }, [orders, orderSearch]);
+
+  const filteredProducts = useMemo(() => {
+    const term = productSearch.trim().toLowerCase();
+    if (!term) return products;
+    return products.filter((product) => {
+      const fields = [product.name, product.family, product.type];
+      return fields.some((value) => value?.toLowerCase().includes(term));
+    });
+  }, [products, productSearch]);
 
   const typeOptions = adminTypes.length
     ? adminTypes.map((t) => t.name)
@@ -331,12 +341,20 @@ export default function Admin() {
 
           <TabsContent value="produtos">
             {editing && isNew && renderForm("Novo Produto", "mb-6")}
+            <div className="mb-4">
+              <Input
+                placeholder="Pesquisar produto (nome, família, tipo)"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="sm:max-w-md"
+              />
+            </div>
 
             {isLoading ? (
               <p className="text-muted-foreground text-center py-10">Carregando produtos...</p>
             ) : (
               <div className="space-y-2">
-                {products.map((p) => (
+                {filteredProducts.map((p) => (
                   editing && !isNew && editing.id === p.id ? (
                     <div key={p.id} className="rounded-lg border border-primary/20 bg-card p-4">
                       {renderForm("Editar Produto")}

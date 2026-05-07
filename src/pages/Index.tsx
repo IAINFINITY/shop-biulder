@@ -112,9 +112,9 @@ export default function Index() {
 
       {/* Content */}
       <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <aside className="lg:w-64 shrink-0">
-            <div className="lg:sticky lg:top-20">
+        <div className="flex flex-col lg:flex-row gap-6 lg:h-[calc(100vh-14rem)] lg:overflow-hidden">
+          <aside className="lg:w-64 shrink-0 lg:h-full lg:overflow-y-auto">
+            <div className="lg:pr-1">
               <ProductFilters
                 search={search}
                 onSearchChange={setSearch}
@@ -126,7 +126,7 @@ export default function Index() {
             </div>
           </aside>
 
-          <main className="flex-1">
+          <main className="flex-1 lg:h-full lg:overflow-y-auto lg:pr-1">
             {isLoading ? (
               <div className="text-center py-20 text-muted-foreground">
                 <p className="text-lg font-medium">Carregando produtos...</p>

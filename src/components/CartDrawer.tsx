@@ -85,7 +85,21 @@ export function CartDrawer({
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.product.id, -1)}>
                       <Minus className="w-3 h-3" />
                     </Button>
-                    <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const nextValue = Number(e.target.value);
+                        if (!Number.isFinite(nextValue)) return;
+                        const clamped = Math.max(1, Math.min(99, nextValue));
+                        const delta = clamped - item.quantity;
+                        if (delta !== 0) onUpdateQuantity(item.product.id, delta);
+                      }}
+                      className="h-7 w-16 text-center text-sm font-medium"
+                      aria-label={`Quantidade de ${item.product.name}`}
+                    />
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => onUpdateQuantity(item.product.id, 1)}>
                       <Plus className="w-3 h-3" />
                     </Button>

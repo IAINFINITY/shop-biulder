@@ -30,6 +30,10 @@ export default function Index() {
   }, [products, search, selectedType, selectedFamily]);
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
+  const cartQuantityById = useMemo(
+    () => new Map(cart.map((c) => [c.product.id, c.quantity])),
+    [cart]
+  );
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
@@ -37,8 +41,12 @@ export default function Index() {
     setCart((prev) => {
       const existing = prev.find((c) => c.product.id === product.id);
       if (existing) {
-        toast.info("Produto já está no carrinho");
-        return prev;
+        toast.success("Carrinho atualizado!");
+        return prev.map((c) =>
+          c.product.id === product.id
+            ? { ...c, quantity: Math.max(1, quantity) }
+            : c
+        );
       }
       toast.success(`${product.name} adicionado!`, {
         action: {
@@ -144,6 +152,7 @@ export default function Index() {
                     product={product}
                     onAdd={addToCart}
                     inCart={cartIds.has(product.id)}
+                    currentQuantity={cartQuantityById.get(product.id)}
                   />
                 ))}
               </div>

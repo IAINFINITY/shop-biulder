@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FlaskConical, ImageIcon, Leaf, Pill, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +21,19 @@ const typeBadgeClasses: Record<string, string> = {
 interface ProductListItemProps {
   product: Product;
   inCart?: boolean;
+  currentQuantity?: number;
   onAdd: (product: Product, quantity: number) => void;
 }
 
-export function ProductListItem({ product, inCart, onAdd }: ProductListItemProps) {
+export function ProductListItem({ product, inCart, currentQuantity, onAdd }: ProductListItemProps) {
   const Icon = typeIcons[product.type] || Leaf;
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    if (inCart && currentQuantity) {
+      setQuantity(currentQuantity);
+    }
+  }, [inCart, currentQuantity]);
 
   const quantitySafe = useMemo(() => {
     if (!Number.isFinite(quantity)) return 1;
@@ -79,17 +86,15 @@ export function ProductListItem({ product, inCart, onAdd }: ProductListItemProps
             onChange={(e) => setQuantity(Number(e.target.value))}
             className="w-20 h-9 text-center border-border focus-visible:ring-primary/40"
             aria-label="Quantidade"
-            disabled={!!inCart}
           />
           <Button
             onClick={() => onAdd(product, quantitySafe)}
             variant={inCart ? "secondary" : "default"}
             className="h-9 px-4 gap-2 min-w-28"
             size="sm"
-            disabled={!!inCart}
           >
             <Plus className="w-4 h-4" />
-            {inCart ? "No carrinho" : "Adicionar"}
+            {inCart ? "Atualizar carrinho" : "Adicionar"}
           </Button>
         </div>
       </div>

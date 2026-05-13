@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ProductListItem } from "@/components/ProductListItem";
 import { ProductFilters } from "@/components/ProductFilters";
 import { CartDrawer } from "@/components/CartDrawer";
-import { Product, CartItem, getCart, saveCart } from "@/lib/products";
+import { CartTotalBar } from "@/components/CartTotalBar";
+import { Product, CartItem, getCart, saveCart, getCartSubtotal } from "@/lib/products";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
@@ -76,8 +77,11 @@ export default function Index() {
 
   const clearCart = useCallback(() => { setCart([]); }, []);
 
+  const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
+  const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
       <header className="border-b border-border bg-card">
         <div className="h-1 bg-primary" />
         <div className="container mx-auto px-4 py-4 sm:py-5 flex items-center justify-between gap-4">
@@ -160,6 +164,13 @@ export default function Index() {
           </main>
         </div>
       </div>
+
+      <CartTotalBar
+        total={cartSubtotal}
+        itemCount={cartUnitCount}
+        visible={cart.length > 0}
+        onOpenCart={openCart}
+      />
     </div>
   );
 }

@@ -14,7 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useAdminProductTypes } from "@/hooks/useAdminProductTypes";
-import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE } from "@/lib/products";
+import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE, type Product } from "@/lib/products";
+import { coercePrice, formatBRL } from "@/lib/formatMoney";
 import { ORDERS_TABLE } from "@/lib/orders";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,9 +29,10 @@ interface ProductForm {
   family: string;
   image_url: string | null;
   active: boolean;
+  price: number;
 }
 
-const emptyForm: ProductForm = { name: "", description: "", type: "Chá", family: "", image_url: null, active: true };
+const emptyForm: ProductForm = { name: "", description: "", type: "Chá", family: "", image_url: null, active: true, price: 0 };
 
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<any> }) {
   const [email, setEmail] = useState("");
@@ -69,7 +71,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
 
 export default function Admin() {
   const { user, isAdmin, loading, signIn, signOut } = useAuth();
-  const { data: products = [], isLoading } = useProducts();
+  const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin);
   const { data: adminTypes = [] } = useAdminProductTypes();
   const queryClient = useQueryClient();
@@ -157,7 +159,19 @@ export default function Admin() {
   const refreshOrders = () => queryClient.invalidateQueries({ queryKey: ["orders"] });
 
   const startNew = () => { setEditing({ ...emptyForm }); setIsNew(true); };
-  const startEdit = (p: any) => { setEditing({ id: p.id, name: p.name, description: p.description, type: p.type, family: p.family, image_url: p.image_url, active: p.active }); setIsNew(false); };
+  const startEdit = (p: Product) => {
+    setEditing({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      type: p.type,
+      family: p.family,
+      image_url: p.image_url,
+      active: p.active,
+      price: coercePrice(p.price),
+    });
+    setIsNew(false);
+  };
   const cancel = () => { setEditing(null); setIsNew(false); };
 
   const uploadImage = async (file: File) => {
@@ -177,7 +191,15 @@ export default function Admin() {
       toast.error("Preencha nome e família do produto.");
       return;
     }
-    const payload = { name: editing.name, description: editing.description, type: editing.type, family: editing.family, image_url: editing.image_url, active: editing.active };
+    const payload = {
+      name: editing.name,
+      description: editing.description,
+      type: editing.type,
+      family: editing.family,
+      image_url: editing.image_url,
+      active: editing.active,
+      price: Math.max(0, Math.round(editing.price * 100) / 100),
+    };
     if (isNew) {
       const { error } = await supabase.from(PRODUCTS_TABLE).insert(payload);
       if (error) { toast.error(error.message); return; }
@@ -241,6 +263,24 @@ export default function Admin() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input placeholder="Nome do produto" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
           <Input placeholder="Família (ex: Detox, Beleza)" value={editing.family} onChange={(e) => setEditing({ ...editing, family: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="product-price">Preço (R$)</Label>
+            <Input
+              id="product-price"
+              type="number"
+              min={0}
+              step={0.01}
+              inputMode="decimal"
+              value={Number.isFinite(editing.price) ? editing.price : 0}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                setEditing({ ...editing, price: Number.isFinite(v) ? Math.max(0, v) : 0 });
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Exibido no catálogo e no carrinho. Sem valor = R$ 0,00.</p>
+          </div>
         </div>
         <Textarea placeholder="Descrição" value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
         <div className="flex flex-wrap items-center gap-3">
@@ -370,6 +410,7 @@ export default function Admin() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground truncate">{p.name}</p>
+                        <p className="text-xs font-medium text-primary tabular-nums mt-0.5">{formatBRL(coercePrice(p.price))}</p>
                         <div className="flex gap-2 mt-1">
                           <Badge variant="outline" className="text-xs">{p.type}</Badge>
                           <Badge variant="secondary" className="text-xs">{p.family}</Badge>
@@ -440,18 +481,47 @@ export default function Admin() {
                         · CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {items.map((item: any, index: number) => (
+                        {items.map((item: Record<string, unknown>, index: number) => {
+                          const qty = typeof item.quantity === "number" ? item.quantity : Number(item.quantity) || 0;
+                          const unit =
+                            typeof item.unit_price === "number"
+                              ? item.unit_price
+                              : item.unit_price != null
+                                ? coercePrice(item.unit_price)
+                                : 0;
+                          const line =
+                            typeof item.line_total === "number"
+                              ? item.line_total
+                              : Math.round(unit * qty * 100) / 100;
+                          const hasPricing =
+                            typeof item.unit_price === "number" ||
+                            typeof item.line_total === "number";
+                          return (
                           <div key={`${order.id}-${index}`} className="rounded-md border border-border p-2">
-                            <p className="text-sm font-medium text-foreground">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">{item.type} · {item.family}</p>
+                            <p className="text-sm font-medium text-foreground">{String(item.name ?? "")}</p>
+                            <p className="text-xs text-muted-foreground">{String(item.type ?? "")} · {String(item.family ?? "")}</p>
                             <p className="text-xs text-muted-foreground">
-                              Quantidade: <span className="text-foreground">{item.quantity}</span>
+                              Quantidade: <span className="text-foreground">{qty}</span>
+                              {hasPricing && (
+                                <>
+                                  {" · "}
+                                  <span className="text-foreground tabular-nums">{formatBRL(unit)} × {qty} = {formatBRL(line)}</span>
+                                </>
+                              )}
                             </p>
-                            {item.notes && (
-                              <p className="text-xs text-muted-foreground">Obs: {item.notes}</p>
+                            {String(item.notes ?? "").trim() && (
+                              <div className="mt-2 rounded-md bg-muted/50 p-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  Observacoes
+                                </p>
+                                <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
+                                  {String(item.notes ?? "").trim()}
+                                </p>
+                              </div>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Total de itens: <span className="text-foreground">{order.total_items}</span>

@@ -1,4 +1,6 @@
-﻿export const PRODUCTS_TABLE = "Clinic+ - Catálogo Front B2B";
+﻿import { coercePrice } from "./formatMoney";
+
+export const PRODUCTS_TABLE = "Clinic+ - Catálogo Front B2B";
 export const PRODUCT_TYPES_TABLE = "product_types";
 
 export interface Product {
@@ -9,8 +11,18 @@ export interface Product {
   family: string;
   image_url: string | null;
   active: boolean;
+  /** Preço unitário em reais; ausente ou null no legado = 0 */
+  price?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export function getProductUnitPrice(product: Pick<Product, "price">): number {
+  return coercePrice(product.price);
+}
+
+export function getCartSubtotal(cart: CartItem[]): number {
+  return cart.reduce((sum, item) => sum + getProductUnitPrice(item.product) * item.quantity, 0);
 }
 
 export interface CartItem {

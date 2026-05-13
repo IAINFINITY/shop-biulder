@@ -1,6 +1,8 @@
 ﻿import { Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Product } from "@/lib/products";
+import type { Product } from "@/lib/products";
+import { getProductUnitPrice } from "@/lib/products";
+import { formatBRL } from "@/lib/formatMoney";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -59,6 +61,9 @@ export function ProductCard({ product, onAdd, inCart }: ProductCardProps) {
 
           <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-2 sm:mb-4 line-clamp-2 sm:line-clamp-3 flex-1">
             {product.description}
+          </p>
+          <p className="text-sm sm:text-base font-semibold text-foreground tabular-nums mb-1">
+            {formatBRL(getProductUnitPrice(product))}
           </p>
         </div>
       </Link>

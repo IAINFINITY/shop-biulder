@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { CartItem, getCart, saveCart } from "@/lib/products";
+import type { Json } from "@/integrations/supabase/types";
+import { CartItem, getCart, saveCart, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
+import { formatBRL } from "@/lib/formatMoney";
+import { CartTotalBar } from "@/components/CartTotalBar";
 import { ORDERS_TABLE, toOrderItems } from "@/lib/orders";
 import { toast } from "sonner";
 
@@ -71,8 +74,13 @@ export default function OrderForm() {
     cnpj: "",
   });
   const [cnpjStatus, setCnpjStatus] = useState<"idle" | "checking" | "valid" | "invalid" | "error">("idle");
+  const summaryRef = useRef<HTMLDivElement>(null);
 
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+  const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
+  const scrollToSummary = useCallback(() => {
+    summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
   const cnpjDigits = onlyDigits(form.cnpj);
   const isCnpjIncomplete = cnpjDigits.length > 0 && cnpjDigits.length < 14;
   const isCnpjComplete = cnpjDigits.length === 14;
@@ -158,12 +166,15 @@ export default function OrderForm() {
 
     setSubmitting(true);
 
+    const orderItems = toOrderItems(cart);
+    const orderSubtotal = getCartSubtotal(cart);
+
     const payload = {
       customer_name: form.name.trim(),
       customer_phone: form.phone.trim(),
       customer_company: form.company.trim(),
       customer_cnpj: form.cnpj.trim(),
-      items: toOrderItems(cart),
+      items: orderItems as unknown as Json,
       total_items: totalItems,
       status: "NOVO CARRINHO",
     };
@@ -195,6 +206,7 @@ export default function OrderForm() {
           order: payload,
           items: payload.items,
           total_items: payload.total_items,
+          order_subtotal: orderSubtotal,
           status: payload.status,
         }),
       });
@@ -213,7 +225,7 @@ export default function OrderForm() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background${cart.length > 0 ? " pb-28" : ""}`}>
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex h-14 items-center gap-3 px-4">
           <Link to="/">
@@ -328,14 +340,17 @@ export default function OrderForm() {
               </form>
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
+            <div ref={summaryRef} className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-foreground">Resumo do carrinho</h2>
                 <Badge variant="secondary">{totalItems} item(s)</Badge>
               </div>
 
               <div className="space-y-3">
-                {cart.map((item) => (
+                {cart.map((item) => {
+                  const unit = getProductUnitPrice(item.product);
+                  const line = unit * item.quantity;
+                  return (
                   <div key={item.product.id} className="rounded-lg border border-border p-3">
                     <p className="text-sm font-medium text-foreground">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -344,14 +359,38 @@ export default function OrderForm() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       Quantidade: <span className="font-medium text-foreground">{item.quantity}</span>
                     </p>
-                    {item.notes && <p className="mt-1 text-xs text-muted-foreground">Obs: {item.notes}</p>}
+                    <p className="mt-1 text-sm font-medium text-foreground tabular-nums">
+                      {formatBRL(unit)} × {item.quantity} = {formatBRL(line)}
+                    </p>
+                    {item.notes?.trim() && (
+                      <div className="mt-2 rounded-md bg-muted/50 p-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Observacoes
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
+                          {item.notes.trim()}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
+                <span className="text-lg font-semibold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      <CartTotalBar
+        total={cartSubtotal}
+        itemCount={totalItems}
+        visible={cart.length > 0}
+        onOpenCart={scrollToSummary}
+      />
     </div>
   );
 }

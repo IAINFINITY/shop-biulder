@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PRODUCTS_TABLE, Product, CartItem, getCart, saveCart } from "@/lib/products";
+import { PRODUCTS_TABLE, Product, CartItem, getCart, saveCart, getCartSubtotal } from "@/lib/products";
+import { coercePrice, formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CartDrawer } from "@/components/CartDrawer";
+import { CartTotalBar } from "@/components/CartTotalBar";
 import { toast } from "sonner";
 
 const typeIcons: Record<string, any> = {
@@ -49,6 +51,9 @@ export default function ProductDetails() {
 
   const clearCart = useCallback(() => { setCart([]); }, []);
 
+  const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
+  const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
+
   const { data: product, isLoading, error } = useQuery({
     queryKey: ["product", id],
     enabled: !!id,
@@ -58,9 +63,14 @@ export default function ProductDetails() {
         .from(PRODUCTS_TABLE)
         .select("*")
         .eq("id", id)
+        .eq("active", true)
         .single();
       if (error) throw error;
-      return data as Product;
+      const row = data as Record<string, unknown>;
+      return {
+        ...(row as Product),
+        price: coercePrice(row.price),
+      };
     },
   });
 
@@ -108,7 +118,7 @@ export default function ProductDetails() {
   const Icon = typeIcons[product.type] || Leaf;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 h-14 flex items-center gap-3">
           <Link to="/">
@@ -156,6 +166,8 @@ export default function ProductDetails() {
 
             <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
 
+            <p className="text-2xl font-semibold text-primary tabular-nums">{formatBRL(coercePrice(product.price))}</p>
+
             <p className="text-muted-foreground leading-relaxed">
               {product.description}
             </p>
@@ -168,6 +180,13 @@ export default function ProductDetails() {
           </div>
         </div>
       </div>
+
+      <CartTotalBar
+        total={cartSubtotal}
+        itemCount={cartUnitCount}
+        visible={cart.length > 0}
+        onOpenCart={openCart}
+      />
     </div>
   );
 }

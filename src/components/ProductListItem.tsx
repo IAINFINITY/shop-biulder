@@ -4,7 +4,9 @@ import { FlaskConical, ImageIcon, Leaf, Pill, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Product } from "@/lib/products";
+import type { Product } from "@/lib/products";
+import { getProductUnitPrice } from "@/lib/products";
+import { formatBRL } from "@/lib/formatMoney";
 
 const typeIcons: Record<string, any> = {
   "Chá": Leaf,
@@ -74,6 +76,9 @@ export function ProductListItem({ product, inCart, currentQuantity, onAdd }: Pro
           </Link>
           <p className="mt-1 text-muted-foreground text-sm leading-relaxed line-clamp-2 sm:line-clamp-3">
             {product.description}
+          </p>
+          <p className="mt-2 text-base font-semibold text-foreground tabular-nums">
+            {formatBRL(getProductUnitPrice(product))}
           </p>
         </div>
 

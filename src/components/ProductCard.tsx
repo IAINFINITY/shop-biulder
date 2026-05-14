@@ -1,7 +1,7 @@
 ﻿import { Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@/lib/products";
-import { getProductUnitPrice } from "@/lib/products";
+import { getProductUnitPrice, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,14 +26,15 @@ interface ProductCardProps {
 
 export function ProductCard({ product, onAdd, inCart }: ProductCardProps) {
   const Icon = typeIcons[product.type] || Leaf;
+  const coverUrl = getProductImageUrls(product)[0];
 
   return (
     <div className="group relative rounded-xl border border-border bg-card overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 h-full flex flex-col">
       <Link to={`/produto/${product.id}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 flex-1 flex flex-col">
-        {product.image_url ? (
+        {coverUrl ? (
           <div className="aspect-[4/3] overflow-hidden">
             <img
-              src={product.image_url}
+              src={coverUrl}
               alt={product.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             />

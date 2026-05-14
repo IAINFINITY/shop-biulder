@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Product } from "@/lib/products";
-import { getProductUnitPrice } from "@/lib/products";
+import { getProductUnitPrice, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 
 const typeIcons: Record<string, any> = {
@@ -30,6 +30,7 @@ interface ProductListItemProps {
 export function ProductListItem({ product, inCart, currentQuantity, onAdd }: ProductListItemProps) {
   const Icon = typeIcons[product.type] || Leaf;
   const [quantity, setQuantity] = useState(1);
+  const coverUrl = getProductImageUrls(product)[0];
 
   useEffect(() => {
     if (inCart && currentQuantity) {
@@ -50,8 +51,8 @@ export function ProductListItem({ product, inCart, currentQuantity, onAdd }: Pro
           className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-border bg-muted flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`Ver detalhes de ${product.name}`}
         >
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+          {coverUrl ? (
+            <img src={coverUrl} alt={product.name} className="w-full h-full object-cover" />
           ) : (
             <ImageIcon className="w-8 h-8 text-muted-foreground/40" />
           )}

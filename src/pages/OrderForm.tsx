@@ -10,7 +10,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { CartItem, getCart, saveCart, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { CartTotalBar } from "@/components/CartTotalBar";
-import { ORDERS_TABLE, toOrderItems } from "@/lib/orders";
+import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
@@ -194,19 +194,48 @@ export default function OrderForm() {
       return;
     }
 
+    const submittedCart: SubmittedCartLine[] = cart.map((item) => {
+      const unit = getProductUnitPrice(item.product);
+      const qty = item.quantity;
+      return {
+        name: item.product.name,
+        type: item.product.type,
+        family: item.product.family,
+        quantity: qty,
+        unit_price: unit,
+        line_total: Math.round(unit * qty * 100) / 100,
+        notes: item.notes,
+      };
+    });
+
     saveCart([]);
     setCart([]);
     toast.success("Pedido enviado com sucesso!");
 
     try {
+      const itemsForWebhook = orderItems.map((row) => ({
+        product_id: row.product_id,
+        name: row.name,
+        type: row.type,
+        family: row.family,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        line_total: row.line_total,
+        notes: row.notes,
+      }));
+      const cartTotal = Math.round(orderSubtotal * 100) / 100;
+
       await fetch("https://webhooks-n8n.iainfinity.app/webhook/novo-carrinho", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           order: payload,
-          items: payload.items,
+          items: itemsForWebhook,
           total_items: payload.total_items,
-          order_subtotal: orderSubtotal,
+          order_subtotal: cartTotal,
+          cart_total: cartTotal,
+          valor_total_carrinho: cartTotal,
+          currency: "BRL",
           status: payload.status,
         }),
       });
@@ -220,6 +249,8 @@ export default function OrderForm() {
         customerName: payload.customer_name,
         company: payload.customer_company,
         totalItems: payload.total_items,
+        submittedCart,
+        orderSubtotal,
       },
     });
   };

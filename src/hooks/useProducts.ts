@@ -1,14 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PRODUCTS_TABLE, type Product } from "@/lib/products";
-import { coercePrice } from "@/lib/formatMoney";
-
-function normalizeProductRow(row: Record<string, unknown>): Product {
-  return {
-    ...(row as Product),
-    price: coercePrice(row.price),
-  };
-}
+import { PRODUCTS_TABLE, normalizeProductFromSupabaseRow } from "@/lib/products";
 
 export type UseProductsOptions = {
   /** Admin: listar também inativos. No catálogo público omitir ou deixar false. */
@@ -26,7 +18,7 @@ export function useProducts(options?: UseProductsOptions) {
       }
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((row) => normalizeProductRow(row as Record<string, unknown>));
+      return (data ?? []).map((row) => normalizeProductFromSupabaseRow(row as Record<string, unknown>));
     },
   });
 }

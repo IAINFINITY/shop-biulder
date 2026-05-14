@@ -3,12 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PRODUCTS_TABLE, Product, CartItem, getCart, saveCart, getCartSubtotal } from "@/lib/products";
+import { PRODUCTS_TABLE, CartItem, getCart, saveCart, getCartSubtotal, normalizeProductFromSupabaseRow, getProductImageUrls } from "@/lib/products";
 import { coercePrice, formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CartDrawer } from "@/components/CartDrawer";
 import { CartTotalBar } from "@/components/CartTotalBar";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { toast } from "sonner";
 
 const typeIcons: Record<string, any> = {
@@ -66,11 +67,7 @@ export default function ProductDetails() {
         .eq("active", true)
         .single();
       if (error) throw error;
-      const row = data as Record<string, unknown>;
-      return {
-        ...(row as Product),
-        price: coercePrice(row.price),
-      };
+      return normalizeProductFromSupabaseRow(data as Record<string, unknown>);
     },
   });
 
@@ -116,6 +113,7 @@ export default function ProductDetails() {
   }
 
   const Icon = typeIcons[product.type] || Leaf;
+  const galleryUrls = getProductImageUrls(product);
 
   return (
     <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
@@ -143,13 +141,27 @@ export default function ProductDetails() {
 
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            {product.image_url ? (
-              <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
+          <div className="relative rounded-xl border border-border bg-card overflow-hidden">
+            {galleryUrls.length === 0 ? (
               <div className="aspect-[4/3] bg-muted flex items-center justify-center">
                 <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
               </div>
+            ) : galleryUrls.length === 1 ? (
+              <img src={galleryUrls[0]} alt={product.name} className="aspect-[4/3] w-full object-cover" />
+            ) : (
+              <Carousel className="w-full" opts={{ loop: true }}>
+                <CarouselContent className="-ml-2 md:-ml-4">
+                  {galleryUrls.map((src, i) => (
+                    <CarouselItem key={`${src}-${i}`} className="pl-2 md:pl-4 basis-full">
+                      <div className="aspect-[4/3] overflow-hidden rounded-lg bg-muted">
+                        <img src={src} alt={product.name} className="h-full w-full object-cover" />
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="left-2 border-0 bg-background/90 shadow-md" />
+                <CarouselNext className="right-2 border-0 bg-background/90 shadow-md" />
+              </Carousel>
             )}
           </div>
 

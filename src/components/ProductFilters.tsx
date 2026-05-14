@@ -13,10 +13,13 @@ interface FiltersProps {
   onTypeChange: (v: string | null) => void;
   selectedFamily: string | null;
   onFamilyChange: (v: string | null) => void;
+  /** Quando false, o campo de busca fica oculto (ex.: busca no cabeçalho da loja). */
+  showSearch?: boolean;
 }
 
 export function ProductFilters({
   search, onSearchChange, selectedType, onTypeChange, selectedFamily, onFamilyChange,
+  showSearch = true,
 }: FiltersProps) {
   const [isTypeOpen, setIsTypeOpen] = useState(false);
   const [isFamilyOpen, setIsFamilyOpen] = useState(false);
@@ -26,15 +29,17 @@ export function ProductFilters({
 
   return (
     <div className="space-y-5 p-4 bg-card rounded-xl border border-border shadow-sm">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar produtos..."
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 bg-background border-border focus:border-primary transition-colors"
-        />
-      </div>
+      {showSearch && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar produtos..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-10 bg-background border-border focus:border-primary transition-colors"
+          />
+        </div>
+      )}
 
       <div className="space-y-3">
         <Collapsible open={isTypeOpen} onOpenChange={setIsTypeOpen}>

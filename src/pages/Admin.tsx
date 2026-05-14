@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Upload, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Upload, LogOut, Eye, EyeOff, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useAdminProductTypes } from "@/hooks/useAdminProductTypes";
-import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE, type Product } from "@/lib/products";
+import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE, getProductImageUrls, type Product } from "@/lib/products";
 import { coercePrice, formatBRL } from "@/lib/formatMoney";
 import { ORDERS_TABLE } from "@/lib/orders";
 import { toast } from "sonner";
@@ -27,12 +27,12 @@ interface ProductForm {
   description: string;
   type: string;
   family: string;
-  image_url: string | null;
+  image_urls: string[];
   active: boolean;
   price: number;
 }
 
-const emptyForm: ProductForm = { name: "", description: "", type: "Chá", family: "", image_url: null, active: true, price: 0 };
+const emptyForm: ProductForm = { name: "", description: "", type: "Chá", family: "", image_urls: [], active: true, price: 0 };
 
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<any> }) {
   const [email, setEmail] = useState("");
@@ -166,7 +166,7 @@ export default function Admin() {
       description: p.description,
       type: p.type,
       family: p.family,
-      image_url: p.image_url,
+      image_urls: getProductImageUrls(p),
       active: p.active,
       price: coercePrice(p.price),
     });
@@ -174,16 +174,26 @@ export default function Admin() {
   };
   const cancel = () => { setEditing(null); setIsNew(false); };
 
-  const uploadImage = async (file: File) => {
+  const handleImageFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    e.target.value = "";
+    if (!files?.length || !editing) return;
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file);
-    if (error) { toast.error("Erro ao enviar imagem"); setUploading(false); return; }
-    const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path);
-    setEditing((prev) => prev ? { ...prev, image_url: publicUrl } : prev);
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop();
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("product-images").upload(path, file);
+      if (error) {
+        toast.error("Erro ao enviar uma das imagens");
+        continue;
+      }
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("product-images").getPublicUrl(path);
+      setEditing((prev) => (prev ? { ...prev, image_urls: [...prev.image_urls, publicUrl] } : prev));
+    }
     setUploading(false);
-    toast.success("Imagem enviada!");
+    toast.success(files.length > 1 ? "Imagens enviadas!" : "Imagem enviada!");
   };
 
   const save = async () => {
@@ -191,12 +201,14 @@ export default function Admin() {
       toast.error("Preencha nome e família do produto.");
       return;
     }
+    const urls = editing.image_urls.filter((u) => u.trim() !== "");
     const payload = {
       name: editing.name,
       description: editing.description,
       type: editing.type,
       family: editing.family,
-      image_url: editing.image_url,
+      image_url: urls[0] ?? null,
+      image_urls: urls,
       active: editing.active,
       price: Math.max(0, Math.round(editing.price * 100) / 100),
     };
@@ -318,26 +330,80 @@ export default function Admin() {
         )}
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Imagem do Produto</Label>
-          <div className="flex items-center gap-3">
-            {editing.image_url ? (
-              <img src={editing.image_url} alt="Preview" className="w-20 h-20 object-cover rounded-lg border border-border" />
-            ) : (
-              <div className="w-20 h-20 rounded-lg border border-dashed border-border flex items-center justify-center">
-                <ImageIcon className="w-8 h-8 text-muted-foreground/40" />
+          <Label className="text-sm font-medium">Imagens do produto</Label>
+          <p className="text-xs text-muted-foreground">A primeira imagem é a capa no catálogo. Você pode enviar várias de uma vez.</p>
+          <div className="flex flex-wrap gap-2">
+            {editing.image_urls.map((url, index) => (
+              <div key={`${url}-${index}`} className="relative group">
+                <img src={url} alt="" className="h-20 w-20 rounded-lg border border-border object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center gap-1 rounded-lg bg-background/80 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    className="h-7 w-7"
+                    disabled={index === 0}
+                    onClick={() => {
+                      const next = [...editing.image_urls];
+                      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                      setEditing({ ...editing, image_urls: next });
+                    }}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="secondary"
+                    className="h-7 w-7"
+                    disabled={index === editing.image_urls.length - 1}
+                    onClick={() => {
+                      const next = [...editing.image_urls];
+                      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+                      setEditing({ ...editing, image_urls: next });
+                    }}
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="destructive"
+                    className="h-7 w-7"
+                    onClick={() =>
+                      setEditing({
+                        ...editing,
+                        image_urls: editing.image_urls.filter((_, i) => i !== index),
+                      })
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-            )}
-            <div className="space-y-1">
-              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
-              <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                <Upload className="w-3.5 h-3.5" /> {uploading ? "Enviando..." : "Upload"}
-              </Button>
-              {editing.image_url && (
-                <Button variant="ghost" size="sm" className="gap-1 text-destructive" onClick={() => setEditing({ ...editing, image_url: null })}>
-                  <X className="w-3 h-3" /> Remover
-                </Button>
-              )}
+            ))}
+            <div className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30">
+              <ImageIcon className="mb-1 h-6 w-6 text-muted-foreground/50" />
+              <span className="text-[10px] text-muted-foreground">Capa = 1ª</span>
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleImageFiles}
+            />
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              <Upload className="w-3.5 h-3.5" /> {uploading ? "Enviando..." : "Adicionar imagens"}
+            </Button>
+            {editing.image_urls.length > 0 && (
+              <Button variant="ghost" size="sm" className="gap-1 text-destructive" onClick={() => setEditing({ ...editing, image_urls: [] })}>
+                <X className="w-3 h-3" /> Remover todas
+              </Button>
+            )}
           </div>
         </div>
 
@@ -394,15 +460,16 @@ export default function Admin() {
               <p className="text-muted-foreground text-center py-10">Carregando produtos...</p>
             ) : (
               <div className="space-y-2">
-                {filteredProducts.map((p) => (
-                  editing && !isNew && editing.id === p.id ? (
+                {filteredProducts.map((p) => {
+                  const thumb = getProductImageUrls(p)[0];
+                  return editing && !isNew && editing.id === p.id ? (
                     <div key={p.id} className="rounded-lg border border-primary/20 bg-card p-4">
                       {renderForm("Editar Produto")}
                     </div>
                   ) : (
                     <div key={p.id} className={`flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors ${!p.active ? "opacity-50" : ""}`}>
-                      {p.image_url ? (
-                        <img src={p.image_url} alt={p.name} className="w-12 h-12 object-cover rounded-lg" />
+                      {thumb ? (
+                        <img src={thumb} alt={p.name} className="w-12 h-12 object-cover rounded-lg" />
                       ) : (
                         <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center">
                           <ImageIcon className="w-5 h-5 text-muted-foreground/40" />
@@ -427,8 +494,8 @@ export default function Admin() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                  )
-                ))}
+                  );
+                })}
               </div>
             )}
           </TabsContent>

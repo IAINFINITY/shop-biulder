@@ -13,6 +13,17 @@ export interface OrderItem {
   notes?: string;
 }
 
+/** Resumo somente leitura do carrinho enviado (página de obrigado). */
+export type SubmittedCartLine = {
+  name: string;
+  type: string;
+  family: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  notes?: string;
+};
+
 export interface Order {
   id: string;
   customer_name: string;

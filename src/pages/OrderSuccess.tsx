@@ -1,18 +1,27 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, CheckCircle2, ShoppingBag, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { formatBRL } from "@/lib/formatMoney";
+import type { SubmittedCartLine } from "@/lib/orders";
 
 type OrderSuccessState = {
   customerName?: string;
   company?: string;
   totalItems?: number;
+  submittedCart?: SubmittedCartLine[];
+  orderSubtotal?: number;
 };
 
 export default function OrderSuccess() {
   const location = useLocation();
   const state = (location.state ?? {}) as OrderSuccessState;
   const hasOrderDetails = Boolean(state.customerName || state.company || state.totalItems);
+  const submittedCart = Array.isArray(state.submittedCart) ? state.submittedCart : [];
+  const hasSubmittedCart = submittedCart.length > 0;
+  const [cartOpen, setCartOpen] = useState(false);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,hsl(var(--accent)/0.12),hsl(var(--background))_38%,hsl(var(--background)))]">
@@ -45,25 +54,15 @@ export default function OrderSuccess() {
             {hasOrderDetails && (
               <div className="mt-8 grid w-full gap-3 rounded-3xl border border-border/70 bg-background/80 p-5 text-left sm:grid-cols-3">
                 <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Cliente
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">
-                    {state.customerName || "Pedido confirmado"}
-                  </p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">{state.customerName || "Pedido confirmado"}</p>
                 </div>
                 <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Empresa
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">
-                    {state.company || "Cadastro recebido"}
-                  </p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Empresa</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">{state.company || "Cadastro recebido"}</p>
                 </div>
                 <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    Itens enviados
-                  </p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Itens enviados</p>
                   <div className="mt-2 flex items-center gap-2">
                     <ShoppingBag className="h-4 w-4 text-primary" />
                     <p className="text-sm font-semibold text-foreground">
@@ -74,20 +73,83 @@ export default function OrderSuccess() {
               </div>
             )}
 
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+            <div className="mt-8 flex w-full max-w-lg flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+              {hasSubmittedCart && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="gap-2 rounded-full border-primary/30 px-6"
+                  onClick={() => setCartOpen(true)}
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  Visualizar carrinho
+                </Button>
+              )}
               <Link to="/">
-                <Button size="lg" className="gap-2 rounded-full px-6">
+                <Button size="lg" className="w-full gap-2 rounded-full px-6 sm:w-auto">
                   Voltar ao catalogo
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <Badge variant="secondary" className="rounded-full px-4 py-2 text-sm font-medium">
-                Atendimento iniciado
-              </Badge>
             </div>
+
+            <Badge variant="secondary" className="mt-6 rounded-full px-4 py-2 text-sm font-medium">
+              Atendimento iniciado
+            </Badge>
           </div>
         </div>
       </div>
+
+      <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+        <SheetContent className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5 text-primary" />
+              Carrinho enviado
+            </SheetTitle>
+          </SheetHeader>
+
+          {!hasSubmittedCart ? (
+            <p className="text-sm text-muted-foreground">Nenhum detalhe do carrinho disponivel para esta pagina.</p>
+          ) : (
+            <>
+              <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+                {submittedCart.map((line, index) => (
+                  <div key={`${line.name}-${index}`} className="rounded-lg border border-border p-3 text-left">
+                    <p className="text-sm font-medium text-foreground">{line.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {line.type} · {line.family}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Quantidade: <span className="font-medium text-foreground">{line.quantity}</span>
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-foreground tabular-nums">
+                      {formatBRL(line.unit_price)} × {line.quantity} = {formatBRL(line.line_total)}
+                    </p>
+                    {line.notes?.trim() && (
+                      <div className="mt-2 rounded-md bg-muted/50 p-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Observacoes
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">{line.notes.trim()}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {typeof state.orderSubtotal === "number" && (
+                <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                  <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
+                  <span className="text-lg font-semibold text-foreground tabular-nums">
+                    {formatBRL(state.orderSubtotal)}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

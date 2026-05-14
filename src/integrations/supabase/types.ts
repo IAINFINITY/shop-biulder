@@ -61,6 +61,7 @@ export type Database = {
           family: string
           id: string
           image_url: string | null
+          image_urls: string[]
           name: string
           price: number
           type: string
@@ -73,6 +74,7 @@ export type Database = {
           family: string
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           name: string
           price?: number
           type: string
@@ -85,6 +87,7 @@ export type Database = {
           family?: string
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           name?: string
           price?: number
           type?: string

@@ -33,7 +33,7 @@ export function StoreHeader({
   };
 
   return (
-    <header className="border-b-2 border-violet-600/35 bg-card shadow-sm">
+    <header className="border-b-2 border-primary/45 bg-card shadow-sm">
       <div className="h-1 w-full bg-primary" />
 
       <div className={cn(headerInner, "pt-4 pb-3 sm:pt-5 sm:pb-4")}>

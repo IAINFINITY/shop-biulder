@@ -115,7 +115,7 @@ export default function Index() {
         }
       />
 
-      <div className="border-b border-border/60 bg-gradient-to-b from-accent/10 to-background">
+      <div className="border-b border-border/60 bg-gradient-to-b from-primary/[0.08] to-background">
         <div className="container mx-auto px-4 py-4 sm:py-5">
           <h1 className="text-lg sm:text-2xl font-semibold text-foreground leading-tight">
             Monte seu carrinho de interesse

@@ -1,10 +1,13 @@
 import type { FormEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Menu, Search, Settings, User } from "lucide-react";
+import { Menu, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+
+/** Largura máxima alinhada ao layout tipo vitrine (conteúdo central com margens laterais). */
+const headerInner = "mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8";
 
 export type StoreHeaderProps = {
   search: string;
@@ -30,15 +33,15 @@ export function StoreHeader({
   };
 
   return (
-    <header className="border-b border-border bg-card shadow-sm">
-      <div className="h-1 bg-primary" />
+    <header className="border-b-2 border-violet-600/35 bg-card shadow-sm">
+      <div className="h-1 w-full bg-primary" />
 
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-          <div className="flex items-start justify-between gap-3 lg:contents">
+      <div className={cn(headerInner, "pt-4 pb-3 sm:pt-5 sm:pb-4")}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
+          <div className="flex items-start justify-between gap-3 lg:block lg:max-w-[220px] xl:max-w-[240px]">
             <Link to="/" className="inline-block min-w-0 shrink-0">
-              <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 sm:h-10 w-auto" />
-              <p className="text-[10px] sm:text-xs tracking-wide text-muted-foreground mt-0.5 uppercase">
+              <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto sm:h-10" />
+              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-xs sm:tracking-wide">
                 Suplemento e Nutrição · B2B
               </p>
             </Link>
@@ -54,38 +57,31 @@ export function StoreHeader({
             </Link>
           </div>
 
-          <form
-            onSubmit={onSearchSubmit}
-            className="flex-1 flex w-full min-w-0 max-w-2xl lg:max-w-none mx-auto lg:mx-0 gap-2"
-          >
-            <div className="relative flex-1">
+          <div className="flex min-w-0 justify-center lg:px-4">
+            <form
+              onSubmit={onSearchSubmit}
+              className="relative w-full max-w-xl sm:max-w-2xl lg:max-w-[min(100%,40rem)] xl:max-w-[44rem]"
+            >
               <Input
                 type="search"
                 placeholder="O que você procura?..."
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="h-11 w-full rounded-full border-border bg-background pl-4 pr-12 shadow-inner"
+                className="h-11 w-full rounded-full border-border bg-background pl-4 pr-14 shadow-inner sm:h-12 sm:pl-5 sm:pr-16"
                 aria-label="Buscar produtos"
               />
               <Button
                 type="submit"
                 size="icon"
-                className="absolute right-1 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm"
+                className="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:right-2 sm:h-10 sm:w-10"
                 aria-label="Buscar"
               >
-                <Search className="h-4 w-4" />
+                <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
               </Button>
-            </div>
-          </form>
+            </form>
+          </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end lg:ml-auto lg:shrink-0">
-            <Link
-              to="/pedido"
-              className="hidden sm:inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-            >
-              <User className="h-5 w-5 shrink-0" aria-hidden />
-              <span className="font-medium text-foreground max-xl:hidden">Meu pedido</span>
-            </Link>
+          <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
             <Link to="/admin" className="hidden lg:block">
               <Button
                 variant="outline"
@@ -96,39 +92,55 @@ export function StoreHeader({
                 <Settings className="w-5 h-5" />
               </Button>
             </Link>
-            <div className="flex items-center gap-2">{cartSlot}</div>
+            <div className="flex items-center">{cartSlot}</div>
           </div>
         </div>
 
+        {/* Linha de categorias: mesma largura útil, espaçamento horizontal generoso */}
         <nav
-          className="mt-4 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:gap-3"
+          className="mt-5 border-t border-border/80 pt-4 sm:mt-6 sm:pt-5"
           aria-label="Categorias"
         >
-          <Button
-            type="button"
-            variant="destructive"
-            className="h-10 shrink-0 gap-2 rounded-full px-4 font-semibold shadow-sm sm:self-center"
-            onClick={onShowAllProducts}
-          >
-            <Menu className="h-4 w-4" />
-            Todos os produtos
-          </Button>
-          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {categoryTypes.map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => onTypeChange(selectedType === t ? null : t)}
-                className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                  selectedType === t
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/50",
-                )}
-              >
-                {t.toLowerCase()}
-              </button>
-            ))}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5 lg:gap-6 xl:gap-8">
+            <Button
+              type="button"
+              variant="destructive"
+              className={cn(
+                "h-10 shrink-0 gap-2 self-start rounded-full px-4 text-sm font-semibold sm:h-11 sm:px-5 sm:text-base",
+                "shadow-md shadow-primary/15 transition-colors hover:opacity-95",
+              )}
+              onClick={onShowAllProducts}
+            >
+              <Menu className="h-4 w-4" strokeWidth={2.25} />
+              <span className="normal-case">Todos os produtos</span>
+            </Button>
+
+            <div
+              className="flex min-h-10 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2 sm:gap-x-5 md:gap-x-6 lg:gap-x-8 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-nowrap"
+              role="list"
+            >
+              <span className="sr-only">Filtrar por tipo</span>
+              {categoryTypes.map((t) => {
+                const isActive = selectedType === t;
+                const label = t.toLowerCase();
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    role="listitem"
+                    onClick={() => onTypeChange(isActive ? null : t)}
+                    className={cn(
+                      "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors sm:px-4 sm:py-2 sm:text-[0.9375rem]",
+                      isActive
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border/80 bg-background text-foreground/80 hover:border-primary/30 hover:bg-muted/40",
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </nav>
       </div>

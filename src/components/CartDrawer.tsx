@@ -42,7 +42,7 @@ export function CartDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger asChild>
-        <Button variant="default" className="gap-2 relative shadow-lg">
+        <Button variant="default" className="relative gap-2 shadow-lg">
           <ShoppingBag className="w-5 h-5" />
           <span className="hidden sm:inline">Meu Carrinho</span>
           {totalItems > 0 && (

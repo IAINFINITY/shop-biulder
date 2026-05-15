@@ -4,6 +4,8 @@ import { ProductFilters } from "@/components/ProductFilters";
 import { CartDrawer } from "@/components/CartDrawer";
 import { CartTotalBar } from "@/components/CartTotalBar";
 import { StoreHeader } from "@/components/StoreHeader";
+import { StoreHeroBanner } from "@/components/StoreHeroBanner";
+import { StoreCategoryNav } from "@/components/StoreCategoryNav";
 import { Product, CartItem, getCart, saveCart, getCartSubtotal } from "@/lib/products";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
@@ -98,10 +100,6 @@ export default function Index() {
       <StoreHeader
         search={search}
         onSearchChange={setSearch}
-        categoryTypes={categoryTypes}
-        selectedType={selectedType}
-        onTypeChange={setSelectedType}
-        onShowAllProducts={showAllProducts}
         cartSlot={
           <CartDrawer
             cart={cart}
@@ -115,14 +113,22 @@ export default function Index() {
         }
       />
 
+      <StoreHeroBanner />
+
+      <StoreCategoryNav
+        categoryTypes={categoryTypes}
+        selectedType={selectedType}
+        onTypeChange={setSelectedType}
+        onShowAllProducts={showAllProducts}
+      />
+
       <div className="border-b border-border/60 bg-gradient-to-b from-primary/[0.08] to-background">
         <div className="container mx-auto px-4 py-4 sm:py-5">
           <h1 className="text-lg sm:text-2xl font-semibold text-foreground leading-tight">
             Monte seu carrinho de interesse
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Selecione os produtos para montar seu pedido personalizado. Use a busca e as categorias acima antes da
-            lista.
+            Selecione os produtos para montar seu pedido personalizado. Use a busca e os filtros de tipo e família antes da lista.
           </p>
         </div>
       </div>

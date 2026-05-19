@@ -22,6 +22,8 @@ import {
   getProductImageUrls,
   buildProductDbPayload,
   isMissingImageUrlsColumnError,
+  isMissingProductCodeColumnError,
+  omitProductCode,
   type Product,
 } from "@/lib/products";
 import {
@@ -49,6 +51,7 @@ interface ProductForm {
   image_urls: string[];
   active: boolean;
   priceInput: string;
+  productCode: string;
 }
 
 const emptyForm: ProductForm = {
@@ -59,6 +62,7 @@ const emptyForm: ProductForm = {
   image_urls: [],
   active: true,
   priceInput: "",
+  productCode: "",
 };
 
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<any> }) {
@@ -135,7 +139,7 @@ export default function Admin() {
     const term = productSearch.trim().toLowerCase();
     if (!term) return products;
     return products.filter((product) => {
-      const fields = [product.name, product.family, product.type];
+      const fields = [product.name, product.family, product.type, product.product_code ?? ""];
       return fields.some((value) => value?.toLowerCase().includes(term));
     });
   }, [products, productSearch]);
@@ -173,6 +177,7 @@ export default function Admin() {
       image_urls: getProductImageUrls(p),
       active: p.active,
       priceInput: priceToAdminInput(coercePrice(p.price)),
+      productCode: p.product_code ?? "",
     });
     setIsNew(false);
   };
@@ -219,6 +224,7 @@ export default function Admin() {
       image_urls: editing.image_urls.filter((u) => u.trim() !== ""),
       active: editing.active,
       price: Math.max(0, parsePriceInput(editing.priceInput)),
+      product_code: editing.productCode,
     });
 
     const persist = async (body: typeof withGallery | typeof legacyOnly) => {
@@ -227,12 +233,21 @@ export default function Admin() {
     };
 
     const imageCount = editing.image_urls.filter((u) => u.trim() !== "").length;
-    let { error } = await persist(withGallery);
+    let body: typeof withGallery | typeof legacyOnly = withGallery;
+    let { error } = await persist(body);
     if (error && isMissingImageUrlsColumnError(error.message)) {
       if (imageCount > 1) {
         toast.warning("Só a primeira foto foi salva. Execute supabase/APLICAR_NO_SUPABASE_image_urls.sql no Supabase para várias imagens.");
       }
-      ({ error } = await persist(legacyOnly));
+      body = legacyOnly;
+      ({ error } = await persist(body));
+    }
+    if (error && isMissingProductCodeColumnError(error.message)) {
+      toast.warning(
+        "Código não salvo. Execute supabase/APLICAR_NO_SUPABASE_product_code.sql no Supabase e tente de novo.",
+      );
+      body = omitProductCode(body) as typeof withGallery;
+      ({ error } = await persist(body));
     }
 
     if (error) {
@@ -297,6 +312,18 @@ export default function Admin() {
           <Input placeholder="Família (ex: Detox, Beleza)" value={editing.family} onChange={(e) => setEditing({ ...editing, family: e.target.value })} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="product-code">Código do produto</Label>
+            <Input
+              id="product-code"
+              placeholder="Ex: CHA-001"
+              value={editing.productCode}
+              onChange={(e) => setEditing({ ...editing, productCode: e.target.value.toUpperCase() })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Uso interno: pedidos e exportações. Não aparece no catálogo para clientes.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="product-price">Preço (R$)</Label>
             <Input
@@ -440,7 +467,12 @@ export default function Admin() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground truncate">{p.name}</p>
                         <p className="text-xs font-medium text-primary tabular-nums mt-0.5">{formatBRL(coercePrice(p.price))}</p>
-                        <div className="flex gap-2 mt-1">
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {p.product_code && (
+                            <Badge variant="outline" className="text-xs font-mono">
+                              {p.product_code}
+                            </Badge>
+                          )}
                           <Badge variant="outline" className="text-xs">{p.type}</Badge>
                           <Badge variant="secondary" className="text-xs">{p.family}</Badge>
                           {!p.active && <Badge variant="destructive" className="text-xs">Inativo</Badge>}

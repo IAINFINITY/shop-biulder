@@ -1,10 +1,12 @@
 import { coercePrice } from "@/lib/formatMoney";
-import { type Product, getProductUnitPrice } from "@/lib/products";
+import { type Product, getProductCode, getProductUnitPrice } from "@/lib/products";
 
 export const ORDERS_TABLE = "orders";
 
 export interface OrderItem {
   product_id: string;
+  /** Código interno do produto (não exibido no catálogo). */
+  product_code?: string;
   name: string;
   type: string;
   family: string;
@@ -46,9 +48,12 @@ export type OrderTableLine = {
   notes?: string;
 };
 
-export function formatProductCode(productId: unknown): string {
-  if (typeof productId !== "string" || !productId.trim()) return "—";
-  return productId.replace(/-/g, "").slice(0, 8).toUpperCase();
+function resolveOrderLineCode(raw: Record<string, unknown>): string {
+  const fromItem = String(raw.product_code ?? "").trim();
+  if (fromItem) return fromItem;
+  const productId = typeof raw.product_id === "string" ? raw.product_id : "";
+  if (productId) return productId.replace(/-/g, "").slice(0, 8).toUpperCase();
+  return "—";
 }
 
 export function parseOrderItemRow(raw: Record<string, unknown>): OrderTableLine {
@@ -63,7 +68,7 @@ export function parseOrderItemRow(raw: Record<string, unknown>): OrderTableLine 
   const product = meta ? `${name} (${meta})` : name;
 
   return {
-    code: formatProductCode(raw.product_id),
+    code: resolveOrderLineCode(raw),
     product,
     quantity: qty,
     unitPrice: unit,
@@ -89,6 +94,7 @@ export function toOrderItems(cart: { product: Product; quantity: number; notes?:
     const qty = item.quantity;
     return {
       product_id: item.product.id,
+      product_code: getProductCode(item.product),
       name: item.product.name,
       type: item.product.type,
       family: item.product.family,

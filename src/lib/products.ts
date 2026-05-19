@@ -15,6 +15,8 @@ export interface Product {
   active: boolean;
   /** Preço unitário em reais; ausente ou null no legado = 0 */
   price?: number | null;
+  /** Código interno — só admin/pedidos; não exibir no catálogo. */
+  product_code?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,15 +75,40 @@ export function getProductImageUrls(product: Pick<Product, "image_url" | "image_
   return resolveProductImageUrls(product.image_url, product.image_urls);
 }
 
-export const PRODUCT_SELECT_COLUMNS =
-  "id,name,description,type,family,image_url,active,price,created_at,updated_at,image_urls" as const;
-
-export const PRODUCT_SELECT_COLUMNS_LEGACY =
+const PRODUCT_SELECT_BASE =
   "id,name,description,type,family,image_url,active,price,created_at,updated_at" as const;
+
+export const PRODUCT_SELECT_COLUMNS =
+  `${PRODUCT_SELECT_BASE},image_urls,product_code` as const;
+
+/** Sem galeria; mantém product_code. */
+export const PRODUCT_SELECT_COLUMNS_NO_GALLERY =
+  `${PRODUCT_SELECT_BASE},product_code` as const;
+
+/** Com galeria; sem product_code (migração parcial). */
+export const PRODUCT_SELECT_COLUMNS_NO_CODE =
+  `${PRODUCT_SELECT_BASE},image_urls` as const;
+
+export const PRODUCT_SELECT_COLUMNS_LEGACY = PRODUCT_SELECT_BASE;
+
+export function isMissingColumnError(message: string, column: string): boolean {
+  return new RegExp(column, "i").test(message) && /(column|schema cache)/i.test(message);
+}
 
 /** Erro do PostgREST quando a migração `image_urls` ainda não foi aplicada no Supabase. */
 export function isMissingImageUrlsColumnError(message: string): boolean {
-  return /image_urls/i.test(message) && /(column|schema cache)/i.test(message);
+  return isMissingColumnError(message, "image_urls");
+}
+
+export function isMissingProductCodeColumnError(message: string): boolean {
+  return isMissingColumnError(message, "product_code");
+}
+
+export function omitProductCode<T extends { product_code?: string | null }>(
+  row: T,
+): Omit<T, "product_code"> {
+  const { product_code: _code, ...rest } = row;
+  return rest;
 }
 
 export type ProductDbPayloadInput = {
@@ -92,6 +119,7 @@ export type ProductDbPayloadInput = {
   image_urls: string[];
   active: boolean;
   price: number;
+  product_code: string;
 };
 
 type ProductDbRow = {
@@ -102,6 +130,7 @@ type ProductDbRow = {
   image_url: string | null;
   active: boolean;
   price: number;
+  product_code: string | null;
 };
 
 export function buildProductDbPayload(input: ProductDbPayloadInput): {
@@ -117,6 +146,7 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     active: input.active,
     price: input.price,
     image_url: urls[0] ?? null,
+    product_code: input.product_code.trim() || null,
   };
   return {
     withGallery: { ...base, image_urls: urls },
@@ -130,12 +160,25 @@ export function normalizeProductFromSupabaseRow(row: Record<string, unknown>): P
     row.image_urls,
   );
 
+  const productCode =
+    typeof row.product_code === "string" && row.product_code.trim()
+      ? row.product_code.trim()
+      : null;
+
   return {
     ...(row as Product),
     price: coercePrice(row.price),
     image_url: gallery[0] ?? null,
     image_urls: gallery.length > 0 ? gallery : null,
+    product_code: productCode,
   };
+}
+
+/** Código para pedidos/exportação (cadastro ou fallback curto do ID). */
+export function getProductCode(product: Pick<Product, "product_code" | "id">): string {
+  const code = product.product_code?.trim();
+  if (code) return code;
+  return product.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
 export function getCartSubtotal(cart: CartItem[]): number {

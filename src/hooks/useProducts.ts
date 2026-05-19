@@ -4,8 +4,11 @@ import {
   PRODUCTS_TABLE,
   PRODUCT_SELECT_COLUMNS,
   PRODUCT_SELECT_COLUMNS_LEGACY,
+  PRODUCT_SELECT_COLUMNS_NO_CODE,
+  PRODUCT_SELECT_COLUMNS_NO_GALLERY,
   normalizeProductFromSupabaseRow,
   isMissingImageUrlsColumnError,
+  isMissingProductCodeColumnError,
 } from "@/lib/products";
 
 export type UseProductsOptions = {
@@ -26,12 +29,31 @@ export function useProducts(options?: UseProductsOptions) {
         return q;
       };
 
-      let { data, error } = await runQuery(PRODUCT_SELECT_COLUMNS);
-      if (error && isMissingImageUrlsColumnError(error.message)) {
-        ({ data, error } = await runQuery(PRODUCT_SELECT_COLUMNS_LEGACY));
+      const columnSets = [
+        PRODUCT_SELECT_COLUMNS,
+        PRODUCT_SELECT_COLUMNS_NO_GALLERY,
+        PRODUCT_SELECT_COLUMNS_NO_CODE,
+        PRODUCT_SELECT_COLUMNS_LEGACY,
+      ] as const;
+
+      let data: Record<string, unknown>[] | null = null;
+      let lastError: Error | null = null;
+
+      for (const columns of columnSets) {
+        const result = await runQuery(columns);
+        if (!result.error) {
+          data = (result.data ?? []) as Record<string, unknown>[];
+          break;
+        }
+        lastError = result.error;
+        const missingColumn =
+          isMissingImageUrlsColumnError(result.error.message) ||
+          isMissingProductCodeColumnError(result.error.message);
+        if (!missingColumn) throw result.error;
       }
-      if (error) throw error;
-      return (data ?? []).map((row) => normalizeProductFromSupabaseRow(row as Record<string, unknown>));
+
+      if (!data) throw lastError ?? new Error("Não foi possível carregar produtos.");
+      return data.map((row) => normalizeProductFromSupabaseRow(row));
     },
   });
 }

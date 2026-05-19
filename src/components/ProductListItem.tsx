@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import type { Product } from "@/lib/products";
 import { getProductUnitPrice, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
+import { ProductDescription } from "@/components/ProductDescription";
 
 const typeIcons: Record<string, any> = {
   "Chá": Leaf,
@@ -75,9 +76,11 @@ export function ProductListItem({ product, inCart, currentQuantity, onAdd }: Pro
           >
             <h3 className="font-semibold text-card-foreground leading-snug line-clamp-2">{product.name}</h3>
           </Link>
-          <p className="mt-1 text-muted-foreground text-sm leading-relaxed line-clamp-2 sm:line-clamp-3">
-            {product.description}
-          </p>
+          <ProductDescription
+            html={product.description}
+            plainPreview
+            className="mt-1 line-clamp-2 text-sm sm:line-clamp-3"
+          />
           <p className="mt-2 text-base font-semibold text-foreground tabular-nums">
             {formatBRL(getProductUnitPrice(product))}
           </p>

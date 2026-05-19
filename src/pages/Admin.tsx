@@ -1,9 +1,10 @@
-﻿import { useState, useRef, useMemo, useEffect } from "react";
+﻿import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, Upload, LogOut, Eye, EyeOff, ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon, FileSpreadsheet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { RichTextEditor } from "@/components/RichTextEditor";
+import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -14,12 +15,30 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useAdminProductTypes } from "@/hooks/useAdminProductTypes";
-import { getProductTypes, PRODUCTS_TABLE, PRODUCT_TYPES_TABLE, getProductImageUrls, type Product } from "@/lib/products";
-import { coercePrice, formatBRL } from "@/lib/formatMoney";
-import { ORDERS_TABLE } from "@/lib/orders";
+import {
+  getProductTypes,
+  PRODUCTS_TABLE,
+  PRODUCT_TYPES_TABLE,
+  getProductImageUrls,
+  buildProductDbPayload,
+  isMissingImageUrlsColumnError,
+  type Product,
+} from "@/lib/products";
+import {
+  coercePrice,
+  formatBRL,
+  normalizePriceInputDraft,
+  parsePriceInput,
+  priceToAdminInput,
+} from "@/lib/formatMoney";
+import { uploadProductImageFile } from "@/lib/productImageStorage";
+import { ORDERS_TABLE, parseOrderTableLines } from "@/lib/orders";
+import { downloadOrderPdf, downloadOrderXlsx } from "@/lib/orderExport";
+import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarouselEditor";
 
 interface ProductForm {
   id?: string;
@@ -29,10 +48,18 @@ interface ProductForm {
   family: string;
   image_urls: string[];
   active: boolean;
-  price: number;
+  priceInput: string;
 }
 
-const emptyForm: ProductForm = { name: "", description: "", type: "Chá", family: "", image_urls: [], active: true, price: 0 };
+const emptyForm: ProductForm = {
+  name: "",
+  description: "",
+  type: "Chá",
+  family: "",
+  image_urls: [],
+  active: true,
+  priceInput: "",
+};
 
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<any> }) {
   const [email, setEmail] = useState("");
@@ -83,29 +110,6 @@ export default function Admin() {
   const [orderSearch, setOrderSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    let didSignOut = false;
-    const forceRelogin = () => {
-      if (didSignOut) return;
-      didSignOut = true;
-      void signOut();
-    };
-
-    const handlePageExit = () => {
-      forceRelogin();
-    };
-
-    window.addEventListener("beforeunload", handlePageExit);
-    window.addEventListener("pagehide", handlePageExit);
-
-    return () => {
-      window.removeEventListener("beforeunload", handlePageExit);
-      window.removeEventListener("pagehide", handlePageExit);
-    };
-  }, [user, signOut]);
 
   const derivedTypes = useMemo(() => {
     return [...new Set(products.map((p) => p.type))].sort();
@@ -168,32 +172,34 @@ export default function Admin() {
       family: p.family,
       image_urls: getProductImageUrls(p),
       active: p.active,
-      price: coercePrice(p.price),
+      priceInput: priceToAdminInput(coercePrice(p.price)),
     });
     setIsNew(false);
   };
   const cancel = () => { setEditing(null); setIsNew(false); };
 
-  const handleImageFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     e.target.value = "";
-    if (!files?.length || !editing) return;
+    if (!file) return;
+
     setUploading(true);
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop();
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file);
-      if (error) {
-        toast.error("Erro ao enviar uma das imagens");
-        continue;
-      }
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("product-images").getPublicUrl(path);
-      setEditing((prev) => (prev ? { ...prev, image_urls: [...prev.image_urls, publicUrl] } : prev));
-    }
+    const result = await uploadProductImageFile(file);
     setUploading(false);
-    toast.success(files.length > 1 ? "Imagens enviadas!" : "Imagem enviada!");
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    setEditing((prev) => {
+      if (!prev) {
+        toast.error("Abra ou crie um produto antes de enviar a foto.");
+        return prev;
+      }
+      return { ...prev, image_urls: [...prev.image_urls, result.publicUrl] };
+    });
+    toast.success("Foto adicionada!");
   };
 
   const save = async () => {
@@ -201,26 +207,40 @@ export default function Admin() {
       toast.error("Preencha nome e família do produto.");
       return;
     }
-    const urls = editing.image_urls.filter((u) => u.trim() !== "");
-    const payload = {
+    const description = isRichTextEmpty(editing.description)
+      ? ""
+      : sanitizeRichText(editing.description);
+
+    const { withGallery, legacyOnly } = buildProductDbPayload({
       name: editing.name,
-      description: editing.description,
+      description,
       type: editing.type,
       family: editing.family,
-      image_url: urls[0] ?? null,
-      image_urls: urls,
+      image_urls: editing.image_urls.filter((u) => u.trim() !== ""),
       active: editing.active,
-      price: Math.max(0, Math.round(editing.price * 100) / 100),
+      price: Math.max(0, parsePriceInput(editing.priceInput)),
+    });
+
+    const persist = async (body: typeof withGallery | typeof legacyOnly) => {
+      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(body);
+      return supabase.from(PRODUCTS_TABLE).update(body).eq("id", editing.id!);
     };
-    if (isNew) {
-      const { error } = await supabase.from(PRODUCTS_TABLE).insert(payload);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Produto adicionado!");
-    } else {
-      const { error } = await supabase.from(PRODUCTS_TABLE).update(payload).eq("id", editing.id!);
-      if (error) { toast.error(error.message); return; }
-      toast.success("Produto atualizado!");
+
+    const imageCount = editing.image_urls.filter((u) => u.trim() !== "").length;
+    let { error } = await persist(withGallery);
+    if (error && isMissingImageUrlsColumnError(error.message)) {
+      if (imageCount > 1) {
+        toast.warning("Só a primeira foto foi salva. Execute supabase/APLICAR_NO_SUPABASE_image_urls.sql no Supabase para várias imagens.");
+      }
+      ({ error } = await persist(legacyOnly));
     }
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(isNew ? "Produto adicionado!" : "Produto atualizado!");
     cancel();
     refresh();
   };
@@ -281,20 +301,27 @@ export default function Admin() {
             <Label htmlFor="product-price">Preço (R$)</Label>
             <Input
               id="product-price"
-              type="number"
-              min={0}
-              step={0.01}
+              type="text"
               inputMode="decimal"
-              value={Number.isFinite(editing.price) ? editing.price : 0}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                setEditing({ ...editing, price: Number.isFinite(v) ? Math.max(0, v) : 0 });
-              }}
+              placeholder="Ex: 49,90"
+              value={editing.priceInput}
+              onChange={(e) =>
+                setEditing({
+                  ...editing,
+                  priceInput: normalizePriceInputDraft(e.target.value),
+                })
+              }
             />
-            <p className="text-xs text-muted-foreground">Exibido no catálogo e no carrinho. Sem valor = R$ 0,00.</p>
+            <p className="text-xs text-muted-foreground">
+              Use vírgula ou ponto para centavos. Campo vazio = R$ 0,00 no catálogo.
+            </p>
           </div>
         </div>
-        <Textarea placeholder="Descrição" value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
+        <RichTextEditor
+          value={editing.description}
+          onChange={(html) => setEditing({ ...editing, description: html })}
+          placeholder="Descreva o produto..."
+        />
         <div className="flex flex-wrap items-center gap-3">
           <Select value={editing.type} onValueChange={(v) => setEditing({ ...editing, type: v })}>
             <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
@@ -329,83 +356,18 @@ export default function Admin() {
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Imagens do produto</Label>
-          <p className="text-xs text-muted-foreground">A primeira imagem é a capa no catálogo. Você pode enviar várias de uma vez.</p>
-          <div className="flex flex-wrap gap-2">
-            {editing.image_urls.map((url, index) => (
-              <div key={`${url}-${index}`} className="relative group">
-                <img src={url} alt="" className="h-20 w-20 rounded-lg border border-border object-cover" />
-                <div className="absolute inset-0 flex items-center justify-center gap-1 rounded-lg bg-background/80 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="secondary"
-                    className="h-7 w-7"
-                    disabled={index === 0}
-                    onClick={() => {
-                      const next = [...editing.image_urls];
-                      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                      setEditing({ ...editing, image_urls: next });
-                    }}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="secondary"
-                    className="h-7 w-7"
-                    disabled={index === editing.image_urls.length - 1}
-                    onClick={() => {
-                      const next = [...editing.image_urls];
-                      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-                      setEditing({ ...editing, image_urls: next });
-                    }}
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="destructive"
-                    className="h-7 w-7"
-                    onClick={() =>
-                      setEditing({
-                        ...editing,
-                        image_urls: editing.image_urls.filter((_, i) => i !== index),
-                      })
-                    }
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-            <div className="flex h-20 w-20 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/30">
-              <ImageIcon className="mb-1 h-6 w-6 text-muted-foreground/50" />
-              <span className="text-[10px] text-muted-foreground">Capa = 1ª</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleImageFiles}
-            />
-            <Button variant="outline" size="sm" className="gap-1" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-              <Upload className="w-3.5 h-3.5" /> {uploading ? "Enviando..." : "Adicionar imagens"}
-            </Button>
-            {editing.image_urls.length > 0 && (
-              <Button variant="ghost" size="sm" className="gap-1 text-destructive" onClick={() => setEditing({ ...editing, image_urls: [] })}>
-                <X className="w-3 h-3" /> Remover todas
-              </Button>
-            )}
-          </div>
-        </div>
+        <ProductImageCarouselEditor
+          urls={editing.image_urls}
+          uploading={uploading}
+          fileInputRef={fileInputRef}
+          onFileChange={handleImageFile}
+          onRemoveAt={(index) =>
+            setEditing({
+              ...editing,
+              image_urls: editing.image_urls.filter((_, i) => i !== index),
+            })
+          }
+        />
 
         <div className="flex items-center gap-2">
           <Switch checked={editing.active} onCheckedChange={(v) => setEditing({ ...editing, active: v })} />
@@ -521,7 +483,17 @@ export default function Admin() {
             ) : (
               <div className="space-y-3">
                 {filteredOrders.map((order) => {
-                  const items = Array.isArray(order.items) ? order.items : [];
+                  const lines = parseOrderTableLines(order.items);
+                  const exportPayload = {
+                    id: order.id,
+                    created_at: order.created_at,
+                    customer_name: order.customer_name,
+                    customer_company: order.customer_company,
+                    customer_phone: order.customer_phone,
+                    customer_cnpj: order.customer_cnpj,
+                    status: order.status,
+                    items: order.items,
+                  };
                   return (
                     <div key={order.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -529,9 +501,27 @@ export default function Admin() {
                           <p className="font-semibold text-foreground">{order.customer_name}</p>
                           <p className="text-sm text-muted-foreground">{order.customer_company}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="secondary">{order.status}</Badge>
                           <span className="text-xs text-muted-foreground">{formatDate(order.created_at)}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 h-8"
+                            onClick={() => downloadOrderXlsx(exportPayload)}
+                          >
+                            <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 h-8"
+                            onClick={() => downloadOrderPdf(exportPayload)}
+                          >
+                            <FileText className="h-3.5 w-3.5" /> PDF
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -543,56 +533,15 @@ export default function Admin() {
                           </Button>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Telefone: <span className="text-foreground">{order.customer_phone}</span>{" "}
-                        · CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {items.map((item: Record<string, unknown>, index: number) => {
-                          const qty = typeof item.quantity === "number" ? item.quantity : Number(item.quantity) || 0;
-                          const unit =
-                            typeof item.unit_price === "number"
-                              ? item.unit_price
-                              : item.unit_price != null
-                                ? coercePrice(item.unit_price)
-                                : 0;
-                          const line =
-                            typeof item.line_total === "number"
-                              ? item.line_total
-                              : Math.round(unit * qty * 100) / 100;
-                          const hasPricing =
-                            typeof item.unit_price === "number" ||
-                            typeof item.line_total === "number";
-                          return (
-                          <div key={`${order.id}-${index}`} className="rounded-md border border-border p-2">
-                            <p className="text-sm font-medium text-foreground">{String(item.name ?? "")}</p>
-                            <p className="text-xs text-muted-foreground">{String(item.type ?? "")} · {String(item.family ?? "")}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Quantidade: <span className="text-foreground">{qty}</span>
-                              {hasPricing && (
-                                <>
-                                  {" · "}
-                                  <span className="text-foreground tabular-nums">{formatBRL(unit)} × {qty} = {formatBRL(line)}</span>
-                                </>
-                              )}
-                            </p>
-                            {String(item.notes ?? "").trim() && (
-                              <div className="mt-2 rounded-md bg-muted/50 p-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                  Observacoes
-                                </p>
-                                <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
-                                  {String(item.notes ?? "").trim()}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          );
-                        })}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Total de itens: <span className="text-foreground">{order.total_items}</span>
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Telefone: <span className="text-foreground">{order.customer_phone}</span>
+                        {" · "}
+                        CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
+                      </p>
+                      <OrderItemsTable lines={lines} />
+                      <p className="text-xs text-muted-foreground">
+                        Quantidade total de itens: <span className="text-foreground">{order.total_items}</span>
+                      </p>
                     </div>
                   );
                 })}

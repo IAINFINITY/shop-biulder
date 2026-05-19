@@ -23,26 +23,112 @@ export function getProductUnitPrice(product: Pick<Product, "price">): number {
   return coercePrice(product.price);
 }
 
-/** URLs da galeria na ordem de exibição (principal = primeiro). */
-export function getProductImageUrls(product: Pick<Product, "image_url" | "image_urls">): string[] {
-  const fromColumn = Array.isArray(product.image_urls)
-    ? product.image_urls.filter((u) => typeof u === "string" && u.trim() !== "")
-    : [];
-  if (fromColumn.length > 0) return fromColumn;
-  if (product.image_url && String(product.image_url).trim() !== "") return [String(product.image_url).trim()];
+/** Converte coluna text[] do Postgres (array JS ou string `{a,b}`). */
+export function parseSupabaseTextArray(value: unknown): string[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) {
+    return value.filter((u): u is string => typeof u === "string" && u.trim() !== "");
+  }
+  if (typeof value !== "string") return [];
+  const s = value.trim();
+  if (!s) return [];
+  if (s.startsWith("{") && s.endsWith("}")) {
+    const inner = s.slice(1, -1).trim();
+    if (!inner) return [];
+    return inner
+      .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+      .map((part) => {
+        let p = part.trim();
+        if (p.startsWith('"') && p.endsWith('"')) p = p.slice(1, -1);
+        return p.replace(/\\"/g, '"').trim();
+      })
+      .filter(Boolean);
+  }
+  if (s.startsWith("http")) return [s];
   return [];
 }
 
-/** Normaliza linha do Supabase (preço, galeria de imagens). */
+/** URLs da galeria (principal = `image_url`, depois `image_urls` sem duplicar). */
+export function resolveProductImageUrls(
+  image_url: string | null | undefined,
+  image_urls: unknown,
+): string[] {
+  const primary = typeof image_url === "string" ? image_url.trim() : "";
+  const fromArray = parseSupabaseTextArray(image_urls);
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const add = (u: string) => {
+    const t = u.trim();
+    if (!t || seen.has(t)) return;
+    seen.add(t);
+    urls.push(t);
+  };
+  if (primary) add(primary);
+  for (const u of fromArray) add(u);
+  return urls;
+}
+
+/** URLs da galeria na ordem de exibição (principal = primeiro). */
+export function getProductImageUrls(product: Pick<Product, "image_url" | "image_urls">): string[] {
+  return resolveProductImageUrls(product.image_url, product.image_urls);
+}
+
+export const PRODUCT_SELECT_COLUMNS =
+  "id,name,description,type,family,image_url,active,price,created_at,updated_at,image_urls" as const;
+
+export const PRODUCT_SELECT_COLUMNS_LEGACY =
+  "id,name,description,type,family,image_url,active,price,created_at,updated_at" as const;
+
+/** Erro do PostgREST quando a migração `image_urls` ainda não foi aplicada no Supabase. */
+export function isMissingImageUrlsColumnError(message: string): boolean {
+  return /image_urls/i.test(message) && /(column|schema cache)/i.test(message);
+}
+
+export type ProductDbPayloadInput = {
+  name: string;
+  description: string;
+  type: string;
+  family: string;
+  image_urls: string[];
+  active: boolean;
+  price: number;
+};
+
+type ProductDbRow = {
+  name: string;
+  description: string;
+  type: string;
+  family: string;
+  image_url: string | null;
+  active: boolean;
+  price: number;
+};
+
+export function buildProductDbPayload(input: ProductDbPayloadInput): {
+  withGallery: ProductDbRow & { image_urls: string[] };
+  legacyOnly: ProductDbRow;
+} {
+  const urls = input.image_urls.filter((u) => u.trim() !== "");
+  const base: ProductDbRow = {
+    name: input.name,
+    description: input.description,
+    type: input.type,
+    family: input.family,
+    active: input.active,
+    price: input.price,
+    image_url: urls[0] ?? null,
+  };
+  return {
+    withGallery: { ...base, image_urls: urls },
+    legacyOnly: base,
+  };
+}
+
 export function normalizeProductFromSupabaseRow(row: Record<string, unknown>): Product {
-  const rawUrls = row.image_urls;
-  const fromDb = Array.isArray(rawUrls)
-    ? rawUrls.filter((u): u is string => typeof u === "string" && u.trim() !== "")
-    : [];
-  const legacyUrl = row.image_url;
-  const legacy =
-    typeof legacyUrl === "string" && legacyUrl.trim() !== "" ? [legacyUrl.trim()] : [];
-  const gallery = fromDb.length > 0 ? fromDb : legacy;
+  const gallery = resolveProductImageUrls(
+    row.image_url as string | null | undefined,
+    row.image_urls,
+  );
 
   return {
     ...(row as Product),

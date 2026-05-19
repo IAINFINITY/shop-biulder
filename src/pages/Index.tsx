@@ -7,6 +7,7 @@ import { StoreHeader } from "@/components/StoreHeader";
 import { StoreHeroBanner } from "@/components/StoreHeroBanner";
 import { StoreCategoryNav } from "@/components/StoreCategoryNav";
 import { Product, CartItem, getCart, saveCart, getCartSubtotal } from "@/lib/products";
+import { descriptionIncludesQuery } from "@/lib/richText";
 import { useProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
 
@@ -30,7 +31,7 @@ export default function Index() {
       if (
         search &&
         !p.name.toLowerCase().includes(search.toLowerCase()) &&
-        !p.description.toLowerCase().includes(search.toLowerCase())
+        !descriptionIncludesQuery(p.description, search)
       ) {
         return false;
       }

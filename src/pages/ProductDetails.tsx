@@ -3,7 +3,18 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { PRODUCTS_TABLE, CartItem, getCart, saveCart, getCartSubtotal, normalizeProductFromSupabaseRow, getProductImageUrls } from "@/lib/products";
+import {
+  PRODUCTS_TABLE,
+  CartItem,
+  getCart,
+  saveCart,
+  getCartSubtotal,
+  normalizeProductFromSupabaseRow,
+  getProductImageUrls,
+  PRODUCT_SELECT_COLUMNS,
+  PRODUCT_SELECT_COLUMNS_LEGACY,
+  isMissingImageUrlsColumnError,
+} from "@/lib/products";
 import { coercePrice, formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +22,7 @@ import { CartDrawer } from "@/components/CartDrawer";
 import { CartTotalBar } from "@/components/CartTotalBar";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { toast } from "sonner";
+import { ProductDescription } from "@/components/ProductDescription";
 
 const typeIcons: Record<string, any> = {
   "Chá": Leaf,
@@ -60,12 +72,13 @@ export default function ProductDetails() {
     enabled: !!id,
     queryFn: async () => {
       if (!id) throw new Error("Produto não informado");
-      const { data, error } = await supabase
-        .from(PRODUCTS_TABLE)
-        .select("*")
-        .eq("id", id)
-        .eq("active", true)
-        .single();
+      const run = (columns: string) =>
+        supabase.from(PRODUCTS_TABLE).select(columns).eq("id", id).eq("active", true).single();
+
+      let { data, error } = await run(PRODUCT_SELECT_COLUMNS);
+      if (error && isMissingImageUrlsColumnError(error.message)) {
+        ({ data, error } = await run(PRODUCT_SELECT_COLUMNS_LEGACY));
+      }
       if (error) throw error;
       return normalizeProductFromSupabaseRow(data as Record<string, unknown>);
     },
@@ -180,9 +193,7 @@ export default function ProductDetails() {
 
             <p className="text-2xl font-semibold text-primary tabular-nums">{formatBRL(coercePrice(product.price))}</p>
 
-            <p className="text-muted-foreground leading-relaxed">
-              {product.description}
-            </p>
+            <ProductDescription html={product.description} className="text-base" />
 
             <div className="pt-2">
               <Button onClick={handleAdd} className="gap-2">

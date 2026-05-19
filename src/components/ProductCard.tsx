@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { Product } from "@/lib/products";
 import { getProductUnitPrice, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
+import { ProductDescription } from "@/components/ProductDescription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -60,9 +61,11 @@ export function ProductCard({ product, onAdd, inCart }: ProductCardProps) {
             {product.name}
           </h3>
 
-          <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-2 sm:mb-4 line-clamp-2 sm:line-clamp-3 flex-1">
-            {product.description}
-          </p>
+          <ProductDescription
+            html={product.description}
+            plainPreview
+            className="mb-2 line-clamp-2 flex-1 text-xs sm:mb-4 sm:line-clamp-3 sm:text-sm"
+          />
           <p className="text-sm sm:text-base font-semibold text-foreground tabular-nums mb-1">
             {formatBRL(getProductUnitPrice(product))}
           </p>

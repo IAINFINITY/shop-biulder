@@ -2,21 +2,18 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { formatBRL } from "@/lib/formatMoney";
-import { getOrderLinesGrandTotal, type OrderTableLine } from "@/lib/orders";
+import type { OrderTableLine } from "@/lib/orders";
 
 type Props = {
   lines: OrderTableLine[];
 };
 
 export function OrderItemsTable({ lines }: Props) {
-  const total = getOrderLinesGrandTotal(lines);
-
   if (lines.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
@@ -58,14 +55,6 @@ export function OrderItemsTable({ lines }: Props) {
             </TableRow>
           ))}
         </TableBody>
-        <TableFooter>
-          <TableRow>
-            <TableCell colSpan={4} className="text-right font-semibold">
-              Total
-            </TableCell>
-            <TableCell className="text-right tabular-nums font-semibold">{formatBRL(total)}</TableCell>
-          </TableRow>
-        </TableFooter>
       </Table>
     </div>
   );

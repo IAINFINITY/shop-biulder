@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Handshake } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -5,6 +6,14 @@ type CatalogOrderNoticeProps = {
   variant?: "banner" | "compact";
   className?: string;
 };
+
+function Highlight({ children }: { children: ReactNode }) {
+  return <span className="font-medium text-foreground">{children}</span>;
+}
+
+function SentenceLine({ children }: { children: ReactNode }) {
+  return <p>{children}</p>;
+}
 
 export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrderNoticeProps) {
   const isBanner = variant === "banner";
@@ -49,26 +58,36 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
           </p>
           <div
             className={cn(
-              "mt-1 space-y-2 text-muted-foreground leading-relaxed",
+              "mt-1 space-y-3 text-muted-foreground leading-relaxed",
               isBanner ? "text-sm sm:text-[0.9375rem]" : "text-xs leading-snug",
             )}
           >
             {isBanner ? (
               <>
                 <p>
-                  Monte seu pedido aqui no catálogo para entendermos com clareza o que você procura. Pagamento e
-                  condições comerciais são combinados diretamente com nosso time de atendimento.
+                  Monte seu pedido aqui no <Highlight>catálogo</Highlight> para entendermos com clareza o que você
+                  procura.
                 </p>
                 <p>
-                  Após enviar, aguarde nosso atendente entrar em contato. Seu pedido é encaminhado automaticamente
-                  ao time com todos os produtos e informações do carrinho.
+                  <Highlight>Pagamento</Highlight> e <Highlight>condições comerciais</Highlight> são combinados
+                  diretamente com nosso <Highlight>time de atendimento</Highlight>.
+                </p>
+                <p>
+                  Após enviar o pedido, aguarde nosso <Highlight>atendente</Highlight> entrar em contato. Seu{" "}
+                  <Highlight>pedido</Highlight> é encaminhado automaticamente ao time com todos os produtos e informações
+                  do <Highlight>carrinho</Highlight>.
                 </p>
               </>
             ) : (
-              <p>
-                Pagamento com o atendimento. Após enviar, aguarde o contato — o pedido vai ao time com todas as
-                informações.
-              </p>
+              <>
+                <SentenceLine>
+                  <Highlight>Pagamento</Highlight> com o <Highlight>atendimento</Highlight>.
+                </SentenceLine>
+                <SentenceLine>
+                  Após enviar o pedido, aguarde o <Highlight>contato</Highlight> — o pedido segue para o time com todas as
+                  informações.
+                </SentenceLine>
+              </>
             )}
           </div>
         </div>

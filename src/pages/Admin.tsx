@@ -582,17 +582,22 @@ export default function Admin() {
                         CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
                       </p>
                       <OrderItemsTable lines={lines} />
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <p>
-                          Total do pedido:{" "}
-                          <span className="font-semibold text-foreground tabular-nums">{formatBRL(orderTotal)}</span>
-                        </p>
-                        <p>
-                          Unidades: <span className="text-foreground tabular-nums">{orderQty}</span>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                          <p className="text-xs font-medium text-muted-foreground">Total de quantidade de produtos</p>
+                          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{orderQty}</p>
                           {order.total_items !== orderQty && (
-                            <span className="text-muted-foreground"> (registrado: {order.total_items})</span>
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Registrado no envio: {order.total_items}
+                            </p>
                           )}
-                        </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                          <p className="text-xs font-medium text-muted-foreground">Total de valor</p>
+                          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
+                            {formatBRL(orderTotal)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   );

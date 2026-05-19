@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { CatalogOrderNotice } from "@/components/CatalogOrderNotice";
 interface CartDrawerProps {
   cart: CartItem[];
   onUpdateQuantity: (productId: string, delta: number) => void;
@@ -121,6 +122,7 @@ export function CartDrawer({
             </div>
 
             <div className="border-t border-border pt-4 space-y-3">
+              <CatalogOrderNotice variant="compact" />
               <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
                 <span className="text-sm font-medium text-muted-foreground">Subtotal</span>
                 <span className="text-base font-semibold text-foreground tabular-nums">{formatBRL(subtotal)}</span>

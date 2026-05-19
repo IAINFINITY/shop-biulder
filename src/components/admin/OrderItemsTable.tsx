@@ -42,7 +42,12 @@ export function OrderItemsTable({ lines }: Props) {
             <TableRow key={`${line.code}-${index}`}>
               <TableCell className="font-mono text-xs">{line.code}</TableCell>
               <TableCell>
-                <p className="font-medium text-foreground">{line.product}</p>
+                <p className="font-medium text-foreground">{line.name}</p>
+                {(line.type || line.family) && (
+                  <p className="text-xs text-muted-foreground">
+                    {[line.type, line.family].filter(Boolean).join(" · ")}
+                  </p>
+                )}
                 {line.notes && (
                   <p className="mt-1 text-xs text-muted-foreground">Obs.: {line.notes}</p>
                 )}

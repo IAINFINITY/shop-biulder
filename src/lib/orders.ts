@@ -1,5 +1,11 @@
 import { coercePrice } from "@/lib/formatMoney";
-import { type Product, getProductCode, getProductUnitPrice } from "@/lib/products";
+import {
+  type OrderEnrichmentMaps,
+  type Product,
+  getProductCode,
+  getProductUnitPrice,
+  normalizeProductNameKey,
+} from "@/lib/products";
 
 export const ORDERS_TABLE = "orders";
 
@@ -41,51 +47,131 @@ export interface Order {
 
 export type OrderTableLine = {
   code: string;
-  product: string;
+  /** Nome gravado no pedido (não substituir pelo catálogo atual). */
+  name: string;
+  type: string;
+  family: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
   notes?: string;
 };
 
-function resolveOrderLineCode(raw: Record<string, unknown>): string {
+/** Rótulo para exportação (Excel/PDF) — mesmo texto que o cliente pediu. */
+export function formatOrderLineProductLabel(line: Pick<OrderTableLine, "name" | "type" | "family">): string {
+  const meta = [line.type, line.family].filter(Boolean).join(" · ");
+  return meta ? `${line.name} (${meta})` : line.name;
+}
+
+/** Código de 8 hex — fallback antigo gerado a partir do UUID do produto. */
+function isUuidFragmentCode(code: string): boolean {
+  return /^[0-9A-F]{8}$/i.test(code.trim());
+}
+
+/** Ignora product_code gravado no pedido quando é só o prefixo do ID. */
+function isStaleAutoProductCode(code: string, productId: string): boolean {
+  const normalized = code.replace(/-/g, "").toUpperCase();
+  if (!normalized) return false;
+  if (isUuidFragmentCode(normalized)) return true;
+  if (productId) {
+    const idPrefix = productId.replace(/-/g, "").toUpperCase().slice(0, 8);
+    if (normalized === idPrefix) return true;
+  }
+  return false;
+}
+
+function resolveOrderLineCode(raw: Record<string, unknown>, maps?: OrderEnrichmentMaps): string {
+  const productId = typeof raw.product_id === "string" ? raw.product_id.trim() : "";
+  const nameKey = normalizeProductNameKey(String(raw.name ?? ""));
+
+  if (productId && maps?.codeByProductId.has(productId)) {
+    return maps.codeByProductId.get(productId)!;
+  }
+  if (nameKey && maps?.codeByProductName.has(nameKey)) {
+    return maps.codeByProductName.get(nameKey)!;
+  }
+
   const fromItem = String(raw.product_code ?? "").trim();
-  if (fromItem) return fromItem;
-  const productId = typeof raw.product_id === "string" ? raw.product_id : "";
+  if (fromItem && !isStaleAutoProductCode(fromItem, productId)) {
+    return fromItem;
+  }
+
   if (productId) return productId.replace(/-/g, "").slice(0, 8).toUpperCase();
   return "—";
 }
 
-export function parseOrderItemRow(raw: Record<string, unknown>): OrderTableLine {
-  const qty = typeof raw.quantity === "number" ? raw.quantity : Number(raw.quantity) || 0;
-  const unit = typeof raw.unit_price === "number" ? raw.unit_price : coercePrice(raw.unit_price);
-  const subtotal =
-    typeof raw.line_total === "number" ? raw.line_total : Math.round(unit * qty * 100) / 100;
+function resolveLinePricing(
+  raw: Record<string, unknown>,
+  maps?: OrderEnrichmentMaps,
+): { quantity: number; unitPrice: number; subtotal: number } {
+  const quantity = typeof raw.quantity === "number" ? raw.quantity : Number(raw.quantity) || 0;
+
+  const savedUnit =
+    typeof raw.unit_price === "number" ? raw.unit_price : coercePrice(raw.unit_price);
+  const savedLineTotal =
+    typeof raw.line_total === "number" ? raw.line_total : coercePrice(raw.line_total);
+
+  const productId = typeof raw.product_id === "string" ? raw.product_id.trim() : "";
+  const nameKey = normalizeProductNameKey(String(raw.name ?? ""));
+
+  let catalogUnit =
+    productId && maps?.priceByProductId.has(productId) ? maps.priceByProductId.get(productId)! : 0;
+  if (catalogUnit === 0 && nameKey && maps?.priceByProductName.has(nameKey)) {
+    catalogUnit = maps.priceByProductName.get(nameKey)!;
+  }
+
+  let unitPrice = savedUnit > 0 ? savedUnit : catalogUnit;
+
+  if (unitPrice === 0 && savedLineTotal > 0 && quantity > 0) {
+    unitPrice = Math.round((savedLineTotal / quantity) * 100) / 100;
+  }
+
+  let subtotal = savedLineTotal > 0 ? savedLineTotal : Math.round(unitPrice * quantity * 100) / 100;
+
+  if (quantity > 0 && unitPrice > 0) {
+    subtotal = Math.round(unitPrice * quantity * 100) / 100;
+  }
+
+  return { quantity, unitPrice, subtotal };
+}
+
+export function parseOrderItemRow(
+  raw: Record<string, unknown>,
+  maps?: OrderEnrichmentMaps,
+): OrderTableLine {
+  const { quantity, unitPrice, subtotal } = resolveLinePricing(raw, maps);
   const name = String(raw.name ?? "").trim() || "—";
   const type = String(raw.type ?? "").trim();
   const family = String(raw.family ?? "").trim();
-  const meta = [type, family].filter(Boolean).join(" · ");
-  const product = meta ? `${name} (${meta})` : name;
 
   return {
-    code: resolveOrderLineCode(raw),
-    product,
-    quantity: qty,
-    unitPrice: unit,
+    code: resolveOrderLineCode(raw, maps),
+    name,
+    type,
+    family,
+    quantity,
+    unitPrice,
     subtotal,
     notes: String(raw.notes ?? "").trim() || undefined,
   };
 }
 
-export function parseOrderTableLines(items: unknown): OrderTableLine[] {
+export function parseOrderTableLines(items: unknown, maps?: OrderEnrichmentMaps): OrderTableLine[] {
   if (!Array.isArray(items)) return [];
   return items.map((item) =>
-    parseOrderItemRow(typeof item === "object" && item !== null ? (item as Record<string, unknown>) : {}),
+    parseOrderItemRow(
+      typeof item === "object" && item !== null ? (item as Record<string, unknown>) : {},
+      maps,
+    ),
   );
 }
 
 export function getOrderLinesGrandTotal(lines: OrderTableLine[]): number {
   return Math.round(lines.reduce((sum, line) => sum + line.subtotal, 0) * 100) / 100;
+}
+
+export function getOrderLinesQuantityTotal(lines: OrderTableLine[]): number {
+  return lines.reduce((sum, line) => sum + line.quantity, 0);
 }
 
 export function toOrderItems(cart: { product: Product; quantity: number; notes?: string }[]): OrderItem[] {

@@ -181,6 +181,69 @@ export function getProductCode(product: Pick<Product, "product_code" | "id">): s
   return product.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
+/** Mapa product_id → código atual do catálogo (para enriquecer pedidos antigos). */
+export function buildProductCodeLookup(
+  products: Pick<Product, "id" | "product_code">[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const product of products) {
+    const code = product.product_code?.trim();
+    if (code) map.set(product.id, code);
+  }
+  return map;
+}
+
+/** Mapa product_id → preço unitário atual do catálogo (para pedidos sem preço gravado). */
+export function buildProductPriceLookup(products: Pick<Product, "id" | "price">[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const product of products) {
+    map.set(product.id, getProductUnitPrice(product));
+  }
+  return map;
+}
+
+/** Chave estável para casar nome do produto em pedidos antigos. */
+export function normalizeProductNameKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\s+/g, " ");
+}
+
+export type OrderEnrichmentMaps = {
+  codeByProductId: Map<string, string>;
+  priceByProductId: Map<string, number>;
+  codeByProductName: Map<string, string>;
+  priceByProductName: Map<string, number>;
+};
+
+export function buildOrderEnrichmentMaps(
+  products: Pick<Product, "id" | "name" | "product_code" | "price">[],
+): OrderEnrichmentMaps {
+  const codeByProductId = new Map<string, string>();
+  const priceByProductId = new Map<string, number>();
+  const codeByProductName = new Map<string, string>();
+  const priceByProductName = new Map<string, number>();
+
+  for (const product of products) {
+    const nameKey = normalizeProductNameKey(product.name);
+    const code = product.product_code?.trim();
+    const price = getProductUnitPrice(product);
+
+    priceByProductId.set(product.id, price);
+    if (nameKey) priceByProductName.set(nameKey, price);
+
+    if (code) {
+      codeByProductId.set(product.id, code);
+      if (nameKey) codeByProductName.set(nameKey, code);
+    }
+  }
+
+  return { codeByProductId, priceByProductId, codeByProductName, priceByProductName };
+}
+
 export function getCartSubtotal(cart: CartItem[]): number {
   return cart.reduce((sum, item) => sum + getProductUnitPrice(item.product) * item.quantity, 0);
 }

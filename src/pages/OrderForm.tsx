@@ -12,6 +12,7 @@ import { formatBRL } from "@/lib/formatMoney";
 import { CartTotalBar } from "@/components/CartTotalBar";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
+import { CatalogOrderNotice } from "@/components/CatalogOrderNotice";
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
@@ -269,6 +270,7 @@ export default function OrderForm() {
       </header>
 
       <div className="container mx-auto max-w-3xl px-4 py-6">
+        {cart.length > 0 && <CatalogOrderNotice className="mb-6" />}
         {cart.length === 0 ? (
           <div className="space-y-3 rounded-xl border border-border bg-card p-6 text-center">
             <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground/40" />

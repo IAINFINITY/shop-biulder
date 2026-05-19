@@ -20,6 +20,7 @@ import {
   PRODUCTS_TABLE,
   PRODUCT_TYPES_TABLE,
   getProductImageUrls,
+  buildOrderEnrichmentMaps,
   buildProductDbPayload,
   isMissingImageUrlsColumnError,
   isMissingProductCodeColumnError,
@@ -34,7 +35,12 @@ import {
   priceToAdminInput,
 } from "@/lib/formatMoney";
 import { uploadProductImageFile } from "@/lib/productImageStorage";
-import { ORDERS_TABLE, parseOrderTableLines } from "@/lib/orders";
+import {
+  ORDERS_TABLE,
+  getOrderLinesGrandTotal,
+  getOrderLinesQuantityTotal,
+  parseOrderTableLines,
+} from "@/lib/orders";
 import { downloadOrderPdf, downloadOrderXlsx } from "@/lib/orderExport";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { toast } from "sonner";
@@ -114,6 +120,8 @@ export default function Admin() {
   const [orderSearch, setOrderSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
 
   const derivedTypes = useMemo(() => {
     return [...new Set(products.map((p) => p.type))].sort();
@@ -515,7 +523,9 @@ export default function Admin() {
             ) : (
               <div className="space-y-3">
                 {filteredOrders.map((order) => {
-                  const lines = parseOrderTableLines(order.items);
+                  const lines = parseOrderTableLines(order.items, orderEnrichment);
+                  const orderTotal = getOrderLinesGrandTotal(lines);
+                  const orderQty = getOrderLinesQuantityTotal(lines);
                   const exportPayload = {
                     id: order.id,
                     created_at: order.created_at,
@@ -525,6 +535,7 @@ export default function Admin() {
                     customer_cnpj: order.customer_cnpj,
                     status: order.status,
                     items: order.items,
+                    enrichmentMaps: orderEnrichment,
                   };
                   return (
                     <div key={order.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
@@ -571,9 +582,18 @@ export default function Admin() {
                         CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
                       </p>
                       <OrderItemsTable lines={lines} />
-                      <p className="text-xs text-muted-foreground">
-                        Quantidade total de itens: <span className="text-foreground">{order.total_items}</span>
-                      </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <p>
+                          Total do pedido:{" "}
+                          <span className="font-semibold text-foreground tabular-nums">{formatBRL(orderTotal)}</span>
+                        </p>
+                        <p>
+                          Unidades: <span className="text-foreground tabular-nums">{orderQty}</span>
+                          {order.total_items !== orderQty && (
+                            <span className="text-muted-foreground"> (registrado: {order.total_items})</span>
+                          )}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}

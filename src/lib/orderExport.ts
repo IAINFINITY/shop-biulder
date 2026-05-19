@@ -3,10 +3,12 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { formatBRL } from "@/lib/formatMoney";
 import {
+  formatOrderLineProductLabel,
   getOrderLinesGrandTotal,
   parseOrderTableLines,
   type OrderTableLine,
 } from "@/lib/orders";
+import type { OrderEnrichmentMaps } from "@/lib/products";
 
 export type OrderExportInput = {
   id: string;
@@ -17,6 +19,7 @@ export type OrderExportInput = {
   customer_cnpj: string;
   status: string;
   items: unknown;
+  enrichmentMaps?: OrderEnrichmentMaps;
 };
 
 function orderFileBase(order: OrderExportInput): string {
@@ -40,7 +43,7 @@ function buildHeaderRows(order: OrderExportInput): (string | number)[][] {
 function tableBodyRows(lines: OrderTableLine[]): (string | number)[][] {
   return lines.map((line) => [
     line.code,
-    line.product,
+    formatOrderLineProductLabel(line),
     line.quantity,
     line.unitPrice,
     line.subtotal,
@@ -48,7 +51,7 @@ function tableBodyRows(lines: OrderTableLine[]): (string | number)[][] {
 }
 
 export function downloadOrderXlsx(order: OrderExportInput): void {
-  const lines = parseOrderTableLines(order.items);
+  const lines = parseOrderTableLines(order.items, order.enrichmentMaps);
   const total = getOrderLinesGrandTotal(lines);
 
   const rows: (string | number)[][] = [
@@ -66,7 +69,7 @@ export function downloadOrderXlsx(order: OrderExportInput): void {
 }
 
 export function downloadOrderPdf(order: OrderExportInput): void {
-  const lines = parseOrderTableLines(order.items);
+  const lines = parseOrderTableLines(order.items, order.enrichmentMaps);
   const total = getOrderLinesGrandTotal(lines);
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -83,7 +86,7 @@ export function downloadOrderPdf(order: OrderExportInput): void {
     head: [["Código", "Produto", "Qtd", "Valor unit.", "Subtotal"]],
     body: lines.map((line) => [
       line.code,
-      line.product,
+      formatOrderLineProductLabel(line),
       String(line.quantity),
       formatBRL(line.unitPrice),
       formatBRL(line.subtotal),

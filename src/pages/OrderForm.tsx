@@ -195,6 +195,29 @@ export default function OrderForm() {
       return;
     }
 
+    // Send order to Proxis ERP (non-blocking — does not prevent checkout)
+    try {
+      const proxisItems = orderItems.map((row) => ({
+        product_code: row.product_code || "",
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        name: row.name,
+      }));
+
+      await fetch("/api/proxis-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: form.name.trim(),
+          customer_cnpj: form.cnpj.trim(),
+          customer_company: form.company.trim(),
+          items: proxisItems,
+        }),
+      });
+    } catch (err) {
+      console.warn("Falha ao enviar pedido para Proxis ERP", err);
+    }
+
     const submittedCart: SubmittedCartLine[] = cart.map((item) => {
       const unit = getProductUnitPrice(item.product);
       const qty = item.quantity;

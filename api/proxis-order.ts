@@ -1,0 +1,262 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+
+const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
+const PROXSIS_USER = process.env.PROXSIS_USER || "";
+const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
+const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "2";
+
+interface OrderRequestBody {
+  customer_name: string;
+  customer_cnpj: string;
+  customer_company: string;
+  items: Array<{
+    product_code: string;
+    quantity: number;
+    unit_price: number;
+    name: string;
+  }>;
+}
+
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function formatCnpj(value: string): string {
+  const digits = onlyDigits(value);
+  if (digits.length === 14) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+  }
+  return value.trim();
+}
+
+function buildAuthHeader(): string {
+  return "Basic " + Buffer.from(`${PROXSIS_USER}:${PROXSIS_PASSWORD}`).toString("base64");
+}
+
+function baseHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Authorization: buildAuthHeader(),
+    "x-promanager-filial": PROXSIS_FILIAL,
+  };
+}
+
+async function proxsisRequest(
+  method: string,
+  endpoint: string,
+  options?: { body?: unknown; extraHeaders?: Record<string, string> }
+): Promise<unknown> {
+  const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/${endpoint}`;
+  const headers: Record<string, string> = { ...baseHeaders(), ...(options?.extraHeaders || {}) };
+
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    let detail = text;
+    try {
+      const json = JSON.parse(text);
+      detail = json.error || text;
+    } catch {}
+    throw new Error(`Proxsis API error (${res.status}): ${detail}`);
+  }
+
+  const text = await res.text();
+  if (!text.trim()) return null;
+  return JSON.parse(text);
+}
+
+async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknown> | null> {
+  const formatted = formatCnpj(cnpj);
+  const filtro = `pes_cpf_cnpj = '${formatted}'`;
+
+  const result = await proxsisRequest("GET", "ObterParticipantes", {
+    extraHeaders: {
+      "X-ProManager-Pagina-Inicio": "0",
+      "X-ProManager-Pagina-Quant": "5",
+      "X-Promanager-Busca-Filtro": filtro,
+    },
+  });
+
+  if (!result) return null;
+
+  if (Array.isArray(result)) {
+    const digits = onlyDigits(cnpj);
+    const match = result.find(
+      (item: Record<string, unknown>) => onlyDigits(String(item.pes_cpf_cnpj || "")) === digits
+    );
+    return (match || result[0] || null) as Record<string, unknown> | null;
+  }
+
+  return result as Record<string, unknown>;
+}
+
+async function criarCliente(nome: string, cnpj: string): Promise<Record<string, unknown>> {
+  const payload = {
+    pes_tipo_pessoa: "J",
+    pes_nome: nome.toUpperCase(),
+    pes_fantasia: nome.toUpperCase(),
+    pes_cpf_cnpj: formatCnpj(cnpj),
+    pes_tipo_cliente: true,
+    endereco: [
+      {
+        pen_cep: "00000000",
+        pen_endereco: "A DEFINIR",
+        pen_num_endereco: "S/N",
+        pen_bairro: "CENTRO",
+        municipio: "A DEFINIR",
+        estado: "SC",
+        pen_ie: "ISENTO",
+        pen_contribuinte: 2,
+      },
+    ],
+  };
+
+  const result = await proxsisRequest("POST", '"SalvarParticipante"', { body: payload });
+  return result as Record<string, unknown>;
+}
+
+async function buscarProdutoPorNumero(numero: string): Promise<Record<string, unknown> | null> {
+  const filtro = `item.ite_numero = '${numero}'`;
+
+  const result = await proxsisRequest("GET", "ObterItens", {
+    extraHeaders: {
+      "X-ProManager-Pagina-Inicio": "0",
+      "X-ProManager-Pagina-Quant": "5",
+      "X-Promanager-Busca-Filtro": filtro,
+    },
+  });
+
+  if (!result) return null;
+  if (Array.isArray(result)) return result[0] || null;
+  return result as Record<string, unknown>;
+}
+
+async function criarPedido(pedido: Record<string, unknown>): Promise<unknown> {
+  return proxsisRequest("POST", '"SalvarPedidoVenda"', { body: pedido });
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
+    return res.status(500).json({ error: "Proxsis API not configured on server" });
+  }
+
+  const body = req.body as OrderRequestBody;
+
+  if (!body.customer_cnpj || !body.customer_name || !body.items?.length) {
+    return res.status(400).json({ error: "Missing required fields: customer_cnpj, customer_name, items" });
+  }
+
+  try {
+    // 1. Look up customer by CNPJ
+    let cliente = await buscarClientePorCnpj(body.customer_cnpj);
+    let pesId: number;
+
+    if (cliente && cliente.pes_id) {
+      pesId = Number(cliente.pes_id);
+    } else {
+      // 2. Create customer if not found
+      const nomeCliente = body.customer_company || body.customer_name;
+      const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj);
+      if (!novoCliente || !novoCliente.pes_id) {
+        // After creating, look up again to get the pes_id
+        cliente = await buscarClientePorCnpj(body.customer_cnpj);
+        if (!cliente || !cliente.pes_id) {
+          return res.status(500).json({ error: "Failed to create/find customer in Proxsis" });
+        }
+        pesId = Number(cliente.pes_id);
+      } else {
+        pesId = Number(novoCliente.pes_id);
+      }
+    }
+
+    // Get price table from customer
+    let tprId = 1;
+    if (cliente) {
+      const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;
+      if (tabelas && tabelas.length > 0 && tabelas[0].tpr_id) {
+        tprId = tabelas[0].tpr_id;
+      }
+    }
+
+    // 3. Resolve product IDs (ite_id) from product_code (ite_numero)
+    const documentoItens: Array<{
+      ite_id: number;
+      dit_quantidade: number;
+      dit_vlr_unitario: number;
+      lotes: unknown[];
+    }> = [];
+
+    const failedProducts: string[] = [];
+
+    for (const item of body.items) {
+      if (!item.product_code) {
+        failedProducts.push(item.name || "Unknown product");
+        continue;
+      }
+
+      const produto = await buscarProdutoPorNumero(item.product_code);
+      if (!produto || !produto.ite_id) {
+        failedProducts.push(`${item.name} (code: ${item.product_code})`);
+        continue;
+      }
+
+      documentoItens.push({
+        ite_id: Number(produto.ite_id),
+        dit_quantidade: item.quantity,
+        dit_vlr_unitario: item.unit_price || 0,
+        lotes: [],
+      });
+    }
+
+    if (documentoItens.length === 0) {
+      return res.status(400).json({
+        error: "No valid products found in Proxsis",
+        failed_products: failedProducts,
+      });
+    }
+
+    // 4. Create the order
+    const now = new Date();
+    const docDtEmissao = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+    const docPedWeb = `INFINITY-${Date.now().toString(36).toUpperCase()}`;
+
+    const pedido = {
+      doc_tipo: 2,
+      oin_id: 1,
+      tpr_id: tprId,
+      cpa_id: 1,
+      tti_id: 5,
+      pes_id_cli: pesId,
+      pes_id_ven: 1,
+      doc_dt_emissao: docDtEmissao,
+      doc_ped_web: docPedWeb,
+      DocumentoItens: documentoItens,
+    };
+
+    const resultado = await criarPedido(pedido);
+
+    return res.status(200).json({
+      success: true,
+      doc_ped_web: docPedWeb,
+      pes_id: pesId,
+      items_count: documentoItens.length,
+      failed_products: failedProducts.length > 0 ? failedProducts : undefined,
+      proxsis_response: resultado,
+    });
+  } catch (error) {
+    console.error("Proxsis integration error:", error);
+    return res.status(500).json({
+      error: "Proxsis integration failed",
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+}

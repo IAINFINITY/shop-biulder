@@ -10,6 +10,12 @@ import {
   type OrderTableLine,
 } from "@/lib/orders";
 import type { OrderEnrichmentMaps } from "@/lib/products";
+import {
+  buildProxisImportFileContent,
+  proxisImportFileName,
+  type ProxisImportOrderInput,
+} from "@/lib/proxisImportExport";
+import { ensureProxisImportId } from "@/lib/proxisImportId";
 
 export type OrderExportInput = {
   id: string;
@@ -20,6 +26,7 @@ export type OrderExportInput = {
   customer_cnpj: string;
   status: string;
   items: unknown;
+  proxis_import_id?: number | null;
   enrichmentMaps?: OrderEnrichmentMaps;
 };
 
@@ -188,4 +195,31 @@ export function downloadOrderPdf(order: OrderExportInput): void {
   drawPdfOrderTotals(doc, finalY, contentWidth, totalQuantity, totalValue);
 
   doc.save(`${orderFileBase(order)}.pdf`);
+}
+
+function downloadTextFile(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Exporta pedido no layout .txt para importação no ProManager (Proxis). */
+export async function downloadProxisImportTxt(order: OrderExportInput): Promise<number> {
+  const proxisImportId = await ensureProxisImportId(order.id, order.proxis_import_id);
+
+  const input: ProxisImportOrderInput = {
+    proxisImportId,
+    customerCnpj: order.customer_cnpj,
+    createdAt: order.created_at,
+    items: order.items,
+    enrichmentMaps: order.enrichmentMaps,
+  };
+
+  const content = buildProxisImportFileContent([input]);
+  downloadTextFile(proxisImportFileName(proxisImportId, order.created_at), content);
+  return proxisImportId;
 }

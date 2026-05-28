@@ -108,6 +108,7 @@ export type Database = {
           customer_phone: string
           id: string
           items: Json
+          proxis_import_id: number | null
           status: string
           total_items: number
         }
@@ -119,6 +120,7 @@ export type Database = {
           customer_phone: string
           id?: string
           items?: Json
+          proxis_import_id?: number | null
           status?: string
           total_items?: number
         }
@@ -130,6 +132,7 @@ export type Database = {
           customer_phone?: string
           id?: string
           items?: Json
+          proxis_import_id?: number | null
           status?: string
           total_items?: number
         }

@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon, FileSpreadsheet, FileText } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon, FileSpreadsheet, FileText, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/RichTextEditor";
@@ -41,7 +41,7 @@ import {
   getOrderLinesQuantityTotal,
   parseOrderTableLines,
 } from "@/lib/orders";
-import { downloadOrderPdf, downloadOrderXlsx } from "@/lib/orderExport";
+import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/lib/orderExport";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -118,6 +118,7 @@ export default function Admin() {
   const [newType, setNewType] = useState("");
   const [activeTab, setActiveTab] = useState("produtos");
   const [orderSearch, setOrderSearch] = useState("");
+  const [proxisExportingId, setProxisExportingId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -306,6 +307,19 @@ export default function Admin() {
     if (error) { toast.error(error.message); return; }
     toast.success("Pedido removido.");
     refreshOrders();
+  };
+
+  const exportProxisOrder = async (exportPayload: Parameters<typeof downloadProxisImportTxt>[0]) => {
+    setProxisExportingId(exportPayload.id);
+    try {
+      const proxisId = await downloadProxisImportTxt(exportPayload);
+      toast.success(`Arquivo Proxis gerado (ID ${proxisId}).`);
+      refreshOrders();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao exportar para Proxis.");
+    } finally {
+      setProxisExportingId(null);
+    }
   };
 
   const formatDate = (value: string) => new Date(value).toLocaleString("pt-BR");
@@ -535,8 +549,10 @@ export default function Admin() {
                     customer_cnpj: order.customer_cnpj,
                     status: order.status,
                     items: order.items,
+                    proxis_import_id: order.proxis_import_id,
                     enrichmentMaps: orderEnrichment,
                   };
+                  const isProxisExporting = proxisExportingId === order.id;
                   return (
                     <div key={order.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -544,36 +560,58 @@ export default function Admin() {
                           <p className="font-semibold text-foreground">{order.customer_name}</p>
                           <p className="text-sm text-muted-foreground">{order.customer_company}</p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary">{order.status}</Badge>
-                          <span className="text-xs text-muted-foreground">{formatDate(order.created_at)}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 h-8"
-                            onClick={() => downloadOrderXlsx(exportPayload)}
-                          >
-                            <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 h-8"
-                            onClick={() => downloadOrderPdf(exportPayload)}
-                          >
-                            <FileText className="h-3.5 w-3.5" /> PDF
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive"
-                            onClick={() => deleteOrder(order.id)}
-                            title="Excluir pedido"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
+                        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <Badge variant="secondary">{order.status}</Badge>
+                            {order.proxis_import_id != null && (
+                              <Badge variant="outline" className="font-mono text-xs">
+                                Proxis ID {order.proxis_import_id}
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {formatDate(order.created_at)}
+                            </span>
+                          </div>
+                          <div className="flex flex-nowrap items-center justify-end gap-2 overflow-x-auto">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 h-8 shrink-0"
+                              disabled={isProxisExporting}
+                              onClick={() => exportProxisOrder(exportPayload)}
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                              {isProxisExporting ? "Gerando..." : "Proxis .txt"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 h-8 shrink-0"
+                              onClick={() => downloadOrderXlsx(exportPayload)}
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="gap-1 h-8 shrink-0"
+                              onClick={() => downloadOrderPdf(exportPayload)}
+                            >
+                              <FileText className="h-3.5 w-3.5" /> PDF
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 text-destructive"
+                              onClick={() => deleteOrder(order.id)}
+                              title="Excluir pedido"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">

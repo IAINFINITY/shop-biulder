@@ -43,6 +43,8 @@ export interface Order {
   total_items: number;
   status: string;
   created_at: string;
+  /** ID sequencial para arquivo de importação Proxis (.txt). */
+  proxis_import_id?: number | null;
 }
 
 export type OrderTableLine = {

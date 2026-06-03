@@ -21,11 +21,15 @@ export type ProxisImportField =
 /** Divisão de venda fixa no layout Proxis (sempre 1). */
 export const PROXIS_IMPORT_DIV_VENDA = "1";
 
+/** Portador padrão no .txt (coluna Portador): 1 = Bradesco */
+export const PROXIS_IMPORT_PORTADOR_DEFAULT = "1";
+
 /**
- * Representante (coluna Rep). Provisório até definirem quem importa no Proxis.
- * Atualize VITE_PROXIS_IMPORT_REP no .env quando tiverem o ID definitivo.
+ * Representante (coluna Rep) no .txt.
+ * Aceita 1 ID fixo ("2871") ou lista para rodízio (9 representantes).
  */
-export const PROXIS_IMPORT_REP_DEFAULT = "14";
+export const PROXIS_IMPORT_REP_DEFAULT =
+  "2871,3216,2880,7798,7057,6437,7318,2365,2370";
 
 export type ProxisImportOrderInput = {
   proxisImportId: number;
@@ -84,19 +88,29 @@ function buildLineFields(
     PROXIS_IMPORT_DIV_VENDA,
     "",
     "",
-    "",
+    PROXIS_IMPORT_PORTADOR_DEFAULT,
   ];
 }
 
 /** Código do representante para o .txt (env ou valor padrão provisório). */
-export function getProxisImportRep(): string {
+export function getProxisImportRep(seed = 0): string {
   const fromEnv = import.meta.env.VITE_PROXIS_IMPORT_REP?.trim();
-  return fromEnv || PROXIS_IMPORT_REP_DEFAULT;
+  const raw = fromEnv || PROXIS_IMPORT_REP_DEFAULT;
+  const reps = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (reps.length === 0) return "2871";
+  if (reps.length === 1) return reps[0];
+
+  const index = Math.abs(Math.trunc(seed)) % reps.length;
+  return reps[index];
 }
 
 export function buildProxisImportLines(
   order: ProxisImportOrderInput,
-  rep: string = getProxisImportRep(),
+  rep: string = getProxisImportRep(order.proxisImportId),
 ): string[] {
   const cnpjDigits = onlyDigits(order.customerCnpj);
   if (!cnpjDigits) {
@@ -129,12 +143,14 @@ export function buildProxisImportLines(
 
 export function buildProxisImportFileContent(
   orders: ProxisImportOrderInput[],
-  rep: string = getProxisImportRep(),
+  rep?: string,
 ): string {
   const allLines: string[] = [];
 
-  for (const order of orders) {
-    allLines.push(...buildProxisImportLines(order, rep));
+  for (let index = 0; index < orders.length; index++) {
+    const order = orders[index];
+    const orderRep = rep ?? getProxisImportRep(index);
+    allLines.push(...buildProxisImportLines(order, orderRep));
   }
 
   return `${allLines.join("\n")}\n`;

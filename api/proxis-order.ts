@@ -3,12 +3,27 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
-const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "2";
+const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
+
+/** Valores padrão observados em pedidos reais (ObterPedidos). Conferir IDs ao trocar filial. */
+function proxisEnvId(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
+}
+
+const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 68);
+const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 64);
+const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 1);
+const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 74);
+/** Portador (aba Financeiro): 1 = Bradesco */
+const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 
 interface OrderRequestBody {
   customer_name: string;
   customer_cnpj: string;
   customer_company: string;
+  pes_id_ven?: number | string | null;
+  representative_id?: number | string | null;
   items: Array<{
     product_code: string;
     quantity: number;
@@ -16,6 +31,23 @@ interface OrderRequestBody {
     name: string;
   }>;
 }
+
+/** pes_id_ven = ID na tabela pessoa (vendedor). Rodízio entre os representantes configurados. */
+function parseRepPesIdsFromEnv(): number[] {
+  const raw = process.env.PROXIS_REP_PES_IDS?.trim();
+  if (raw) {
+    const ids = raw
+      .split(",")
+      .map((value) => Math.trunc(Number(value.trim())))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    if (ids.length > 0) return ids;
+  }
+  return [2871, 3216, 2880, 7798, 7057, 6437, 7318, 2365, 2370];
+}
+
+const REPRESENTATIVE_ROTATION = parseRepPesIdsFromEnv();
+const REPRESENTATIVE_SET = new Set<number>(REPRESENTATIVE_ROTATION);
+let representativeRotationIndex = 0;
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -41,12 +73,18 @@ function baseHeaders(): Record<string, string> {
   };
 }
 
+/** DataSnap REST: endpoint entre aspas, ex. .../TSMApi/"ObterItens" */
+function proxsisEndpoint(name: string): string {
+  const clean = name.replace(/^"+|"+$/g, "");
+  return `"${clean}"`;
+}
+
 async function proxsisRequest(
   method: string,
-  endpoint: string,
+  endpointName: string,
   options?: { body?: unknown; extraHeaders?: Record<string, string> }
 ): Promise<unknown> {
-  const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/${endpoint}`;
+  const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/${proxsisEndpoint(endpointName)}`;
   const headers: Record<string, string> = { ...baseHeaders(), ...(options?.extraHeaders || {}) };
 
   const res = await fetch(url, {
@@ -61,7 +99,9 @@ async function proxsisRequest(
     try {
       const json = JSON.parse(text);
       detail = json.error || text;
-    } catch {}
+    } catch {
+      // Response body may be non-JSON; keep raw message.
+    }
     throw new Error(`Proxsis API error (${res.status}): ${detail}`);
   }
 
@@ -116,7 +156,7 @@ async function criarCliente(nome: string, cnpj: string): Promise<Record<string, 
     ],
   };
 
-  const result = await proxsisRequest("POST", '"SalvarParticipante"', { body: payload });
+  const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload });
   return result as Record<string, unknown>;
 }
 
@@ -137,7 +177,27 @@ async function buscarProdutoPorNumero(numero: string): Promise<Record<string, un
 }
 
 async function criarPedido(pedido: Record<string, unknown>): Promise<unknown> {
-  return proxsisRequest("POST", '"SalvarPedidoVenda"', { body: pedido });
+  return proxsisRequest("POST", "SalvarPedidoVenda", { body: pedido });
+}
+
+function parseRepresentativeId(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return Math.trunc(numeric);
+}
+
+function nextRepresentativeId(): number {
+  const index = representativeRotationIndex % REPRESENTATIVE_ROTATION.length;
+  const repId = REPRESENTATIVE_ROTATION[index];
+  representativeRotationIndex = (representativeRotationIndex + 1) % REPRESENTATIVE_ROTATION.length;
+  return repId;
+}
+
+function resolveRepresentativeId(body: OrderRequestBody): number {
+  const explicitRepId = parseRepresentativeId(body.pes_id_ven ?? body.representative_id);
+  if (explicitRepId && REPRESENTATIVE_SET.has(explicitRepId)) return explicitRepId;
+  return nextRepresentativeId();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -179,7 +239,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get price table from customer
-    let tprId = 1;
+    let tprId = PROXSIS_TPR_ID_DEFAULT;
     if (cliente) {
       const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;
       if (tabelas && tabelas.length > 0 && tabelas[0].tpr_id) {
@@ -231,12 +291,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const pedido = {
       doc_tipo: 2,
-      oin_id: 1,
+      oin_id: PROXSIS_OIN_ID,
       tpr_id: tprId,
-      cpa_id: 1,
-      tti_id: 5,
+      cpa_id: PROXSIS_CPA_ID,
+      tti_id: PROXSIS_TTI_ID,
+      por_id: PROXSIS_POR_ID,
       pes_id_cli: pesId,
-      pes_id_ven: 1,
+      pes_id_ven: resolveRepresentativeId(body),
       doc_dt_emissao: docDtEmissao,
       doc_ped_web: docPedWeb,
       DocumentoItens: documentoItens,

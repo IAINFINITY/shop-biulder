@@ -195,7 +195,36 @@ export default function OrderForm() {
       return;
     }
 
-    // Pedido no Proxis: exportar .txt no painel admin (importação manual no ProManager).
+    // Enviar pedido ao Proxis ERP (não bloqueia o checkout se falhar)
+    try {
+      const proxisItems = orderItems.map((row) => ({
+        product_code: row.product_code || "",
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        name: row.name,
+      }));
+
+      const proxisRes = await fetch("/api/proxis-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: form.name.trim(),
+          customer_cnpj: form.cnpj.trim(),
+          customer_company: form.company.trim(),
+          items: proxisItems,
+        }),
+      });
+
+      if (!proxisRes.ok) {
+        const errBody = await proxisRes.json().catch(() => ({}));
+        console.warn("Proxis ERP retornou erro", { status: proxisRes.status, errBody });
+      } else {
+        const proxisData = await proxisRes.json().catch(() => null);
+        console.info("Pedido enviado ao Proxis ERP", proxisData);
+      }
+    } catch (err) {
+      console.warn("Falha ao enviar pedido para Proxis ERP", err);
+    }
 
     const submittedCart: SubmittedCartLine[] = cart.map((item) => {
       const unit = getProductUnitPrice(item.product);

@@ -1,0 +1,168 @@
+{
+  "name": "Proxis - Teste ObterItens",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Iniciar teste",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-base",
+              "name": "proxis_base_url",
+              "value": "http://177.38.10.218:8082/datasnap/rest/TSMApi",
+              "type": "string"
+            },
+            {
+              "id": "cfg-user",
+              "name": "proxis_user",
+              "value": "SEU_USUARIO",
+              "type": "string"
+            },
+            {
+              "id": "cfg-pass",
+              "name": "proxis_password",
+              "value": "SUA_SENHA",
+              "type": "string"
+            },
+            {
+              "id": "cfg-filial",
+              "name": "proxis_filial",
+              "value": "2",
+              "type": "string"
+            },
+            {
+              "id": "cfg-page",
+              "name": "pagina_quant",
+              "value": "10",
+              "type": "string"
+            },
+            {
+              "id": "cfg-filter",
+              "name": "filtro_produto",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Config Proxis",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 300],
+      "notes": "Edite user/senha/filial (valores do .env). filtro_produto vazio = listar todos; ou: item.ite_numero = '7500'"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $input.first().json;\nconst user = String(cfg.proxis_user || '').trim();\nconst pass = String(cfg.proxis_password || '').trim();\n\nif (!user || user === 'SEU_USUARIO' || !pass || pass === 'SUA_SENHA') {\n  throw new Error('Preencha proxis_user e proxis_password no nó Config Proxis');\n}\n\nconst authorization = 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64');\nconst base = String(cfg.proxis_base_url || '').replace(/\\/$/, '');\nconst url = `${base}/\"ObterItens\"`;\n\nreturn [\n  {\n    json: {\n      ...cfg,\n      url,\n      authorization,\n    },\n  },\n];"
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Montar Authorization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300],
+      "notes": "Gera o header Basic Auth (Buffer não funciona em expressão do HTTP)"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ $json.authorization }}"
+            },
+            {
+              "name": "x-promanager-filial",
+              "value": "={{ $json.proxis_filial }}"
+            },
+            {
+              "name": "X-ProManager-Pagina-Inicio",
+              "value": "0"
+            },
+            {
+              "name": "X-ProManager-Pagina-Quant",
+              "value": "={{ $json.pagina_quant }}"
+            },
+            {
+              "name": "X-Promanager-Busca-Filtro",
+              "value": "={{ $json.filtro_produto }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "HTTP ObterItens",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 300],
+      "notes": "Authorization = {{ $json.authorization }} (vem do nó anterior)"
+    }
+  ],
+  "connections": {
+    "Iniciar teste": {
+      "main": [
+        [
+          {
+            "node": "Config Proxis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config Proxis": {
+      "main": [
+        [
+          {
+            "node": "Montar Authorization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Authorization": {
+      "main": [
+        [
+          {
+            "node": "HTTP ObterItens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "active": false,
+  "versionId": "proxis-obter-itens-v3"
+}

@@ -11,10 +11,11 @@ function proxisEnvId(name: string, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
 }
 
-const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 68);
-const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 64);
-const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 1);
-const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 74);
+/** Filial 5 (ObterPedidos): oin 48, cpa 3, tti 7, tpr 40 — conferir se mudar filial. */
+const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 48);
+const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 3);
+const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
+const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 40);
 /** Portador (aba Financeiro): 1 = Bradesco */
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 

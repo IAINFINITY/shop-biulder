@@ -8,12 +8,15 @@ import {
 } from "@/components/ui/table";
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderTableLine } from "@/lib/orders";
+import { cn } from "@/lib/utils";
 
 type Props = {
   lines: OrderTableLine[];
+  /** Limita altura da lista de itens com scroll interno (ex.: max-h-52). */
+  maxBodyHeight?: string;
 };
 
-export function OrderItemsTable({ lines }: Props) {
+export function OrderItemsTable({ lines, maxBodyHeight }: Props) {
   if (lines.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
@@ -23,9 +26,15 @@ export function OrderItemsTable({ lines }: Props) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-border">
+    <div
+      className={cn(
+        "overflow-x-auto rounded-md border border-border",
+        maxBodyHeight && "overflow-y-auto",
+        maxBodyHeight,
+      )}
+    >
       <Table>
-        <TableHeader>
+        <TableHeader className={cn(maxBodyHeight && "sticky top-0 z-10 bg-card")}>
           <TableRow>
             <TableHead className="w-[90px]">Código</TableHead>
             <TableHead>Produto</TableHead>
@@ -51,7 +60,9 @@ export function OrderItemsTable({ lines }: Props) {
               </TableCell>
               <TableCell className="text-right tabular-nums">{line.quantity}</TableCell>
               <TableCell className="text-right tabular-nums">{formatBRL(line.unitPrice)}</TableCell>
-              <TableCell className="text-right tabular-nums font-medium">{formatBRL(line.subtotal)}</TableCell>
+              <TableCell className="text-right tabular-nums font-medium">
+                {formatBRL(line.subtotal)}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

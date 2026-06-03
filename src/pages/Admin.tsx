@@ -1,6 +1,6 @@
 ﻿import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon, FileSpreadsheet, FileText, FileDown } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RichTextEditor } from "@/components/RichTextEditor";
@@ -42,7 +42,7 @@ import {
   parseOrderTableLines,
 } from "@/lib/orders";
 import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/lib/orderExport";
-import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
+import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
@@ -432,8 +432,8 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="shrink-0 border-b border-border bg-card">
         <div className="container mx-auto px-4 h-14 flex items-center gap-4">
           <Link to="/"><Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button></Link>
           <div className="flex items-center gap-2">
@@ -449,28 +449,35 @@ export default function Admin() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="produtos">Produtos</TabsTrigger>
-            <TabsTrigger value="pedidos">Pedidos</TabsTrigger>
+      <div className="container mx-auto flex w-full max-w-4xl flex-1 flex-col min-h-0 px-4 py-4 sm:py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col min-h-0 w-full">
+          <TabsList className="mb-4 grid h-11 w-full shrink-0 grid-cols-2 p-1">
+            <TabsTrigger value="produtos" className="w-full rounded-md">
+              Produtos
+            </TabsTrigger>
+            <TabsTrigger value="pedidos" className="w-full rounded-md">
+              Pedidos
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="produtos">
-            {editing && isNew && renderForm("Novo Produto", "mb-6")}
-            <div className="mb-4">
+          <TabsContent value="produtos" className="mt-0 flex flex-1 flex-col min-h-0 data-[state=inactive]:hidden">
+            {editing && isNew && renderForm("Novo Produto", "mb-4 shrink-0")}
+            <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
               <Input
                 placeholder="Pesquisar produto (nome, família, tipo)"
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
-                className="sm:max-w-md"
+                className="w-full sm:flex-1"
               />
+              <span className="text-xs text-muted-foreground sm:min-w-[7.5rem] sm:text-right">
+                {isLoading ? "Carregando..." : `${filteredProducts.length} produto(s)`}
+              </span>
             </div>
 
             {isLoading ? (
               <p className="text-muted-foreground text-center py-10">Carregando produtos...</p>
             ) : (
-              <div className="space-y-2">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 pr-1 -mr-1">
                 {filteredProducts.map((p) => {
                   const thumb = getProductImageUrls(p)[0];
                   return editing && !isNew && editing.id === p.id ? (
@@ -516,15 +523,15 @@ export default function Admin() {
             )}
           </TabsContent>
 
-          <TabsContent value="pedidos">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <TabsContent value="pedidos" className="mt-0 flex flex-1 flex-col min-h-0 data-[state=inactive]:hidden">
+            <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center">
               <Input
                 placeholder="Pesquisar pedido (nome, empresa, telefone, CNPJ, status)"
                 value={orderSearch}
                 onChange={(e) => setOrderSearch(e.target.value)}
-                className="sm:max-w-md"
+                className="w-full sm:flex-1"
               />
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground sm:min-w-[7.5rem] sm:text-right">
                 {ordersLoading ? "Carregando..." : `${filteredOrders.length} pedido(s)`}
               </span>
             </div>
@@ -535,7 +542,7 @@ export default function Admin() {
                 Nenhum pedido recebido ainda.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-2 pr-1 -mr-1 pb-2">
                 {filteredOrders.map((order) => {
                   const lines = parseOrderTableLines(order.items, orderEnrichment);
                   const orderTotal = getOrderLinesGrandTotal(lines);
@@ -552,92 +559,31 @@ export default function Admin() {
                     proxis_import_id: order.proxis_import_id,
                     enrichmentMaps: orderEnrichment,
                   };
-                  const isProxisExporting = proxisExportingId === order.id;
                   return (
-                    <div key={order.id} className="rounded-lg border border-border bg-card p-4 space-y-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-semibold text-foreground">{order.customer_name}</p>
-                          <p className="text-sm text-muted-foreground">{order.customer_company}</p>
-                        </div>
-                        <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            <Badge variant="secondary">{order.status}</Badge>
-                            {order.proxis_import_id != null && (
-                              <Badge variant="outline" className="font-mono text-xs">
-                                Proxis ID {order.proxis_import_id}
-                              </Badge>
-                            )}
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {formatDate(order.created_at)}
-                            </span>
-                          </div>
-                          <div className="flex flex-nowrap items-center justify-end gap-2 overflow-x-auto">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 h-8 shrink-0"
-                              disabled={isProxisExporting}
-                              onClick={() => exportProxisOrder(exportPayload)}
-                            >
-                              <FileDown className="h-3.5 w-3.5" />
-                              {isProxisExporting ? "Gerando..." : "Proxis .txt"}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 h-8 shrink-0"
-                              onClick={() => downloadOrderXlsx(exportPayload)}
-                            >
-                              <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="gap-1 h-8 shrink-0"
-                              onClick={() => downloadOrderPdf(exportPayload)}
-                            >
-                              <FileText className="h-3.5 w-3.5" /> PDF
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 shrink-0 text-destructive"
-                              onClick={() => deleteOrder(order.id)}
-                              title="Excluir pedido"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Telefone: <span className="text-foreground">{order.customer_phone}</span>
-                        {" · "}
-                        CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
-                      </p>
-                      <OrderItemsTable lines={lines} />
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-                          <p className="text-xs font-medium text-muted-foreground">Total de quantidade de produtos</p>
-                          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">{orderQty}</p>
-                          {order.total_items !== orderQty && (
-                            <p className="mt-1 text-[11px] text-muted-foreground">
-                              Registrado no envio: {order.total_items}
-                            </p>
-                          )}
-                        </div>
-                        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
-                          <p className="text-xs font-medium text-muted-foreground">Total de valor</p>
-                          <p className="mt-0.5 text-lg font-semibold tabular-nums text-foreground">
-                            {formatBRL(orderTotal)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <OrderAdminCard
+                      key={order.id}
+                      order={{
+                        id: order.id,
+                        created_at: order.created_at,
+                        customer_name: order.customer_name,
+                        customer_company: order.customer_company,
+                        customer_phone: order.customer_phone,
+                        customer_cnpj: order.customer_cnpj,
+                        status: order.status,
+                        total_items: order.total_items,
+                        proxis_import_id: order.proxis_import_id,
+                        items: order.items,
+                      }}
+                      lines={lines}
+                      orderTotal={orderTotal}
+                      orderQty={orderQty}
+                      formatDate={formatDate}
+                      isProxisExporting={proxisExportingId === order.id}
+                      onExportProxis={() => exportProxisOrder(exportPayload)}
+                      onExportXlsx={() => downloadOrderXlsx(exportPayload)}
+                      onExportPdf={() => downloadOrderPdf(exportPayload)}
+                      onDelete={() => deleteOrder(order.id)}
+                    />
                   );
                 })}
               </div>

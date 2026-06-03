@@ -60,6 +60,16 @@ create table public."Clinic+ - Catálogo Front B2B" (
 );
 ```
 
+**Supabase: catálogo visível no site (sem login)**
+
+Com RLS ativo, visitantes usam a chave `anon`. É obrigatório permitir **SELECT** para `anon` em produtos com `active = true`.
+
+No SQL Editor, execute o arquivo:
+
+`supabase/APLICAR_NO_SUPABASE_catalog_publico.sql`
+
+(ou a migration `20260602130000_catalog_public_read_rls.sql`)
+
 **Supabase: roles de admin**
 Tabela para roles:
 ```sql

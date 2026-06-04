@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
+import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { CartItem, getCart, saveCart, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
@@ -13,55 +13,6 @@ import { CartTotalBar } from "@/components/CartTotalBar";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
 import { CatalogOrderNotice } from "@/components/CatalogOrderNotice";
-
-const onlyDigits = (value: string) => value.replace(/\D/g, "");
-
-const formatCnpj = (value: string) => {
-  const digits = onlyDigits(value).slice(0, 14);
-  const part1 = digits.slice(0, 2);
-  const part2 = digits.slice(2, 5);
-  const part3 = digits.slice(5, 8);
-  const part4 = digits.slice(8, 12);
-  const part5 = digits.slice(12, 14);
-  let formatted = part1;
-  if (part2) formatted += `.${part2}`;
-  if (part3) formatted += `.${part3}`;
-  if (part4) formatted += `/${part4}`;
-  if (part5) formatted += `-${part5}`;
-  return formatted;
-};
-
-const formatPhone = (value: string) => {
-  const digits = onlyDigits(value).slice(0, 11);
-  if (!digits) return "";
-  if (digits.length <= 2) return digits;
-  const ddd = digits.slice(0, 2);
-  const isMobile = digits.length > 10;
-  const part1 = digits.slice(2, isMobile ? 7 : 6);
-  const part2 = digits.slice(isMobile ? 7 : 6);
-  let formatted = `(${ddd})`;
-  if (part1) formatted += ` ${part1}`;
-  if (part2) formatted += `-${part2}`;
-  return formatted;
-};
-
-const isValidCnpj = (value: string) => {
-  const digits = onlyDigits(value);
-  if (digits.length !== 14) return false;
-  if (/^(\d)\1{13}$/.test(digits)) return false;
-
-  const calcCheckDigit = (base: string, weights: number[]) => {
-    const sum = base
-      .split("")
-      .reduce((total, digit, index) => total + Number(digit) * weights[index], 0);
-    const remainder = sum % 11;
-    return remainder < 2 ? 0 : 11 - remainder;
-  };
-
-  const digit1 = calcCheckDigit(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  const digit2 = calcCheckDigit(`${digits.slice(0, 12)}${digit1}`, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
-  return digits.endsWith(`${digit1}${digit2}`);
-};
 
 export default function OrderForm() {
   const navigate = useNavigate();
@@ -74,63 +25,15 @@ export default function OrderForm() {
     company: "",
     cnpj: "",
   });
-  const [cnpjStatus, setCnpjStatus] = useState<"idle" | "checking" | "valid" | "invalid" | "error">("idle");
   const summaryRef = useRef<HTMLDivElement>(null);
+  const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
+  const { assertCnpjReady } = cnpjValidation;
 
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
   const scrollToSummary = useCallback(() => {
     summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
-  const cnpjDigits = onlyDigits(form.cnpj);
-  const isCnpjIncomplete = cnpjDigits.length > 0 && cnpjDigits.length < 14;
-  const isCnpjComplete = cnpjDigits.length === 14;
-  const shouldShowCnpjError = cnpjTouched || isCnpjComplete;
-  const isCnpjInvalid = isCnpjComplete && cnpjStatus === "invalid";
-  const isCnpjError = isCnpjComplete && cnpjStatus === "error";
-  const isCnpjChecking = isCnpjComplete && cnpjStatus === "checking";
-
-  useEffect(() => {
-    if (!isCnpjComplete) {
-      setCnpjStatus("idle");
-      return;
-    }
-
-    if (!isValidCnpj(cnpjDigits)) {
-      setCnpjStatus("invalid");
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(async () => {
-      try {
-        setCnpjStatus("checking");
-        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`, {
-          signal: controller.signal,
-        });
-
-        if (response.ok) {
-          setCnpjStatus("valid");
-          return;
-        }
-
-        if (response.status === 404) {
-          setCnpjStatus("invalid");
-          return;
-        }
-
-        setCnpjStatus("error");
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        setCnpjStatus("error");
-      }
-    }, 400);
-
-    return () => {
-      controller.abort();
-      clearTimeout(timeout);
-    };
-  }, [cnpjDigits, isCnpjComplete]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,28 +43,10 @@ export default function OrderForm() {
       return;
     }
 
-    if (cnpjDigits.length !== 14) {
-      toast.error("CNPJ incompleto. Preencha 14 digitos.");
-      return;
-    }
-
-    if (!isValidCnpj(cnpjDigits)) {
-      toast.error("CNPJ invalido. Verifique o numero informado.");
-      return;
-    }
-
-    if (cnpjStatus === "checking") {
-      toast.info("Validando CNPJ...");
-      return;
-    }
-
-    if (cnpjStatus === "invalid") {
-      toast.error("CNPJ invalido. Verifique o numero informado.");
-      return;
-    }
-
-    if (cnpjStatus === "error") {
-      toast.error("Nao foi possivel validar o CNPJ agora. Tente novamente.");
+    const cnpjMessage = assertCnpjReady();
+    if (cnpjMessage) {
+      if (cnpjMessage === "Validando CNPJ...") toast.info(cnpjMessage);
+      else toast.error(cnpjMessage);
       return;
     }
 
@@ -317,85 +202,12 @@ export default function OrderForm() {
               <h2 className="mb-4 text-lg font-semibold text-foreground">Seus dados</h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome</Label>
-                  <Input
-                    id="name"
-                    value={form.name}
-                    onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nome completo"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={form.phone}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        phone: formatPhone(e.target.value),
-                      }))
-                    }
-                    placeholder="(00) 00000-0000"
-                    inputMode="numeric"
-                    maxLength={15}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="company">Empresa</Label>
-                  <Input
-                    id="company"
-                    value={form.company}
-                    onChange={(e) => setForm((prev) => ({ ...prev, company: e.target.value }))}
-                    placeholder="Nome da empresa"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    value={form.cnpj}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        cnpj: formatCnpj(e.target.value),
-                      }))
-                    }
-                    onBlur={() => setCnpjTouched(true)}
-                    placeholder="00.000.000/0000-00"
-                    inputMode="numeric"
-                    maxLength={18}
-                    aria-invalid={shouldShowCnpjError && (isCnpjIncomplete || isCnpjInvalid || isCnpjError)}
-                    className={
-                      shouldShowCnpjError && (isCnpjIncomplete || isCnpjInvalid || isCnpjError)
-                        ? "border-destructive focus-visible:ring-destructive"
-                        : undefined
-                    }
-                    required
-                  />
-
-                  {shouldShowCnpjError && isCnpjIncomplete && (
-                    <p className="text-xs text-destructive">CNPJ incompleto. Preencha 14 digitos.</p>
-                  )}
-                  {shouldShowCnpjError && isCnpjInvalid && (
-                    <p className="text-xs text-destructive">CNPJ invalido. Verifique o numero informado.</p>
-                  )}
-                  {shouldShowCnpjError && isCnpjError && (
-                    <p className="text-xs text-destructive">
-                      Nao foi possivel validar o CNPJ agora. Tente novamente.
-                    </p>
-                  )}
-                  {shouldShowCnpjError && isCnpjChecking && (
-                    <p className="text-xs text-muted-foreground">Validando CNPJ...</p>
-                  )}
-                </div>
+                <CustomerDataFields
+                  form={form}
+                  onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+                  onCnpjBlur={() => setCnpjTouched(true)}
+                  cnpjValidation={cnpjValidation}
+                />
 
                 <Button type="submit" className="w-full gap-2" size="lg" disabled={submitting}>
                   <Send className="h-4 w-4" />

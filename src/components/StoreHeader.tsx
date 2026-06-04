@@ -1,6 +1,7 @@
 ﻿import type { FormEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Search, Settings } from "lucide-react";
+import { Search, Settings, User } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,9 @@ export type StoreHeaderProps = {
 };
 
 export function StoreHeader({ search, onSearchChange, cartSlot }: StoreHeaderProps) {
+  const { user, isAdmin } = useAuth();
+  const accountPath = user && !isAdmin ? "/conta" : "/login";
+
   const onSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
   };
@@ -32,16 +36,28 @@ export function StoreHeader({ search, onSearchChange, cartSlot }: StoreHeaderPro
                 Suplemento e Nutrição · B2B
               </p>
             </Link>
-            <Link to="/admin" className="shrink-0 lg:hidden">
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                aria-label="Administração"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-            </Link>
+            <div className="flex shrink-0 items-center gap-2 lg:hidden">
+              <Link to={accountPath}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                  aria-label="Minha conta"
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link to="/admin">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                  aria-label="Administração"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
           </div>
 
           <div className="flex min-w-0 justify-center lg:px-4">
@@ -69,6 +85,16 @@ export function StoreHeader({ search, onSearchChange, cartSlot }: StoreHeaderPro
           </div>
 
           <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
+            <Link to={accountPath} className="hidden lg:block">
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                aria-label="Minha conta"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
             <Link to="/admin" className="hidden lg:block">
               <Button
                 variant="outline"

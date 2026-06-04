@@ -174,6 +174,36 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_profiles: {
+        Row: {
+          user_id: string
+          name: string
+          phone: string
+          company: string
+          cnpj: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          name: string
+          phone: string
+          company: string
+          cnpj: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          name?: string
+          phone?: string
+          company?: string
+          cnpj?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -185,6 +215,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      register_customer_profile: {
+        Args: {
+          p_name: string
+          p_phone: string
+          p_company: string
+          p_cnpj: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

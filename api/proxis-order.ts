@@ -18,6 +18,10 @@ const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
 const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 40);
 /** Portador (aba Financeiro): 1 = Bradesco */
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
+/** Município padrão do endereço (Xanxerê/SC na filial 5). SalvarPedidoVenda exige endereço válido. */
+const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
+const PROXSIS_DEFAULT_CEP = process.env.PROXSIS_DEFAULT_CEP?.trim() || "89820000";
+const PROXSIS_DEFAULT_EST_SIGLA = process.env.PROXSIS_DEFAULT_EST_SIGLA?.trim() || "SC";
 
 interface OrderRequestBody {
   customer_name: string;
@@ -136,6 +140,45 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   return result as Record<string, unknown>;
 }
 
+function buildEnderecoPadrao() {
+  return {
+    pen_tipo_endereco: 1,
+    pen_cep: PROXSIS_DEFAULT_CEP,
+    pen_endereco: "A DEFINIR",
+    pen_num_endereco: "S/N",
+    pen_bairro: "CENTRO",
+    mun_id: PROXSIS_DEFAULT_MUN_ID,
+    est_sigla: PROXSIS_DEFAULT_EST_SIGLA,
+    pen_ie: "ISENTO",
+    pen_contribuinte: 2,
+  };
+}
+
+function clienteTemEndereco(cliente: Record<string, unknown>): boolean {
+  const enderecos = cliente.endereco as unknown[] | undefined;
+  return Array.isArray(enderecos) && enderecos.length > 0;
+}
+
+/** SalvarPedidoVenda falha sem endereço; clientes antigos podem ter sido criados sem mun_id. */
+async function garantirEnderecoCliente(cliente: Record<string, unknown>): Promise<void> {
+  if (clienteTemEndereco(cliente)) return;
+
+  const pesId = Number(cliente.pes_id);
+  if (!pesId) return;
+
+  await proxsisRequest("POST", "SalvarParticipante", {
+    body: {
+      pes_id: pesId,
+      pes_tipo_pessoa: cliente.pes_tipo_pessoa || "J",
+      pes_nome: cliente.pes_nome,
+      pes_fantasia: cliente.pes_fantasia || cliente.pes_nome,
+      pes_cpf_cnpj: cliente.pes_cpf_cnpj,
+      pes_tipo_cliente: true,
+      endereco: [buildEnderecoPadrao()],
+    },
+  });
+}
+
 async function criarCliente(nome: string, cnpj: string): Promise<Record<string, unknown>> {
   const payload = {
     pes_tipo_pessoa: "J",
@@ -143,18 +186,7 @@ async function criarCliente(nome: string, cnpj: string): Promise<Record<string, 
     pes_fantasia: nome.toUpperCase(),
     pes_cpf_cnpj: formatCnpj(cnpj),
     pes_tipo_cliente: true,
-    endereco: [
-      {
-        pen_cep: "00000000",
-        pen_endereco: "A DEFINIR",
-        pen_num_endereco: "S/N",
-        pen_bairro: "CENTRO",
-        municipio: "A DEFINIR",
-        estado: "SC",
-        pen_ie: "ISENTO",
-        pen_contribuinte: 2,
-      },
-    ],
+    endereco: [buildEnderecoPadrao()],
   };
 
   const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload });
@@ -232,6 +264,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pesId = Number(novoCliente.pes_id);
       cliente = novoCliente;
     }
+
+    await garantirEnderecoCliente(cliente);
 
     let tprId = PROXSIS_TPR_ID_DEFAULT;
     const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;

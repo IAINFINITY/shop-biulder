@@ -161,6 +161,34 @@ async function criarCliente(nome: string, cnpj: string): Promise<Record<string, 
   return result as Record<string, unknown>;
 }
 
+/** Busca cliente; se não existir, cria e busca de novo antes de montar o pedido. */
+async function resolverCliente(
+  cnpj: string,
+  customerName: string,
+  customerCompany: string
+): Promise<{ pesId: number; cliente: Record<string, unknown> }> {
+  let cliente = await buscarClientePorCnpj(cnpj);
+
+  if (!cliente?.pes_id) {
+    const nomeCliente = customerCompany || customerName;
+    await criarCliente(nomeCliente, cnpj);
+    cliente = await buscarClientePorCnpj(cnpj);
+    if (!cliente?.pes_id) {
+      throw new Error("Failed to create/find customer in Proxsis after SalvarParticipante");
+    }
+  }
+
+  return { pesId: Number(cliente.pes_id), cliente };
+}
+
+function resolveTprId(cliente: Record<string, unknown>): number {
+  const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;
+  if (tabelas?.length && tabelas[0].tpr_id) {
+    return tabelas[0].tpr_id;
+  }
+  return PROXSIS_TPR_ID_DEFAULT;
+}
+
 async function buscarProdutoPorNumero(numero: string): Promise<Record<string, unknown> | null> {
   const filtro = `item.ite_numero = '${numero}'`;
 
@@ -217,36 +245,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. Look up customer by CNPJ
-    let cliente = await buscarClientePorCnpj(body.customer_cnpj);
-    let pesId: number;
-
-    if (cliente && cliente.pes_id) {
-      pesId = Number(cliente.pes_id);
-    } else {
-      // 2. Create customer if not found
-      const nomeCliente = body.customer_company || body.customer_name;
-      const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj);
-      if (!novoCliente || !novoCliente.pes_id) {
-        // After creating, look up again to get the pes_id
-        cliente = await buscarClientePorCnpj(body.customer_cnpj);
-        if (!cliente || !cliente.pes_id) {
-          return res.status(500).json({ error: "Failed to create/find customer in Proxsis" });
-        }
-        pesId = Number(cliente.pes_id);
-      } else {
-        pesId = Number(novoCliente.pes_id);
-      }
-    }
-
-    // Get price table from customer
-    let tprId = PROXSIS_TPR_ID_DEFAULT;
-    if (cliente) {
-      const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;
-      if (tabelas && tabelas.length > 0 && tabelas[0].tpr_id) {
-        tprId = tabelas[0].tpr_id;
-      }
-    }
+    // 1. Busca cliente; se não existir, cria e busca de novo com dados completos
+    const { pesId, cliente } = await resolverCliente(
+      body.customer_cnpj,
+      body.customer_name,
+      body.customer_company
+    );
+    const tprId = resolveTprId(cliente);
 
     // 3. Resolve product IDs (ite_id) from product_code (ite_numero)
     const documentoItens: Array<{

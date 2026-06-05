@@ -22,6 +22,8 @@ const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = process.env.PROXSIS_DEFAULT_CEP?.trim() || "89820000";
 const PROXSIS_DEFAULT_EST_SIGLA = process.env.PROXSIS_DEFAULT_EST_SIGLA?.trim() || "SC";
+/** Marcador interno no pedido Proxis (campo doc_marcador) para pedidos vindos do site B2B. */
+const PROXSIS_DOC_MARCADOR = process.env.PROXSIS_DOC_MARCADOR?.trim() || "PEDIDO B2B";
 
 interface CustomerAddressInput {
   cep: string;
@@ -423,6 +425,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pes_id_ven: resolveRepresentativeId(body),
       doc_dt_emissao: docDtEmissao,
       doc_ped_web: docPedWeb,
+      doc_marcador: PROXSIS_DOC_MARCADOR,
       DocumentoItens: documentoItens,
     };
 

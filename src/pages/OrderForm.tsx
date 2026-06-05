@@ -3,8 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AddressFields } from "@/components/customer/AddressFields";
 import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
+import { assertAddressReady, addressToOrderColumns, addressToProxisPayload, emptyAddressForm } from "@/lib/address";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { CartItem, getCart, saveCart, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
@@ -25,6 +27,7 @@ export default function OrderForm() {
     company: "",
     cnpj: "",
   });
+  const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const summaryRef = useRef<HTMLDivElement>(null);
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
   const { assertCnpjReady } = cnpjValidation;
@@ -50,6 +53,12 @@ export default function OrderForm() {
       return;
     }
 
+    const addressMessage = assertAddressReady(addressForm);
+    if (addressMessage) {
+      toast.error(addressMessage);
+      return;
+    }
+
     setSubmitting(true);
 
     const orderItems = toOrderItems(cart);
@@ -60,6 +69,7 @@ export default function OrderForm() {
       customer_phone: form.phone.trim(),
       customer_company: form.company.trim(),
       customer_cnpj: form.cnpj.trim(),
+      ...addressToOrderColumns(addressForm),
       items: orderItems as unknown as Json,
       total_items: totalItems,
       status: "NOVO CARRINHO",
@@ -96,6 +106,7 @@ export default function OrderForm() {
           customer_name: form.name.trim(),
           customer_cnpj: form.cnpj.trim(),
           customer_company: form.company.trim(),
+          address: addressToProxisPayload(addressForm),
           items: proxisItems,
         }),
       });
@@ -207,6 +218,11 @@ export default function OrderForm() {
                   onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
                   onCnpjBlur={() => setCnpjTouched(true)}
                   cnpjValidation={cnpjValidation}
+                />
+
+                <AddressFields
+                  form={addressForm}
+                  onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
                 />
 
                 <Button type="submit" className="w-full gap-2" size="lg" disabled={submitting}>

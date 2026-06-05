@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AddressFields } from "@/components/customer/AddressFields";
 import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
 import { useAuth } from "@/hooks/useAuth";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
+import { assertAddressReady, emptyAddressForm } from "@/lib/address";
 import { toast } from "sonner";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
 
@@ -26,6 +28,7 @@ export default function Login() {
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpPasswordConfirm, setSignUpPasswordConfirm] = useState("");
   const [customerForm, setCustomerForm] = useState(emptyCustomerForm);
+  const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,9 +69,16 @@ export default function Login() {
       return;
     }
 
+    const addressMessage = assertAddressReady(addressForm);
+    if (addressMessage) {
+      toast.error(addressMessage);
+      return;
+    }
+
     setSubmitting(true);
     const { error, needsEmailConfirmation } = await signUpCustomer({
       ...customerForm,
+      ...addressForm,
       email: signUpEmail.trim(),
       password: signUpPassword,
     });
@@ -103,7 +113,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-lg space-y-6">
         <div className="text-center space-y-2">
           <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-10 w-auto mx-auto" />
           <h1 className="text-lg font-semibold text-foreground">Area do cliente B2B</h1>
@@ -159,6 +169,12 @@ export default function Login() {
                 onChange={(patch) => setCustomerForm((prev) => ({ ...prev, ...patch }))}
                 onCnpjBlur={() => setCnpjTouched(true)}
                 cnpjValidation={cnpjValidation}
+              />
+
+              <AddressFields
+                idPrefix="signup"
+                form={addressForm}
+                onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
               />
 
               <div className="space-y-2">

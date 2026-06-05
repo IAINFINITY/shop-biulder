@@ -23,10 +23,22 @@ const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = process.env.PROXSIS_DEFAULT_CEP?.trim() || "89820000";
 const PROXSIS_DEFAULT_EST_SIGLA = process.env.PROXSIS_DEFAULT_EST_SIGLA?.trim() || "SC";
 
+interface CustomerAddressInput {
+  cep: string;
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  ibge: string;
+}
+
 interface OrderRequestBody {
   customer_name: string;
   customer_cnpj: string;
   customer_company: string;
+  address?: CustomerAddressInput;
   pes_id_ven?: number | string | null;
   representative_id?: number | string | null;
   items: Array<{
@@ -154,15 +166,68 @@ function buildEnderecoPadrao() {
   };
 }
 
-function clienteTemEndereco(cliente: Record<string, unknown>): boolean {
-  const enderecos = cliente.endereco as unknown[] | undefined;
-  return Array.isArray(enderecos) && enderecos.length > 0;
+function normalizeAddressInput(address?: CustomerAddressInput): CustomerAddressInput | null {
+  if (!address) return null;
+  const cep = onlyDigits(address.cep || "");
+  const street = String(address.street || "").trim();
+  const number = String(address.number || "").trim();
+  const neighborhood = String(address.neighborhood || "").trim();
+  const city = String(address.city || "").trim();
+  const state = String(address.state || "").trim().toUpperCase();
+  const ibge = onlyDigits(address.ibge || "");
+  if (cep.length !== 8 || !street || !number || !neighborhood || !city || state.length !== 2 || !ibge) {
+    return null;
+  }
+  return {
+    cep,
+    street,
+    number,
+    complement: String(address.complement || "").trim(),
+    neighborhood,
+    city,
+    state,
+    ibge,
+  };
 }
 
-/** SalvarPedidoVenda falha sem endereço; clientes antigos podem ter sido criados sem mun_id. */
-async function garantirEnderecoCliente(cliente: Record<string, unknown>): Promise<void> {
-  if (clienteTemEndereco(cliente)) return;
+async function buscarMunIdPorIbge(ibge: string): Promise<number> {
+  const ibgeDigits = onlyDigits(ibge);
+  if (ibgeDigits.length < 7) return PROXSIS_DEFAULT_MUN_ID;
 
+  const result = await proxsisRequest("GET", "ObterMunicipios", {
+    extraHeaders: {
+      "X-ProManager-Pagina-Inicio": "0",
+      "X-ProManager-Pagina-Quant": "5",
+      "X-Promanager-Busca-Filtro": `mun_cod_ibge = ${ibgeDigits}`,
+    },
+  });
+
+  if (!result) return PROXSIS_DEFAULT_MUN_ID;
+  const row = Array.isArray(result) ? result[0] : result;
+  const munId = Number((row as Record<string, unknown>)?.mun_id);
+  return Number.isFinite(munId) && munId > 0 ? munId : PROXSIS_DEFAULT_MUN_ID;
+}
+
+async function buildEnderecoProxis(address: CustomerAddressInput) {
+  const munId = await buscarMunIdPorIbge(address.ibge);
+  return {
+    pen_tipo_endereco: 1,
+    pen_cep: onlyDigits(address.cep),
+    pen_endereco: address.street.toUpperCase(),
+    pen_num_endereco: address.number || "S/N",
+    pen_complemento: address.complement || null,
+    pen_bairro: address.neighborhood.toUpperCase(),
+    mun_id: munId,
+    est_sigla: address.state.toUpperCase(),
+    pen_ie: "ISENTO",
+    pen_contribuinte: 2,
+  };
+}
+
+async function salvarEnderecoCliente(
+  cliente: Record<string, unknown>,
+  endereco: Record<string, unknown>
+): Promise<void> {
   const pesId = Number(cliente.pes_id);
   if (!pesId) return;
 
@@ -174,19 +239,49 @@ async function garantirEnderecoCliente(cliente: Record<string, unknown>): Promis
       pes_fantasia: cliente.pes_fantasia || cliente.pes_nome,
       pes_cpf_cnpj: cliente.pes_cpf_cnpj,
       pes_tipo_cliente: true,
-      endereco: [buildEnderecoPadrao()],
+      endereco: [endereco],
     },
   });
 }
 
-async function criarCliente(nome: string, cnpj: string): Promise<Record<string, unknown>> {
+function clienteTemEndereco(cliente: Record<string, unknown>): boolean {
+  const enderecos = cliente.endereco as unknown[] | undefined;
+  return Array.isArray(enderecos) && enderecos.length > 0;
+}
+
+/** SalvarPedidoVenda falha sem endereço; clientes antigos podem ter sido criados sem mun_id. */
+async function garantirEnderecoCliente(
+  cliente: Record<string, unknown>,
+  address?: CustomerAddressInput | null
+): Promise<void> {
+  const normalized = normalizeAddressInput(address ?? undefined);
+  if (normalized) {
+    const endereco = await buildEnderecoProxis(normalized);
+    await salvarEnderecoCliente(cliente, endereco);
+    return;
+  }
+
+  if (clienteTemEndereco(cliente)) return;
+  await salvarEnderecoCliente(cliente, buildEnderecoPadrao());
+}
+
+async function criarCliente(
+  nome: string,
+  cnpj: string,
+  address?: CustomerAddressInput | null
+): Promise<Record<string, unknown>> {
+  const normalized = normalizeAddressInput(address ?? undefined);
+  const endereco = normalized
+    ? await buildEnderecoProxis(normalized)
+    : buildEnderecoPadrao();
+
   const payload = {
     pes_tipo_pessoa: "J",
     pes_nome: nome.toUpperCase(),
     pes_fantasia: nome.toUpperCase(),
     pes_cpf_cnpj: formatCnpj(cnpj),
     pes_tipo_cliente: true,
-    endereco: [buildEnderecoPadrao()],
+    endereco: [endereco],
   };
 
   const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload });
@@ -253,11 +348,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
     let pesId: number;
 
+    const normalizedAddress = normalizeAddressInput(body.address);
+
     if (cliente?.pes_id) {
       pesId = Number(cliente.pes_id);
     } else {
       const nomeCliente = body.customer_company || body.customer_name;
-      const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj);
+      const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj, normalizedAddress);
       if (!novoCliente?.pes_id) {
         return res.status(500).json({ error: "Failed to create customer in Proxsis" });
       }
@@ -265,7 +362,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cliente = novoCliente;
     }
 
-    await garantirEnderecoCliente(cliente);
+    await garantirEnderecoCliente(cliente, normalizedAddress);
 
     let tprId = PROXSIS_TPR_ID_DEFAULT;
     const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;

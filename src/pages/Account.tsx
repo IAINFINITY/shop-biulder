@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCnpjDisplay, formatPhone } from "@/lib/brazilianIds";
+import { formatCep } from "@/lib/address";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
 
 export default function Account() {
@@ -88,6 +89,25 @@ export default function Account() {
                     <p className="text-muted-foreground">CNPJ</p>
                     <p className="font-medium text-foreground tabular-nums">{displayCnpj}</p>
                   </div>
+                  {customerProfile.address_cep && (
+                    <div>
+                      <p className="text-muted-foreground">Endereco</p>
+                      <p className="font-medium text-foreground">
+                        {customerProfile.address_street}
+                        {customerProfile.address_number ? `, ${customerProfile.address_number}` : ""}
+                        {customerProfile.address_complement
+                          ? ` - ${customerProfile.address_complement}`
+                          : ""}
+                      </p>
+                      <p className="text-foreground">
+                        {customerProfile.address_neighborhood} · {customerProfile.address_city}/
+                        {customerProfile.address_state}
+                      </p>
+                      <p className="text-foreground tabular-nums">
+                        CEP {formatCep(customerProfile.address_cep)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </>

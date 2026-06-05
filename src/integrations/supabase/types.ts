@@ -106,6 +106,14 @@ export type Database = {
           customer_company: string
           customer_name: string
           customer_phone: string
+          customer_address_cep: string
+          customer_address_street: string
+          customer_address_number: string
+          customer_address_complement: string
+          customer_address_neighborhood: string
+          customer_address_city: string
+          customer_address_state: string
+          customer_address_ibge: string
           id: string
           items: Json
           proxis_import_id: number | null
@@ -118,6 +126,14 @@ export type Database = {
           customer_company: string
           customer_name: string
           customer_phone: string
+          customer_address_cep?: string
+          customer_address_street?: string
+          customer_address_number?: string
+          customer_address_complement?: string
+          customer_address_neighborhood?: string
+          customer_address_city?: string
+          customer_address_state?: string
+          customer_address_ibge?: string
           id?: string
           items?: Json
           proxis_import_id?: number | null
@@ -130,6 +146,14 @@ export type Database = {
           customer_company?: string
           customer_name?: string
           customer_phone?: string
+          customer_address_cep?: string
+          customer_address_street?: string
+          customer_address_number?: string
+          customer_address_complement?: string
+          customer_address_neighborhood?: string
+          customer_address_city?: string
+          customer_address_state?: string
+          customer_address_ibge?: string
           id?: string
           items?: Json
           proxis_import_id?: number | null
@@ -181,6 +205,14 @@ export type Database = {
           phone: string
           company: string
           cnpj: string
+          address_cep: string
+          address_street: string
+          address_number: string
+          address_complement: string
+          address_neighborhood: string
+          address_city: string
+          address_state: string
+          address_ibge: string
           created_at: string
           updated_at: string
         }
@@ -190,6 +222,14 @@ export type Database = {
           phone: string
           company: string
           cnpj: string
+          address_cep?: string
+          address_street?: string
+          address_number?: string
+          address_complement?: string
+          address_neighborhood?: string
+          address_city?: string
+          address_state?: string
+          address_ibge?: string
           created_at?: string
           updated_at?: string
         }
@@ -199,6 +239,14 @@ export type Database = {
           phone?: string
           company?: string
           cnpj?: string
+          address_cep?: string
+          address_street?: string
+          address_number?: string
+          address_complement?: string
+          address_neighborhood?: string
+          address_city?: string
+          address_state?: string
+          address_ibge?: string
           created_at?: string
           updated_at?: string
         }
@@ -222,6 +270,14 @@ export type Database = {
           p_phone: string
           p_company: string
           p_cnpj: string
+          p_address_cep?: string
+          p_address_street?: string
+          p_address_number?: string
+          p_address_complement?: string
+          p_address_neighborhood?: string
+          p_address_city?: string
+          p_address_state?: string
+          p_address_ibge?: string
         }
         Returns: undefined
       }

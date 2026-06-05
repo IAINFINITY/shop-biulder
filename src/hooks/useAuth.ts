@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import {
   CUSTOMER_PROFILES_TABLE,
+  addressFormToProfileColumns,
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
@@ -99,6 +100,7 @@ export function useAuth() {
       p_phone: data.phone.trim(),
       p_company: data.company.trim(),
       p_cnpj: data.cnpj.trim(),
+      ...addressFormToProfileColumns(data),
     });
     if (!error && user) {
       await fetchCustomerProfile(user.id);
@@ -122,6 +124,7 @@ export function useAuth() {
         p_phone: data.phone.trim(),
         p_company: data.company.trim(),
         p_cnpj: data.cnpj.trim(),
+        ...addressFormToProfileColumns(data),
       });
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
       if (sessionUser) await fetchCustomerProfile(sessionUser.id);

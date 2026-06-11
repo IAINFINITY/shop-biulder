@@ -67,7 +67,7 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
           id={id("street")}
           value={form.street}
           onChange={(e) => onChange({ street: e.target.value })}
-          placeholder="Preenchido pelo CEP ou digite manualmente"
+          placeholder="Preenchido pelo CEP ou edite manualmente"
           required={required}
           autoComplete="street-address"
         />
@@ -90,7 +90,7 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
           id={id("neighborhood")}
           value={form.neighborhood}
           onChange={(e) => onChange({ neighborhood: e.target.value })}
-          placeholder="Preenchido pelo CEP"
+          placeholder="Preenchido pelo CEP ou edite manualmente"
           required={required}
           autoComplete="off"
         />
@@ -102,10 +102,10 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
           <Input
             id={id("city")}
             value={form.city}
-            readOnly
-            className="bg-muted/50"
-            placeholder="Preenchido pelo CEP"
+            onChange={(e) => onChange({ city: e.target.value, ibge: "" })}
+            placeholder="Preenchido pelo CEP ou edite manualmente"
             required={required}
+            autoComplete="address-level2"
           />
         </div>
         <div className="space-y-2">
@@ -113,11 +113,13 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
           <Input
             id={id("state")}
             value={form.state}
-            readOnly
-            className="bg-muted/50"
+            onChange={(e) =>
+              onChange({ state: e.target.value.toUpperCase().slice(0, 2), ibge: "" })
+            }
             placeholder="UF"
             maxLength={2}
             required={required}
+            autoComplete="address-level1"
           />
         </div>
       </div>

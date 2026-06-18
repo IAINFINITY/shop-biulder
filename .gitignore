@@ -28,3 +28,6 @@ dist-ssr
 
 # Scripts de teste (uso local, não versionar)
 scripts/test-*.mjs
+
+# Documentacao local do projeto
+documentation/

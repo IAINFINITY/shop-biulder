@@ -70,9 +70,9 @@ function sqlEscape(str) {
   return str.replace(/'/g, "''");
 }
 
-const userRaw = fs.readFileSync(path.join(__dirname, "user_prices.txt"), "utf8");
+const userRaw = fs.readFileSync(path.join(__dirname, "data", "user_prices.txt"), "utf8");
 const userEntries = parseUserPrices(userRaw);
-const catalog = JSON.parse(fs.readFileSync(path.join(root, "catalog_products.json"), "utf8"));
+const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "catalog_products.json"), "utf8"));
 const uniqueNames = [...new Set(catalog.map((p) => p.name))];
 
 const manual = {

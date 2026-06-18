@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { CatalogOrderNotice } from "@/components/CatalogOrderNotice";
+import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
+
 interface CartDrawerProps {
   cart: CartItem[];
   onUpdateQuantity: (productId: string, delta: number) => void;

@@ -65,3 +65,4 @@ export function StoreCategoryNav({
     </nav>
   );
 }
+export type { StoreCategoryNavProps } from "../StoreCategoryNav";

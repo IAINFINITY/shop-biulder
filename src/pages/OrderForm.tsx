@@ -3,18 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AddressFields } from "@/components/customer/AddressFields";
-import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
+import { AddressFields } from "@/components/pedido/AddressFields";
+import { CustomerDataFields } from "@/components/pedido/CustomerDataFields";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { assertAddressReady, addressToOrderColumns, addressToProxisPayload, emptyAddressForm } from "@/lib/address";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { CartItem, getCart, saveCart, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
-import { CartTotalBar } from "@/components/CartTotalBar";
+import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
-import { CatalogOrderNotice } from "@/components/CatalogOrderNotice";
+import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
 
 export default function OrderForm() {
   const navigate = useNavigate();

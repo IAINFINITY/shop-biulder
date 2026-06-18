@@ -84,7 +84,7 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
                   <Highlight>Pagamento</Highlight> com o <Highlight>atendimento</Highlight>.
                 </SentenceLine>
                 <SentenceLine>
-                  Após enviar o pedido, aguarde o <Highlight>contato</Highlight> — o pedido segue para o time com todas as
+                  Após enviar o pedido, aguarde o <Highlight>contato</Highlight> - o pedido segue para o time com todas as
                   informações.
                 </SentenceLine>
               </>

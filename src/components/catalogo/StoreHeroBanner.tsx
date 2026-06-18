@@ -14,11 +14,11 @@ import { cn } from "@/lib/utils";
 const SLIDES = [
   {
     src: heroGummiesBanner,
-    alt: "Mais sabor, praticidade e inovação — linha de gomas Clinic+",
+    alt: "Mais sabor, praticidade e inovação - linha de gomas Clinic+",
   },
   {
     src: heroVitaminsBanner,
-    alt: "Vitaminas pensadas para a rotina moderna — Clinic+",
+    alt: "Vitaminas pensadas para a rotina moderna - Clinic+",
   },
 ] as const;
 

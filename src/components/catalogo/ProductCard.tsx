@@ -1,13 +1,14 @@
-﻿import { Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
+import { Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { type LucideIcon, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { getProductUnitPrice, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
-import { ProductDescription } from "@/components/ProductDescription";
+import { ProductDescription } from "@/components/catalogo/ProductDescription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const typeIcons: Record<string, any> = {
+const typeIcons: Record<string, LucideIcon> = {
   "Chá": Leaf,
   "Cápsula": Pill,
   "Solúvel": FlaskConical,

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { FlaskConical, ImageIcon, Leaf, Pill, Plus } from "lucide-react";
+import { type LucideIcon, FlaskConical, ImageIcon, Leaf, Pill, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Product } from "@/lib/products";
 import { getProductUnitPrice, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
-import { ProductDescription } from "@/components/ProductDescription";
+import { ProductDescription } from "@/components/catalogo/ProductDescription";
 
-const typeIcons: Record<string, any> = {
+const typeIcons: Record<string, LucideIcon> = {
   "Chá": Leaf,
   "Cápsula": Pill,
   "Solúvel": FlaskConical,
@@ -110,4 +110,3 @@ export function ProductListItem({ product, inCart, currentQuantity, onAdd }: Pro
     </div>
   );
 }
-

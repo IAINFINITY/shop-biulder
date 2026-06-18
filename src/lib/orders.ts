@@ -82,6 +82,10 @@ function isStaleAutoProductCode(code: string, productId: string): boolean {
   return false;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+}
+
 function resolveOrderLineCode(raw: Record<string, unknown>, maps?: OrderEnrichmentMaps): string {
   const productId = typeof raw.product_id === "string" ? raw.product_id.trim() : "";
   const nameKey = normalizeProductNameKey(String(raw.name ?? ""));
@@ -160,12 +164,7 @@ export function parseOrderItemRow(
 
 export function parseOrderTableLines(items: unknown, maps?: OrderEnrichmentMaps): OrderTableLine[] {
   if (!Array.isArray(items)) return [];
-  return items.map((item) =>
-    parseOrderItemRow(
-      typeof item === "object" && item !== null ? (item as Record<string, unknown>) : {},
-      maps,
-    ),
-  );
+  return items.map((item) => parseOrderItemRow(toRecord(item), maps));
 }
 
 export function getOrderLinesGrandTotal(lines: OrderTableLine[]): number {

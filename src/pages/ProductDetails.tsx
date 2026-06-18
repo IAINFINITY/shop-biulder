@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
+import { type LucideIcon, ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   PRODUCTS_TABLE,
@@ -18,13 +18,13 @@ import {
 import { coercePrice, formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CartDrawer } from "@/components/CartDrawer";
-import { CartTotalBar } from "@/components/CartTotalBar";
+import { CartDrawer } from "@/components/carrinho/CartDrawer";
+import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { toast } from "sonner";
-import { ProductDescription } from "@/components/ProductDescription";
+import { ProductDescription } from "@/components/catalogo/ProductDescription";
 
-const typeIcons: Record<string, any> = {
+const typeIcons: Record<string, LucideIcon> = {
   "Chá": Leaf,
   "Cápsula": Pill,
   "Solúvel": FlaskConical,
@@ -80,7 +80,7 @@ export default function ProductDetails() {
         ({ data, error } = await run(PRODUCT_SELECT_COLUMNS_LEGACY));
       }
       if (error) throw error;
-      return normalizeProductFromSupabaseRow(data as Record<string, unknown>);
+      return normalizeProductFromSupabaseRow(data);
     },
   });
 

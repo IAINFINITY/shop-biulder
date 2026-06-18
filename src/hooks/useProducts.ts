@@ -36,13 +36,13 @@ export function useProducts(options?: UseProductsOptions) {
         PRODUCT_SELECT_COLUMNS_LEGACY,
       ] as const;
 
-      let data: Record<string, unknown>[] | null = null;
+      let data: unknown[] | null = null;
       let lastError: Error | null = null;
 
       for (const columns of columnSets) {
         const result = await runQuery(columns);
         if (!result.error) {
-          data = (result.data ?? []) as Record<string, unknown>[];
+          data = result.data ?? [];
           break;
         }
         lastError = result.error;

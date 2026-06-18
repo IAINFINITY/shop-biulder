@@ -154,20 +154,25 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
   };
 }
 
-export function normalizeProductFromSupabaseRow(row: Record<string, unknown>): Product {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function normalizeProductFromSupabaseRow(row: unknown): Product {
+  const record = isRecord(row) ? row : {};
   const gallery = resolveProductImageUrls(
-    row.image_url as string | null | undefined,
-    row.image_urls,
+    record.image_url as string | null | undefined,
+    record.image_urls,
   );
 
   const productCode =
-    typeof row.product_code === "string" && row.product_code.trim()
-      ? row.product_code.trim()
+    typeof record.product_code === "string" && record.product_code.trim()
+      ? record.product_code.trim()
       : null;
 
   return {
-    ...(row as Product),
-    price: coercePrice(row.price),
+    ...(record as Product),
+    price: coercePrice(record.price),
     image_url: gallery[0] ?? null,
     image_urls: gallery.length > 0 ? gallery : null,
     product_code: productCode,

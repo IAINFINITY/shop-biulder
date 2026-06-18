@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RichTextEditor } from "@/components/RichTextEditor";
+import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +71,7 @@ const emptyForm: ProductForm = {
   productCode: "",
 };
 
-function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<any> }) {
+function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<Error | null> }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

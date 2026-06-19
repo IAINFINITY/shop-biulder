@@ -88,7 +88,7 @@ export default function OrderSuccess() {
               )}
               <Link to="/">
                 <Button size="lg" className="w-full gap-2 rounded-full px-6 sm:w-auto">
-                  Voltar ao catalogo
+                  Voltar ao catálogo
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -111,7 +111,7 @@ export default function OrderSuccess() {
           </SheetHeader>
 
           {!hasSubmittedCart ? (
-            <p className="text-sm text-muted-foreground">Nenhum detalhe do carrinho disponivel para esta pagina.</p>
+            <p className="text-sm text-muted-foreground">Nenhum detalhe do carrinho disponível para esta página.</p>
           ) : (
             <>
               <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">

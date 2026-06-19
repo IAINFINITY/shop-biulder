@@ -31,7 +31,7 @@ export const formatCep = (value: string) => {
 export const isCepComplete = (cep: string) => onlyDigits(cep).length === 8;
 
 export function assertAddressReady(address: AddressFormData): string | null {
-  if (!isCepComplete(address.cep)) return "CEP incompleto. Preencha 8 digitos.";
+  if (!isCepComplete(address.cep)) return "CEP incompleto. Preencha 8 dígitos.";
   if (!address.street.trim()) return "Informe o endereco (rua).";
   if (!address.neighborhood.trim()) return "Informe o bairro.";
   if (!address.city.trim()) return "Informe a cidade.";

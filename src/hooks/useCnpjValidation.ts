@@ -57,11 +57,11 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
   }, [cnpjDigits, isCnpjComplete]);
 
   const assertCnpjReady = (): string | null => {
-    if (cnpjDigits.length !== 14) return "CNPJ incompleto. Preencha 14 digitos.";
-    if (!isValidCnpj(cnpjDigits)) return "CNPJ invalido. Verifique o numero informado.";
+    if (cnpjDigits.length !== 14) return "CNPJ incompleto. Preencha 14 dígitos.";
+    if (!isValidCnpj(cnpjDigits)) return "CNPJ inválido. Verifique o número informado.";
     if (status === "checking") return "Validando CNPJ...";
-    if (status === "invalid") return "CNPJ invalido. Verifique o numero informado.";
-    if (status === "error") return "Nao foi possivel validar o CNPJ agora. Tente novamente.";
+    if (status === "invalid") return "CNPJ inválido. Verifique o número informado.";
+    if (status === "error") return "Não foi possível validar o CNPJ agora. Tente novamente.";
     return null;
   };
 

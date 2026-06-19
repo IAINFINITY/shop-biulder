@@ -24,7 +24,7 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
-      <p className="text-sm font-medium text-foreground">Endereco</p>
+      <p className="text-sm font-medium text-foreground">Endereço</p>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-1">
@@ -44,12 +44,12 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
             <p className="text-xs text-muted-foreground">Buscando CEP...</p>
           )}
           {showCepError && (
-            <p className="text-xs text-destructive">CEP nao encontrado. Verifique o numero.</p>
+            <p className="text-xs text-destructive">CEP não encontrado. Verifique o número.</p>
           )}
         </div>
 
         <div className="space-y-2 sm:col-span-1">
-          <Label htmlFor={id("number")}>Numero</Label>
+          <Label htmlFor={id("number")}>Número</Label>
           <Input
             id={id("number")}
             value={form.number}

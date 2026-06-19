@@ -205,6 +205,7 @@ export type Database = {
           phone: string
           company: string
           cnpj: string
+          customer_type: string
           address_cep: string
           address_street: string
           address_number: string
@@ -222,6 +223,7 @@ export type Database = {
           phone: string
           company: string
           cnpj: string
+          customer_type?: string
           address_cep?: string
           address_street?: string
           address_number?: string
@@ -239,6 +241,7 @@ export type Database = {
           phone?: string
           company?: string
           cnpj?: string
+          customer_type?: string
           address_cep?: string
           address_street?: string
           address_number?: string
@@ -248,6 +251,36 @@ export type Database = {
           address_state?: string
           address_ibge?: string
           created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_price_overrides: {
+        Row: {
+          active: boolean
+          created_at: string
+          customer_type: string
+          id: string
+          price: number
+          product_code: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          customer_type: string
+          id?: string
+          price: number
+          product_code: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          customer_type?: string
+          id?: string
+          price?: number
+          product_code?: string
           updated_at?: string
         }
         Relationships: []
@@ -270,6 +303,7 @@ export type Database = {
           p_phone: string
           p_company: string
           p_cnpj: string
+          p_customer_type?: string
           p_address_cep?: string
           p_address_street?: string
           p_address_number?: string

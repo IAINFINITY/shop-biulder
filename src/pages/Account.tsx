@@ -1,15 +1,25 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCnpjDisplay, formatPhone } from "@/lib/brazilianIds";
 import { formatCep } from "@/lib/address";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+import {
+  CUSTOMER_TYPE_LABELS,
+  CUSTOMER_TYPES,
+  DEFAULT_CUSTOMER_TYPE,
+  normalizeCustomerType,
+} from "@/lib/pricing";
+import { toast } from "sonner";
 
 export default function Account() {
   const navigate = useNavigate();
-  const { user, isAdmin, isCustomer, customerProfile, loading, signOut } = useAuth();
+  const { user, isAdmin, isCustomer, customerProfile, loading, signOut, updateCustomerType } = useAuth();
+  const [customerTypeDraft, setCustomerTypeDraft] = useState(DEFAULT_CUSTOMER_TYPE);
+  const [savingType, setSavingType] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -22,6 +32,10 @@ export default function Account() {
       navigate("/admin", { replace: true });
     }
   }, [loading, user, isAdmin, navigate]);
+
+  useEffect(() => {
+    setCustomerTypeDraft(normalizeCustomerType(customerProfile?.customer_type));
+  }, [customerProfile?.customer_type]);
 
   if (loading) {
     return (
@@ -36,13 +50,27 @@ export default function Account() {
   const displayCnpj = customerProfile
     ? formatCnpjDisplay(customerProfile.cnpj)
     : "—";
+  const displayCustomerType = customerProfile
+    ? CUSTOMER_TYPE_LABELS[normalizeCustomerType(customerProfile.customer_type)]
+    : "—";
+
+  const handleSaveCustomerType = async () => {
+    setSavingType(true);
+    const error = await updateCustomerType(customerTypeDraft);
+    setSavingType(false);
+    if (error) {
+      toast.error(error.message || "Não foi possível atualizar o tipo de cliente.");
+      return;
+    }
+    toast.success("Tipo de cliente atualizado.");
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto flex h-14 items-center gap-3 px-4">
           <Link to="/">
-            <Button variant="ghost" size="icon" aria-label="Voltar ao catalogo">
+            <Button variant="ghost" size="icon" aria-label="Voltar ao catálogo">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
@@ -89,9 +117,40 @@ export default function Account() {
                     <p className="text-muted-foreground">CNPJ</p>
                     <p className="font-medium text-foreground tabular-nums">{displayCnpj}</p>
                   </div>
+                  <div className="space-y-2">
+                    <p className="text-muted-foreground">Tipo de cliente</p>
+                    <Select
+                      value={customerTypeDraft}
+                      onValueChange={(value) => setCustomerTypeDraft(normalizeCustomerType(value))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CUSTOMER_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {CUSTOMER_TYPE_LABELS[type]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void handleSaveCustomerType()}
+                        disabled={savingType || customerTypeDraft === normalizeCustomerType(customerProfile.customer_type)}
+                      >
+                        {savingType ? "Salvando..." : "Salvar tipo"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Tipo atual: {displayCustomerType}
+                      </p>
+                    </div>
+                  </div>
                   {customerProfile.address_cep && (
                     <div>
-                      <p className="text-muted-foreground">Endereco</p>
+                      <p className="text-muted-foreground">Endereço</p>
                       <p className="font-medium text-foreground">
                         {customerProfile.address_street}
                         {customerProfile.address_number ? `, ${customerProfile.address_number}` : ""}
@@ -113,7 +172,7 @@ export default function Account() {
             </>
           ) : (
             <p className="text-sm text-muted-foreground border-t border-border pt-4">
-              Seu cadastro esta em processamento. Se acabou de criar a conta, confirme o e-mail e
+              Seu cadastro está em processamento. Se acabou de criar a conta, confirme o e-mail e
               entre novamente. Caso o problema persista, entre em contato com o suporte.
             </p>
           )}
@@ -122,7 +181,7 @@ export default function Account() {
         <div className="flex flex-col gap-2 sm:flex-row">
           <Link to="/" className="flex-1">
             <Button variant="outline" className="w-full">
-              Ir ao catalogo
+              Ir ao catálogo
             </Button>
           </Link>
           <Button

@@ -7,6 +7,7 @@ import {
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
+import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -25,8 +26,27 @@ export function useAuth() {
       setCustomerProfile(null);
       return;
     }
-    setCustomerProfile(data as CustomerProfile | null);
+    setCustomerProfile({
+      ...(data as CustomerProfile),
+      customer_type: normalizeCustomerType((data as Partial<CustomerProfile>).customer_type),
+    });
   }, []);
+
+  const updateCustomerType = async (customerType: CustomerType) => {
+    if (!user) return new Error("Usuário não autenticado");
+
+    const normalizedType = normalizeCustomerType(customerType);
+    const { error } = await supabase
+      .from(CUSTOMER_PROFILES_TABLE)
+      .update({ customer_type: normalizedType })
+      .eq("user_id", user.id);
+
+    if (!error) {
+      await fetchCustomerProfile(user.id);
+    }
+
+    return error;
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -96,12 +116,13 @@ export function useAuth() {
 
   const registerCustomerProfile = async (data: Omit<CustomerRegistrationData, "email" | "password">) => {
     const { error } = await supabase.rpc("register_customer_profile", {
-      p_name: data.name.trim(),
-      p_phone: data.phone.trim(),
-      p_company: data.company.trim(),
-      p_cnpj: data.cnpj.trim(),
-      ...addressFormToProfileColumns(data),
-    });
+    p_name: data.name.trim(),
+    p_phone: data.phone.trim(),
+    p_company: data.company.trim(),
+    p_cnpj: data.cnpj.trim(),
+    p_customer_type: normalizeCustomerType(data.customer_type),
+    ...addressFormToProfileColumns(data),
+  });
     if (!error && user) {
       await fetchCustomerProfile(user.id);
     }
@@ -124,6 +145,7 @@ export function useAuth() {
         p_phone: data.phone.trim(),
         p_company: data.company.trim(),
         p_cnpj: data.cnpj.trim(),
+        p_customer_type: normalizeCustomerType(data.customer_type),
         ...addressFormToProfileColumns(data),
       });
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
@@ -148,6 +170,7 @@ export function useAuth() {
     signUpCustomer,
     registerCustomerProfile,
     signOut,
+    updateCustomerType,
     refreshCustomerProfile: fetchCustomerProfile,
   };
 }

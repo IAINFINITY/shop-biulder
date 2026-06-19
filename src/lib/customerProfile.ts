@@ -1,4 +1,5 @@
 import type { AddressFormData } from "@/lib/address";
+import type { CustomerType } from "@/lib/pricing";
 
 export const CUSTOMER_PROFILES_TABLE = "customer_profiles";
 
@@ -8,6 +9,7 @@ export interface CustomerProfile {
   phone: string;
   company: string;
   cnpj: string;
+  customer_type: CustomerType;
   address_cep: string;
   address_street: string;
   address_number: string;
@@ -25,6 +27,7 @@ export type CustomerFormCore = {
   phone: string;
   company: string;
   cnpj: string;
+  customer_type: CustomerType;
 };
 
 export interface CustomerRegistrationData extends CustomerFormCore, AddressFormData {

@@ -11,12 +11,14 @@ import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { assertAddressReady, emptyAddressForm } from "@/lib/address";
 import { toast } from "sonner";
 import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 
 const emptyCustomerForm = {
   name: "",
   phone: "",
   company: "",
   cnpj: "",
+  customer_type: DEFAULT_CUSTOMER_TYPE,
 };
 
 export default function Login() {
@@ -116,10 +118,10 @@ export default function Login() {
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center space-y-2">
           <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-10 w-auto mx-auto" />
-          <h1 className="text-lg font-semibold text-foreground">Area do cliente B2B</h1>
+          <h1 className="text-lg font-semibold text-foreground">Área do cliente B2B</h1>
           <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-            Cadastro e login para identificacao da sua empresa. O catalogo e os pedidos continuam
-            disponiveis sem login.
+            Cadastro e login para identificação da sua empresa. O catálogo e os pedidos continuam
+            disponíveis sem login.
           </p>
         </div>
 
@@ -169,6 +171,7 @@ export default function Login() {
                 onChange={(patch) => setCustomerForm((prev) => ({ ...prev, ...patch }))}
                 onCnpjBlur={() => setCnpjTouched(true)}
                 cnpjValidation={cnpjValidation}
+                showCustomerType
               />
 
               <AddressFields
@@ -226,7 +229,7 @@ export default function Login() {
         </Tabs>
 
         <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground">
-          ← Voltar ao catalogo
+          ← Voltar ao catálogo
         </Link>
       </div>
     </div>

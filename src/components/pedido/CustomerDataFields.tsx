@@ -1,13 +1,22 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCnpj, formatPhone } from "@/lib/brazilianIds";
 import type { CnpjValidationStatus } from "@/hooks/useCnpjValidation";
+import {
+  CUSTOMER_TYPE_LABELS,
+  CUSTOMER_TYPES,
+  DEFAULT_CUSTOMER_TYPE,
+  normalizeCustomerType,
+  type CustomerType,
+} from "@/lib/pricing";
 
 export type CustomerFormData = {
   name: string;
   phone: string;
   company: string;
   cnpj: string;
+  customer_type?: CustomerType;
 };
 
 type CustomerDataFieldsProps = {
@@ -23,6 +32,7 @@ type CustomerDataFieldsProps = {
     status: CnpjValidationStatus;
   };
   idPrefix?: string;
+  showCustomerType?: boolean;
 };
 
 export function CustomerDataFields({
@@ -31,9 +41,11 @@ export function CustomerDataFields({
   onCnpjBlur,
   cnpjValidation,
   idPrefix = "",
+  showCustomerType = false,
 }: CustomerDataFieldsProps) {
   const id = (field: string) => (idPrefix ? `${idPrefix}-${field}` : field);
   const show = cnpjValidation?.shouldShowCnpjError ?? false;
+  const customerType = normalizeCustomerType(form.customer_type ?? DEFAULT_CUSTOMER_TYPE);
 
   return (
     <>
@@ -75,6 +87,30 @@ export function CustomerDataFields({
         />
       </div>
 
+      {showCustomerType && (
+        <div className="space-y-2">
+          <Label htmlFor={id("customer_type")}>Tipo de cliente</Label>
+          <Select
+            value={customerType}
+            onValueChange={(value) => onChange({ customer_type: normalizeCustomerType(value) })}
+          >
+            <SelectTrigger id={id("customer_type")}>
+              <SelectValue placeholder="Selecione o tipo" />
+            </SelectTrigger>
+            <SelectContent>
+              {CUSTOMER_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {CUSTOMER_TYPE_LABELS[type]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Esse campo define a tabela de preço aplicada ao cliente.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor={id("cnpj")}>CNPJ</Label>
         <Input
@@ -103,14 +139,14 @@ export function CustomerDataFields({
         />
 
         {show && cnpjValidation?.isCnpjIncomplete && (
-          <p className="text-xs text-destructive">CNPJ incompleto. Preencha 14 digitos.</p>
+          <p className="text-xs text-destructive">CNPJ incompleto. Preencha 14 dígitos.</p>
         )}
         {show && cnpjValidation?.isCnpjInvalid && (
-          <p className="text-xs text-destructive">CNPJ invalido. Verifique o numero informado.</p>
+          <p className="text-xs text-destructive">CNPJ inválido. Verifique o número informado.</p>
         )}
         {show && cnpjValidation?.isCnpjError && (
           <p className="text-xs text-destructive">
-            Nao foi possivel validar o CNPJ agora. Tente novamente.
+            Não foi possível validar o CNPJ agora. Tente novamente.
           </p>
         )}
         {show && cnpjValidation?.isCnpjChecking && (

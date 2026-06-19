@@ -9,15 +9,22 @@ import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { assertAddressReady, addressToOrderColumns, addressToProxisPayload, emptyAddressForm } from "@/lib/address";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { CartItem, getCart, saveCart, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
+import { CartItem, getCart, saveCart } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
 import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
+import { useAuth } from "@/hooks/useAuth";
+import { useCustomerPricing } from "@/hooks/useCustomerPricing";
+import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 
 export default function OrderForm() {
   const navigate = useNavigate();
+  const { customerProfile } = useAuth();
+  const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
+    customerProfile?.customer_type,
+  );
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [submitting, setSubmitting] = useState(false);
   const [cnpjTouched, setCnpjTouched] = useState(false);
@@ -33,7 +40,10 @@ export default function OrderForm() {
   const { assertCnpjReady } = cnpjValidation;
 
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
-  const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
+  const cartSubtotal = useMemo(
+    () => calculateCartSubtotal(cart, customerPriceMap),
+    [cart, customerPriceMap],
+  );
   const scrollToSummary = useCallback(() => {
     summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
@@ -61,8 +71,9 @@ export default function OrderForm() {
 
     setSubmitting(true);
 
-    const orderItems = toOrderItems(cart);
-    const orderSubtotal = getCartSubtotal(cart);
+    const priceResolver = (product: CartItem["product"]) => resolveProductPrice(product, customerPriceMap);
+    const orderItems = toOrderItems(cart, priceResolver);
+    const orderSubtotal = calculateCartSubtotal(cart, customerPriceMap);
 
     const payload = {
       customer_name: form.name.trim(),
@@ -123,7 +134,7 @@ export default function OrderForm() {
     }
 
     const submittedCart: SubmittedCartLine[] = cart.map((item) => {
-      const unit = getProductUnitPrice(item.product);
+      const unit = resolveProductPrice(item.product, customerPriceMap);
       const qty = item.quantity;
       return {
         name: item.product.name,
@@ -201,10 +212,10 @@ export default function OrderForm() {
         {cart.length === 0 ? (
           <div className="space-y-3 rounded-xl border border-border bg-card p-6 text-center">
             <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground/40" />
-            <p className="text-lg font-medium text-foreground">Seu carrinho esta vazio</p>
-            <p className="text-sm text-muted-foreground">Volte ao catalogo para selecionar produtos.</p>
+            <p className="text-lg font-medium text-foreground">Seu carrinho está vazio</p>
+            <p className="text-sm text-muted-foreground">Volte ao catálogo para selecionar produtos.</p>
             <Link to="/">
-              <Button variant="outline">Voltar ao catalogo</Button>
+              <Button variant="outline">Voltar ao catálogo</Button>
             </Link>
           </div>
         ) : (
@@ -240,10 +251,10 @@ export default function OrderForm() {
 
               <div className="space-y-3">
                 {cart.map((item) => {
-                  const unit = getProductUnitPrice(item.product);
+                  const unit = resolveProductPrice(item.product, customerPriceMap);
                   const line = unit * item.quantity;
                   return (
-                  <div key={item.product.id} className="rounded-lg border border-border p-3">
+                    <div key={item.product.id} className="rounded-lg border border-border p-3">
                     <p className="text-sm font-medium text-foreground">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {item.product.type} · {item.product.family}
@@ -264,7 +275,7 @@ export default function OrderForm() {
                         </p>
                       </div>
                     )}
-                  </div>
+                    </div>
                   );
                 })}
               </div>

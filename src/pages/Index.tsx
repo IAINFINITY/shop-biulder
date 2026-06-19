@@ -7,13 +7,20 @@ import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { StoreCategoryNav } from "@/components/catalogo/StoreCategoryNav";
 import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
-import { Product, CartItem, getCart, saveCart, getCartSubtotal } from "@/lib/products";
+import { Product, CartItem, getCart, saveCart } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
 import { useProducts } from "@/hooks/useProducts";
+import { useAuth } from "@/hooks/useAuth";
+import { useCustomerPricing } from "@/hooks/useCustomerPricing";
+import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 import { toast } from "sonner";
 
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
+  const { customerProfile } = useAuth();
+  const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
+    customerProfile?.customer_type,
+  );
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -87,7 +94,10 @@ export default function Index() {
     setCart([]);
   }, []);
 
-  const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
+  const cartSubtotal = useMemo(
+    () => calculateCartSubtotal(cart, customerPriceMap),
+    [cart, customerPriceMap],
+  );
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
 
   const showAllProducts = useCallback(() => {
@@ -111,6 +121,7 @@ export default function Index() {
             onClear={clearCart}
             open={isCartOpen}
             onOpenChange={setIsCartOpen}
+            resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
           />
         }
       />
@@ -176,6 +187,7 @@ export default function Index() {
                   <ProductListItem
                     key={product.id}
                     product={product}
+                    price={resolveProductPrice(product, customerPriceMap)}
                     onAdd={addToCart}
                     inCart={cartIds.has(product.id)}
                     currentQuantity={cartQuantityById.get(product.id)}

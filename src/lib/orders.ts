@@ -3,9 +3,9 @@ import {
   type OrderEnrichmentMaps,
   type Product,
   getProductCode,
-  getProductUnitPrice,
   normalizeProductNameKey,
 } from "@/lib/products";
+import { resolveProductPrice } from "@/lib/pricing";
 
 export const ORDERS_TABLE = "orders";
 
@@ -175,9 +175,12 @@ export function getOrderLinesQuantityTotal(lines: OrderTableLine[]): number {
   return lines.reduce((sum, line) => sum + line.quantity, 0);
 }
 
-export function toOrderItems(cart: { product: Product; quantity: number; notes?: string }[]): OrderItem[] {
+export function toOrderItems(
+  cart: { product: Product; quantity: number; notes?: string }[],
+  resolvePrice: (product: Product) => number = (product) => resolveProductPrice(product),
+): OrderItem[] {
   return cart.map((item) => {
-    const unit = getProductUnitPrice(item.product);
+    const unit = resolvePrice(item.product);
     const qty = item.quantity;
     return {
       product_id: item.product.id,

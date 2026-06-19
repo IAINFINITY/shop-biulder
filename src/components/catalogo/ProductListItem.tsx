@@ -23,15 +23,17 @@ const typeBadgeClasses: Record<string, string> = {
 
 interface ProductListItemProps {
   product: Product;
+  price?: number;
   inCart?: boolean;
   currentQuantity?: number;
   onAdd: (product: Product, quantity: number) => void;
 }
 
-export function ProductListItem({ product, inCart, currentQuantity, onAdd }: ProductListItemProps) {
+export function ProductListItem({ product, price, inCart, currentQuantity, onAdd }: ProductListItemProps) {
   const Icon = typeIcons[product.type] || Leaf;
   const [quantity, setQuantity] = useState(1);
   const coverUrl = getProductImageUrls(product)[0];
+  const resolvedPrice = Number.isFinite(price ?? Number.NaN) ? (price as number) : getProductUnitPrice(product);
 
   useEffect(() => {
     if (inCart && currentQuantity) {
@@ -82,7 +84,7 @@ export function ProductListItem({ product, inCart, currentQuantity, onAdd }: Pro
             className="mt-1 line-clamp-2 text-sm sm:line-clamp-3"
           />
           <p className="mt-2 text-base font-semibold text-foreground tabular-nums">
-            {formatBRL(getProductUnitPrice(product))}
+            {formatBRL(resolvedPrice)}
           </p>
         </div>
 

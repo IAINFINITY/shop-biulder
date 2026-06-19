@@ -1,6 +1,7 @@
 import { Minus, Plus, Trash2, ShoppingBag, Send, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CartItem, getCartSubtotal, getProductUnitPrice } from "@/lib/products";
+import { CartItem } from "@/lib/products";
+import { resolveProductPrice } from "@/lib/pricing";
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ interface CartDrawerProps {
   onClear: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  resolveUnitPrice?: (product: CartItem["product"]) => number;
 }
 
 export function CartDrawer({
@@ -27,9 +29,13 @@ export function CartDrawer({
   onClear,
   open,
   onOpenChange,
+  resolveUnitPrice,
 }: CartDrawerProps) {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = getCartSubtotal(cart);
+  const unitPrice = resolveUnitPrice ?? resolveProductPrice;
+  const subtotal = Math.round(
+    cart.reduce((sum, item) => sum + unitPrice(item.product) * item.quantity, 0) * 100,
+  ) / 100;
   const navigate = useNavigate();
 
   const handleSend = () => {
@@ -81,8 +87,8 @@ export function CartDrawer({
                       <p className="font-medium text-sm text-foreground">{item.product.name}</p>
                       <p className="text-xs text-muted-foreground">{item.product.type} · {item.product.family}</p>
                       <p className="mt-1 text-sm font-medium text-foreground tabular-nums">
-                        {formatBRL(getProductUnitPrice(item.product))} × {item.quantity} ={" "}
-                        {formatBRL(getProductUnitPrice(item.product) * item.quantity)}
+                        {formatBRL(unitPrice(item.product))} × {item.quantity} ={" "}
+                        {formatBRL(unitPrice(item.product) * item.quantity)}
                       </p>
                     </div>
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onRemove(item.product.id)}>

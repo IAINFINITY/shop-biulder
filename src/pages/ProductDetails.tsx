@@ -8,14 +8,13 @@ import {
   CartItem,
   getCart,
   saveCart,
-  getCartSubtotal,
   normalizeProductFromSupabaseRow,
   getProductImageUrls,
   PRODUCT_SELECT_COLUMNS,
   PRODUCT_SELECT_COLUMNS_LEGACY,
   isMissingImageUrlsColumnError,
 } from "@/lib/products";
-import { coercePrice, formatBRL } from "@/lib/formatMoney";
+import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
@@ -23,6 +22,9 @@ import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { toast } from "sonner";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
+import { useAuth } from "@/hooks/useAuth";
+import { useCustomerPricing } from "@/hooks/useCustomerPricing";
+import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 
 const typeIcons: Record<string, LucideIcon> = {
   "Chá": Leaf,
@@ -38,6 +40,10 @@ const typeColors: Record<string, string> = {
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const { customerProfile } = useAuth();
+  const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
+    customerProfile?.customer_type,
+  );
 
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -64,7 +70,10 @@ export default function ProductDetails() {
 
   const clearCart = useCallback(() => { setCart([]); }, []);
 
-  const cartSubtotal = useMemo(() => getCartSubtotal(cart), [cart]);
+  const cartSubtotal = useMemo(
+    () => calculateCartSubtotal(cart, customerPriceMap),
+    [cart, customerPriceMap],
+  );
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
 
   const { data: product, isLoading, error } = useQuery({
@@ -147,6 +156,7 @@ export default function ProductDetails() {
               onClear={clearCart}
               open={isCartOpen}
               onOpenChange={setIsCartOpen}
+              resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
             />
           </div>
         </div>
@@ -191,7 +201,9 @@ export default function ProductDetails() {
 
             <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
 
-            <p className="text-2xl font-semibold text-primary tabular-nums">{formatBRL(coercePrice(product.price))}</p>
+            <p className="text-2xl font-semibold text-primary tabular-nums">
+              {formatBRL(resolveProductPrice(product, customerPriceMap))}
+            </p>
 
             <ProductDescription html={product.description} className="text-base" />
 

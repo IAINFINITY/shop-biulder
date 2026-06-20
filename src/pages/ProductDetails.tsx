@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, type MouseEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { type LucideIcon, ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
@@ -17,9 +17,9 @@ import {
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { toast } from "sonner";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,15 +27,15 @@ import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 
 const typeIcons: Record<string, LucideIcon> = {
-  "Chá": Leaf,
-  "Cápsula": Pill,
-  "Solúvel": FlaskConical,
+  Chá: Leaf,
+  Cápsula: Pill,
+  Solúvel: FlaskConical,
 };
 
 const typeColors: Record<string, string> = {
-  "Chá": "bg-success/10 text-success border-success/20",
-  "Cápsula": "bg-warm/10 text-warm border-warm/20",
-  "Solúvel": "bg-primary/10 text-primary border-primary/20",
+  Chá: "bg-success/10 text-success border-success/20",
+  Cápsula: "bg-warm/10 text-warm border-warm/20",
+  Solúvel: "bg-primary/10 text-primary border-primary/20",
 };
 
 export default function ProductDetails() {
@@ -47,33 +47,35 @@ export default function ProductDetails() {
 
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isImageHovered, setIsImageHovered] = useState(false);
+  const [imagePointer, setImagePointer] = useState({ x: 50, y: 50 });
 
-  useEffect(() => { saveCart(cart); }, [cart]);
+  useEffect(() => {
+    saveCart(cart);
+  }, [cart]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
-  const updateQuantity = useCallback((id: string, delta: number) => {
-    setCart((prev) => prev.map((c) =>
-      c.product.id === id ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c
-    ));
+  const updateQuantity = useCallback((itemId: string, delta: number) => {
+    setCart((prev) =>
+      prev.map((c) => (c.product.id === itemId ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)),
+    );
   }, []);
 
-  const removeFromCart = useCallback((id: string) => {
-    setCart((prev) => prev.filter((c) => c.product.id !== id));
+  const removeFromCart = useCallback((itemId: string) => {
+    setCart((prev) => prev.filter((c) => c.product.id !== itemId));
   }, []);
 
-  const updateNotes = useCallback((id: string, notes: string) => {
-    setCart((prev) => prev.map((c) =>
-      c.product.id === id ? { ...c, notes } : c
-    ));
+  const updateNotes = useCallback((itemId: string, notes: string) => {
+    setCart((prev) => prev.map((c) => (c.product.id === itemId ? { ...c, notes } : c)));
   }, []);
 
-  const clearCart = useCallback(() => { setCart([]); }, []);
+  const clearCart = useCallback(() => {
+    setCart([]);
+  }, []);
 
-  const cartSubtotal = useMemo(
-    () => calculateCartSubtotal(cart, customerPriceMap),
-    [cart, customerPriceMap],
-  );
+  const cartSubtotal = useMemo(() => calculateCartSubtotal(cart, customerPriceMap), [cart, customerPriceMap]);
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
 
   const { data: product, isLoading, error } = useQuery({
@@ -93,6 +95,22 @@ export default function ProductDetails() {
     },
   });
 
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [product?.id]);
+
+  const galleryUrls = product ? getProductImageUrls(product) : [];
+  const selectedImage = galleryUrls[selectedImageIndex] ?? galleryUrls[0] ?? null;
+  const productPrice = product ? resolveProductPrice(product, customerPriceMap) : 0;
+
+  const quickFacts = product
+    ? [
+        { label: "Tipo", value: product.type },
+        { label: "Família", value: product.family },
+        { label: "Status", value: "Disponível para pedido" },
+      ]
+    : [];
+
   const handleAdd = () => {
     if (!product) return;
     setCart((prev) => {
@@ -111,6 +129,31 @@ export default function ProductDetails() {
     });
   };
 
+  const handleImageMove = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (!selectedImage) return;
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 100;
+      const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+      setImagePointer({
+        x: Math.min(100, Math.max(0, x)),
+        y: Math.min(100, Math.max(0, y)),
+      });
+    },
+    [selectedImage],
+  );
+
+  const zoomPreviewStyle = selectedImage
+    ? {
+        backgroundImage: `url(${selectedImage})`,
+        backgroundPosition: `${imagePointer.x}% ${imagePointer.y}%`,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "230%",
+      }
+    : undefined;
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
@@ -122,11 +165,11 @@ export default function ProductDetails() {
   if (error || !product) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center space-y-4">
+        <div className="space-y-4 text-center">
           <p className="text-muted-foreground">Produto não encontrado.</p>
           <Link to="/">
             <Button variant="outline" className="gap-2">
-              <ArrowLeft className="w-4 h-4" /> Voltar ao catálogo
+              <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
             </Button>
           </Link>
         </div>
@@ -135,15 +178,14 @@ export default function ProductDetails() {
   }
 
   const Icon = typeIcons[product.type] || Leaf;
-  const galleryUrls = getProductImageUrls(product);
 
   return (
-    <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 h-14 flex items-center gap-3">
+    <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
+      <header className="border-b border-border bg-card/95 backdrop-blur">
+        <div className="container mx-auto flex h-14 items-center gap-3 px-4">
           <Link to="/">
             <Button variant="ghost" size="icon">
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <span className="font-semibold text-foreground">Detalhes do Produto</span>
@@ -156,65 +198,158 @@ export default function ProductDetails() {
               onClear={clearCart}
               open={isCartOpen}
               onOpenChange={setIsCartOpen}
-              resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
+              resolveUnitPrice={(currentProduct) => resolveProductPrice(currentProduct, customerPriceMap)}
             />
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="relative rounded-xl border border-border bg-card overflow-hidden">
-            {galleryUrls.length === 0 ? (
-              <div className="aspect-[4/3] bg-muted flex items-center justify-center">
-                <ImageIcon className="w-16 h-16 text-muted-foreground/30" />
-              </div>
-            ) : galleryUrls.length === 1 ? (
-              <img src={galleryUrls[0]} alt={product.name} className="aspect-[4/3] w-full object-cover" />
-            ) : (
-              <Carousel className="w-full" opts={{ loop: true }}>
-                <CarouselContent className="-ml-2 md:-ml-4">
-                  {galleryUrls.map((src, i) => (
-                    <CarouselItem key={`${src}-${i}`} className="pl-2 md:pl-4 basis-full">
-                      <div className="aspect-[4/3] overflow-hidden rounded-lg bg-muted">
-                        <img src={src} alt={product.name} className="h-full w-full object-cover" />
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2 border-0 bg-background/90 shadow-md" />
-                <CarouselNext className="right-2 border-0 bg-background/90 shadow-md" />
-              </Carousel>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
-                <Icon className="w-3 h-3 mr-1" />
-                {product.type}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                {product.family}
-              </Badge>
+      <main className="flex flex-1 items-start">
+        <div className="container mx-auto max-w-6xl px-4 py-4 lg:py-6">
+          <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.45fr)_minmax(360px,0.95fr)] xl:items-stretch">
+            <div className="hidden xl:flex xl:sticky xl:top-5 xl:flex-col xl:gap-2">
+              {galleryUrls.length > 0 ? (
+                galleryUrls.map((src, index) => (
+                  <button
+                    key={`${src}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedImageIndex(index)}
+                    className={`overflow-hidden rounded-lg border bg-card p-1 transition-all ${
+                      index === selectedImageIndex
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border/70 hover:border-primary/40"
+                    }`}
+                    aria-label={`Ver imagem ${index + 1}`}
+                  >
+                    <img src={src} alt="" className="aspect-square h-full w-full rounded-md object-contain" />
+                  </button>
+                ))
+              ) : (
+                <div className="flex aspect-square items-center justify-center rounded-lg border border-border/70 bg-muted/30">
+                  <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
+                </div>
+              )}
             </div>
 
-            <h1 className="text-2xl font-bold text-foreground">{product.name}</h1>
+            <div className="min-w-0 self-stretch">
+              <div
+                className="relative h-full overflow-visible"
+                onMouseEnter={() => setIsImageHovered(true)}
+                onMouseLeave={() => setIsImageHovered(false)}
+                onMouseMove={handleImageMove}
+              >
+                <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/80 shadow-sm">
+                  <div className="relative aspect-square w-full">
+                  {selectedImage ? (
+                    <img
+                      src={selectedImage}
+                      alt={product.name}
+                      className="h-full w-full object-contain object-center p-8 sm:p-10"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-muted/40 p-8">
+                      <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
+                    </div>
+                  )}
+                    {selectedImage && (
+                      <>
+                        <div
+                          className={`pointer-events-none absolute inset-0 bg-black/10 transition-opacity duration-200 ${
+                            isImageHovered ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <div
+                          className={`pointer-events-none absolute h-[40%] w-[40%] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/40 bg-black/15 shadow-[0_0_0_9999px_rgba(0,0,0,0.08)] transition-opacity duration-200 ${
+                            isImageHovered ? "opacity-100" : "opacity-0"
+                          }`}
+                          style={{ left: `${imagePointer.x}%`, top: `${imagePointer.y}%` }}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
 
-            <p className="text-2xl font-semibold text-primary tabular-nums">
-              {formatBRL(resolveProductPrice(product, customerPriceMap))}
-            </p>
+                <div
+                  className={`pointer-events-none absolute right-4 top-4 z-20 hidden h-[38%] w-[38%] overflow-hidden rounded-xl border border-border/70 bg-muted/80 shadow-lg xl:block ${
+                    selectedImage && isImageHovered ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  {selectedImage ? <div className="h-full w-full" style={zoomPreviewStyle} /> : null}
+                </div>
+              </div>
 
-            <ProductDescription html={product.description} className="text-base" />
+              {galleryUrls.length > 1 && (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:hidden">
+                  {galleryUrls.map((src, index) => (
+                    <button
+                      key={`${src}-${index}`}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(index)}
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-card p-1 ${
+                        index === selectedImageIndex
+                          ? "border-primary ring-2 ring-primary/20"
+                          : "border-border/70"
+                      }`}
+                      aria-label={`Ver imagem ${index + 1}`}
+                    >
+                      <img src={src} alt="" className="h-full w-full rounded-md object-contain" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <div className="pt-2">
-              <Button onClick={handleAdd} className="gap-2">
-                <Plus className="w-4 h-4" /> Adicionar ao carrinho
-              </Button>
+            <div className="self-stretch xl:sticky xl:top-5">
+              <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm">
+                <CardHeader className="space-y-3 p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
+                      <Icon className="mr-1 h-3 w-3" />
+                      {product.type}
+                    </Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {product.family}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-sm text-muted-foreground">Produto disponível para pedido</p>
+                    <CardTitle className="text-2xl leading-tight">{product.name}</CardTitle>
+                    <p className="text-3xl font-semibold text-primary tabular-nums">{formatBRL(productPrice)}</p>
+                  </div>
+
+                  <Button onClick={handleAdd} className="w-full gap-2 sm:w-fit">
+                    <Plus className="h-4 w-4" /> Adicionar ao carrinho
+                  </Button>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {quickFacts.map((fact) => (
+                      <div
+                        key={fact.label}
+                        className="rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm"
+                      >
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          {fact.label}
+                        </div>
+                        <div className="mt-1 font-medium text-foreground">{fact.value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-border/60 pt-4">
+                    <CardTitle className="mb-3 text-lg">Descrição</CardTitle>
+                    <ProductDescription
+                      html={product.description}
+                      className="text-sm leading-6 sm:text-base sm:leading-7"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
       <CartTotalBar
         total={cartSubtotal}

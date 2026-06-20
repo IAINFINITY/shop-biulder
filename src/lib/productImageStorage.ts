@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeProductImageFile } from "@/lib/productImageNormalization";
 
 const BUCKET = "product-images";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -45,27 +46,29 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
     return { ok: false, message: "Imagem muito grande. Máximo 8 MB." };
   }
 
+  const normalizedFile = await normalizeProductImageFile(file);
+
   await supabase.auth.refreshSession();
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !sessionData.session) {
     return { ok: false, message: "Faça login no admin antes de enviar a foto." };
   }
 
-  const ext = safeExtension(file);
+  const ext = safeExtension(normalizedFile);
   const path = `${crypto.randomUUID()}.${ext}`;
 
-  let { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+  let { error } = await supabase.storage.from(BUCKET).upload(path, normalizedFile, {
     cacheControl: "3600",
     upsert: true,
-    contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+    contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
   });
 
   // Alguns projetos bloqueiam upsert; tenta path novo sem upsert
   if (error && /already exists|duplicate|invalid/i.test(error.message)) {
     const retryPath = `uploads/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-    ({ error } = await supabase.storage.from(BUCKET).upload(retryPath, file, {
+    ({ error } = await supabase.storage.from(BUCKET).upload(retryPath, normalizedFile, {
       cacheControl: "3600",
-      contentType: file.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+      contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
     }));
     if (!error) {
       const {

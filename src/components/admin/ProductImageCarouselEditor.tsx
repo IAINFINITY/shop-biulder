@@ -59,20 +59,20 @@ export function ProductImageCarouselEditor({
 
       <div className="relative max-w-sm overflow-hidden rounded-xl border border-border bg-muted/20">
         {urls.length === 0 ? (
-          <div className="flex aspect-[4/3] items-center justify-center bg-muted/40">
+          <div className="flex aspect-[4/3] items-center justify-center bg-muted/40 p-6">
             <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
           </div>
         ) : urls.length === 1 ? (
-          <div className="relative aspect-[4/3]">
-            <img src={urls[0]} alt="" className="h-full w-full object-cover" />
+          <div className="relative aspect-[4/3] bg-background p-4">
+            <img src={urls[0]} alt="" className="h-full w-full object-contain" />
           </div>
         ) : (
           <Carousel className="w-full" opts={{ loop: true }} setApi={setApi}>
             <CarouselContent className="-ml-0">
               {urls.map((src, i) => (
                 <CarouselItem key={`${src}-${i}`} className="basis-full pl-0">
-                  <div className="aspect-[4/3] bg-muted">
-                    <img src={src} alt="" className="h-full w-full object-cover" />
+                  <div className="aspect-[4/3] bg-background p-4">
+                    <img src={src} alt="" className="h-full w-full object-contain" />
                   </div>
                 </CarouselItem>
               ))}

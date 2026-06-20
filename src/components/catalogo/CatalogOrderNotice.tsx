@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { Handshake } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -95,3 +95,5 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
     </div>
   );
 }
+
+

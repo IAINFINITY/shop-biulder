@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import heroGummiesBanner from "@/assets/hero-gummies-banner.png";
 import heroVitaminsBanner from "@/assets/hero-vitamins-banner.png";
 import {
@@ -132,3 +132,5 @@ export function StoreHeroBanner() {
     </section>
   );
 }
+
+

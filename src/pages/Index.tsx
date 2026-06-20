@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { ProductListItem } from "@/components/catalogo/ProductListItem";
-import { ProductFilters } from "@/components/catalogo/ProductFilters";
+import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
-import { StoreCategoryNav } from "@/components/catalogo/StoreCategoryNav";
+import { CatalogFiltersBarV2 } from "@/components/catalogo/CatalogFiltersBarV2";
 import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
+import { Button } from "@/components/ui/button";
 import { Product, CartItem, getCart, saveCart } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
 import { useProducts } from "@/hooks/useProducts";
@@ -33,6 +33,21 @@ export default function Index() {
   }, [cart]);
 
   const categoryTypes = useMemo(() => [...new Set(products.map((p) => p.type))].sort(), [products]);
+  const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const product of products) {
+      counts.set(product.type, (counts.get(product.type) ?? 0) + 1);
+    }
+    return counts;
+  }, [products]);
+  const familyCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const product of products) {
+      counts.set(product.family, (counts.get(product.family) ?? 0) + 1);
+    }
+    return counts;
+  }, [products]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -50,7 +65,6 @@ export default function Index() {
   }, [products, search, selectedType, selectedFamily]);
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
-  const cartQuantityById = useMemo(() => new Map(cart.map((c) => [c.product.id, c.quantity])), [cart]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
@@ -128,10 +142,15 @@ export default function Index() {
 
       <StoreHeroBanner />
 
-      <StoreCategoryNav
+      <CatalogFiltersBarV2
         categoryTypes={categoryTypes}
+        categoryFamilies={categoryFamilies}
+        typeCounts={typeCounts}
+        familyCounts={familyCounts}
         selectedType={selectedType}
+        selectedFamily={selectedFamily}
         onTypeChange={setSelectedType}
+        onFamilyChange={setSelectedFamily}
         onShowAllProducts={showAllProducts}
       />
 
@@ -149,54 +168,44 @@ export default function Index() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur shadow-sm">
-        <div className="container mx-auto flex h-11 items-center px-4 text-sm text-muted-foreground">
-          {isLoading ? "Carregando..." : `${filtered.length} produto(s) encontrado(s)`}
+      <div ref={catalogRef} id="catalogo-produtos" className="container mx-auto max-w-7xl px-4 py-6">
+        <div className="mb-4 flex items-center justify-between gap-3 border-b border-border/60 pb-3 text-sm text-muted-foreground">
+          <p>{isLoading ? "Carregando..." : `${filtered.length} produto(s) encontrado(s)`}</p>
+          {(search || selectedType || selectedFamily) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={showAllProducts}
+            >
+              Limpar filtros
+            </Button>
+          )}
         </div>
-      </div>
 
-      <div ref={catalogRef} id="catalogo-produtos" className="container mx-auto px-4 py-6">
-        <div className="flex flex-col gap-6 lg:h-[calc(100vh-12rem)] lg:flex-row lg:overflow-hidden">
-          <aside className="shrink-0 lg:h-full lg:w-64 lg:overflow-y-auto">
-            <div className="lg:pr-1">
-              <ProductFilters
-                search={search}
-                onSearchChange={setSearch}
-                selectedType={selectedType}
-                onTypeChange={setSelectedType}
-                selectedFamily={selectedFamily}
-                onFamilyChange={setSelectedFamily}
-                showSearch={false}
+        {isLoading ? (
+          <div className="py-20 text-center text-muted-foreground">
+            <p className="text-lg font-medium">Carregando produtos...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-20 text-center text-muted-foreground">
+            <p className="text-lg font-medium">Nenhum produto encontrado</p>
+            <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {filtered.map((product) => (
+              <CatalogProductCard
+                key={product.id}
+                product={product}
+                price={resolveProductPrice(product, customerPriceMap)}
+                onAdd={addToCart}
+                inCart={cartIds.has(product.id)}
               />
-            </div>
-          </aside>
-
-          <main className="flex-1 lg:h-full lg:overflow-y-auto lg:pr-1">
-            {isLoading ? (
-              <div className="py-20 text-center text-muted-foreground">
-                <p className="text-lg font-medium">Carregando produtos...</p>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="py-20 text-center text-muted-foreground">
-                <p className="text-lg font-medium">Nenhum produto encontrado</p>
-                <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filtered.map((product) => (
-                  <ProductListItem
-                    key={product.id}
-                    product={product}
-                    price={resolveProductPrice(product, customerPriceMap)}
-                    onAdd={addToCart}
-                    inCart={cartIds.has(product.id)}
-                    currentQuantity={cartQuantityById.get(product.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </main>
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <CartTotalBar

@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+﻿import type { FormEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Search, Settings, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -112,3 +112,6 @@ export function StoreHeader({ search, onSearchChange, cartSlot }: StoreHeaderPro
     </header>
   );
 }
+
+
+

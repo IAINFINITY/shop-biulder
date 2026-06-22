@@ -107,7 +107,7 @@ export default function ProductDetails() {
     ? [
         { label: "Tipo", value: product.type },
         { label: "Família", value: product.family },
-        { label: "Status", value: "Disponível para pedido" },
+        { label: "Status", value: "Disponível" },
       ]
     : [];
 
@@ -178,6 +178,7 @@ export default function ProductDetails() {
   }
 
   const Icon = typeIcons[product.type] || Leaf;
+  const hasDescription = Boolean(product.description?.trim());
 
   return (
     <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
@@ -205,8 +206,8 @@ export default function ProductDetails() {
       </header>
 
       <main className="flex flex-1 items-start">
-        <div className="container mx-auto max-w-6xl px-4 py-4 lg:py-6">
-          <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.45fr)_minmax(360px,0.95fr)] xl:items-stretch">
+        <div className="container mx-auto max-w-7xl px-4 py-4 lg:py-6">
+          <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.35fr)_minmax(360px,0.95fr)] xl:items-stretch">
             <div className="hidden xl:flex xl:sticky xl:top-5 xl:flex-col xl:gap-2">
               {galleryUrls.length > 0 ? (
                 galleryUrls.map((src, index) => (
@@ -214,7 +215,7 @@ export default function ProductDetails() {
                     key={`${src}-${index}`}
                     type="button"
                     onClick={() => setSelectedImageIndex(index)}
-                    className={`overflow-hidden rounded-lg border bg-card p-1 transition-all ${
+                    className={`overflow-hidden rounded-lg border bg-background p-1 transition-all ${
                       index === selectedImageIndex
                         ? "border-primary ring-2 ring-primary/20"
                         : "border-border/70 hover:border-primary/40"
@@ -233,24 +234,24 @@ export default function ProductDetails() {
 
             <div className="min-w-0 self-stretch">
               <div
-                className="relative h-full overflow-visible"
+                className="relative flex h-full flex-col overflow-visible xl:min-h-[640px]"
                 onMouseEnter={() => setIsImageHovered(true)}
                 onMouseLeave={() => setIsImageHovered(false)}
                 onMouseMove={handleImageMove}
               >
-                <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/80 shadow-sm">
-                  <div className="relative aspect-square w-full">
-                  {selectedImage ? (
-                    <img
-                      src={selectedImage}
-                      alt={product.name}
-                      className="h-full w-full object-contain object-center p-8 sm:p-10"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-muted/40 p-8">
-                      <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
-                    </div>
-                  )}
+                <div className="flex flex-1 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+                  <div className="relative flex flex-1 items-center justify-center bg-background p-6 sm:p-8">
+                    {selectedImage ? (
+                      <img
+                        src={selectedImage}
+                        alt={product.name}
+                        className="max-h-[560px] w-full max-w-[560px] object-contain object-center"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-background p-8">
+                        <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
+                      </div>
+                    )}
                     {selectedImage && (
                       <>
                         <div
@@ -285,7 +286,7 @@ export default function ProductDetails() {
                       key={`${src}-${index}`}
                       type="button"
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-card p-1 ${
+                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-background p-1 ${
                         index === selectedImageIndex
                           ? "border-primary ring-2 ring-primary/20"
                           : "border-border/70"
@@ -300,8 +301,8 @@ export default function ProductDetails() {
             </div>
 
             <div className="self-stretch xl:sticky xl:top-5">
-              <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm">
-                <CardHeader className="space-y-3 p-4">
+              <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm xl:min-h-[640px]">
+                <CardHeader className="space-y-3 p-4 sm:p-5">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
                       <Icon className="mr-1 h-3 w-3" />
@@ -311,10 +312,8 @@ export default function ProductDetails() {
                       {product.family}
                     </Badge>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <p className="text-sm text-muted-foreground">Produto disponível para pedido</p>
-                    <CardTitle className="text-2xl leading-tight">{product.name}</CardTitle>
+                  <div className="space-y-2">
+                    <CardTitle className="text-[1.9rem] leading-tight tracking-tight">{product.name}</CardTitle>
                     <p className="text-3xl font-semibold text-primary tabular-nums">{formatBRL(productPrice)}</p>
                   </div>
 
@@ -322,27 +321,42 @@ export default function ProductDetails() {
                     <Plus className="h-4 w-4" /> Adicionar ao carrinho
                   </Button>
                 </CardHeader>
-                <CardContent className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
-                  <div className="grid gap-3 sm:grid-cols-3">
+
+                <CardContent className="flex min-h-0 flex-1 flex-col gap-4 px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+                  <div className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm sm:grid sm:grid-cols-3 sm:divide-x sm:divide-border/70">
                     {quickFacts.map((fact) => (
                       <div
                         key={fact.label}
-                        className="rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm"
+                        className="flex min-h-[84px] min-w-0 flex-col justify-center px-4 py-3 sm:px-5"
                       >
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                           {fact.label}
                         </div>
-                        <div className="mt-1 font-medium text-foreground">{fact.value}</div>
+                        <div className="mt-1 truncate text-sm font-medium leading-snug text-foreground sm:text-[14px]">
+                          {fact.value}
+                        </div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="border-t border-border/60 pt-4">
-                    <CardTitle className="mb-3 text-lg">Descrição</CardTitle>
-                    <ProductDescription
-                      html={product.description}
-                      className="text-sm leading-6 sm:text-base sm:leading-7"
-                    />
+                  <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <CardTitle className="text-lg">Descrição</CardTitle>
+                      <div className="h-px flex-1 bg-border/70" />
+                    </div>
+
+                    <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+                      {hasDescription ? (
+                        <ProductDescription
+                          html={product.description}
+                          className="text-sm leading-6 sm:text-base sm:leading-7"
+                        />
+                      ) : (
+                        <p className="text-sm leading-6 text-muted-foreground">
+                          Sem descrição disponível para este produto.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

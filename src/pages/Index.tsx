@@ -68,13 +68,14 @@ export default function Index() {
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
   const addToCart = useCallback(
-    (product: Product, quantity: number) => {
+    (product: Product, quantity = 1) => {
+      const safeQuantity = Number.isFinite(quantity) ? Math.max(1, quantity) : 1;
       setCart((prev) => {
         const existing = prev.find((c) => c.product.id === product.id);
         if (existing) {
           toast.success("Carrinho atualizado!");
           return prev.map((c) =>
-            c.product.id === product.id ? { ...c, quantity: Math.max(1, quantity) } : c,
+            c.product.id === product.id ? { ...c, quantity: safeQuantity } : c,
           );
         }
         toast.success(`${product.name} adicionado!`, {
@@ -83,7 +84,7 @@ export default function Index() {
             onClick: openCart,
           },
         });
-        return [...prev, { product, quantity: Math.max(1, quantity) }];
+        return [...prev, { product, quantity: safeQuantity }];
       });
     },
     [openCart],

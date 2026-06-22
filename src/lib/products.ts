@@ -261,13 +261,44 @@ export interface CartItem {
 
 const CART_KEY = "clinicplus_cart";
 
+function normalizeCartQuantity(value: unknown): number {
+  const quantity = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(quantity) && quantity > 0 ? Math.max(1, Math.min(99, Math.round(quantity))) : 1;
+}
+
+function normalizeCartItem(item: unknown): CartItem | null {
+  if (!item || typeof item !== "object") return null;
+
+  const record = item as { product?: unknown; quantity?: unknown; notes?: unknown };
+  if (!record.product || typeof record.product !== "object") return null;
+
+  const product = normalizeProductFromSupabaseRow(record.product);
+  return {
+    product,
+    quantity: normalizeCartQuantity(record.quantity),
+    notes: typeof record.notes === "string" ? record.notes : undefined,
+  };
+}
+
 export function getCart(): CartItem[] {
   const stored = localStorage.getItem(CART_KEY);
-  return stored ? JSON.parse(stored) : [];
+  if (!stored) return [];
+
+  try {
+    const parsed = JSON.parse(stored) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeCartItem).filter((item): item is CartItem => item !== null);
+  } catch {
+    return [];
+  }
 }
 
 export function saveCart(cart: CartItem[]) {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  const normalized = cart.map((item) => ({
+    ...item,
+    quantity: normalizeCartQuantity(item.quantity),
+  }));
+  localStorage.setItem(CART_KEY, JSON.stringify(normalized));
 }
 
 export function getProductTypes(): string[] {

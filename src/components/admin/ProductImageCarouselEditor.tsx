@@ -57,9 +57,9 @@ export function ProductImageCarouselEditor({
     <div className="space-y-3">
       <Label className="text-sm font-medium">Imagens do produto</Label>
 
-      <div className="relative max-w-sm overflow-hidden rounded-xl border border-border bg-muted/20">
+      <div className="relative max-w-sm overflow-hidden rounded-xl border border-border bg-background">
         {urls.length === 0 ? (
-          <div className="flex aspect-[4/3] items-center justify-center bg-muted/40 p-6">
+          <div className="flex aspect-[4/3] items-center justify-center bg-background p-6">
             <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
           </div>
         ) : urls.length === 1 ? (

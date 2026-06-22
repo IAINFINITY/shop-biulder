@@ -1,11 +1,10 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+﻿import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { CatalogFiltersBarV2 } from "@/components/catalogo/CatalogFiltersBarV2";
-import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
 import { Button } from "@/components/ui/button";
 import { Product, CartItem, getCart, saveCart } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
@@ -154,34 +153,33 @@ export default function Index() {
         onShowAllProducts={showAllProducts}
       />
 
-      <div className="border-b border-border/60 bg-gradient-to-b from-primary/[0.08] to-background">
-        <div className="container mx-auto px-4 pt-4 sm:pt-5">
-          <CatalogOrderNotice />
-        </div>
-        <div className="container mx-auto px-4 pb-4 sm:pb-5 pt-3">
-          <h1 className="text-lg sm:text-2xl font-semibold text-foreground leading-tight">
-            Monte seu carrinho de interesse
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Escolha os produtos que precisa e adicione ao carrinho.
-          </p>
-        </div>
-      </div>
-
       <div ref={catalogRef} id="catalogo-produtos" className="container mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-4 flex items-center justify-between gap-3 border-b border-border/60 pb-3 text-sm text-muted-foreground">
-          <p>{isLoading ? "Carregando..." : `${filtered.length} produto(s) encontrado(s)`}</p>
-          {(search || selectedType || selectedFamily) && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={showAllProducts}
-            >
-              Limpar filtros
-            </Button>
-          )}
+        <div className="mb-5 border-b border-border/60 pb-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-1">
+              <h1 className="text-lg font-semibold leading-tight text-foreground sm:text-2xl">
+                Catálogo de produtos
+              </h1>
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Navegue pelos produtos e refine a busca por tipo ou família.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <p>{isLoading ? "Carregando..." : `${filtered.length} produto(s) encontrado(s)`}</p>
+              {(search || selectedType || selectedFamily) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={showAllProducts}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         {isLoading ? (

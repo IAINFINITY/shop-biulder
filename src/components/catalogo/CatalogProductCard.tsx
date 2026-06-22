@@ -5,6 +5,7 @@ import { getProductImageUrls, getProductUnitPrice } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ProductDescription } from "@/components/catalogo/ProductDescription";
 
 const typeIcons: Record<string, LucideIcon> = {
   Chá: Leaf,
@@ -37,15 +38,15 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         {coverUrl ? (
-          <div className="aspect-[4/3] overflow-hidden bg-background p-3">
+          <div className="aspect-[4/3] overflow-hidden border-b border-border/70 bg-background p-2 sm:p-3">
             <img
               src={coverUrl}
               alt={product.name}
-              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>
         ) : (
-          <div className="flex aspect-[4/3] items-center justify-center bg-muted/40 p-3">
+          <div className="flex aspect-[4/3] items-center justify-center border-b border-border/70 bg-background p-3">
             <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
           </div>
         )}
@@ -61,17 +62,20 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
             </Badge>
           </div>
 
-          <h3 className="line-clamp-2 min-h-[3rem] text-sm font-semibold leading-snug text-card-foreground sm:text-lg">
+          <h3 className="line-clamp-2 min-h-[3.25rem] text-base font-semibold leading-tight text-card-foreground sm:text-[1.05rem]">
             {product.name}
           </h3>
 
-          <div className="mb-2 h-[3.75rem] overflow-hidden">
-            <div className="opacity-75 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-              <span className="text-xs text-muted-foreground sm:text-sm">{product.type} • {product.family}</span>
-            </div>
+          <div className="mt-2 min-h-[3.5rem]">
+            <ProductDescription
+              html={product.description}
+              plainPreview
+              lineClamp={2}
+              className="text-sm leading-6 text-muted-foreground"
+            />
           </div>
 
-          <p className="mb-1 text-sm font-semibold tabular-nums text-foreground sm:text-base">
+          <p className="mt-3 mb-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
             {formatBRL(displayPrice)}
           </p>
         </div>

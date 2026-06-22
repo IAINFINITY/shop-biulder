@@ -25,14 +25,12 @@ export function StoreHeader({ search, onSearchChange, cartSlot }: StoreHeaderPro
 
   return (
     <header className="bg-card shadow-sm">
-      <div className="h-1 w-full bg-primary" />
-
-      <div className={cn(headerInner, "py-4 pb-3 sm:pt-5 sm:pb-4")}>
+      <div className={cn(headerInner, "py-3.5 pb-3 sm:pt-4 sm:pb-4")}>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
           <div className="flex items-start justify-between gap-3 lg:block lg:max-w-[220px] xl:max-w-[240px]">
             <Link to="/" className="inline-block min-w-0 shrink-0">
               <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto sm:h-10" />
-              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-xs sm:tracking-wide">
+              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.72rem] sm:tracking-wide">
                 Suplemento e Nutrição · B2B
               </p>
             </Link>
@@ -76,7 +74,7 @@ export function StoreHeader({ search, onSearchChange, cartSlot }: StoreHeaderPro
               <Button
                 type="submit"
                 size="icon"
-                className="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 sm:right-2 sm:h-10 sm:w-10"
+                className="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:right-2 sm:h-10 sm:w-10"
                 aria-label="Buscar"
               >
                 <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />

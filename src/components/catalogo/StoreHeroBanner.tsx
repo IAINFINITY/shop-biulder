@@ -24,8 +24,7 @@ const SLIDES = [
 
 const AUTOPLAY_MS = 5500;
 
-const slideImageClass =
-  "block h-auto max-h-[min(42vw,420px)] w-full max-w-full object-contain object-center sm:max-h-[min(38vw,480px)]";
+const slideImageClass = "block h-full w-full object-cover object-center";
 
 /** Painel promocional em largura total com carrossel automático. */
 export function StoreHeroBanner() {
@@ -68,20 +67,20 @@ export function StoreHeroBanner() {
 
   return (
     <section
-      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 border-b border-border/40 bg-muted/30"
+      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden border-b border-border/40 bg-muted/30"
       aria-label="Destaques promocionais"
       aria-roledescription="carousel"
     >
-      <div className="relative mx-auto w-full max-w-[1400px]">
+      <div className="relative w-full overflow-hidden">
         <Carousel
-          className="w-full"
+          className="h-full w-full"
           opts={{ loop: true, align: "center", duration: 35 }}
           setApi={setApi}
         >
-          <CarouselContent className="-ml-0">
+          <CarouselContent className="!ml-0 h-full">
             {SLIDES.map((slide, index) => (
-              <CarouselItem key={slide.alt} className="basis-full pl-0">
-                <div className="flex items-center justify-center px-9 sm:px-11">
+              <CarouselItem key={slide.alt} className="basis-full !pl-0 h-full">
+                <div className="flex h-[clamp(210px,24vw,360px)] w-full items-stretch justify-center">
                   <img
                     src={slide.src}
                     alt={slide.alt}
@@ -98,12 +97,12 @@ export function StoreHeroBanner() {
           </CarouselContent>
 
           <CarouselPrevious
-            className="left-1 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:left-2 sm:h-9 sm:w-9"
+            className="left-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:left-4 sm:h-9 sm:w-9"
             aria-label="Banner anterior"
             onPointerDown={scheduleAutoplay}
           />
           <CarouselNext
-            className="right-1 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:right-2 sm:h-9 sm:w-9"
+            className="right-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:right-4 sm:h-9 sm:w-9"
             aria-label="Próximo banner"
             onPointerDown={scheduleAutoplay}
           />

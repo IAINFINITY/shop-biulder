@@ -10,12 +10,9 @@ export interface Product {
   type: string;
   family: string;
   image_url: string | null;
-  /** URLs ordenadas da galeria; vazio no legado usa só `image_url`. */
   image_urls?: string[] | null;
   active: boolean;
-  /** Preço unitário em reais; ausente ou null no legado = 0 */
   price?: number | null;
-  /** Código interno — só admin/pedidos; não exibir no catálogo. */
   product_code?: string | null;
   created_at: string;
   updated_at: string;
@@ -25,7 +22,6 @@ export function getProductUnitPrice(product: Pick<Product, "price">): number {
   return coercePrice(product.price);
 }
 
-/** Converte coluna text[] do Postgres (array JS ou string `{a,b}`). */
 export function parseSupabaseTextArray(value: unknown): string[] {
   if (value == null) return [];
   if (Array.isArray(value)) {
@@ -50,7 +46,6 @@ export function parseSupabaseTextArray(value: unknown): string[] {
   return [];
 }
 
-/** URLs da galeria (principal = `image_url`, depois `image_urls` sem duplicar). */
 export function resolveProductImageUrls(
   image_url: string | null | undefined,
   image_urls: unknown,
@@ -70,7 +65,6 @@ export function resolveProductImageUrls(
   return urls;
 }
 
-/** URLs da galeria na ordem de exibição (principal = primeiro). */
 export function getProductImageUrls(product: Pick<Product, "image_url" | "image_urls">): string[] {
   return resolveProductImageUrls(product.image_url, product.image_urls);
 }
@@ -81,11 +75,9 @@ const PRODUCT_SELECT_BASE =
 export const PRODUCT_SELECT_COLUMNS =
   `${PRODUCT_SELECT_BASE},image_urls,product_code` as const;
 
-/** Sem galeria; mantém product_code. */
 export const PRODUCT_SELECT_COLUMNS_NO_GALLERY =
   `${PRODUCT_SELECT_BASE},product_code` as const;
 
-/** Com galeria; sem product_code (migração parcial). */
 export const PRODUCT_SELECT_COLUMNS_NO_CODE =
   `${PRODUCT_SELECT_BASE},image_urls` as const;
 
@@ -95,7 +87,6 @@ export function isMissingColumnError(message: string, column: string): boolean {
   return new RegExp(column, "i").test(message) && /(column|schema cache)/i.test(message);
 }
 
-/** Erro do PostgREST quando a migração `image_urls` ainda não foi aplicada no Supabase. */
 export function isMissingImageUrlsColumnError(message: string): boolean {
   return isMissingColumnError(message, "image_urls");
 }
@@ -171,22 +162,27 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
       : null;
 
   return {
-    ...(record as Product),
-    price: coercePrice(record.price),
+    id: typeof record.id === "string" ? record.id : "",
+    name: typeof record.name === "string" ? record.name : "",
+    description: typeof record.description === "string" ? record.description : "",
+    type: typeof record.type === "string" ? record.type : "",
+    family: typeof record.family === "string" ? record.family : "",
     image_url: gallery[0] ?? null,
     image_urls: gallery.length > 0 ? gallery : null,
+    active: Boolean(record.active),
+    price: coercePrice(record.price),
     product_code: productCode,
+    created_at: typeof record.created_at === "string" ? record.created_at : "",
+    updated_at: typeof record.updated_at === "string" ? record.updated_at : "",
   };
 }
 
-/** Código para pedidos/exportação (cadastro ou fallback curto do ID). */
 export function getProductCode(product: Pick<Product, "product_code" | "id">): string {
   const code = product.product_code?.trim();
   if (code) return code;
   return product.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
-/** Mapa product_id → código atual do catálogo (para enriquecer pedidos antigos). */
 export function buildProductCodeLookup(
   products: Pick<Product, "id" | "product_code">[],
 ): Map<string, string> {
@@ -198,7 +194,6 @@ export function buildProductCodeLookup(
   return map;
 }
 
-/** Mapa product_id → preço unitário atual do catálogo (para pedidos sem preço gravado). */
 export function buildProductPriceLookup(products: Pick<Product, "id" | "price">[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const product of products) {
@@ -207,7 +202,6 @@ export function buildProductPriceLookup(products: Pick<Product, "id" | "price">[
   return map;
 }
 
-/** Chave estável para casar nome do produto em pedidos antigos. */
 export function normalizeProductNameKey(name: string): string {
   return name
     .trim()

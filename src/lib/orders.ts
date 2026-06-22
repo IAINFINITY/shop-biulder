@@ -11,7 +11,6 @@ export const ORDERS_TABLE = "orders";
 
 export interface OrderItem {
   product_id: string;
-  /** Código interno do produto (não exibido no catálogo). */
   product_code?: string;
   name: string;
   type: string;
@@ -22,7 +21,6 @@ export interface OrderItem {
   notes?: string;
 }
 
-/** Resumo somente leitura do carrinho enviado (página de obrigado). */
 export type SubmittedCartLine = {
   name: string;
   type: string;
@@ -43,13 +41,11 @@ export interface Order {
   total_items: number;
   status: string;
   created_at: string;
-  /** ID sequencial para arquivo de importação Proxis (.txt). */
   proxis_import_id?: number | null;
 }
 
 export type OrderTableLine = {
   code: string;
-  /** Nome gravado no pedido (não substituir pelo catálogo atual). */
   name: string;
   type: string;
   family: string;
@@ -59,18 +55,15 @@ export type OrderTableLine = {
   notes?: string;
 };
 
-/** Rótulo para exportação (Excel/PDF) — mesmo texto que o cliente pediu. */
 export function formatOrderLineProductLabel(line: Pick<OrderTableLine, "name" | "type" | "family">): string {
   const meta = [line.type, line.family].filter(Boolean).join(" · ");
   return meta ? `${line.name} (${meta})` : line.name;
 }
 
-/** Código de 8 hex — fallback antigo gerado a partir do UUID do produto. */
 function isUuidFragmentCode(code: string): boolean {
   return /^[0-9A-F]{8}$/i.test(code.trim());
 }
 
-/** Ignora product_code gravado no pedido quando é só o prefixo do ID. */
 function isStaleAutoProductCode(code: string, productId: string): boolean {
   const normalized = code.replace(/-/g, "").toUpperCase();
   if (!normalized) return false;

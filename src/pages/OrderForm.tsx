@@ -101,7 +101,6 @@ export default function OrderForm() {
       return;
     }
 
-    // Enviar pedido ao Proxis ERP (não bloqueia o checkout se falhar)
     try {
       const proxisItems = orderItems.map((row) => ({
         product_code: row.product_code || "",

@@ -1,10 +1,6 @@
-import { supabase } from "@/integrations/supabase/client";
+﻿import { supabase } from "@/integrations/supabase/client";
 import { ORDERS_TABLE } from "@/lib/orders";
 
-/**
- * Garante um ID Proxis único e persistente para o pedido (mesmo ID em reexportações).
- * Requer migration proxis_import_id_seq + função allocate_proxis_import_id no Supabase.
- */
 export async function ensureProxisImportId(
   orderId: string,
   existingProxisImportId?: number | null,

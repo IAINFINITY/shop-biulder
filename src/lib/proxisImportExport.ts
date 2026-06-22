@@ -1,6 +1,5 @@
 import { parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
 
-/** Colunas do layout Proxis (planilha / pedido teste.txt). */
 export const PROXIS_IMPORT_COLUMN_COUNT = 13;
 
 export type ProxisImportField =
@@ -18,16 +17,10 @@ export type ProxisImportField =
   | "condPag"
   | "portador";
 
-/** Divisão de venda fixa no layout Proxis (sempre 1). */
 export const PROXIS_IMPORT_DIV_VENDA = "1";
 
-/** Portador padrão no .txt (coluna Portador): 1 = Bradesco */
 export const PROXIS_IMPORT_PORTADOR_DEFAULT = "1";
 
-/**
- * Representante (coluna Rep) no .txt.
- * Aceita 1 ID fixo ("2871") ou lista para rodízio (9 representantes).
- */
 export const PROXIS_IMPORT_REP_DEFAULT =
   "2871,3216,2880,7798,7057,6437,7318,2365,2370";
 
@@ -50,7 +43,6 @@ export function formatProxisImportDate(isoOrDate: string | Date): string {
   return `${day}/${month}/${year}`;
 }
 
-/** Campo vazio permanece vazio (nunca escreve "NULL"). */
 export function formatProxisImportCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
   const text = String(value).trim();
@@ -58,7 +50,6 @@ export function formatProxisImportCell(value: string | number | null | undefined
   return text;
 }
 
-/** Uma linha do arquivo .txt com exatamente 13 colunas separadas por `;`. */
 export function formatProxisImportLine(fields: string[]): string {
   if (fields.length !== PROXIS_IMPORT_COLUMN_COUNT) {
     throw new Error(
@@ -92,7 +83,6 @@ function buildLineFields(
   ];
 }
 
-/** Código do representante para o .txt (env ou valor padrão provisório). */
 export function getProxisImportRep(seed = 0): string {
   const fromEnv = import.meta.env.VITE_PROXIS_IMPORT_REP?.trim();
   const raw = fromEnv || PROXIS_IMPORT_REP_DEFAULT;

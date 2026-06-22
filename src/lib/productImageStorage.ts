@@ -24,7 +24,6 @@ function isImageFile(file: File): boolean {
   return ALLOWED_EXT.has(ext);
 }
 
-/** Tenta enviar uma prévia local (blob:) ao salvar o produto. */
 export async function uploadBlobPreviewUrl(blobUrl: string): Promise<UploadProductImageResult> {
   try {
     const res = await fetch(blobUrl);
@@ -63,7 +62,6 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
     contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
   });
 
-  // Alguns projetos bloqueiam upsert; tenta path novo sem upsert
   if (error && /already exists|duplicate|invalid/i.test(error.message)) {
     const retryPath = `uploads/${Date.now()}-${crypto.randomUUID()}.${ext}`;
     ({ error } = await supabase.storage.from(BUCKET).upload(retryPath, normalizedFile, {

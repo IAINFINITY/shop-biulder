@@ -12,7 +12,6 @@ import {
 } from "@/lib/products";
 
 export type UseProductsOptions = {
-  /** Admin: listar também inativos. No catálogo público omitir ou deixar false. */
   includeInactive?: boolean;
 };
 

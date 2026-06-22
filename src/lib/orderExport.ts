@@ -207,7 +207,6 @@ function downloadTextFile(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Exporta pedido no layout .txt para importação no ProManager (Proxis). */
 export async function downloadProxisImportTxt(order: OrderExportInput): Promise<number> {
   const proxisImportId = await ensureProxisImportId(order.id, order.proxis_import_id);
 

@@ -11,7 +11,6 @@ export function coercePrice(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** Accepts "12,34" or "12.34" from admin input */
 export function parsePriceInput(raw: string): number {
   const t = raw.trim().replace(/\s/g, "");
   if (!t) return 0;
@@ -20,13 +19,11 @@ export function parsePriceInput(raw: string): number {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
 }
 
-/** Valor inicial do campo de preço no admin (vazio quando for zero). */
 export function priceToAdminInput(value: number): string {
   if (!Number.isFinite(value) || value === 0) return "";
   return String(Math.round(value * 100) / 100).replace(".", ",");
 }
 
-/** Mantém só dígitos e separadores decimais enquanto o usuário digita. */
 export function normalizePriceInputDraft(raw: string): string {
   return raw.replace(/[^\d.,]/g, "");
 }

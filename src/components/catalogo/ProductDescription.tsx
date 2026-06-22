@@ -5,7 +5,6 @@ import { extractDescriptionBlocks, sanitizeRichText, stripHtml } from "@/lib/ric
 type ProductDescriptionProps = {
   html: string;
   className?: string;
-  /** Em listas: mostra só texto sem formatação, com reticências. */
   plainPreview?: boolean;
   lineClamp?: 2 | 3;
 };
@@ -68,11 +67,7 @@ export function ProductDescription({
       );
     }
 
-    return (
-      <p className={cn("text-muted-foreground leading-relaxed", className)}>
-        {plain}
-      </p>
-    );
+    return <p className={cn("text-muted-foreground leading-relaxed", className)}>{plain}</p>;
   }
 
   if (descriptionBlocks.length > 0) {

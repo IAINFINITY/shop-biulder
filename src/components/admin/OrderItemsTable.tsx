@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   lines: OrderTableLine[];
-  /** Limita altura da lista de itens com scroll interno (ex.: max-h-52). */
   maxBodyHeight?: string;
 };
 

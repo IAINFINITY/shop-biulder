@@ -5,24 +5,19 @@ const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
 const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
 
-/** Valores padrão observados em pedidos reais (ObterPedidos). Conferir IDs ao trocar filial. */
 function proxisEnvId(name: string, fallback: number): number {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback;
 }
 
-/** Filial 5 (ObterPedidos): oin 48, cpa 3, tti 7, tpr 40 — conferir se mudar filial. */
 const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 48);
 const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 3);
 const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
 const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 40);
-/** Portador (aba Financeiro): 1 = Bradesco */
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
-/** Município padrão do endereço (Xanxerê/SC na filial 5). SalvarPedidoVenda exige endereço válido. */
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = process.env.PROXSIS_DEFAULT_CEP?.trim() || "89820000";
 const PROXSIS_DEFAULT_EST_SIGLA = process.env.PROXSIS_DEFAULT_EST_SIGLA?.trim() || "SC";
-/** Marcador interno no pedido Proxis (campo doc_marcador) para pedidos vindos do site B2B. */
 const PROXSIS_DOC_MARCADOR = process.env.PROXSIS_DOC_MARCADOR?.trim() || "PEDIDO B2B";
 
 interface CustomerAddressInput {
@@ -51,7 +46,6 @@ interface OrderRequestBody {
   }>;
 }
 
-/** pes_id_ven = ID na tabela pessoa (vendedor). Rodízio entre os representantes configurados. */
 function parseRepPesIdsFromEnv(): number[] {
   const raw = process.env.PROXIS_REP_PES_IDS?.trim();
   if (raw) {
@@ -92,7 +86,6 @@ function baseHeaders(): Record<string, string> {
   };
 }
 
-/** DataSnap REST: endpoint entre aspas, ex. .../TSMApi/"ObterItens" */
 function proxsisEndpoint(name: string): string {
   const clean = name.replace(/^"+|"+$/g, "");
   return `"${clean}"`;
@@ -118,9 +111,7 @@ async function proxsisRequest(
     try {
       const json = JSON.parse(text);
       detail = json.error || text;
-    } catch {
-      // Response body may be non-JSON; keep raw message.
-    }
+    } catch {}
     throw new Error(`Proxsis API error (${res.status}): ${detail}`);
   }
 
@@ -251,7 +242,6 @@ function clienteTemEndereco(cliente: Record<string, unknown>): boolean {
   return Array.isArray(enderecos) && enderecos.length > 0;
 }
 
-/** SalvarPedidoVenda falha sem endereço; clientes antigos podem ter sido criados sem mun_id. */
 async function garantirEnderecoCliente(
   cliente: Record<string, unknown>,
   address?: CustomerAddressInput | null
@@ -346,7 +336,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // 1. Busca cliente; se não existir, cria e usa o pes_id retornado
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
     let pesId: number;
 
@@ -372,7 +361,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tprId = tabelas[0].tpr_id;
     }
 
-    // 3. Resolve product IDs (ite_id) from product_code (ite_numero)
     const documentoItens: Array<{
       ite_id: number;
       dit_quantidade: number;
@@ -409,7 +397,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // 4. Create the order
     const now = new Date();
     const docDtEmissao = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
     const docPedWeb = `INFINITY-${Date.now().toString(36).toUpperCase()}`;

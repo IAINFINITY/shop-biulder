@@ -26,7 +26,6 @@ const AUTOPLAY_MS = 5500;
 
 const slideImageClass = "block h-full w-full object-cover object-center";
 
-/** Painel promocional em largura total com carrossel automático. */
 export function StoreHeroBanner() {
   const [api, setApi] = useState<CarouselApi>();
   const [activeIndex, setActiveIndex] = useState(0);

@@ -33,7 +33,6 @@ function normalizeLegacyKey(value: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
-/** Remove tags for search and short previews. */
 export function stripHtml(html: string): string {
   if (!html) return "";
   if (!html.includes("<")) return html;
@@ -167,7 +166,6 @@ export function extractDescriptionBlocks(content: string): LegacyDescriptionBloc
   return blocks;
 }
 
-/** Safe HTML for store display. */
 export function sanitizeRichText(html: string): string {
   if (!html) return "";
   if (!html.includes("<")) return html;
@@ -185,7 +183,6 @@ export function descriptionIncludesQuery(description: string, query: string): bo
   return stripHtml(description).toLowerCase().includes(query.toLowerCase());
 }
 
-/** Font size mark for the Tiptap editor. */
 export const FontSize = Extension.create({
   name: "fontSize",
   addOptions() {

@@ -31,6 +31,18 @@ export function StoreHeroBanner() {
   const [api, setApi] = useState<CarouselApi>();
   const [activeIndex, setActiveIndex] = useState(0);
   const autoplayTimerRef = useRef<number>();
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setPrefersReducedMotion(media.matches);
+
+    updatePreference();
+    media.addEventListener("change", updatePreference);
+    return () => media.removeEventListener("change", updatePreference);
+  }, []);
 
   const onSelect = useCallback(() => {
     if (!api) return;
@@ -38,10 +50,10 @@ export function StoreHeroBanner() {
   }, [api]);
 
   const scheduleAutoplay = useCallback(() => {
-    if (!api) return;
+    if (!api || prefersReducedMotion) return;
     if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
     autoplayTimerRef.current = window.setInterval(() => api.scrollNext(), AUTOPLAY_MS);
-  }, [api]);
+  }, [api, prefersReducedMotion]);
 
   useEffect(() => {
     if (!api) return;
@@ -56,6 +68,10 @@ export function StoreHeroBanner() {
 
   useEffect(() => {
     if (!api) return;
+    if (prefersReducedMotion) {
+      if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
+      return;
+    }
     scheduleAutoplay();
     const onPointerDown = () => scheduleAutoplay();
     api.on("pointerDown", onPointerDown);
@@ -63,7 +79,7 @@ export function StoreHeroBanner() {
       if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
       api.off("pointerDown", onPointerDown);
     };
-  }, [api, scheduleAutoplay]);
+  }, [api, prefersReducedMotion, scheduleAutoplay]);
 
   return (
     <section

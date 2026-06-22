@@ -25,22 +25,17 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
       className={cn(
         "relative overflow-hidden rounded-xl border border-primary/30",
         "bg-gradient-to-r from-primary/[0.09] via-background to-primary/[0.04]",
-        "animate-notice-enter animate-notice-glow",
+        "motion-safe:animate-notice-enter motion-reduce:animate-none",
         isBanner ? "px-4 py-4 sm:px-5 sm:py-5" : "px-3 py-3",
         className,
       )}
     >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40 bg-[length:200%_100%] bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-notice-shimmer"
-        aria-hidden
-      />
-      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/80 animate-pulse" aria-hidden />
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/70" aria-hidden />
 
       <div className="relative flex gap-3 sm:gap-4">
         <div
           className={cn(
             "flex shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary",
-            "animate-notice-icon",
             isBanner ? "h-11 w-11 sm:h-12 sm:w-12" : "h-9 w-9",
           )}
         >

@@ -35,6 +35,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5">
       <Link
         to={`/produto/${product.id}`}
+        viewTransition
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         {coverUrl ? (

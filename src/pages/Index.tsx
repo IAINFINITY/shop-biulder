@@ -4,15 +4,13 @@ import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
-import { CatalogFiltersBarV2 } from "@/components/catalogo/CatalogFiltersBarV2";
-import { Button } from "@/components/ui/button";
-import { Product, CartItem, getCart, saveCart } from "@/lib/products";
+import { CatalogFiltersBarV2 } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
+import { Product, CartItem, getCart, getProductImageUrls, saveCart } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
 import { useProducts } from "@/hooks/useProducts";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
-import { toast } from "sonner";
 
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
@@ -63,6 +61,36 @@ export default function Index() {
     });
   }, [products, search, selectedType, selectedFamily]);
 
+  const searchSuggestions = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
+
+    return filtered
+      .map((product) => {
+        const normalizedName = product.name.toLowerCase();
+        const normalizedCode = product.product_code?.toLowerCase() ?? "";
+        const nameStarts = normalizedName.startsWith(query) ? 3 : 0;
+        const nameContains = normalizedName.includes(query) ? 2 : 0;
+        const codeMatches = normalizedCode.includes(query) ? 2 : 0;
+        const descriptionMatches = descriptionIncludesQuery(product.description, search) ? 1 : 0;
+
+        return {
+          product,
+          score: nameStarts + nameContains + codeMatches + descriptionMatches,
+        };
+      })
+      .sort((a, b) => b.score - a.score || a.product.name.localeCompare(b.product.name))
+      .slice(0, 6)
+      .map(({ product }) => ({
+        id: product.id,
+        name: product.name,
+        type: product.type,
+        family: product.family,
+        imageUrl: getProductImageUrls(product)[0] ?? product.image_url ?? null,
+        price: resolveProductPrice(product, customerPriceMap),
+      }));
+  }, [filtered, search, customerPriceMap]);
+
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
@@ -73,21 +101,14 @@ export default function Index() {
       setCart((prev) => {
         const existing = prev.find((c) => c.product.id === product.id);
         if (existing) {
-          toast.success("Carrinho atualizado!");
           return prev.map((c) =>
             c.product.id === product.id ? { ...c, quantity: safeQuantity } : c,
           );
         }
-        toast.success(`${product.name} adicionado!`, {
-          action: {
-            label: "Ver meu carrinho",
-            onClick: openCart,
-          },
-        });
         return [...prev, { product, quantity: safeQuantity }];
       });
     },
-    [openCart],
+    [],
   );
 
   const updateQuantity = useCallback((id: string, delta: number) => {
@@ -98,10 +119,6 @@ export default function Index() {
 
   const removeFromCart = useCallback((id: string) => {
     setCart((prev) => prev.filter((c) => c.product.id !== id));
-  }, []);
-
-  const updateNotes = useCallback((id: string, notes: string) => {
-    setCart((prev) => prev.map((c) => (c.product.id === id ? { ...c, notes } : c)));
   }, []);
 
   const clearCart = useCallback(() => {
@@ -126,12 +143,12 @@ export default function Index() {
       <StoreHeader
         search={search}
         onSearchChange={setSearch}
+        searchSuggestions={searchSuggestions}
         cartSlot={
           <CartDrawer
             cart={cart}
             onUpdateQuantity={updateQuantity}
             onRemove={removeFromCart}
-            onUpdateNotes={updateNotes}
             onClear={clearCart}
             open={isCartOpen}
             onOpenChange={setIsCartOpen}
@@ -142,46 +159,26 @@ export default function Index() {
 
       <StoreHeroBanner />
 
-      <CatalogFiltersBarV2
-        categoryTypes={categoryTypes}
-        categoryFamilies={categoryFamilies}
-        typeCounts={typeCounts}
-        familyCounts={familyCounts}
-        selectedType={selectedType}
-        selectedFamily={selectedFamily}
-        onTypeChange={setSelectedType}
-        onFamilyChange={setSelectedFamily}
-        onShowAllProducts={showAllProducts}
-      />
-
-      <div ref={catalogRef} id="catalogo-produtos" className="container mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-5 border-b border-border/60 pb-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-1">
-              <h1 className="text-lg font-semibold leading-tight text-foreground sm:text-2xl">
-                Catálogo de produtos
-              </h1>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                Navegue pelos produtos e refine a busca por tipo ou família.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              <p>{isLoading ? "Carregando..." : `${filtered.length} produto(s) encontrado(s)`}</p>
-              {(search || selectedType || selectedFamily) && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={showAllProducts}
-                >
-                  Limpar filtros
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
+      <div
+        ref={catalogRef}
+        id="catalogo-produtos"
+        className="container mx-auto max-w-[1400px] px-4 py-6 scroll-mt-[calc(var(--page-header-shell-height,88px)+var(--catalog-filters-bar-height,132px)+1.5rem)]"
+      >
+        <CatalogFiltersBarV2
+          categoryTypes={categoryTypes}
+          categoryFamilies={categoryFamilies}
+          typeCounts={typeCounts}
+          familyCounts={familyCounts}
+          resultCount={filtered.length}
+          isLoading={isLoading}
+          hasSearch={search.trim().length > 0}
+          searchQuery={search.trim()}
+          selectedType={selectedType}
+          selectedFamily={selectedFamily}
+          onTypeChange={setSelectedType}
+          onFamilyChange={setSelectedFamily}
+          onShowAllProducts={showAllProducts}
+        />
 
         {isLoading ? (
           <div className="py-20 text-center text-muted-foreground">
@@ -193,16 +190,18 @@ export default function Index() {
             <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
           </div>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {filtered.map((product) => (
-              <CatalogProductCard
-                key={product.id}
-                product={product}
-                price={resolveProductPrice(product, customerPriceMap)}
-                onAdd={addToCart}
-                inCart={cartIds.has(product.id)}
-              />
-            ))}
+          <div className="mt-4">
+            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {filtered.map((product) => (
+                <CatalogProductCard
+                  key={product.id}
+                  product={product}
+                  price={resolveProductPrice(product, customerPriceMap)}
+                  onAdd={addToCart}
+                  inCart={cartIds.has(product.id)}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>

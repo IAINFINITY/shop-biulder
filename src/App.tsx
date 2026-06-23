@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +14,46 @@ import Account from "./pages/Account.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
+const supportsViewTransitions =
+  typeof document !== "undefined" && "startViewTransition" in document;
+
+function AppRoutes() {
+  const location = useLocation();
+  const [isVisible, setIsVisible] = useState(supportsViewTransitions);
+
+  useEffect(() => {
+    if (supportsViewTransitions) {
+      setIsVisible(true);
+      return;
+    }
+
+    setIsVisible(false);
+    const frame = window.requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.key]);
+
+  return (
+    <div
+      key={location.key}
+      data-native-view-transition={supportsViewTransitions ? "true" : "false"}
+      className={`page-shell ${isVisible ? "page-shell--visible" : ""}`}
+    >
+      <Routes location={location}>
+        <Route path="/" element={<Index />} />
+        <Route path="/produto/:id" element={<ProductDetails />} />
+        <Route path="/pedido" element={<OrderForm />} />
+        <Route path="/pedido/obrigado" element={<OrderSuccess />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/conta" element={<Account />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -20,16 +61,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/produto/:id" element={<ProductDetails />} />
-          <Route path="/pedido" element={<OrderForm />} />
-          <Route path="/pedido/obrigado" element={<OrderSuccess />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/conta" element={<Account />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

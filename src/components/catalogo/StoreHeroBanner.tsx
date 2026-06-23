@@ -24,7 +24,7 @@ const SLIDES = [
 
 const AUTOPLAY_MS = 5500;
 
-const slideImageClass = "block h-full w-full object-cover object-center";
+const slideImageClass = "absolute inset-0 block h-full w-full object-cover object-center";
 
 export function StoreHeroBanner() {
   const [api, setApi] = useState<CarouselApi>();
@@ -95,7 +95,7 @@ export function StoreHeroBanner() {
           <CarouselContent className="!ml-0 h-full">
             {SLIDES.map((slide, index) => (
               <CarouselItem key={slide.alt} className="basis-full !pl-0 h-full">
-                <div className="flex h-[clamp(210px,24vw,360px)] w-full items-stretch justify-center">
+                <div className="relative aspect-[1024/266] w-full bg-muted/30">
                   <img
                     src={slide.src}
                     alt={slide.alt}

@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { assertAddressReady, emptyAddressForm } from "@/lib/address";
 import { toast } from "sonner";
-import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+import clinicMaisLogo from "@/assets/clinicmais-logo.svg";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 
 const emptyCustomerForm = {
@@ -38,7 +38,7 @@ export default function Login() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate(isAdmin ? "/admin" : "/conta", { replace: true });
+      navigate(isAdmin ? "/admin" : "/conta", { replace: true, viewTransition: true });
     }
   }, [loading, user, isAdmin, navigate]);
 
@@ -100,7 +100,7 @@ export default function Login() {
       toast.success("Conta criada! Confirme seu e-mail para concluir o cadastro.");
     } else {
       toast.success("Conta criada com sucesso!");
-      navigate("/conta", { replace: true });
+      navigate("/conta", { replace: true, viewTransition: true });
     }
     setSubmitting(false);
   };
@@ -228,7 +228,7 @@ export default function Login() {
           </TabsContent>
         </Tabs>
 
-        <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/" viewTransition className="block text-center text-sm text-muted-foreground hover:text-foreground">
           ← Voltar ao catálogo
         </Link>
       </div>

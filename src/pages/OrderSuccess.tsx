@@ -86,7 +86,7 @@ export default function OrderSuccess() {
                   Visualizar carrinho
                 </Button>
               )}
-              <Link to="/">
+              <Link to="/" viewTransition>
                 <Button size="lg" className="w-full gap-2 rounded-full px-6 sm:w-auto">
                   Voltar ao catálogo
                   <ArrowRight className="h-4 w-4" />

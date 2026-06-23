@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+﻿import { useCallback, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCep, type AddressFormData } from "@/lib/address";
@@ -23,8 +23,13 @@ export function AddressFields({ form, onChange, idPrefix = "", required = true }
   const showCepError = cepTouched && isComplete && (status === "not_found" || status === "error");
 
   return (
-    <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
-      <p className="text-sm font-medium text-foreground">Endereço</p>
+    <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+      <div className="space-y-1">
+        <p className="text-base font-semibold text-foreground">Endereço de entrega</p>
+        <p className="text-sm text-muted-foreground">
+          Os dados abaixo ajudam a deixar o pedido pronto para confirmação.
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-1">

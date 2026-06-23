@@ -45,8 +45,9 @@ import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+import clinicMaisLogo from "@/assets/clinicmais-logo.svg";
 import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarouselEditor";
+import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 
 interface ProductForm {
   id?: string;
@@ -98,7 +99,7 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
             {loading ? "Entrando..." : "Entrar"}
           </Button>
         </form>
-        <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/" viewTransition className="block text-center text-sm text-muted-foreground hover:text-foreground">
           ← Voltar ao catálogo
         </Link>
       </div>
@@ -164,7 +165,7 @@ export default function Admin() {
       <div className="space-y-4">
         <p className="text-muted-foreground">Você não tem permissão de administrador.</p>
         <div className="flex gap-2 justify-center">
-          <Link to="/"><Button variant="outline">Voltar ao catálogo</Button></Link>
+          <Link to="/" viewTransition><Button variant="outline">Voltar ao catálogo</Button></Link>
           <Button variant="ghost" onClick={() => signOut()}>Sair</Button>
         </div>
       </div>
@@ -433,23 +434,23 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="shrink-0 border-b border-border bg-card">
-        <div className="container mx-auto px-4 h-14 flex items-center gap-4">
-          <Link to="/"><Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button></Link>
-          <div className="flex items-center gap-2">
-            <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto" />
-          </div>
-          <span className="text-sm text-muted-foreground">Painel Administrativo</span>
-          <div className="ml-auto flex items-center gap-2">
-            {activeTab === "produtos" && (
-              <Button onClick={startNew} size="sm" className="gap-1"><Plus className="w-4 h-4" /> Novo Produto</Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={() => signOut()}><LogOut className="w-4 h-4" /></Button>
-          </div>
+      <PageHeaderShell>
+        <div className="flex items-center gap-4">
+            <Link to="/" viewTransition><Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button></Link>
+            <div className="flex items-center gap-2">
+              <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto" />
+            </div>
+            <span className="text-sm text-muted-foreground">Painel Administrativo</span>
+            <div className="ml-auto flex items-center gap-2">
+              {activeTab === "produtos" && (
+                <Button onClick={startNew} size="sm" className="gap-1"><Plus className="w-4 h-4" /> Novo Produto</Button>
+              )}
+              <Button variant="ghost" size="icon" onClick={() => signOut()}><LogOut className="w-4 h-4" /></Button>
+            </div>
         </div>
-      </header>
+      </PageHeaderShell>
 
-      <div className="container mx-auto flex w-full max-w-4xl flex-1 flex-col min-h-0 px-4 py-4 sm:py-6">
+      <div className="container mx-auto flex w-full max-w-[1400px] flex-1 flex-col min-h-0 px-4 py-4 sm:py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-1 flex-col min-h-0 w-full">
           <TabsList className="mb-4 grid h-11 w-full shrink-0 grid-cols-2 p-1">
             <TabsTrigger value="produtos" className="w-full rounded-md">

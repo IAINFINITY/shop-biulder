@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
+import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { toast } from "sonner";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
@@ -77,10 +78,6 @@ export default function ProductDetails() {
 
   const removeFromCart = useCallback((itemId: string) => {
     setCart((prev) => prev.filter((c) => c.product.id !== itemId));
-  }, []);
-
-  const updateNotes = useCallback((itemId: string, notes: string) => {
-    setCart((prev) => prev.map((c) => (c.product.id === itemId ? { ...c, notes } : c)));
   }, []);
 
   const clearCart = useCallback(() => {
@@ -226,18 +223,18 @@ export default function ProductDetails() {
   if (isLoading) {
     return (
       <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
-        <header className="border-b border-border bg-card/95 backdrop-blur">
-          <div className="container mx-auto flex h-14 items-center gap-3 px-4">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <Skeleton className="h-5 w-44 rounded-md" />
-            <div className="ml-auto">
-              <Skeleton className="h-10 w-32 rounded-full" />
-            </div>
+        <PageHeaderShell>
+          <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <Skeleton className="h-5 w-44 rounded-md" />
+              <div className="ml-auto">
+                <Skeleton className="h-10 w-32 rounded-full" />
+              </div>
           </div>
-        </header>
+        </PageHeaderShell>
 
         <main className="flex flex-1 items-start">
-          <div className="container mx-auto max-w-7xl px-4 py-4 lg:py-6">
+          <div className="container mx-auto max-w-[1400px] px-4 py-4 lg:py-6">
             <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.35fr)_minmax(360px,0.95fr)] xl:items-stretch">
               <div className="hidden xl:flex xl:flex-col xl:gap-2">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -307,7 +304,7 @@ export default function ProductDetails() {
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="space-y-4 text-center">
           <p className="text-muted-foreground">Produto não encontrado.</p>
-          <Link to="/">
+          <Link to="/" viewTransition>
             <Button variant="outline" className="gap-2">
               <ArrowLeft className="h-4 w-4" /> Voltar ao catálogo
             </Button>
@@ -322,10 +319,10 @@ export default function ProductDetails() {
 
   return (
     <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
-      <header className="border-b border-border bg-card/95 backdrop-blur">
-        <div className="container mx-auto flex h-14 items-center gap-3 px-4">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
+      <PageHeaderShell>
+        <div className="flex items-center gap-3">
+          <Link to="/" viewTransition>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-border bg-background shadow-sm">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
@@ -335,7 +332,6 @@ export default function ProductDetails() {
               cart={cart}
               onUpdateQuantity={updateQuantity}
               onRemove={removeFromCart}
-              onUpdateNotes={updateNotes}
               onClear={clearCart}
               open={isCartOpen}
               onOpenChange={setIsCartOpen}
@@ -343,10 +339,10 @@ export default function ProductDetails() {
             />
           </div>
         </div>
-      </header>
+      </PageHeaderShell>
 
       <main className="flex flex-1 items-start">
-        <div className="container mx-auto max-w-7xl px-4 py-4 lg:py-6">
+        <div className="container mx-auto max-w-[1400px] px-4 py-4 lg:py-6">
           <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.18fr)_minmax(360px,0.92fr)] xl:items-start">
             <div className="hidden xl:flex xl:sticky xl:top-5 xl:flex-col xl:gap-2">
               {galleryUrls.length > 0 ? (
@@ -374,10 +370,10 @@ export default function ProductDetails() {
 
             <div className="min-w-0 self-stretch">
               <div className="relative flex h-full flex-col overflow-visible xl:min-h-[640px]">
-                <div className="flex flex-1 overflow-hidden rounded-2xl border border-border/70 bg-muted/20 shadow-sm">
+                <div className="flex flex-1 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
                   <div
                     ref={imageFrameRef}
-                    className="relative flex flex-1 cursor-zoom-in items-center justify-center bg-background/80 p-4 sm:p-6"
+                    className="relative flex flex-1 cursor-zoom-in items-center justify-center bg-background p-4 sm:p-6"
                     onMouseEnter={() => setIsImageHovered(true)}
                     onMouseLeave={() => setIsImageHovered(false)}
                     onMouseMove={handleImageMove}
@@ -396,13 +392,13 @@ export default function ProductDetails() {
                     {selectedImage && (
                       <>
                         <div
-                          className={`pointer-events-none absolute inset-0 bg-black/10 transition-opacity duration-150 ${
+                          className={`pointer-events-none absolute inset-0 bg-black/8 transition-opacity duration-150 ${
                             isImageHovered ? "opacity-100" : "opacity-0"
                           }`}
                         />
                         <div
                           ref={lensRef}
-                          className={`pointer-events-none absolute h-[36%] w-[36%] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/50 bg-black/10 shadow-lg transition-opacity duration-150 ${
+                          className={`pointer-events-none absolute h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/50 bg-black/5 shadow-lg transition-opacity duration-150 ${
                             isImageHovered ? "opacity-100" : "opacity-0"
                           }`}
                           style={{ left: "50%", top: "50%" }}
@@ -504,9 +500,9 @@ export default function ProductDetails() {
                   </div>
 
                   <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
                       <CardTitle className="text-lg">Descrição</CardTitle>
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                         Conteúdo
                       </span>
                     </div>

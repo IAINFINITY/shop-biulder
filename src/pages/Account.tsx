@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/hooks/useAuth";
 import { formatCnpjDisplay, formatPhone } from "@/lib/brazilianIds";
 import { formatCep } from "@/lib/address";
-import clinicMaisLogo from "@/assets/clinicmais-logo.png";
+import clinicMaisLogo from "@/assets/clinicmais-logo.svg";
+import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import {
   CUSTOMER_TYPE_LABELS,
   CUSTOMER_TYPES,
@@ -23,13 +24,13 @@ export default function Account() {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate("/login", { replace: true });
+      navigate("/login", { replace: true, viewTransition: true });
     }
   }, [loading, user, navigate]);
 
   useEffect(() => {
     if (!loading && user && isAdmin) {
-      navigate("/admin", { replace: true });
+      navigate("/admin", { replace: true, viewTransition: true });
     }
   }, [loading, user, isAdmin, navigate]);
 
@@ -67,18 +68,18 @@ export default function Account() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto flex h-14 items-center gap-3 px-4">
-          <Link to="/">
+      <PageHeaderShell>
+        <div className="flex items-center gap-3">
+          <Link to="/" viewTransition>
             <Button variant="ghost" size="icon" aria-label="Voltar ao catálogo">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <span className="font-semibold text-foreground">Minha conta</span>
         </div>
-      </header>
+      </PageHeaderShell>
 
-      <div className="container mx-auto max-w-lg px-4 py-8 space-y-6">
+      <div className="container mx-auto max-w-2xl px-4 py-8 space-y-6">
         <div className="text-center">
           <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-9 w-auto mx-auto" />
         </div>
@@ -179,7 +180,7 @@ export default function Account() {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link to="/" className="flex-1">
+          <Link to="/" viewTransition className="flex-1">
             <Button variant="outline" className="w-full">
               Ir ao catálogo
             </Button>
@@ -189,7 +190,7 @@ export default function Account() {
             className="flex-1 gap-2 text-muted-foreground"
             onClick={() => {
               void signOut();
-              navigate("/login", { replace: true });
+              navigate("/login", { replace: true, viewTransition: true });
             }}
           >
             <LogOut className="h-4 w-4" />

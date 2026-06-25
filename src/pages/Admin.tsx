@@ -1,9 +1,12 @@
-﻿import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Save, X, LogOut, Eye, EyeOff, ImageIcon, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
+import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -45,9 +48,8 @@ import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import clinicMaisLogo from "@/assets/clinicmais-logo.svg";
 import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarouselEditor";
-import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
+import { AdminAuthStage } from "@/components/auth/AdminAuthStage";
 
 interface ProductForm {
   id?: string;
@@ -72,6 +74,52 @@ const emptyForm: ProductForm = {
   productCode: "",
 };
 
+type LoginFieldProps = {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  autoComplete?: string;
+  required?: boolean;
+  icon: LucideIcon;
+};
+
+function LoginField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  autoComplete,
+  required = false,
+  icon: Icon,
+}: LoginFieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+        {label}
+      </Label>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <span className="pointer-events-none absolute left-10 top-1/2 h-7 w-px -translate-y-1/2 bg-border/80" />
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          autoComplete={autoComplete}
+          className="h-12 rounded-2xl border-border/70 bg-background pl-14 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30"
+        />
+      </div>
+    </div>
+  );
+}
+
 function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => Promise<Error | null> }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -86,24 +134,75 @@ function LoginForm({ onLogin }: { onLogin: (email: string, password: string) => 
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-10 w-auto mx-auto" />
-          <p className="text-muted-foreground text-sm">Acesso Administrativo</p>
+    <AdminAuthStage>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[2.25rem] border border-border/70 bg-background text-foreground shadow-[0_16px_40px_rgba(16,24,40,0.08)]">
+        <div className="border-b border-border/70 px-6 py-7 sm:px-8">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-primary/25 bg-primary/5 shadow-[0_8px_22px_rgba(16,24,40,0.05)]">
+            <img src="/faviconV2.png" alt="Clinic+ logo" className="h-14 w-auto" />
+          </div>
+
+          <div className="mt-5 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">Acesso interno</p>
+            <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-black leading-[1] tracking-[-0.05em] text-foreground">
+              Entrar no painel administrativo
+            </h2>
+            <p className="mx-auto mt-3 max-w-[32ch] text-sm leading-6 text-muted-foreground">
+              Use seu acesso de administrador para abrir o painel do Clinic+.
+            </p>
+          </div>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
-          </Button>
-        </form>
-        <Link to="/" viewTransition className="block text-center text-sm text-muted-foreground hover:text-foreground">
-          ← Voltar ao catálogo
-        </Link>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-8">
+          <form
+            onSubmit={handleSubmit}
+            className="flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
+          >
+            <LoginField
+              id="admin-email"
+              label="E-mail corporativo"
+              placeholder="seu@empresa.com"
+              value={email}
+              onChange={setEmail}
+              type="email"
+              autoComplete="email"
+              required
+              icon={Mail}
+            />
+
+            <LoginField
+              id="admin-password"
+              label="Senha"
+              placeholder="Sua senha"
+              value={password}
+              onChange={setPassword}
+              type="password"
+              autoComplete="current-password"
+              required
+              icon={LockKeyhole}
+            />
+
+            <div className="flex items-center justify-between gap-4 text-[12.5px]">
+              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
+                <Checkbox className="h-4 w-4 border-primary data-[state=checked]:bg-primary" />
+                Lembrar acesso
+              </label>
+              <a href="#" className="text-primary transition-colors hover:text-primary/80">
+                Esqueceu a senha?
+              </a>
+            </div>
+
+            <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </Button>
+
+            <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Ambiente seguro — acesso exclusivo do time interno
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </AdminAuthStage>
   );
 }
 
@@ -438,7 +537,7 @@ export default function Admin() {
         <div className="flex items-center gap-4">
             <Link to="/" viewTransition><Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button></Link>
             <div className="flex items-center gap-2">
-              <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto" />
+              <ClinicPlusLogo />
             </div>
             <span className="text-sm text-muted-foreground">Painel Administrativo</span>
             <div className="ml-auto flex items-center gap-2">

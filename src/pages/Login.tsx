@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AddressFields } from "@/components/pedido/AddressFields";
-import { CustomerDataFields } from "@/components/pedido/CustomerDataFields";
 import { useAuth } from "@/hooks/useAuth";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
-import { assertAddressReady, emptyAddressForm } from "@/lib/address";
 import { toast } from "sonner";
-import clinicMaisLogo from "@/assets/clinicmais-logo.svg";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
+import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
+import { Building2, LockKeyhole, Mail, Phone, ShieldCheck, UserRound } from "lucide-react";
 
 const emptyCustomerForm = {
   name: "",
@@ -20,6 +20,66 @@ const emptyCustomerForm = {
   cnpj: "",
   customer_type: DEFAULT_CUSTOMER_TYPE,
 };
+
+const emptyAddressData = {
+  cep: "",
+  street: "",
+  number: "",
+  complement: "",
+  neighborhood: "",
+  city: "",
+  state: "",
+  ibge: "",
+};
+
+type AuthFieldProps = {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  autoComplete?: string;
+  required?: boolean;
+  icon: LucideIcon;
+  onBlur?: () => void;
+};
+
+function AuthField({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  type = "text",
+  autoComplete,
+  required = false,
+  icon: Icon,
+  onBlur,
+}: AuthFieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+        {label}
+      </Label>
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <span className="pointer-events-none absolute left-10 top-1/2 h-7 w-px -translate-y-1/2 bg-border/80" />
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          required={required}
+          autoComplete={autoComplete}
+          className="h-12 rounded-2xl border-border/70 bg-background pl-14 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30"
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -30,9 +90,9 @@ export default function Login() {
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpPasswordConfirm, setSignUpPasswordConfirm] = useState("");
   const [customerForm, setCustomerForm] = useState(emptyCustomerForm);
-  const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [authTab, setAuthTab] = useState<"entrar" | "cadastro">("entrar");
 
   const cnpjValidation = useCnpjValidation(customerForm.cnpj, cnpjTouched);
 
@@ -71,16 +131,10 @@ export default function Login() {
       return;
     }
 
-    const addressMessage = assertAddressReady(addressForm);
-    if (addressMessage) {
-      toast.error(addressMessage);
-      return;
-    }
-
     setSubmitting(true);
     const { error, needsEmailConfirmation } = await signUpCustomer({
       ...customerForm,
-      ...addressForm,
+      ...emptyAddressData,
       email: signUpEmail.trim(),
       password: signUpPassword,
     });
@@ -107,131 +161,198 @@ export default function Login() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         Carregando...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-lg space-y-6">
-        <div className="text-center space-y-2">
-          <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-10 w-auto mx-auto" />
-          <h1 className="text-lg font-semibold text-foreground">Área do cliente B2B</h1>
-          <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-            Cadastro e login para identificação da sua empresa. O catálogo e os pedidos continuam
-            disponíveis sem login.
-          </p>
+    <ClientAuthStage>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[2.25rem] border border-border/70 bg-background text-foreground shadow-[0_16px_40px_rgba(16,24,40,0.08)]">
+        <div className="border-b border-border/70 px-6 py-7 sm:px-8">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-primary/25 bg-primary/5 shadow-[0_8px_22px_rgba(16,24,40,0.05)]">
+            <img src="/faviconV2.png" alt="Clinic+ logo" className="h-14 w-auto" />
+          </div>
+
+          <div className="mt-5 text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">Acesso cliente</p>
+            <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-black leading-[1] tracking-[-0.05em] text-foreground">
+              {authTab === "entrar" ? "Entrar na conta" : "Criar conta corporativa"}
+            </h2>
+            <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-muted-foreground">
+              {authTab === "entrar"
+                ? "Entre com seu e-mail e senha cadastrados."
+                : "Preencha os dados da sua empresa para criar sua conta B2B."}
+            </p>
+          </div>
         </div>
 
-        <Tabs defaultValue="entrar" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="entrar">Entrar</TabsTrigger>
-            <TabsTrigger value="cadastro">Criar conta</TabsTrigger>
-          </TabsList>
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6 sm:px-8">
+          <Tabs value={authTab} onValueChange={setAuthTab} className="flex min-h-0 w-full flex-1 flex-col">
+            <TabsList className="grid h-12 w-full grid-cols-2 items-stretch rounded-full border border-border/70 bg-muted/60 p-1">
+              <TabsTrigger
+                value="entrar"
+                className="flex h-10 w-full items-center justify-center rounded-full px-5 text-[13px] font-medium leading-none text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+              >
+                Entrar
+              </TabsTrigger>
+              <TabsTrigger
+                value="cadastro"
+                className="flex h-10 w-full items-center justify-center rounded-full px-5 text-[13px] font-medium leading-none text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+              >
+                Criar conta
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="entrar">
-            <form onSubmit={handleSignIn} className="space-y-4 rounded-xl border border-border bg-card p-5">
-              <div className="space-y-2">
-                <Label htmlFor="signin-email">E-mail</Label>
-                <Input
+            <TabsContent value="entrar" className="mt-0 flex-1 min-h-0">
+              <form
+                onSubmit={handleSignIn}
+                className="mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
+              >
+                <AuthField
                   id="signin-email"
-                  type="email"
+                  label="E-mail corporativo"
+                  placeholder="seu@empresa.com"
                   value={signInEmail}
-                  onChange={(e) => setSignInEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  required
-                  autoComplete="email"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signin-password">Senha</Label>
-                <Input
-                  id="signin-password"
-                  type="password"
-                  value={signInPassword}
-                  onChange={(e) => setSignInPassword(e.target.value)}
-                  placeholder="Senha"
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? "Entrando..." : "Entrar"}
-              </Button>
-            </form>
-          </TabsContent>
-
-          <TabsContent value="cadastro">
-            <form onSubmit={handleSignUp} className="space-y-4 rounded-xl border border-border bg-card p-5">
-              <CustomerDataFields
-                idPrefix="signup"
-                form={customerForm}
-                onChange={(patch) => setCustomerForm((prev) => ({ ...prev, ...patch }))}
-                onCnpjBlur={() => setCnpjTouched(true)}
-                cnpjValidation={cnpjValidation}
-                showCustomerType
-              />
-
-              <AddressFields
-                idPrefix="signup"
-                form={addressForm}
-                onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
-              />
-
-              <div className="space-y-2">
-                <Label htmlFor="signup-email">E-mail</Label>
-                <Input
-                  id="signup-email"
+                  onChange={setSignInEmail}
                   type="email"
-                  value={signUpEmail}
-                  onChange={(e) => setSignUpEmail(e.target.value)}
-                  placeholder="seu@email.com"
-                  required
                   autoComplete="email"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="signup-password">Senha</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  value={signUpPassword}
-                  onChange={(e) => setSignUpPassword(e.target.value)}
-                  placeholder="Minimo 6 caracteres"
                   required
-                  minLength={6}
-                  autoComplete="new-password"
+                  icon={Mail}
                 />
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="signup-password-confirm">Confirmar senha</Label>
-                <Input
-                  id="signup-password-confirm"
+                <AuthField
+                  id="signin-password"
+                  label="Senha"
+                  placeholder="Sua senha"
+                  value={signInPassword}
+                  onChange={setSignInPassword}
                   type="password"
-                  value={signUpPasswordConfirm}
-                  onChange={(e) => setSignUpPasswordConfirm(e.target.value)}
-                  placeholder="Repita a senha"
+                  autoComplete="current-password"
                   required
-                  minLength={6}
-                  autoComplete="new-password"
+                  icon={LockKeyhole}
                 />
-              </div>
 
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? "Criando conta..." : "Criar conta"}
-              </Button>
-            </form>
-          </TabsContent>
-        </Tabs>
+                <div className="flex items-center justify-between gap-4 text-[12.5px]">
+                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
+                    <Checkbox className="h-4 w-4 border-primary data-[state=checked]:bg-primary" />
+                    Lembrar acesso
+                  </label>
+                  <a href="#" className="text-primary transition-colors hover:text-primary/80">
+                    Esqueceu a senha?
+                  </a>
+                </div>
 
-        <Link to="/" viewTransition className="block text-center text-sm text-muted-foreground hover:text-foreground">
-          ← Voltar ao catálogo
-        </Link>
+                <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={submitting}>
+                  {submitting ? "Entrando..." : "Entrar"}
+                </Button>
+
+                <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Ambiente seguro — seus dados estão protegidos
+                </div>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="cadastro" className="mt-0 flex-1 min-h-0">
+              <form
+                onSubmit={handleSignUp}
+                className="mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <AuthField
+                    id="signup-name"
+                    label="Nome completo"
+                    placeholder="Seu nome"
+                    value={customerForm.name}
+                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, name: value }))}
+                    required
+                    icon={UserRound}
+                  />
+
+                  <AuthField
+                    id="signup-company"
+                    label="Empresa"
+                    placeholder="Nome da empresa"
+                    value={customerForm.company}
+                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, company: value }))}
+                    required
+                    icon={Building2}
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <AuthField
+                    id="signup-cnpj"
+                    label="CNPJ"
+                    placeholder="00.000.000/0001-00"
+                    value={customerForm.cnpj}
+                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, cnpj: value }))}
+                    onBlur={() => setCnpjTouched(true)}
+                    required
+                    icon={Building2}
+                  />
+
+                  <AuthField
+                    id="signup-phone"
+                    label="Telefone"
+                    placeholder="(11) 99999-9999"
+                    value={customerForm.phone}
+                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, phone: value }))}
+                    required
+                    icon={Phone}
+                  />
+                </div>
+
+                <AuthField
+                  id="signup-email"
+                  label="E-mail corporativo"
+                  placeholder="seu@empresa.com"
+                  value={signUpEmail}
+                  onChange={setSignUpEmail}
+                  type="email"
+                  autoComplete="email"
+                  required
+                  icon={Mail}
+                />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <AuthField
+                    id="signup-password"
+                    label="Senha"
+                    placeholder="Mínimo 6 caracteres"
+                    value={signUpPassword}
+                    onChange={setSignUpPassword}
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    icon={LockKeyhole}
+                  />
+
+                  <AuthField
+                    id="signup-password-confirm"
+                    label="Confirmar senha"
+                    placeholder="Repita a senha"
+                    value={signUpPasswordConfirm}
+                    onChange={setSignUpPasswordConfirm}
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    icon={LockKeyhole}
+                  />
+                </div>
+
+                <div className="pt-1">
+                  <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={submitting}>
+                    {submitting ? "Criando conta..." : "Criar conta"}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
-    </div>
+    </ClientAuthStage>
   );
 }

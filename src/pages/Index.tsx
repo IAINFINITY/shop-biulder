@@ -1,4 +1,5 @@
-﻿import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
@@ -12,6 +13,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 
+const INITIAL_PRODUCTS_VISIBLE = 12;
+const PRODUCTS_VISIBLE_STEP = 12;
+
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
   const { customerProfile } = useAuth();
@@ -23,11 +27,16 @@ export default function Index() {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
+  const [visibleProducts, setVisibleProducts] = useState(INITIAL_PRODUCTS_VISIBLE);
   const catalogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     saveCart(cart);
   }, [cart]);
+
+  useEffect(() => {
+    setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
+  }, [search, selectedType, selectedFamily]);
 
   const categoryTypes = useMemo(() => [...new Set(products.map((p) => p.type))].sort(), [products]);
   const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
@@ -61,6 +70,8 @@ export default function Index() {
     });
   }, [products, search, selectedType, selectedFamily]);
 
+  const visibleFiltered = useMemo(() => filtered.slice(0, visibleProducts), [filtered, visibleProducts]);
+
   const searchSuggestions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return [];
@@ -80,7 +91,6 @@ export default function Index() {
         };
       })
       .sort((a, b) => b.score - a.score || a.product.name.localeCompare(b.product.name))
-      .slice(0, 6)
       .map(({ product }) => ({
         id: product.id,
         name: product.name,
@@ -192,7 +202,7 @@ export default function Index() {
         ) : (
           <div className="mt-4">
             <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {filtered.map((product) => (
+              {visibleFiltered.map((product) => (
                 <CatalogProductCard
                   key={product.id}
                   product={product}
@@ -202,6 +212,22 @@ export default function Index() {
                 />
               ))}
             </div>
+
+            {visibleProducts < filtered.length ? (
+              <div className="mt-6 flex justify-center">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="lg"
+                  className="rounded-full px-8 shadow-lg shadow-primary/20"
+                  onClick={() =>
+                    setVisibleProducts((current) => Math.min(current + PRODUCTS_VISIBLE_STEP, filtered.length))
+                  }
+                >
+                  Ver Mais
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

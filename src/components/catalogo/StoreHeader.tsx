@@ -1,4 +1,4 @@
-﻿import type { FormEvent, ReactNode } from "react";
+﻿import { type FormEvent, type ReactNode, useId } from "react";
 import { Link } from "react-router-dom";
 import { ImageIcon, Search, Settings, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
-import clinicMaisLogo from "@/assets/clinicmais-logo.svg";
+import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 
 export type StoreHeaderSearchSuggestion = {
   id: string;
@@ -24,6 +24,125 @@ export type StoreHeaderProps = {
   searchSuggestions?: StoreHeaderSearchSuggestion[];
 };
 
+type SearchPanelProps = {
+  search: string;
+  onSearchChange: (value: string) => void;
+  searchSuggestions: StoreHeaderSearchSuggestion[];
+  showSuggestions: boolean;
+  panelId: string;
+  floating: boolean;
+};
+
+function SearchPanel({
+  search,
+  onSearchChange,
+  searchSuggestions,
+  showSuggestions,
+  panelId,
+  floating,
+}: SearchPanelProps) {
+  const onSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+  };
+
+  const wrapperClassName = floating
+    ? "pointer-events-none absolute left-1/2 top-[calc((var(--page-header-shell-height,88px)-3rem)/2)] z-[70] w-full max-w-xl -translate-x-1/2 px-4 sm:max-w-2xl lg:w-[min(100%,40rem)] lg:max-w-none lg:px-0 xl:w-[44rem]"
+    : "relative w-full max-w-xl sm:max-w-2xl lg:w-[min(100%,40rem)] lg:max-w-none xl:w-[44rem]";
+
+  const cardClassName = floating
+    ? "pointer-events-auto overflow-hidden rounded-[28px] border border-border bg-background shadow-[0_18px_50px_rgba(0,0,0,0.12)]"
+    : "overflow-hidden rounded-[28px] border border-border bg-background shadow-inner";
+
+  return (
+    <div className={wrapperClassName}>
+      <div className={cardClassName}>
+        <form onSubmit={onSearchSubmit} className="relative">
+          <Input
+            type="search"
+            placeholder="O que você procura?..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="h-11 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-12 sm:pl-5 sm:pr-16"
+            aria-label="Buscar produtos"
+            aria-expanded={showSuggestions}
+            aria-controls={showSuggestions ? panelId : undefined}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            className="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:right-2 sm:h-10 sm:w-10"
+            aria-label="Buscar"
+          >
+            <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+          </Button>
+        </form>
+
+        {showSuggestions ? (
+          <div id={panelId} className="border-t border-border/70 bg-card" role="listbox" aria-label="Sugestões de produtos">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Resultados
+                </p>
+                <p className="text-sm text-foreground">
+                  {searchSuggestions.length > 0
+                    ? `${searchSuggestions.length} produto(s) encontrado(s)`
+                    : "Nenhum resultado encontrado"}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-full px-3 text-xs"
+                onClick={() => onSearchChange("")}
+              >
+                Limpar
+              </Button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto p-2">
+              {searchSuggestions.length > 0 ? (
+                searchSuggestions.map((item) => (
+                  <Link
+                    key={item.id}
+                    to={`/produto/${item.id}`}
+                    viewTransition
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/70"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain p-1" />
+                      ) : (
+                        <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {item.type} · {item.family}
+                      </p>
+                    </div>
+
+                    {typeof item.price === "number" && Number.isFinite(item.price) && (
+                      <div className="shrink-0 text-right">
+                        <p className="text-xs font-semibold tabular-nums text-foreground">{formatBRL(item.price)}</p>
+                      </div>
+                    )}
+                  </Link>
+                ))
+              ) : (
+                <div className="px-4 py-5 text-sm text-muted-foreground">Nenhum produto corresponde ao termo pesquisado.</div>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function StoreHeader({
   search,
   onSearchChange,
@@ -34,145 +153,18 @@ export function StoreHeader({
   const accountPath = user && !isAdmin ? "/conta" : "/login";
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
-
-  const onSearchSubmit = (e: FormEvent) => {
-    e.preventDefault();
-  };
+  const desktopPanelId = useId();
+  const mobilePanelId = useId();
 
   return (
     <PageHeaderShell>
       <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
-          <div className="flex items-start justify-between gap-3 lg:block lg:max-w-[220px] xl:max-w-[240px]">
-            <Link to="/" viewTransition className="inline-block min-w-0 shrink-0">
-              <img src={clinicMaisLogo} alt="Clinic+ Suplemento e Nutrição" className="h-8 w-auto sm:h-10" />
-              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:text-[0.72rem] sm:tracking-wide">
-                Suplemento e Nutrição · B2B
-              </p>
-            </Link>
-            <div className="flex shrink-0 items-center gap-2 lg:hidden">
-              <Link to={accountPath} viewTransition>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                  aria-label="Minha conta"
-                >
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="/admin" viewTransition>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                  aria-label="Administração"
-                >
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative flex min-w-0 justify-center lg:px-4">
-            <form
-              onSubmit={onSearchSubmit}
-              className="relative w-full max-w-xl sm:max-w-2xl lg:max-w-[min(100%,40rem)] xl:max-w-[44rem]"
-            >
-              <div className="overflow-hidden rounded-[28px] border border-border bg-background shadow-inner">
-                <div className="relative">
-                  <Input
-                    type="search"
-                    placeholder="O que você procura?..."
-                    value={search}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    className="h-11 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-12 sm:pl-5 sm:pr-16"
-                    aria-label="Buscar produtos"
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    className="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:right-2 sm:h-10 sm:w-10"
-                    aria-label="Buscar"
-                  >
-                    <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-                  </Button>
-                </div>
-              </div>
-
-              {showSuggestions && (
-                <div className="absolute left-0 right-0 top-full z-30 -mt-px overflow-hidden rounded-b-[28px] border border-border border-t-0 bg-background/98 shadow-xl">
-                  <div className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                        Resultados
-                      </p>
-                      <p className="text-sm text-foreground">
-                        {searchSuggestions.length > 0
-                          ? `${searchSuggestions.length} produto(s) encontrado(s)`
-                          : "Nenhum resultado encontrado"}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 rounded-full px-3 text-xs"
-                      onClick={() => onSearchChange("")}
-                    >
-                      Limpar
-                    </Button>
-                  </div>
-
-                  <div className="max-h-80 overflow-y-auto p-2">
-                    {searchSuggestions.length > 0 ? (
-                      searchSuggestions.map((item) => (
-                        <Link
-                          key={item.id}
-                          to={`/produto/${item.id}`}
-                          viewTransition
-                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/70"
-                        >
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.name}
-                                className="h-full w-full object-contain p-1"
-                              />
-                            ) : (
-                              <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
-                            )}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {item.type} · {item.family}
-                            </p>
-                          </div>
-
-                          {typeof item.price === "number" && Number.isFinite(item.price) && (
-                            <div className="shrink-0 text-right">
-                              <p className="text-xs font-semibold tabular-nums text-foreground">
-                                {formatBRL(item.price)}
-                              </p>
-                            </div>
-                          )}
-                        </Link>
-                      ))
-                    ) : (
-                      <div className="px-4 py-5 text-sm text-muted-foreground">
-                        Nenhum produto corresponde ao termo pesquisado.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </form>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
-            <Link to={accountPath} viewTransition className="hidden lg:block">
+        <div className="flex items-start justify-between gap-3 lg:block lg:max-w-[220px] xl:max-w-[240px]">
+          <Link to="/" viewTransition className="inline-block min-w-0 shrink-0">
+            <ClinicPlusLogo />
+          </Link>
+          <div className="flex shrink-0 items-center gap-2 lg:hidden">
+            <Link to={accountPath} viewTransition>
               <Button
                 variant="outline"
                 size="icon"
@@ -182,7 +174,7 @@ export function StoreHeader({
                 <User className="h-5 w-5" />
               </Button>
             </Link>
-            <Link to="/admin" viewTransition className="hidden lg:block">
+            <Link to="/admin" viewTransition>
               <Button
                 variant="outline"
                 size="icon"
@@ -192,9 +184,57 @@ export function StoreHeader({
                 <Settings className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="flex items-center">{cartSlot}</div>
           </div>
         </div>
+
+        <div className="min-w-0 lg:relative lg:min-h-[88px] lg:px-4">
+          <div className="lg:hidden">
+            <SearchPanel
+              search={search}
+              onSearchChange={onSearchChange}
+              searchSuggestions={searchSuggestions}
+              showSuggestions={showSuggestions}
+              panelId={mobilePanelId}
+              floating={false}
+            />
+          </div>
+
+          <div className="hidden lg:block">
+            <SearchPanel
+              search={search}
+              onSearchChange={onSearchChange}
+              searchSuggestions={searchSuggestions}
+              showSuggestions={showSuggestions}
+              panelId={desktopPanelId}
+              floating
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
+          <Link to={accountPath} viewTransition className="hidden lg:block">
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+              aria-label="Minha conta"
+            >
+              <User className="h-5 w-5" />
+            </Button>
+          </Link>
+          <Link to="/admin" viewTransition className="hidden lg:block">
+            <Button
+              variant="outline"
+              size="icon"
+              className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+              aria-label="Administração"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex items-center">{cartSlot}</div>
+        </div>
+      </div>
     </PageHeaderShell>
   );
 }

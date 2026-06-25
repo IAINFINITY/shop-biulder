@@ -108,10 +108,12 @@ async function proxsisRequest(
   if (!res.ok) {
     const text = await res.text();
     let detail = text;
-    try {
-      const json = JSON.parse(text);
-      detail = json.error || text;
-    } catch {}
+  try {
+    const json = JSON.parse(text);
+    detail = json.error || text;
+  } catch {
+    // Keep the raw response text when Proxis does not return JSON.
+  }
     throw new Error(`Proxsis API error (${res.status}): ${detail}`);
   }
 

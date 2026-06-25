@@ -149,8 +149,8 @@ export function StoreHeader({
   cartSlot,
   searchSuggestions = [],
 }: StoreHeaderProps) {
-  const { user, isAdmin } = useAuth();
-  const accountPath = user && !isAdmin ? "/conta" : "/login";
+  const { user } = useAuth();
+  const accountPath = user ? "/conta" : "/login";
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
   const desktopPanelId = useId();

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
@@ -96,12 +97,6 @@ export default function Login() {
 
   const cnpjValidation = useCnpjValidation(customerForm.cnpj, cnpjTouched);
 
-  useEffect(() => {
-    if (!loading && user) {
-      navigate(isAdmin ? "/admin" : "/conta", { replace: true, viewTransition: true });
-    }
-  }, [loading, user, isAdmin, navigate]);
-
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -161,10 +156,16 @@ export default function Login() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        Carregando...
-      </div>
+      <AuthStatusScreen
+        eyebrow="Acesso cliente"
+        title="Abrindo sua conta"
+        description="Estamos validando sua sessão para carregar o acesso certo sem trocar de área no meio do caminho."
+      />
     );
+  }
+
+  if (user) {
+    return <Navigate to={isAdmin ? "/admin" : "/conta"} replace />;
   }
 
   return (

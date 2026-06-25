@@ -1,9 +1,10 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Building2, LogOut, ShieldCheck, ShoppingBag, User } from "lucide-react";
+import { Building2, LogOut, ShieldAlert, ShieldCheck, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { formatCnpjDisplay, formatPhone } from "@/lib/brazilianIds";
 import { formatCep } from "@/lib/address";
 import {
@@ -15,6 +16,60 @@ import {
 import { toast } from "sonner";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Badge } from "@/components/ui/badge";
+
+function AdminAccessNotice({
+  onLogout,
+  onGoAdmin,
+}: {
+  onLogout: () => void;
+  onGoAdmin: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_12%,hsl(var(--primary)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_62%,hsl(var(--muted)/0.25)_100%)] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center">
+        <div className="w-full rounded-[2rem] border border-border/70 bg-card/95 p-6 shadow-[0_16px_40px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+              <ShieldAlert className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Acesso administrativo
+              </p>
+              <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] text-foreground">
+                Você está logado como admin
+              </h1>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[1.5rem] border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
+            Para acessar a área de clientes, você precisa sair da conta administrativa primeiro.
+            Assim evitamos misturar a visualização do admin com o fluxo do cliente.
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoAdmin}>
+              Ir para o painel administrativo
+            </Button>
+            <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm" onClick={onLogout}>
+              <LogOut className="h-4 w-4" />
+              Sair da conta
+            </Button>
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
+            <Link to="/" viewTransition className="text-muted-foreground transition-colors hover:text-foreground">
+              Ir ao catálogo
+            </Link>
+            <span className="text-[12px] text-muted-foreground">
+              Se precisar da área de clientes, faça login com um usuário B2B.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Account() {
   const navigate = useNavigate();
@@ -29,24 +84,40 @@ export default function Account() {
   }, [loading, user, navigate]);
 
   useEffect(() => {
-    if (!loading && user && isAdmin) {
-      navigate("/admin", { replace: true, viewTransition: true });
-    }
-  }, [loading, user, isAdmin, navigate]);
-
-  useEffect(() => {
     setCustomerTypeDraft(normalizeCustomerType(customerProfile?.customer_type));
   }, [customerProfile?.customer_type]);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        Carregando...
-      </div>
+      <AuthStatusScreen
+        eyebrow="Minha conta"
+        title="Abrindo sua área"
+        description="Estamos conferindo sua sessão para carregar a área correta sem mostrar conteúdo trocado."
+      />
     );
   }
 
-  if (!user || isAdmin) return null;
+  if (!user) {
+    return (
+      <AuthStatusScreen
+        eyebrow="Minha conta"
+        title="Direcionando para o login"
+        description="A conta de clientes precisa de um acesso B2B ativo. Vamos levar você para a tela de entrada."
+      />
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <AdminAccessNotice
+        onGoAdmin={() => navigate("/admin", { replace: true, viewTransition: true })}
+        onLogout={async () => {
+          await signOut();
+          navigate("/login", { replace: true, viewTransition: true });
+        }}
+      />
+    );
+  }
 
   const displayCnpj = customerProfile ? formatCnpjDisplay(customerProfile.cnpj) : "—";
   const displayCustomerType = customerProfile
@@ -199,9 +270,7 @@ export default function Account() {
                   >
                     {savingType ? "Salvando..." : "Salvar tipo"}
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Tipo atual: {displayCustomerType}
-                  </p>
+                  <p className="text-xs text-muted-foreground">Tipo atual: {displayCustomerType}</p>
                 </div>
               </div>
             </div>
@@ -225,8 +294,10 @@ export default function Account() {
           </div>
         ) : (
           <div className="rounded-[1.75rem] border border-border/70 bg-background/95 p-5 text-sm text-muted-foreground shadow-sm sm:p-6">
-            Seu cadastro está em processamento. Se acabou de criar a conta, confirme o e-mail e
-            entre novamente. Caso o problema persista, entre em contato com o suporte.
+            <p>
+              Seu cadastro está em processamento. Se acabou de criar a conta, confirme o e-mail e
+              entre novamente. Caso o problema persista, entre em contato com o suporte.
+            </p>
           </div>
         )}
 
@@ -239,8 +310,8 @@ export default function Account() {
           <Button
             variant="ghost"
             className="flex-1 gap-2 text-muted-foreground"
-            onClick={() => {
-              void signOut();
+            onClick={async () => {
+              await signOut();
               navigate("/login", { replace: true, viewTransition: true });
             }}
           >

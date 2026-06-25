@@ -31,3 +31,5 @@ scripts/test-*.mjs
 
 # Documentacao local do projeto
 documentation/
+design/
+.od-skills/

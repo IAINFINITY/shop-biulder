@@ -1,4 +1,4 @@
-﻿import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -15,6 +15,7 @@ type AuthContextValue = {
   isCustomer: boolean;
   customerProfile: CustomerProfile | null;
   loading: boolean;
+  isResolvingAccess: boolean;
   signIn: (email: string, password: string) => Promise<Error | null>;
   signUp: (email: string, password: string) => Promise<Error | null>;
   signUpCustomer: (data: CustomerRegistrationData) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
@@ -28,6 +29,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 let authResolutionCounter = 0;
+const AUTH_BOOTSTRAP_STORAGE_KEY = "clinicplus_auth_bootstrap";
 
 function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
   return {
@@ -36,11 +38,56 @@ function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
   };
 }
 
+type AuthBootstrapSnapshot = {
+  user: User;
+  isAdmin: boolean;
+};
+
+function readAuthBootstrap(): AuthBootstrapSnapshot | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = sessionStorage.getItem(AUTH_BOOTSTRAP_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<AuthBootstrapSnapshot> | null;
+    if (!parsed?.user || typeof parsed.user !== "object") return null;
+
+    return {
+      user: parsed.user as User,
+      isAdmin: Boolean(parsed.isAdmin),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeAuthBootstrap(snapshot: AuthBootstrapSnapshot): void {
+  try {
+    sessionStorage.setItem(AUTH_BOOTSTRAP_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // noop
+  }
+}
+
+function clearAuthBootstrap(): void {
+  try {
+    sessionStorage.removeItem(AUTH_BOOTSTRAP_STORAGE_KEY);
+  } catch {
+    // noop
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const bootstrapSnapshot = readAuthBootstrap();
+  const [user, setUser] = useState<User | null>(bootstrapSnapshot?.user ?? null);
+  const [isAdmin, setIsAdmin] = useState(bootstrapSnapshot?.isAdmin ?? false);
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!bootstrapSnapshot);
+  const [isResolvingAccess, setIsResolvingAccess] = useState(false);
+  const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user.id ?? null);
+  const userRef = useRef<User | null>(bootstrapSnapshot?.user ?? null);
+  const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
 
   const fetchCustomerProfile = useCallback(async (userId: string, resolutionId?: number) => {
     const { data, error } = await supabase
@@ -58,21 +105,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setCustomerProfile(normalizeCustomerProfile(data as CustomerProfile));
+    const normalizedProfile = normalizeCustomerProfile(data as CustomerProfile);
+    setCustomerProfile(normalizedProfile);
+    if (activeUserIdRef.current === userId && userRef.current) {
+      writeAuthBootstrap({ user: userRef.current, isAdmin: isAdminRef.current });
+    }
   }, []);
 
-  const resolveAuthState = useCallback(async (nextUser: User | null) => {
-    const resolutionId = ++authResolutionCounter;
-
-    if (!nextUser) {
-      if (resolutionId !== authResolutionCounter) return;
-      setUser(null);
-      setIsAdmin(false);
-      setCustomerProfile(null);
-      return;
-    }
-
+  const hydrateSessionDetails = useCallback(async (nextUser: User, resolutionId: number) => {
+    setIsResolvingAccess(true);
     try {
+      activeUserIdRef.current = nextUser.id;
+      userRef.current = nextUser;
       const roleResult = await supabase.rpc("has_role", {
         _user_id: nextUser.id,
         _role: "admin",
@@ -80,27 +124,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (resolutionId !== authResolutionCounter) return;
 
-      setUser(nextUser);
-      setIsAdmin(!roleResult.error && !!roleResult.data);
+      const nextIsAdmin = !roleResult.error && !!roleResult.data;
+      isAdminRef.current = nextIsAdmin;
+      userRef.current = nextUser;
+      setIsAdmin(nextIsAdmin);
+      writeAuthBootstrap({
+        user: nextUser,
+        isAdmin: nextIsAdmin,
+      });
       // O perfil do cliente pode hidratar em segundo plano sem travar a navegação do admin.
       void fetchCustomerProfile(nextUser.id, resolutionId);
     } catch {
       if (resolutionId !== authResolutionCounter) return;
-      setUser(nextUser);
+      isAdminRef.current = false;
+      userRef.current = nextUser;
       setIsAdmin(false);
+      writeAuthBootstrap({
+        user: nextUser,
+        isAdmin: false,
+      });
       void fetchCustomerProfile(nextUser.id, resolutionId);
+    } finally {
+      if (resolutionId !== authResolutionCounter) return;
+      setIsResolvingAccess(false);
     }
   }, [fetchCustomerProfile]);
+
+  const resolveAuthState = useCallback((nextUser: User | null) => {
+    if (!nextUser) {
+      authResolutionCounter += 1;
+      activeUserIdRef.current = null;
+      userRef.current = null;
+      isAdminRef.current = false;
+      setUser(null);
+      setIsAdmin(false);
+      setCustomerProfile(null);
+      setIsResolvingAccess(false);
+      clearAuthBootstrap();
+      return;
+    }
+
+    if (activeUserIdRef.current === nextUser.id && userRef.current?.id === nextUser.id) {
+      userRef.current = nextUser;
+      setUser((currentUser) => currentUser ?? nextUser);
+      return;
+    }
+
+    const resolutionId = ++authResolutionCounter;
+    activeUserIdRef.current = nextUser.id;
+    userRef.current = nextUser;
+    setUser(nextUser);
+    isAdminRef.current = false;
+    setIsAdmin(false);
+    setCustomerProfile(null);
+    void hydrateSessionDetails(nextUser, resolutionId);
+  }, [hydrateSessionDetails]);
 
   useEffect(() => {
     let mounted = true;
 
     const initAuth = async () => {
-      setLoading(true);
       try {
         const { data } = await supabase.auth.getSession();
         const currentUser = data.session?.user ?? null;
-        await resolveAuthState(currentUser);
+        resolveAuthState(currentUser);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -110,9 +197,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
-      await resolveAuthState(session?.user ?? null);
+      if (!session?.user && activeUserIdRef.current && event !== "SIGNED_OUT") {
+        return;
+      }
+      if (event === "TOKEN_REFRESHED" && session?.user && activeUserIdRef.current === session.user.id) {
+        return;
+      }
+      resolveAuthState(session?.user ?? null);
     });
 
     return () => {
@@ -122,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [resolveAuthState]);
 
   const updateCustomerType = async (customerType: CustomerType) => {
-    if (!user) return new Error("Usuário não autenticado");
+    if (!user) return new Error("UsuÃ¡rio nÃ£o autenticado");
 
     const normalizedType = normalizeCustomerType(customerType);
     const { error } = await supabase
@@ -138,7 +231,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (!error) {
+      return null;
+    }
+
+    if (data.session?.user) {
+      return null;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user) {
+      return null;
+    }
+
     return error;
   };
 
@@ -193,6 +300,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setIsAdmin(false);
     setCustomerProfile(null);
+    setIsResolvingAccess(false);
+    activeUserIdRef.current = null;
+    userRef.current = null;
+    isAdminRef.current = false;
+    clearAuthBootstrap();
     const { error } = await supabase.auth.signOut();
     return { error };
   };
@@ -203,6 +315,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isCustomer: !!customerProfile,
     customerProfile,
     loading,
+    isResolvingAccess,
     signIn,
     signUp,
     signUpCustomer,

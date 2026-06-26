@@ -105,12 +105,14 @@ function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
     setLoading(true);
     const error = await onLogin(email, password);
-    if (error) toast.error(error.message);
+    if (error) setLoginError(error.message || "Não foi possível autenticar.");
     setLoading(false);
   };
 
@@ -133,6 +135,12 @@ function LoginForm({
             {helperMessage ? (
               <div className="mx-auto mt-4 max-w-[30rem] rounded-[1.25rem] border border-primary/15 bg-primary/5 px-4 py-3 text-left text-sm leading-6 text-foreground">
                 {helperMessage}
+              </div>
+            ) : null}
+
+            {loginError ? (
+              <div className="mx-auto mt-4 max-w-[30rem] rounded-[1.25rem] border border-destructive/20 bg-destructive/5 px-4 py-3 text-left text-sm leading-6 text-foreground">
+                {loginError}
               </div>
             ) : null}
           </div>
@@ -178,7 +186,7 @@ function LoginForm({
             </div>
 
             <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={loading}>
-              {loading ? "Entrando..." : "Entrar"}
+              {loading ? "Autenticando..." : "Entrar"}
             </Button>
 
             <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
@@ -204,7 +212,7 @@ function summarizeOrderItems(items: unknown): AdminOrderSummaryLine[] {
 }
 
 export default function AdminWorkspace() {
-  const { user, isAdmin, loading, signIn, signOut } = useAuth();
+  const { user, isAdmin, loading, isResolvingAccess, signIn, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin);
   const { data: adminTypes = [] } = useAdminProductTypes();
@@ -328,7 +336,7 @@ export default function AdminWorkspace() {
       ? derivedTypes
       : getProductTypes();
 
-  if (loading) {
+  if (loading || isResolvingAccess) {
     return (
       <AuthStatusScreen
         eyebrow="Painel administrativo"
@@ -627,3 +635,4 @@ export default function AdminWorkspace() {
     </AdminWorkspaceShell>
   );
 }
+

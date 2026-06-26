@@ -78,6 +78,11 @@ describe("useAuth", () => {
     vi.clearAllMocks();
     authMocks.state.authCallback = null;
     authMocks.state.profileQueue = [];
+    try {
+      window.sessionStorage.removeItem("clinicplus_auth_bootstrap");
+    } catch {
+      // ignore
+    }
   });
 
   it("does not keep the auth gate blocked while the customer profile hydrates", async () => {
@@ -152,6 +157,43 @@ describe("useAuth", () => {
     });
 
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
-    expect(authMocks.rpc).toHaveBeenCalledTimes(2);
+    expect(authMocks.getSession).toHaveBeenCalledTimes(1);
+    expect(authMocks.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores transient auth null states while a session is already active", async () => {
+    const sessionUser = { id: "admin-1", email: "admin@clinic.com" };
+
+    authMocks.getSession.mockResolvedValue({
+      data: {
+        session: { user: sessionUser },
+      },
+      error: null,
+    });
+    authMocks.rpc.mockResolvedValue({ data: true, error: null });
+    authMocks.state.profileQueue.push(
+      Promise.resolve({
+        data: hydratedProfile,
+        error: null,
+      }),
+    );
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("false");
+    });
+
+    await act(async () => {
+      await authMocks.state.authCallback?.("INITIAL_SESSION", null);
+    });
+
+    expect(screen.getByTestId("loading")).toHaveTextContent("false");
+    expect(screen.getByTestId("user")).toHaveTextContent("admin@clinic.com");
+    expect(screen.getByTestId("admin")).toHaveTextContent("true");
   });
 });

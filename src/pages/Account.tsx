@@ -73,7 +73,7 @@ function AdminAccessNotice({
 
 export default function Account() {
   const navigate = useNavigate();
-  const { user, isAdmin, isCustomer, customerProfile, loading, signOut, updateCustomerType } = useAuth();
+  const { user, isAdmin, isCustomer, customerProfile, loading, isResolvingAccess, signOut, updateCustomerType } = useAuth();
   const [customerTypeDraft, setCustomerTypeDraft] = useState(DEFAULT_CUSTOMER_TYPE);
   const [savingType, setSavingType] = useState(false);
 
@@ -87,7 +87,7 @@ export default function Account() {
     setCustomerTypeDraft(normalizeCustomerType(customerProfile?.customer_type));
   }, [customerProfile?.customer_type]);
 
-  if (loading) {
+  if (loading || isResolvingAccess) {
     return (
       <AuthStatusScreen
         eyebrow="Minha conta"

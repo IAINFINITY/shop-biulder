@@ -33,6 +33,8 @@ const emptyAddressData = {
   ibge: "",
 };
 
+const AUTH_FEEDBACK_MIN_MS = 700;
+
 type AuthFieldProps = {
   id: string;
   label: string;
@@ -84,7 +86,7 @@ function AuthField({
 
 export default function Login() {
   const navigate = useNavigate();
-  const { user, isAdmin, loading, signIn, signUpCustomer } = useAuth();
+  const { user, isAdmin, loading, isResolvingAccess, signIn, signUpCustomer } = useAuth();
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -99,8 +101,13 @@ export default function Login() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    const startedAt = Date.now();
     setSubmitting(true);
     const error = await signIn(signInEmail.trim(), signInPassword);
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < AUTH_FEEDBACK_MIN_MS) {
+      await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
+    }
     if (error) toast.error(error.message);
     setSubmitting(false);
   };
@@ -154,7 +161,7 @@ export default function Login() {
     setSubmitting(false);
   };
 
-  if (loading) {
+  if (loading || isResolvingAccess) {
     return (
       <AuthStatusScreen
         eyebrow="Acesso cliente"
@@ -246,12 +253,12 @@ export default function Login() {
                 </div>
 
                 <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={submitting}>
-                  {submitting ? "Entrando..." : "Entrar"}
+                  {submitting ? "Autenticando..." : "Entrar"}
                 </Button>
 
                 <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Ambiente seguro — seus dados estão protegidos
+                  Ambiente seguro â€” seus dados estÃ£o protegidos
                 </div>
               </form>
             </TabsContent>
@@ -322,7 +329,7 @@ export default function Login() {
                   <AuthField
                     id="signup-password"
                     label="Senha"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="MÃ­nimo 6 caracteres"
                     value={signUpPassword}
                     onChange={setSignUpPassword}
                     type="password"
@@ -357,3 +364,11 @@ export default function Login() {
     </ClientAuthStage>
   );
 }
+
+
+
+
+
+
+
+

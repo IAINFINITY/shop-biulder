@@ -201,7 +201,7 @@ export function AdminProductsSection({
       </div>
 
       <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && onCancel()}>
-        <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden rounded-[1.75rem] border-border/70 p-0 sm:max-w-6xl">
+        <DialogContent className="max-h-[92vh] w-[min(98vw,1720px)] max-w-[1720px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
           <div className="flex max-h-[92vh] flex-col overflow-hidden">
             <DialogHeader className="border-b border-border/70 px-5 py-4">
               <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
@@ -212,7 +212,7 @@ export function AdminProductsSection({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
               <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
                 {editing ? (
                   <AdminProductForm
@@ -267,7 +267,11 @@ export function AdminProductsSection({
                     </div>
                   </div>
 
-                  <div className="flex min-h-0 flex-1 items-center justify-center py-6">
+                  <div
+                    className={`flex min-h-0 flex-1 justify-center py-6 ${
+                      previewMode === "catalog" ? "items-center" : "items-start"
+                    }`}
+                  >
                     <AdminProductPreview editing={editing} mode={previewMode} />
                   </div>
                 </div>

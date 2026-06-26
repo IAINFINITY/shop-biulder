@@ -25,7 +25,13 @@ const typeColors: Record<string, string> = {
 
 function ProductImage({ src, alt }: { src: string; alt: string }) {
   if (src) {
-    return <img src={src} alt={alt} className="h-full w-full object-contain transition-transform duration-300" />;
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-contain object-center transition-transform duration-300"
+      />
+    );
   }
 
   return (
@@ -56,11 +62,11 @@ function CatalogPreview({
   return (
     <div className="mx-auto w-full max-w-[340px] rounded-[1.5rem] border border-border/70 bg-background p-3 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
       <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-border bg-card transition-all duration-300">
-        <div className="aspect-[4/3] overflow-hidden border-b border-border/70 bg-background p-2 sm:p-3">
+        <div className="aspect-[4/3] overflow-hidden border-b border-border/70 bg-background p-3 sm:p-4">
           <ProductImage src={coverUrl} alt={productName} />
         </div>
 
-        <div className="flex flex-1 flex-col px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+        <div className="flex flex-1 flex-col px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
           <div className="mb-2 flex items-center gap-2">
             <Badge variant="outline" className={cn(typeColors[productType] || "", "text-xs font-medium")}>
               <TypeIcon className="mr-1 h-3 w-3" />
@@ -124,38 +130,70 @@ function ExpandedPreview({
   const productCode = editing?.productCode?.trim();
 
   return (
-    <div className="mx-auto w-full max-w-[420px] rounded-[1.5rem] border border-border/70 bg-background p-3 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-      <div className="overflow-hidden rounded-[1.25rem] border border-border bg-card">
-        <div className="aspect-[4/3] border-b border-border/70 bg-background p-3 sm:p-4">
-          <ProductImage src={coverUrl} alt={productName} />
+    <div className="w-full max-w-[920px] rounded-[1.5rem] border border-border/70 bg-background p-3 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)] xl:items-stretch">
+        <div className="overflow-hidden rounded-[1.25rem] border border-border bg-card">
+          <div className="border-b border-border/70 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  Pré-visualização aberta
+                </p>
+                <p className="text-[11px] leading-none text-muted-foreground">Como o cliente vê ao abrir o produto</p>
+              </div>
+              <Badge variant="outline" className="rounded-full border-border/70 bg-background text-[10px] font-medium">
+                Detalhes
+              </Badge>
+            </div>
+          </div>
+
+          <div className="flex min-h-[440px] items-center justify-center bg-background p-5 sm:min-h-[520px] sm:p-8">
+            <div className="flex w-full max-w-[540px] items-center justify-center">
+              <ProductImage src={coverUrl} alt={productName} />
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className={cn(typeColors[productType] || "", "text-xs font-medium")}>
-              <TypeIcon className="mr-1 h-3 w-3" />
-              {productType}
-            </Badge>
-            <Badge variant="secondary" className="text-xs">
-              {productFamily}
-            </Badge>
-            {productCode ? (
-              <Badge variant="outline" className="text-xs">
-                Código {productCode}
+        <div className="flex min-h-0 flex-col gap-4">
+          <div className="rounded-[1.5rem] border border-border/70 bg-card p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className={cn(typeColors[productType] || "", "text-xs font-medium")}>
+                <TypeIcon className="mr-1 h-3 w-3" />
+                {productType}
               </Badge>
-            ) : null}
+              <Badge variant="secondary" className="text-xs">
+                {productFamily}
+              </Badge>
+              {productCode ? (
+                <Badge variant="outline" className="text-xs">
+                  Código {productCode}
+                </Badge>
+              ) : null}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <h3 className="text-[1.4rem] font-black leading-tight tracking-[-0.04em] text-card-foreground sm:text-[1.65rem]">
+                {productName}
+              </h3>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Visualização expandida
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Preço</p>
+                <p className="text-3xl font-semibold text-primary tabular-nums">{displayPrice}</p>
+              </div>
+
+              <Button type="button" disabled className="h-11 gap-2 rounded-2xl px-4 text-sm">
+                <Plus className="h-4 w-4" />
+                Adicionar ao carrinho
+              </Button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <h3 className="text-[1.45rem] font-black leading-tight tracking-[-0.05em] text-card-foreground">
-              {productName}
-            </h3>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Visualização expandida
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-sm sm:grid-cols-3">
             <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Tipo</p>
               <p className="mt-1 text-sm font-medium text-foreground">{productType}</p>
@@ -170,9 +208,9 @@ function ExpandedPreview({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-background p-4">
+          <div className="flex min-h-0 flex-1 flex-col rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-sm sm:p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Descrição</p>
-            <div className="mt-3 min-h-[120px] text-sm leading-7 text-foreground/90">
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1 text-sm leading-7 text-foreground/90">
               {description ? (
                 <ProductDescription html={editing?.description || ""} className="text-sm leading-7 text-foreground/90" />
               ) : (
@@ -180,11 +218,6 @@ function ExpandedPreview({
               )}
             </div>
           </div>
-
-          <Button type="button" disabled className="h-11 w-full gap-2 rounded-2xl text-sm">
-            <Plus className="h-4 w-4" />
-            Adicionar ao carrinho
-          </Button>
         </div>
       </div>
     </div>

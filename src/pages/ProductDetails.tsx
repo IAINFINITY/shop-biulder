@@ -1,4 +1,12 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, type MouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { type LucideIcon, ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
@@ -10,6 +18,7 @@ import {
   saveCart,
   normalizeProductFromSupabaseRow,
   getProductImageUrls,
+  readCachedProductFromStorage,
   PRODUCT_SELECT_COLUMNS,
   PRODUCT_SELECT_COLUMNS_LEGACY,
   isMissingImageUrlsColumnError,
@@ -22,7 +31,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
-import { toast } from "sonner";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,16 +57,27 @@ export default function ProductDetails() {
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
     customerProfile?.customer_type,
   );
+  const storageCachedProduct = useMemo(() => (id ? readCachedProductFromStorage(id) : null), [id]);
+  const cachedProduct = useMemo(
+    () => storageCachedProduct ?? allProducts.find((item) => item.id === id) ?? null,
+    [storageCachedProduct, allProducts, id],
+  );
 
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isImageHovered, setIsImageHovered] = useState(false);
   const imageFrameRef = useRef<HTMLDivElement>(null);
+  const productImageRef = useRef<HTMLImageElement>(null);
   const lensRef = useRef<HTMLDivElement>(null);
   const zoomPreviewRef = useRef<HTMLDivElement>(null);
   const pointerRafRef = useRef<number | null>(null);
-  const pendingPointerRef = useRef({ x: 50, y: 50 });
+  const pendingPointerRef = useRef<{
+    clientX: number;
+    clientY: number;
+    frameRect: DOMRect;
+    imageRect: DOMRect;
+  } | null>(null);
 
   useEffect(() => {
     saveCart(cart);
@@ -88,9 +107,12 @@ export default function ProductDetails() {
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
   const cartIds = useMemo(() => new Set(cart.map((item) => item.product.id)), [cart]);
 
-  const { data: product, isLoading, error } = useQuery({
+  const { data: liveProduct, isLoading, error } = useQuery({
     queryKey: ["product", id],
-    enabled: !!id,
+    enabled: !!id && !cachedProduct,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
     queryFn: async () => {
       if (!id) throw new Error("Produto não informado");
       const run = (columns: string) =>
@@ -104,6 +126,8 @@ export default function ProductDetails() {
       return normalizeProductFromSupabaseRow(data);
     },
   });
+
+  const product = cachedProduct ?? liveProduct ?? null;
 
   const galleryUrls = product ? getProductImageUrls(product) : [];
   const selectedImage = galleryUrls[selectedImageIndex] ?? galleryUrls[0] ?? null;
@@ -127,12 +151,10 @@ export default function ProductDetails() {
     };
   }, []);
 
-  const productCode = product?.product_code?.trim() || "";
   const quickFacts = product
     ? [
         { label: "Tipo", value: product.type },
         { label: "Família", value: product.family },
-        ...(productCode ? [{ label: "Código", value: productCode }] : []),
       ]
     : [];
 
@@ -155,19 +177,12 @@ export default function ProductDetails() {
       setCart((prev) => {
         const existing = prev.find((c) => c.product.id === targetProduct.id);
         if (existing) {
-          toast.info("Produto já está no carrinho");
           return prev;
         }
-        toast.success(`${targetProduct.name} adicionado!`, {
-          action: {
-            label: "Ver meu carrinho",
-            onClick: openCart,
-          },
-        });
         return [...prev, { product: targetProduct, quantity: 1 }];
       });
     },
-    [openCart],
+    [],
   );
 
   const handleAdd = () => {
@@ -180,27 +195,40 @@ export default function ProductDetails() {
   };
 
   const handleImageMove = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
+    (event: ReactMouseEvent<HTMLDivElement>) => {
       if (!selectedImage) return;
 
-      pendingPointerRef.current = { x: event.clientX, y: event.clientY };
+      const frameRect = imageFrameRef.current?.getBoundingClientRect();
+      const imageRect = productImageRef.current?.getBoundingClientRect();
+      if (!frameRect || !imageRect || imageRect.width === 0 || imageRect.height === 0) return;
+
+      pendingPointerRef.current = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        frameRect,
+        imageRect,
+      };
 
       if (pointerRafRef.current !== null) return;
 
       pointerRafRef.current = window.requestAnimationFrame(() => {
         pointerRafRef.current = null;
-        const rect = imageFrameRef.current?.getBoundingClientRect();
-        if (!rect || rect.width === 0 || rect.height === 0) return;
+        const pending = pendingPointerRef.current;
+        if (!pending) return;
 
-        const { x: clientX, y: clientY } = pendingPointerRef.current;
-        const nextX = ((clientX - rect.left) / rect.width) * 100;
-        const nextY = ((clientY - rect.top) / rect.height) * 100;
+        const { clientX, clientY, frameRect, imageRect } = pending;
+        const nextX = ((clientX - imageRect.left) / imageRect.width) * 100;
+        const nextY = ((clientY - imageRect.top) / imageRect.height) * 100;
         const x = Math.min(100, Math.max(0, nextX));
         const y = Math.min(100, Math.max(0, nextY));
+        const clampedClientX = Math.min(imageRect.right, Math.max(imageRect.left, clientX));
+        const clampedClientY = Math.min(imageRect.bottom, Math.max(imageRect.top, clientY));
+        const lensX = ((clampedClientX - frameRect.left) / frameRect.width) * 100;
+        const lensY = ((clampedClientY - frameRect.top) / frameRect.height) * 100;
 
         if (lensRef.current) {
-          lensRef.current.style.left = `${x}%`;
-          lensRef.current.style.top = `${y}%`;
+          lensRef.current.style.left = `${lensX}%`;
+          lensRef.current.style.top = `${lensY}%`;
         }
 
         if (zoomPreviewRef.current) {
@@ -216,11 +244,11 @@ export default function ProductDetails() {
         backgroundImage: `url(${selectedImage})`,
         backgroundPosition: "50% 50%",
         backgroundRepeat: "no-repeat",
-        backgroundSize: "230%",
+        backgroundSize: "240%",
       }
     : undefined;
 
-  if (isLoading) {
+  if (isLoading && !product) {
     return (
       <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
         <PageHeaderShell>
@@ -299,7 +327,7 @@ export default function ProductDetails() {
     );
   }
 
-  if (error || !product) {
+  if ((error && !cachedProduct) || !product) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="space-y-4 text-center">
@@ -320,14 +348,19 @@ export default function ProductDetails() {
   return (
     <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
       <PageHeaderShell>
-        <div className="flex items-center gap-3">
-          <Link to="/" viewTransition>
-            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-border bg-background shadow-sm">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <span className="font-semibold text-foreground">Detalhes do Produto</span>
-          <div className="ml-auto">
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link to="/" viewTransition>
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-border bg-background shadow-sm">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <span className="truncate font-semibold text-foreground">Detalhes do Produto</span>
+          </div>
+
+          <div />
+
+          <div className="justify-self-end">
             <CartDrawer
               cart={cart}
               onUpdateQuantity={updateQuantity}
@@ -380,6 +413,7 @@ export default function ProductDetails() {
                   >
                     {selectedImage ? (
                       <img
+                        ref={productImageRef}
                         src={selectedImage}
                         alt={product.name}
                         className="max-h-[560px] w-full max-w-[560px] object-contain object-center transition-transform duration-300"
@@ -455,11 +489,6 @@ export default function ProductDetails() {
                     <Badge variant="secondary" className="text-xs">
                       {product.family}
                     </Badge>
-                    {productCode && (
-                      <Badge variant="outline" className="text-xs">
-                        Código {productCode}
-                      </Badge>
-                    )}
                   </div>
 
                   <div className="space-y-3">

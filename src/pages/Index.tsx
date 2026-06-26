@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
@@ -15,6 +15,45 @@ import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 
 const INITIAL_PRODUCTS_VISIBLE = 12;
 const PRODUCTS_VISIBLE_STEP = 12;
+const CATALOG_VIEW_STORAGE_KEY = "clinicplus_catalog_view";
+
+type CatalogViewState = {
+  search: string;
+  selectedType: string | null;
+  selectedFamily: string | null;
+  visibleProducts: number;
+  scrollY: number;
+};
+
+function readCatalogViewState(): CatalogViewState | null {
+  try {
+    const raw = typeof window === "undefined" ? null : window.sessionStorage.getItem(CATALOG_VIEW_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CatalogViewState>;
+    return {
+      search: typeof parsed.search === "string" ? parsed.search : "",
+      selectedType: typeof parsed.selectedType === "string" ? parsed.selectedType : null,
+      selectedFamily: typeof parsed.selectedFamily === "string" ? parsed.selectedFamily : null,
+      visibleProducts:
+        typeof parsed.visibleProducts === "number" && Number.isFinite(parsed.visibleProducts)
+          ? Math.max(INITIAL_PRODUCTS_VISIBLE, parsed.visibleProducts)
+          : INITIAL_PRODUCTS_VISIBLE,
+      scrollY:
+        typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY) ? Math.max(0, parsed.scrollY) : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveCatalogViewState(state: CatalogViewState) {
+  try {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem(CATALOG_VIEW_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Keep the catalog usable even when session storage is unavailable.
+  }
+}
 
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
@@ -24,19 +63,49 @@ export default function Index() {
   );
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
-  const [visibleProducts, setVisibleProducts] = useState(INITIAL_PRODUCTS_VISIBLE);
+  const [search, setSearch] = useState(() => readCatalogViewState()?.search ?? "");
+  const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
+  const [selectedFamily, setSelectedFamily] = useState<string | null>(
+    () => readCatalogViewState()?.selectedFamily ?? null,
+  );
+  const [visibleProducts, setVisibleProducts] = useState(
+    () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
+  );
   const catalogRef = useRef<HTMLDivElement>(null);
+  const restoredScrollRef = useRef(false);
 
   useEffect(() => {
     saveCart(cart);
   }, [cart]);
 
+  useLayoutEffect(() => {
+    if (typeof window === "undefined" || restoredScrollRef.current) return;
+
+    restoredScrollRef.current = true;
+    const savedState = readCatalogViewState();
+    window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: savedState?.scrollY ?? 0, left: 0, behavior: "auto" });
+
+    return () => {
+      window.history.scrollRestoration = "auto";
+    };
+  }, []);
+
   useEffect(() => {
     setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
   }, [search, selectedType, selectedFamily]);
+
+  useEffect(() => {
+    return () => {
+      saveCatalogViewState({
+        search,
+        selectedType,
+        selectedFamily,
+        visibleProducts,
+        scrollY: typeof window === "undefined" ? 0 : window.scrollY,
+      });
+    };
+  }, [search, selectedType, selectedFamily, visibleProducts]);
 
   const categoryTypes = useMemo(() => [...new Set(products.map((p) => p.type))].sort(), [products]);
   const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
@@ -145,6 +214,7 @@ export default function Index() {
     setSearch("");
     setSelectedType(null);
     setSelectedFamily(null);
+    setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
     catalogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 

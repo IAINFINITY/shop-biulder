@@ -254,6 +254,50 @@ export interface CartItem {
 }
 
 const CART_KEY = "clinicplus_cart";
+const PRODUCTS_CACHE_PREFIX = "clinicplus_products_cache";
+
+function getProductsCacheKey(includeInactive: boolean) {
+  return `${PRODUCTS_CACHE_PREFIX}_${includeInactive ? "all" : "active"}`;
+}
+
+function readStoredValue(key: string): string | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredValue(key: string, value: string) {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage failures and keep the live data as the source of truth.
+  }
+}
+
+export function readCachedProductsFromStorage(includeInactive: boolean): Product[] {
+  const stored = readStoredValue(getProductsCacheKey(includeInactive));
+  if (!stored) return [];
+
+  try {
+    const parsed = JSON.parse(stored) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((row) => normalizeProductFromSupabaseRow(row));
+  } catch {
+    return [];
+  }
+}
+
+export function readCachedProductFromStorage(productId: string): Product | null {
+  const allProducts = [
+    ...readCachedProductsFromStorage(false),
+    ...readCachedProductsFromStorage(true),
+  ];
+
+  return allProducts.find((product) => product.id === productId) ?? null;
+}
 
 function normalizeCartQuantity(value: unknown): number {
   const quantity = typeof value === "number" ? value : Number(value);
@@ -275,7 +319,7 @@ function normalizeCartItem(item: unknown): CartItem | null {
 }
 
 export function getCart(): CartItem[] {
-  const stored = localStorage.getItem(CART_KEY);
+  const stored = readStoredValue(CART_KEY);
   if (!stored) return [];
 
   try {
@@ -292,7 +336,7 @@ export function saveCart(cart: CartItem[]) {
     ...item,
     quantity: normalizeCartQuantity(item.quantity),
   }));
-  localStorage.setItem(CART_KEY, JSON.stringify(normalized));
+  writeStoredValue(CART_KEY, JSON.stringify(normalized));
 }
 
 export function getProductTypes(): string[] {

@@ -115,18 +115,10 @@
 
 @layer utilities {
   .page-shell {
-    opacity: 0;
-    transition:
-      opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: opacity;
-  }
-
-  .page-shell--visible {
-    opacity: 1;
+    will-change: auto;
   }
 
   [data-native-view-transition="true"] .page-shell {
-    opacity: 1;
     transition: none;
     will-change: auto;
   }

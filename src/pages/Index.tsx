@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
@@ -72,6 +72,7 @@ export default function Index() {
     () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
   );
   const catalogRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef(false);
 
   useEffect(() => {
@@ -140,6 +141,27 @@ export default function Index() {
   }, [products, search, selectedType, selectedFamily]);
 
   const visibleFiltered = useMemo(() => filtered.slice(0, visibleProducts), [filtered, visibleProducts]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    if (isLoading || visibleProducts >= filtered.length) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setVisibleProducts((current) => Math.min(current + PRODUCTS_VISIBLE_STEP, filtered.length));
+      },
+      {
+        root: null,
+        rootMargin: "360px 0px",
+        threshold: 0.05,
+      },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filtered.length, isLoading, visibleProducts]);
 
   const searchSuggestions = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -261,8 +283,25 @@ export default function Index() {
         />
 
         {isLoading ? (
-          <div className="py-20 text-center text-muted-foreground">
-            <p className="text-lg font-medium">Carregando produtos...</p>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div
+                key={index}
+                className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-card shadow-[0_12px_32px_rgba(16,24,40,0.04)]"
+              >
+                <Skeleton className="aspect-[1/1] w-full rounded-none" />
+                <div className="space-y-3 p-4">
+                  <div className="flex gap-2">
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-5 w-3/4 rounded-md" />
+                  <Skeleton className="h-4 w-5/6 rounded-md" />
+                  <Skeleton className="h-4 w-1/3 rounded-md" />
+                  <Skeleton className="h-10 w-full rounded-2xl" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground">
@@ -282,20 +321,9 @@ export default function Index() {
                 />
               ))}
             </div>
-
             {visibleProducts < filtered.length ? (
-              <div className="mt-6 flex justify-center">
-                <Button
-                  type="button"
-                  variant="default"
-                  size="lg"
-                  className="rounded-full px-8 shadow-lg shadow-primary/20"
-                  onClick={() =>
-                    setVisibleProducts((current) => Math.min(current + PRODUCTS_VISIBLE_STEP, filtered.length))
-                  }
-                >
-                  Ver Mais
-                </Button>
+              <div ref={loadMoreRef} className="py-8 text-center text-sm text-muted-foreground">
+                Carregando mais produtos...
               </div>
             ) : null}
           </div>

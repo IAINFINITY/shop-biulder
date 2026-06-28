@@ -100,7 +100,7 @@ export function CatalogFiltersBarV2({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <p>{isLoading ? "Carregando..." : `${resultCount} produto(s) encontrado(s)`}</p>
+            <p>{`${resultCount} produto(s) encontrado(s)`}</p>
             {hasSearch || selectedType || selectedFamily ? (
               <Button
                 type="button"

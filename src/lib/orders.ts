@@ -1,4 +1,4 @@
-import { coercePrice } from "@/lib/formatMoney";
+﻿import { coercePrice } from "@/lib/formatMoney";
 import {
   type OrderEnrichmentMaps,
   type Product,
@@ -105,16 +105,13 @@ function resolveLinePricing(
 ): { quantity: number; unitPrice: number; subtotal: number } {
   const quantity = typeof raw.quantity === "number" ? raw.quantity : Number(raw.quantity) || 0;
 
-  const savedUnit =
-    typeof raw.unit_price === "number" ? raw.unit_price : coercePrice(raw.unit_price);
-  const savedLineTotal =
-    typeof raw.line_total === "number" ? raw.line_total : coercePrice(raw.line_total);
+  const savedUnit = typeof raw.unit_price === "number" ? raw.unit_price : coercePrice(raw.unit_price);
+  const savedLineTotal = typeof raw.line_total === "number" ? raw.line_total : coercePrice(raw.line_total);
 
   const productId = typeof raw.product_id === "string" ? raw.product_id.trim() : "";
   const nameKey = normalizeProductNameKey(String(raw.name ?? ""));
 
-  let catalogUnit =
-    productId && maps?.priceByProductId.has(productId) ? maps.priceByProductId.get(productId)! : 0;
+  let catalogUnit = productId && maps?.priceByProductId.has(productId) ? maps.priceByProductId.get(productId)! : 0;
   if (catalogUnit === 0 && nameKey && maps?.priceByProductName.has(nameKey)) {
     catalogUnit = maps.priceByProductName.get(nameKey)!;
   }

@@ -1,8 +1,9 @@
 ﻿import { Eye, EyeOff, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState, type ChangeEvent, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -10,9 +11,20 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatBRL, coercePrice } from "@/lib/formatMoney";
 import { getProductImageUrls } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { AdminProductForm } from "./AdminProductForm";
 import { AdminProductPreview } from "./AdminProductPreview";
@@ -74,10 +86,56 @@ export function AdminProductsSection({
   onCancel,
 }: AdminProductsSectionProps) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("catalog");
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [initialEditing, setInitialEditing] = useState<AdminProductFormState | null>(null);
+  const editingRef = useRef<AdminProductFormState | null>(null);
+  const editingKey = editing ? editing.id ?? "__new__" : "__none__";
+
+  useEffect(() => {
+    editingRef.current = editing;
+  }, [editing]);
 
   useEffect(() => {
     setPreviewMode("catalog");
-  }, [editing?.id]);
+  }, [editingKey]);
+
+  useEffect(() => {
+    const currentEditing = editingRef.current;
+
+    if (currentEditing) {
+      setInitialEditing({
+        ...currentEditing,
+        image_urls: [...currentEditing.image_urls],
+      });
+      return;
+    }
+
+    setInitialEditing(null);
+    setDiscardOpen(false);
+  }, [editingKey]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!editing || !initialEditing) return false;
+    return (
+      editing.name !== initialEditing.name ||
+      editing.description !== initialEditing.description ||
+      editing.type !== initialEditing.type ||
+      editing.family !== initialEditing.family ||
+      editing.active !== initialEditing.active ||
+      editing.priceInput !== initialEditing.priceInput ||
+      editing.productCode !== initialEditing.productCode ||
+      editing.image_urls.join("\u0001") !== initialEditing.image_urls.join("\u0001")
+    );
+  }, [editing, initialEditing]);
+
+  const requestClose = () => {
+    if (!editing) return;
+    if (hasUnsavedChanges) {
+      setDiscardOpen(true);
+      return;
+    }
+    onCancel();
+  };
 
   return (
     <div className="space-y-6">
@@ -96,7 +154,7 @@ export function AdminProductsSection({
                   className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[13px]"
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium text-muted-foreground">
-                  {isLoading ? "..." : `${filteredProducts.length} itens`}
+                  {filteredProducts.length} itens
                 </div>
               </div>
 
@@ -110,16 +168,33 @@ export function AdminProductsSection({
       </div>
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-4 flex items-center justify-between gap-3">
           <p className="text-sm text-foreground">Atualize status, fotos e dados internos com rapidez.</p>
           <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
-            {isLoading ? "Carregando" : `${filteredProducts.length} produto(s)`}
+            {filteredProducts.length} produto(s)
           </Badge>
         </div>
 
         {isLoading ? (
-          <div className="rounded-[1.25rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
-            Carregando produtos...
+          <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 p-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="flex items-center gap-3 rounded-[1rem] border border-border/60 bg-card p-3">
+                <Skeleton className="h-14 w-14 rounded-[1rem]" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-2/3 rounded-md" />
+                  <Skeleton className="h-3 w-1/2 rounded-md" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                    <Skeleton className="h-6 w-14 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                  <Skeleton className="h-9 w-9 rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="rounded-[1.25rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
@@ -184,14 +259,18 @@ export function AdminProductsSection({
                     <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onStartEdit(p)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-full text-destructive"
-                      onClick={() => onRemove(p.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ConfirmActionDialog
+                      trigger={
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      }
+                      title="Excluir produto"
+                      description={`Deseja excluir "${p.name}"? Essa ação remove o produto do catálogo.`}
+                      confirmLabel="Excluir"
+                      destructive
+                      onConfirm={() => onRemove(p.id)}
+                    />
                   </div>
                 </div>
               );
@@ -200,7 +279,12 @@ export function AdminProductsSection({
         )}
       </div>
 
-      <Dialog open={Boolean(editing)} onOpenChange={(open) => !open && onCancel()}>
+      <Dialog
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open) requestClose();
+        }}
+      >
         <DialogContent className="max-h-[92vh] w-[min(98vw,1720px)] max-w-[1720px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
           <div className="flex max-h-[92vh] flex-col overflow-hidden">
             <DialogHeader className="border-b border-border/70 px-5 py-4">
@@ -229,7 +313,7 @@ export function AdminProductsSection({
                     onFileChange={onFileChange}
                     onRemoveImageAt={onRemoveImageAt}
                     onSave={onSave}
-                    onCancel={onCancel}
+                    onCancel={requestClose}
                     className="border-0 bg-transparent p-0 shadow-none"
                   />
                 ) : null}
@@ -280,6 +364,33 @@ export function AdminProductsSection({
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent className="rounded-[1.5rem] border-border/70">
+          <AlertDialogHeader className="text-left">
+            <AlertDialogTitle className="text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+              Sair sem salvar?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] leading-6 text-muted-foreground">
+              Você tem alterações não salvas neste produto. Se sair agora, tudo o que foi editado será perdido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel className="mt-0 rounded-2xl px-4 text-sm" onClick={() => setDiscardOpen(false)}>
+              Continuar editando
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="mt-0 rounded-2xl bg-destructive px-4 text-sm text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setDiscardOpen(false);
+                onCancel();
+              }}
+            >
+              Descartar alterações
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

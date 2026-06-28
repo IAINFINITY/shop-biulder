@@ -258,7 +258,7 @@ export default function Login() {
 
                 <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Ambiente seguro â€” seus dados estÃ£o protegidos
+                  Ambiente seguro - seus dados estão protegidos
                 </div>
               </form>
             </TabsContent>
@@ -329,7 +329,7 @@ export default function Login() {
                   <AuthField
                     id="signup-password"
                     label="Senha"
-                    placeholder="MÃ­nimo 6 caracteres"
+                    placeholder="Mínimo 6 caracteres"
                     value={signUpPassword}
                     onChange={setSignUpPassword}
                     type="password"

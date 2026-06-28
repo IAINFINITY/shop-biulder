@@ -30,6 +30,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 let authResolutionCounter = 0;
 const AUTH_BOOTSTRAP_STORAGE_KEY = "clinicplus_auth_bootstrap";
+const AUTH_PROFILE_STORAGE_KEY = "clinicplus_customer_profile_cache";
 
 function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
   return {
@@ -78,11 +79,45 @@ function clearAuthBootstrap(): void {
   }
 }
 
+function readCachedCustomerProfile(userId: string): CustomerProfile | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = sessionStorage.getItem(AUTH_PROFILE_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<CustomerProfile> | null;
+    if (!parsed || parsed.user_id !== userId) return null;
+
+    return normalizeCustomerProfile(parsed as CustomerProfile);
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCustomerProfile(profile: CustomerProfile): void {
+  try {
+    sessionStorage.setItem(AUTH_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch {
+    // noop
+  }
+}
+
+function clearCachedCustomerProfile(): void {
+  try {
+    sessionStorage.removeItem(AUTH_PROFILE_STORAGE_KEY);
+  } catch {
+    // noop
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const bootstrapSnapshot = readAuthBootstrap();
   const [user, setUser] = useState<User | null>(bootstrapSnapshot?.user ?? null);
   const [isAdmin, setIsAdmin] = useState(bootstrapSnapshot?.isAdmin ?? false);
-  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(
+    bootstrapSnapshot?.user ? readCachedCustomerProfile(bootstrapSnapshot.user.id) : null,
+  );
   const [loading, setLoading] = useState(!bootstrapSnapshot);
   const [isResolvingAccess, setIsResolvingAccess] = useState(false);
   const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user.id ?? null);
@@ -101,12 +136,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (error || !data) {
-      setCustomerProfile(null);
+      if (activeUserIdRef.current === userId) {
+        setCustomerProfile((currentProfile) =>
+          currentProfile?.user_id === userId ? currentProfile : null,
+        );
+      }
       return;
     }
 
     const normalizedProfile = normalizeCustomerProfile(data as CustomerProfile);
     setCustomerProfile(normalizedProfile);
+    writeCachedCustomerProfile(normalizedProfile);
     if (activeUserIdRef.current === userId && userRef.current) {
       writeAuthBootstrap({ user: userRef.current, isAdmin: isAdminRef.current });
     }
@@ -145,8 +185,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       void fetchCustomerProfile(nextUser.id, resolutionId);
     } finally {
-      if (resolutionId !== authResolutionCounter) return;
-      setIsResolvingAccess(false);
+      if (resolutionId === authResolutionCounter) {
+        setIsResolvingAccess(false);
+      }
     }
   }, [fetchCustomerProfile]);
 
@@ -161,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCustomerProfile(null);
       setIsResolvingAccess(false);
       clearAuthBootstrap();
+      clearCachedCustomerProfile();
       return;
     }
 
@@ -176,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextUser);
     isAdminRef.current = false;
     setIsAdmin(false);
-    setCustomerProfile(null);
+    setCustomerProfile(readCachedCustomerProfile(nextUser.id));
     void hydrateSessionDetails(nextUser, resolutionId);
   }, [hydrateSessionDetails]);
 
@@ -305,6 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = null;
     isAdminRef.current = false;
     clearAuthBootstrap();
+    clearCachedCustomerProfile();
     const { error } = await supabase.auth.signOut();
     return { error };
   };

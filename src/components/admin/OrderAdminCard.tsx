@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderTableLine } from "@/lib/orders";
 import { cn } from "@/lib/utils";
@@ -110,15 +111,18 @@ export function OrderAdminCard({
           <Button type="button" variant="outline" size="sm" className="h-8 gap-1 rounded-full px-3 text-[12px]" onClick={onExportPdf}>
             <FileText className="h-3.5 w-3.5" /> PDF
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-full text-destructive"
-            onClick={onDelete}
+          <ConfirmActionDialog
+            trigger={
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive" title="Excluir pedido">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            }
             title="Excluir pedido"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+            description="Deseja excluir este pedido permanentemente?"
+            confirmLabel="Excluir"
+            destructive
+            onConfirm={onDelete}
+          />
         </div>
       </div>
 

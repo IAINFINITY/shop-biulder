@@ -1,15 +1,24 @@
 ﻿import { Link } from "react-router-dom";
 import type { CSSProperties, ReactNode } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Package, ShoppingBag, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  LogOut,
+  ShieldCheck,
+  ShoppingBag,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
-import type { AdminSection } from "./adminTypes";
+import type { ClientSection } from "./clientTypes";
 
-type AdminWorkspaceShellProps = {
-  section: AdminSection;
+type ClientWorkspaceShellProps = {
+  section: ClientSection;
   title: string;
-  onSectionChange: (section: AdminSection) => void;
+  onSectionChange: (section: ClientSection) => void;
   onLogout: () => void;
   userLabel: string;
   sidebarOpen: boolean;
@@ -17,7 +26,7 @@ type AdminWorkspaceShellProps = {
   children: ReactNode;
 };
 
-export function AdminWorkspaceShell({
+export function ClientWorkspaceShell({
   section,
   title,
   onSectionChange,
@@ -26,24 +35,26 @@ export function AdminWorkspaceShell({
   sidebarOpen,
   onSidebarToggle,
   children,
-}: AdminWorkspaceShellProps) {
+}: ClientWorkspaceShellProps) {
   const navGroups = [
     {
-      label: "Visão geral",
+      label: "Minha conta",
       items: [
-        { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, description: "Resumo geral" },
-        { id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" },
-        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" },
+        { id: "resumo" as const, label: "Resumo", icon: LayoutGrid, description: "Visão geral" },
+        { id: "empresa" as const, label: "Empresa", icon: Building2, description: "Dados cadastrados" },
       ],
     },
     {
-      label: "Consultas",
-      items: [{ id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" }],
+      label: "Acesso e histórico",
+      items: [
+        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Acompanhamento" },
+        { id: "seguranca" as const, label: "Segurança", icon: ShieldCheck, description: "Sessão ativa" },
+      ],
     },
   ];
 
   const shellStyle = {
-    "--admin-sidebar-w": sidebarOpen ? "16rem" : "4.75rem",
+    "--client-sidebar-w": sidebarOpen ? "16rem" : "4.75rem",
   } as CSSProperties;
 
   const collapsed = !sidebarOpen;
@@ -67,7 +78,7 @@ export function AdminWorkspaceShell({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex h-screen w-[var(--admin-sidebar-w)] max-lg:w-72 shrink-0 flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-[0_24px_60px_rgba(16,24,40,0.14)] backdrop-blur transition-[width,transform] duration-300 ease-out",
+          "fixed inset-y-0 left-0 z-40 flex h-screen w-[var(--client-sidebar-w)] max-lg:w-72 shrink-0 flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-[0_24px_60px_rgba(16,24,40,0.14)] backdrop-blur transition-[width,transform] duration-300 ease-out",
           sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
         )}
       >
@@ -101,7 +112,7 @@ export function AdminWorkspaceShell({
                   {group.label}
                 </p>
               ) : null}
-              <div className={cn("space-y-1.5", collapsed && "space-y-2")}>
+              <div className={cn("space-y-1.5", collapsed && "space-y-2")}> 
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const active = section === item.id;
@@ -157,7 +168,7 @@ export function AdminWorkspaceShell({
             {!collapsed ? (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">{userLabel}</p>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Admin</p>
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Cliente</p>
               </div>
             ) : null}
             <ConfirmActionDialog
@@ -177,7 +188,7 @@ export function AdminWorkspaceShell({
                 </Button>
               }
               title="Sair da conta"
-              description="Deseja encerrar a sessão administrativa atual?"
+              description="Deseja encerrar a sessão do cliente atual?"
               confirmLabel="Sair"
               destructive
               onConfirm={onLogout}
@@ -186,7 +197,7 @@ export function AdminWorkspaceShell({
         </div>
       </aside>
 
-      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-300 lg:pl-[var(--admin-sidebar-w)]">
+      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-300 lg:pl-[var(--client-sidebar-w)]">
         <header className="h-[5rem] shrink-0 border-b border-border/70 bg-card/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
           <div className="flex h-full items-center justify-between gap-3 px-4 py-0 sm:px-6 lg:px-6">
             <div className="flex min-w-0 items-center gap-3">
@@ -206,7 +217,7 @@ export function AdminWorkspaceShell({
                   {title}
                 </h1>
                 <p className="mt-1 max-w-2xl text-[11px] text-muted-foreground sm:text-[12px]">
-                  Gerencie produtos, pedidos e clientes em uma interface mais leve.
+                  Confira seus dados, endereço e pedidos em um espaço só seu
                 </p>
               </div>
             </div>

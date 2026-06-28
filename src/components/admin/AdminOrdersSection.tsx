@@ -1,5 +1,6 @@
 ﻿import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import { AdminSectionHeader } from "./AdminSectionHeader";
@@ -46,7 +47,7 @@ export function AdminOrdersSection({
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
-                {ordersLoading ? "Carregando" : `${filteredOrders.length} pedido(s)`}
+                {filteredOrders.length} pedido(s)
               </Badge>
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
                 {pendingOrdersCount} em andamento
@@ -66,8 +67,21 @@ export function AdminOrdersSection({
       </div>
 
       {ordersLoading ? (
-        <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
-          Carregando pedidos...
+        <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 bg-background p-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="rounded-[1.25rem] border border-border/60 bg-card p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Skeleton className="h-5 w-28 rounded-full" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <div className="mt-4 grid gap-2 md:grid-cols-3">
+                <Skeleton className="h-14 rounded-2xl" />
+                <Skeleton className="h-14 rounded-2xl" />
+                <Skeleton className="h-14 rounded-2xl" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredOrders.length === 0 ? (
         <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">

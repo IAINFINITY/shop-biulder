@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { LockKeyhole, LogOut, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,6 +42,7 @@ import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection"
 import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import type {
   AdminCustomerSummary,
   AdminDashboardOrder,
@@ -50,6 +51,8 @@ import type {
   AdminProductFormState,
   AdminSection,
 } from "@/components/admin/adminTypes";
+
+const AUTH_FEEDBACK_MIN_MS = 700;
 
 function LoginField({
   id,
@@ -110,9 +113,14 @@ function LoginForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoginError(null);
+    const startedAt = Date.now();
     setLoading(true);
     const error = await onLogin(email, password);
     if (error) setLoginError(error.message || "Não foi possível autenticar.");
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < AUTH_FEEDBACK_MIN_MS) {
+      await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
+    }
     setLoading(false);
   };
 
@@ -200,6 +208,72 @@ function LoginForm({
   );
 }
 
+function ClientAccessNotice({
+  email,
+  onGoCatalog,
+  onLogout,
+}: {
+  email?: string | null;
+  onGoCatalog: () => void;
+  onLogout: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_12%,hsl(var(--primary)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_62%,hsl(var(--muted)/0.25)_100%)] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center">
+        <div className="w-full rounded-[2rem] border border-border/70 bg-card/95 p-6 shadow-[0_16px_40px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Acesso administrativo
+              </p>
+              <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] text-foreground">
+                Você está logado como cliente
+              </h1>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-[1.5rem] border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
+            {email
+              ? `Você está logado como ${email}. Para acessar o painel, entre com uma conta administrativa.`
+              : "Você está com uma sessão de cliente ativa. Para acessar o painel, entre com uma conta administrativa."}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoCatalog}>
+              Ir ao catálogo
+            </Button>
+            <ConfirmActionDialog
+              trigger={
+                <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm">
+                  <LogOut className="h-4 w-4" />
+                  Sair da conta
+                </Button>
+              }
+              title="Sair da conta"
+              description="Deseja encerrar a sessão atual? Você vai precisar entrar novamente para voltar ao painel."
+              confirmLabel="Sair"
+              destructive
+              onConfirm={onLogout}
+            />
+          </div>
+
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
+            <Link to="/conta" viewTransition className="text-muted-foreground transition-colors hover:text-foreground">
+              Ir para minha conta
+            </Link>
+            <span className="text-[12px] text-muted-foreground">
+              Se precisar do painel administrativo, use uma conta com role de admin.
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function isOrderLineSummary(value: unknown): value is AdminOrderSummaryLine {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
@@ -213,8 +287,9 @@ function summarizeOrderItems(items: unknown): AdminOrderSummaryLine[] {
 
 export default function AdminWorkspace() {
   const { user, isAdmin, loading, isResolvingAccess, signIn, signOut } = useAuth();
+  const navigate = useNavigate();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
-  const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin);
+  const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
   const { data: adminTypes = [] } = useAdminProductTypes();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<AdminProductFormState | null>(null);
@@ -336,7 +411,7 @@ export default function AdminWorkspace() {
       ? derivedTypes
       : getProductTypes();
 
-  if (loading || isResolvingAccess) {
+  if ((!user && loading) || (!user && isResolvingAccess)) {
     return (
       <AuthStatusScreen
         eyebrow="Painel administrativo"
@@ -352,13 +427,13 @@ export default function AdminWorkspace() {
 
   if (!isAdmin) {
     return (
-      <LoginForm
-        onLogin={signIn}
-        helperMessage={
-          user.email
-            ? `Você está logado como ${user.email}. Se quiser acessar o painel, entre com a conta administrativa.`
-            : "Você está com uma sessão ativa. Entre com a conta administrativa para acessar o painel."
-        }
+      <ClientAccessNotice
+        email={user.email}
+        onGoCatalog={() => navigate("/", { replace: true, viewTransition: true })}
+        onLogout={async () => {
+          await signOut();
+          navigate("/login", { replace: true, viewTransition: true });
+        }}
       />
     );
   }
@@ -518,8 +593,6 @@ export default function AdminWorkspace() {
   };
 
   const deleteOrder = async (id: string) => {
-    const shouldDelete = window.confirm("Deseja remover este pedido?");
-    if (!shouldDelete) return;
     const { error } = await supabase.from(ORDERS_TABLE).delete().eq("id", id);
     if (error) {
       toast.error(error.message);

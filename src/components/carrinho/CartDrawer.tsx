@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
 import { ImageIcon } from "lucide-react";
 import { getProductImageUrls } from "@/lib/products";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 
 function getCartImage(item: CartItem): string | null {
   return getProductImageUrls(item.product)[0] ?? item.product.image_url ?? null;
@@ -63,7 +64,7 @@ export function CartDrawer({
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
+      <SheetContent className="!flex w-full flex-col sm:max-w-md">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-primary" />
@@ -106,14 +107,18 @@ export function CartDrawer({
                             {item.product.type} · {item.product.family}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0 text-destructive"
-                          onClick={() => onRemove(item.product.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        <ConfirmActionDialog
+                          trigger={
+                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          }
+                          title="Remover item do carrinho"
+                          description={`Deseja remover "${item.product.name}" do carrinho?`}
+                          confirmLabel="Remover"
+                          destructive
+                          onConfirm={() => onRemove(item.product.id)}
+                        />
                       </div>
 
                       <div className="flex items-center justify-between gap-3">
@@ -177,9 +182,18 @@ export function CartDrawer({
                 <Send className="h-4 w-4" />
                 Finalizar pedido
               </Button>
-              <Button variant="ghost" size="sm" className="w-full gap-1 text-muted-foreground" onClick={onClear}>
-                <X className="h-3 w-3" /> Limpar carrinho
-              </Button>
+              <ConfirmActionDialog
+                trigger={
+                  <Button variant="ghost" size="sm" className="w-full gap-1 text-muted-foreground">
+                    <X className="h-3 w-3" /> Limpar carrinho
+                  </Button>
+                }
+                title="Limpar carrinho"
+                description="Deseja remover todos os itens do carrinho? Esta ação não pode ser desfeita."
+                confirmLabel="Limpar"
+                destructive
+                onConfirm={onClear}
+              />
             </div>
           </>
         )}

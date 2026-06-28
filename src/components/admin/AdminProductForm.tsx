@@ -1,4 +1,4 @@
-﻿import type { ChangeEvent, RefObject } from "react";
+import { type ChangeEvent, type RefObject } from "react";
 import { Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarouselEditor";
 import { normalizePriceInputDraft } from "@/lib/formatMoney";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ export function AdminProductForm({
   onSave,
   onCancel,
 }: AdminProductFormProps) {
+  const saveLabel = editing.id ? "Salvar alterações" : "Adicionar produto";
+
   return (
     <div
       className={cn(
@@ -158,17 +161,20 @@ export function AdminProductForm({
       {adminTypes.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {adminTypes.map((t) => (
-            <Button
+            <ConfirmActionDialog
               key={t.id}
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-8 gap-2 rounded-full px-3 text-[12px]"
-              onClick={() => onDeleteType(t.id)}
-            >
-              {t.name}
-              <X className="h-3 w-3" />
-            </Button>
+              trigger={
+                <Button type="button" variant="secondary" size="sm" className="h-8 gap-2 rounded-full px-3 text-[12px]">
+                  {t.name}
+                  <X className="h-3 w-3" />
+                </Button>
+              }
+              title="Remover tipo"
+              description={`Deseja remover o tipo "${t.name}"? Essa ação altera a organização do catálogo.`}
+              confirmLabel="Remover"
+              destructive
+              onConfirm={() => onDeleteType(t.id)}
+            />
           ))}
         </div>
       )}
@@ -189,10 +195,22 @@ export function AdminProductForm({
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button onClick={onSave} className="h-10 gap-2 rounded-2xl px-4 text-sm">
-          <Save className="h-4 w-4" />
-          Salvar
-        </Button>
+        <ConfirmActionDialog
+          trigger={
+            <Button type="button" className="h-10 gap-2 rounded-2xl px-4 text-sm">
+              <Save className="h-4 w-4" />
+              {saveLabel}
+            </Button>
+          }
+          title={editing.id ? "Salvar alterações" : "Adicionar produto"}
+          description={
+            editing.id
+              ? "Confirme para salvar as alterações desse produto no catálogo."
+              : "Confirme para adicionar esse novo produto ao catálogo."
+          }
+          confirmLabel={editing.id ? "Salvar" : "Adicionar"}
+          onConfirm={onSave}
+        />
         <Button onClick={onCancel} variant="outline" className="h-10 gap-2 rounded-2xl px-4 text-sm">
           <X className="h-4 w-4" />
           Cancelar

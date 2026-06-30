@@ -7,9 +7,9 @@ const TOAST_REMOVE_DELAY = 1000000;
 
 type ToasterToast = ToastProps & {
   id: string;
-  title?: React.ReactNode;
-  description?: React.ReactNode;
-  action?: ToastActionElement;
+  title: React.ReactNode;
+  description: React.ReactNode;
+  action: ToastActionElement;
 };
 
 const actionTypes = {
@@ -39,11 +39,11 @@ type Action =
     }
   | {
       type: ActionType["DISMISS_TOAST"];
-      toastId?: ToasterToast["id"];
+      toastId: ToasterToast["id"];
     }
   | {
       type: ActionType["REMOVE_TOAST"];
-      toastId?: ToasterToast["id"];
+      toastId: ToasterToast["id"];
     };
 
 interface State {
@@ -95,9 +95,9 @@ export const reducer = (state: State, action: Action): State => {
 
       return {
         ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
+          toasts: state.toasts.map((t) =>
+            t.id === toastId || toastId === undefined
+              ? {
                 ...t,
                 open: false,
               }
@@ -177,7 +177,7 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: (toastId: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
   };
 }
 

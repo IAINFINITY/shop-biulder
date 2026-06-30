@@ -21,7 +21,10 @@ function AppRoutes() {
   const location = useLocation();
 
   return (
-    <div data-native-view-transition={supportsViewTransitions ? "true" : "false"} className="page-shell">
+    <div
+      data-native-view-transition={supportsViewTransitions ? "true" : "false"}
+      className="page-shell"
+    >
       <Routes location={location}>
         <Route path="/" element={<Index />} />
         <Route path="/produto/:id" element={<ProductDetails />} />

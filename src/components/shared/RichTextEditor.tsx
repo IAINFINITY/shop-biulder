@@ -31,7 +31,7 @@ import { FontSize, TextStyle, FONT_SIZE_OPTIONS } from "@/lib/richText";
 type RichTextEditorProps = {
   value: string;
   onChange: (html: string) => void;
-  placeholder?: string;
+  placeholder: string;
   className?: string;
 };
 

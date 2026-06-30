@@ -2,8 +2,8 @@ import clinicMaisLogo from "@/assets/clinicmais-logo.png";
 import { cn } from "@/lib/utils";
 
 type ClinicPlusLogoProps = {
-  className?: string;
-  alt?: string;
+  className: string;
+  alt: string;
 };
 
 export function ClinicPlusLogo({

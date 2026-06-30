@@ -1,4 +1,4 @@
-﻿import DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 import { Extension } from "@tiptap/core";
 import { TextStyle } from "@tiptap/extension-text-style";
 
@@ -22,7 +22,7 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_ATTR = ["style"];
 const LEGACY_DESCRIPTION_LABELS = new Set(["descricao", "conteudo", "cod", "codigo"]);
-const LEGACY_BULLET_LINE_RE = /^(?:[-*•–]+|\d+[.)])\s+/;
+const LEGACY_BULLET_LINE_RE = /^(?::?[-*•]+|\d+[.)])\s+/;
 
 function normalizeLegacyKey(value: string): string {
   return value
@@ -104,7 +104,7 @@ export function splitLegacyDescriptionBlocks(text: string): LegacyDescriptionBlo
 
   if (blocks.length === 1 && blocks[0].type === "paragraph") {
     const sentences =
-      blocks[0].text.match(/[^.!?]+[.!?]*(?:\s+|$)/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
+      blocks[0].text.match(/[^.!]+[.!]*(:\s+|$)/g).map((part) => part.trim()).filter(Boolean) ?? [];
     if (sentences.length > 1 && blocks[0].text.length >= 140) {
       return sentences.map((text) => ({ type: "paragraph", text }));
     }
@@ -137,7 +137,7 @@ export function extractDescriptionBlocks(content: string): LegacyDescriptionBloc
 
     if (tag === "ul" || tag === "ol") {
       const items = Array.from(node.querySelectorAll("li"))
-        .map((li) => li.textContent?.trim() ?? "")
+        .map((li) => li.textContent.trim() ?? "")
         .filter(Boolean);
       if (items.length > 0) blocks.push({ type: "list", items });
       continue;
@@ -157,7 +157,7 @@ export function extractDescriptionBlocks(content: string): LegacyDescriptionBloc
 
   if (blocks.length === 1 && blocks[0].type === "paragraph") {
     const sentences =
-      blocks[0].text.match(/[^.!?]+[.!?]*(?:\s+|$)/g)?.map((part) => part.trim()).filter(Boolean) ?? [];
+      blocks[0].text.match(/[^.!]+[.!]*(:\s+|$)/g).map((part) => part.trim()).filter(Boolean) ?? [];
     if (sentences.length > 1 && blocks[0].text.length >= 140) {
       return sentences.map((text) => ({ type: "paragraph", text }));
     }

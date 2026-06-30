@@ -16,7 +16,7 @@ type ConfirmActionDialogProps = {
   trigger: ReactElement;
   title: string;
   description: ReactNode;
-  confirmLabel?: string;
+  confirmLabel: string;
   cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void | Promise<void>;
@@ -69,8 +69,7 @@ export function ConfirmActionDialog({
             onClick={handleConfirm}
             className={cn(
               "mt-0 rounded-2xl px-4 text-sm",
-              destructive
-                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 : "bg-primary text-primary-foreground hover:bg-primary/90",
             )}
             disabled={pending}

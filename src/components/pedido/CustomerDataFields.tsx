@@ -16,14 +16,14 @@ export type CustomerFormData = {
   phone: string;
   company: string;
   cnpj: string;
-  customer_type?: CustomerType;
+  customer_type: CustomerType;
 };
 
 type CustomerDataFieldsProps = {
   form: CustomerFormData;
   onChange: (patch: Partial<CustomerFormData>) => void;
-  onCnpjBlur?: () => void;
-  cnpjValidation?: {
+  onCnpjBlur: () => void;
+  cnpjValidation: {
     shouldShowCnpjError: boolean;
     isCnpjIncomplete: boolean;
     isCnpjInvalid: boolean;
@@ -32,7 +32,7 @@ type CustomerDataFieldsProps = {
     status: CnpjValidationStatus;
   };
   idPrefix?: string;
-  showCustomerType?: boolean;
+  showCustomerType: boolean;
 };
 
 export function CustomerDataFields({
@@ -44,7 +44,7 @@ export function CustomerDataFields({
   showCustomerType = false,
 }: CustomerDataFieldsProps) {
   const id = (field: string) => (idPrefix ? `${idPrefix}-${field}` : field);
-  const show = cnpjValidation?.shouldShowCnpjError ?? false;
+  const show = cnpjValidation.shouldShowCnpjError ?? false;
   const customerType = normalizeCustomerType(form.customer_type ?? DEFAULT_CUSTOMER_TYPE);
 
   return (
@@ -123,33 +123,32 @@ export function CustomerDataFields({
           maxLength={18}
           aria-invalid={
             show &&
-            (cnpjValidation?.isCnpjIncomplete ||
-              cnpjValidation?.isCnpjInvalid ||
-              cnpjValidation?.isCnpjError)
+            (cnpjValidation.isCnpjIncomplete ||
+              cnpjValidation.isCnpjInvalid ||
+              cnpjValidation.isCnpjError)
           }
           className={
             show &&
-            (cnpjValidation?.isCnpjIncomplete ||
-              cnpjValidation?.isCnpjInvalid ||
-              cnpjValidation?.isCnpjError)
-              ? "border-destructive focus-visible:ring-destructive"
+            (cnpjValidation.isCnpjIncomplete ||
+              cnpjValidation.isCnpjInvalid ||
+              cnpjValidation.isCnpjError) ? "border-destructive focus-visible:ring-destructive"
               : undefined
           }
           required
         />
 
-        {show && cnpjValidation?.isCnpjIncomplete && (
+        {show && cnpjValidation.isCnpjIncomplete && (
           <p className="text-xs text-destructive">CNPJ incompleto. Preencha 14 dígitos.</p>
         )}
-        {show && cnpjValidation?.isCnpjInvalid && (
+        {show && cnpjValidation.isCnpjInvalid && (
           <p className="text-xs text-destructive">CNPJ inválido. Verifique o número informado.</p>
         )}
-        {show && cnpjValidation?.isCnpjError && (
+        {show && cnpjValidation.isCnpjError && (
           <p className="text-xs text-destructive">
             Não foi possível validar o CNPJ agora. Tente novamente.
           </p>
         )}
-        {show && cnpjValidation?.isCnpjChecking && (
+        {show && cnpjValidation.isCnpjChecking && (
           <p className="text-xs text-muted-foreground">Validando CNPJ...</p>
         )}
       </div>

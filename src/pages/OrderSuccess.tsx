@@ -8,11 +8,11 @@ import { formatBRL } from "@/lib/formatMoney";
 import type { SubmittedCartLine } from "@/lib/orders";
 
 type OrderSuccessState = {
-  customerName?: string;
-  company?: string;
-  totalItems?: number;
-  submittedCart?: SubmittedCartLine[];
-  orderSubtotal?: number;
+  customerName: string;
+  company: string;
+  totalItems: number;
+  submittedCart: SubmittedCartLine[];
+  orderSubtotal: number;
 };
 
 export default function OrderSuccess() {
@@ -127,7 +127,7 @@ export default function OrderSuccess() {
                     <p className="mt-1 text-sm font-medium text-foreground tabular-nums">
                       {formatBRL(line.unit_price)} × {line.quantity} = {formatBRL(line.line_total)}
                     </p>
-                    {line.notes?.trim() && (
+                    {line.notes.trim() && (
                       <div className="mt-2 rounded-md bg-muted/50 p-2">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Observacoes

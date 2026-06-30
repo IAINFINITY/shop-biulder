@@ -21,9 +21,9 @@ const typeColors: Record<string, string> = {
 
 export type CatalogProductCardProps = {
   product: Product;
-  price?: number;
+  price: number;
   onAdd: (product: Product) => void;
-  inCart?: boolean;
+  inCart: boolean;
 };
 
 export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogProductCardProps) {

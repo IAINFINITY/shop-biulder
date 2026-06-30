@@ -53,9 +53,12 @@ const typeColors: Record<string, string> = {
 export default function ProductDetails() {
   const { id } = useParams();
   const { customerProfile } = useAuth();
+  const customerType = customerProfile?.customer_type ?? null;
+  const customerTprId = customerProfile?.proxis_tpr_id ?? null;
   const { data: allProducts = [] } = useProducts();
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
-    customerProfile?.customer_type,
+    customerType,
+    customerTprId,
   );
   const storageCachedProduct = useMemo(() => (id ? readCachedProductFromStorage(id) : null), [id]);
   const cachedProduct = useMemo(
@@ -135,7 +138,7 @@ export default function ProductDetails() {
 
   useEffect(() => {
     setSelectedImageIndex(0);
-  }, [product?.id]);
+  }, [product.id]);
 
   useEffect(() => {
     if (!selectedImage) return;
@@ -198,8 +201,8 @@ export default function ProductDetails() {
     (event: ReactMouseEvent<HTMLDivElement>) => {
       if (!selectedImage) return;
 
-      const frameRect = imageFrameRef.current?.getBoundingClientRect();
-      const imageRect = productImageRef.current?.getBoundingClientRect();
+      const frameRect = imageFrameRef.current.getBoundingClientRect();
+      const imageRect = productImageRef.current.getBoundingClientRect();
       if (!frameRect || !imageRect || imageRect.width === 0 || imageRect.height === 0) return;
 
       pendingPointerRef.current = {
@@ -343,12 +346,12 @@ export default function ProductDetails() {
   }
 
   const Icon = typeIcons[product.type] || Leaf;
-  const hasDescription = Boolean(product.description?.trim());
+  const hasDescription = Boolean(product.description.trim());
 
   return (
-    <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
-      <PageHeaderShell>
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+      <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
+        <PageHeaderShell>
+          <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <Link to="/" viewTransition>
               <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full border border-border bg-background shadow-sm">
@@ -411,7 +414,7 @@ export default function ProductDetails() {
                     onMouseLeave={() => setIsImageHovered(false)}
                     onMouseMove={handleImageMove}
                   >
-                    {selectedImage ? (
+                  {selectedImage ? (
                       <img
                         ref={productImageRef}
                         src={selectedImage}
@@ -468,7 +471,7 @@ export default function ProductDetails() {
                         index === selectedImageIndex
                           ? "border-primary ring-2 ring-primary/20"
                           : "border-border/70"
-                      }`}
+                        }`}
                       aria-label={`Ver imagem ${index + 1}`}
                     >
                       <img src={src} alt="" className="h-full w-full rounded-md object-contain" />

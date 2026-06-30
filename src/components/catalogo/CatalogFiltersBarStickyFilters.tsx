@@ -156,8 +156,7 @@ export function CatalogFiltersBarV2({
                     onClick={() => onTypeChange(active ? null : type)}
                     className={cn(
                       "inline-flex h-9 shrink-0 items-center rounded-full border px-3 text-xs font-medium transition-colors sm:h-10 sm:px-4 sm:text-[0.9375rem]",
-                      active
-                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      active ? "border-primary bg-primary text-primary-foreground shadow-sm"
                         : "border-border/70 bg-background text-foreground/80 hover:border-primary/30 hover:bg-muted/40",
                     )}
                   >

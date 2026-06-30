@@ -3,8 +3,8 @@ import { Handshake } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type CatalogOrderNoticeProps = {
-  variant?: "banner" | "compact";
-  className?: string;
+  variant: "banner" | "compact";
+  className: string;
 };
 
 function Highlight({ children }: { children: ReactNode }) {

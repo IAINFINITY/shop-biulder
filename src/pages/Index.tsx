@@ -58,8 +58,11 @@ function saveCatalogViewState(state: CatalogViewState) {
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
   const { customerProfile } = useAuth();
+  const customerType = customerProfile?.customer_type ?? null;
+  const customerTprId = customerProfile?.proxis_tpr_id ?? null;
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
-    customerProfile?.customer_type,
+    customerType,
+    customerTprId,
   );
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -170,7 +173,7 @@ export default function Index() {
     return filtered
       .map((product) => {
         const normalizedName = product.name.toLowerCase();
-        const normalizedCode = product.product_code?.toLowerCase() ?? "";
+        const normalizedCode = product.product_code.toLowerCase() ?? "";
         const nameStarts = normalizedName.startsWith(query) ? 3 : 0;
         const nameContains = normalizedName.includes(query) ? 2 : 0;
         const codeMatches = normalizedCode.includes(query) ? 2 : 0;
@@ -237,7 +240,7 @@ export default function Index() {
     setSelectedType(null);
     setSelectedFamily(null);
     setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
-    catalogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    catalogRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   return (

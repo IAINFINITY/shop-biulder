@@ -1,4 +1,4 @@
-﻿import { Minus, Plus, Trash2, ShoppingBag, Send, X } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, Send, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CartItem } from "@/lib/products";
 import { resolveProductPrice } from "@/lib/pricing";
@@ -21,9 +21,9 @@ interface CartDrawerProps {
   onUpdateQuantity: (productId: string, delta: number) => void;
   onRemove: (productId: string) => void;
   onClear: () => void;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  resolveUnitPrice?: (product: CartItem["product"]) => number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  resolveUnitPrice: (product: CartItem["product"]) => number;
 }
 
 export function CartDrawer({
@@ -47,7 +47,7 @@ export function CartDrawer({
       toast.info("Carrinho vazio");
       return;
     }
-    onOpenChange?.(false);
+      onOpenChange(false);
     navigate("/pedido", { viewTransition: true });
   };
 
@@ -114,7 +114,7 @@ export function CartDrawer({
                             </Button>
                           }
                           title="Remover item do carrinho"
-                          description={`Deseja remover "${item.product.name}" do carrinho?`}
+                          description={`Deseja remover "${item.product.name}" do carrinho`}
                           confirmLabel="Remover"
                           destructive
                           onConfirm={() => onRemove(item.product.id)}

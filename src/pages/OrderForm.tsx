@@ -17,7 +17,7 @@ import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
-import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
+import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, resolveProductPrice } from "@/lib/pricing";
 
 function getCartImage(item: CartItem): string | null {
   return getProductImageUrls(item.product)[0] ?? item.product.image_url ?? null;
@@ -26,8 +26,11 @@ function getCartImage(item: CartItem): string | null {
 export default function OrderForm() {
   const navigate = useNavigate();
   const { customerProfile } = useAuth();
+  const customerType = customerProfile?.customer_type ?? null;
+  const customerTprId = customerProfile?.proxis_tpr_id ?? null;
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
-    customerProfile?.customer_type,
+    customerType,
+    customerTprId,
   );
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +40,7 @@ export default function OrderForm() {
     phone: "",
     company: "",
     cnpj: "",
+    customer_type: DEFAULT_CUSTOMER_TYPE,
   });
   const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -49,7 +53,7 @@ export default function OrderForm() {
     [cart, customerPriceMap],
   );
   const scrollToSummary = useCallback(() => {
-    summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,11 +94,11 @@ export default function OrderForm() {
       status: "NOVO CARRINHO",
     };
 
-    const { error } = await supabase.from(ORDERS_TABLE).insert(payload);
+    const { error } = await supabase.from(ORDERS_TABLE).insert(payload as any);
 
     if (error) {
       console.error("Erro ao inserir pedido no Supabase", { error, payload });
-      const lowerMessage = error.message?.toLowerCase() ?? "";
+      const lowerMessage = error.message.toLowerCase() ?? "";
       const isRlsError = lowerMessage.includes("row-level security");
       toast.error(
         isRlsError
@@ -105,14 +109,14 @@ export default function OrderForm() {
       return;
     }
 
-    try {
-      const proxisItems = orderItems.map((row) => ({
-        product_code: row.product_code || "",
-        quantity: row.quantity,
-        unit_price: row.unit_price,
-        name: row.name,
-      }));
+    const proxisItems = orderItems.map((row) => ({
+      product_code: row.product_code || "",
+      quantity: row.quantity,
+      unit_price: row.unit_price,
+      name: row.name,
+    }));
 
+    try {
       const proxisRes = await fetch("/api/proxis-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,6 +138,42 @@ export default function OrderForm() {
       }
     } catch (err) {
       console.warn("Falha ao enviar pedido para Proxis ERP", err);
+    }
+
+    try {
+      const bitrixRes = await fetch("/api/bitrix-deal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: form.name.trim(),
+          customer_company: form.company.trim(),
+          customer_cnpj: form.cnpj.trim(),
+          customer_phone: form.phone.trim(),
+          address: {
+            cep: addressForm.cep,
+            street: addressForm.street,
+            number: addressForm.number,
+            complement: addressForm.complement,
+            neighborhood: addressForm.neighborhood,
+            city: addressForm.city,
+            state: addressForm.state,
+          },
+          items: proxisItems,
+          total_amount: orderSubtotal,
+          source: "clinicplus-b2b",
+          note: "Pedido enviado a partir do carrinho do catalogo.",
+        }),
+      });
+
+      if (!bitrixRes.ok) {
+        const errBody = await bitrixRes.json().catch(() => ({}));
+        console.warn("Bitrix CRM retornou erro", { status: bitrixRes.status, errBody });
+      } else {
+        const bitrixData = await bitrixRes.json().catch(() => null);
+        console.info("Pedido enviado ao Bitrix CRM", bitrixData);
+      }
+    } catch (err) {
+      console.warn("Falha ao enviar pedido para Bitrix CRM", err);
     }
 
     const submittedCart: SubmittedCartLine[] = cart.map((item) => {
@@ -199,7 +239,7 @@ export default function OrderForm() {
   };
 
   return (
-    <div className={`min-h-screen bg-background${cart.length > 0 ? " pb-28" : ""}`}>
+      <div className={`min-h-screen bg-background${cart.length > 0 ? " pb-28" : ""}`}>
       <PageHeaderShell>
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -348,7 +388,7 @@ export default function OrderForm() {
                       >
                         <div className="flex gap-4">
                           <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/30">
-                            {imageUrl ? (
+                             {imageUrl ? (
                               <img src={imageUrl} alt={item.product.name} className="h-full w-full object-contain p-2" />
                             ) : (
                               <ImageIcon className="h-8 w-8 text-muted-foreground/35" />
@@ -382,7 +422,7 @@ export default function OrderForm() {
                               <span className="font-semibold text-foreground tabular-nums">{formatBRL(line)}</span>
                             </div>
 
-                            {item.notes?.trim() && (
+                            {item.notes.trim() && (
                               <div className="rounded-xl bg-muted/50 p-3">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Observações

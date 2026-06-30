@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import heroGummiesBanner from "@/assets/hero-gummies-banner.png";
 import heroVitaminsBanner from "@/assets/hero-vitamins-banner.png";
 import {
@@ -131,7 +131,7 @@ export function StoreHeroBanner() {
                 aria-selected={activeIndex === index}
                 aria-label={`Ir para slide ${index + 1}`}
                 onClick={() => {
-                  api?.scrollTo(index);
+                  api.scrollTo(index);
                   scheduleAutoplay();
                 }}
                 className={cn(

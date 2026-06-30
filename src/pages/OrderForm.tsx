@@ -13,6 +13,7 @@ import { CartItem, getCart, getProductImageUrls, saveCart } from "@/lib/products
 import { formatBRL } from "@/lib/formatMoney";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
+import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,7 +26,7 @@ function getCartImage(item: CartItem): string | null {
 
 export default function OrderForm() {
   const navigate = useNavigate();
-  const { customerProfile } = useAuth();
+  const { user, customerProfile, loading, isResolvingAccess } = useAuth();
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
@@ -55,6 +56,38 @@ export default function OrderForm() {
   const scrollToSummary = useCallback(() => {
     summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  if (loading || isResolvingAccess) {
+    return (
+      <AuthStatusScreen
+        eyebrow="Checkout"
+        title="Abrindo o pedido"
+        description="Estamos preparando sua sessão para continuar com a finalização do carrinho."
+      />
+    );
+  }
+
+  if (!user) {
+    return (
+      <AuthStatusScreen
+        eyebrow="Checkout"
+        title="Acesso ao pedido necessário"
+        description="Para finalizar seu pedido, entre com sua conta e volte ao carrinho. Assim mantemos seus dados e preços vinculados corretamente."
+        actions={
+          <>
+            <Link to="/login" viewTransition>
+              <Button className="rounded-full px-5">Entrar</Button>
+            </Link>
+            <Link to="/" viewTransition>
+              <Button variant="outline" className="rounded-full px-5">
+                Voltar ao catálogo
+              </Button>
+            </Link>
+          </>
+        }
+      />
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +127,7 @@ export default function OrderForm() {
       status: "NOVO CARRINHO",
     };
 
-    const { error } = await supabase.from(ORDERS_TABLE).insert(payload as any);
+    const { error } = await supabase.from(ORDERS_TABLE).insert(payload as never);
 
     if (error) {
       console.error("Erro ao inserir pedido no Supabase", { error, payload });

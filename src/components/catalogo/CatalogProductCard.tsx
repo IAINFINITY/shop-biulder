@@ -53,14 +53,17 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
         )}
 
         <div className="flex flex-1 flex-col px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
-          <div className="mb-2 flex items-center gap-2">
-            <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
-              <Icon className="mr-1 h-3 w-3" />
-              {product.type}
-            </Badge>
-            <Badge variant="secondary" className="shrink-0 text-xs">
-              {product.family}
-            </Badge>
+          <div className="mb-2 space-y-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Tipo</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
+                <Icon className="mr-1 h-3 w-3" />
+                {product.type}
+              </Badge>
+              <Badge variant="secondary" className="shrink-0 text-xs">
+                {product.family}
+              </Badge>
+            </div>
           </div>
 
           <h3 className="line-clamp-2 min-h-[3.25rem] text-base font-semibold leading-tight text-card-foreground sm:text-[1.05rem]">

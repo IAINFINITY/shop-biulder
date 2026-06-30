@@ -1,14 +1,17 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { CatalogFiltersBarV2 } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
+import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
 import { Product, CartItem, getCart, getProductImageUrls, saveCart } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
 import { useProducts } from "@/hooks/useProducts";
+import { useOrders } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
@@ -58,6 +61,7 @@ function saveCatalogViewState(state: CatalogViewState) {
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
   const { customerProfile } = useAuth();
+  const { data: orderHistory = [] } = useOrders(Boolean(customerProfile), "catalog");
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
@@ -111,8 +115,25 @@ export default function Index() {
     };
   }, [search, selectedType, selectedFamily, visibleProducts]);
 
-  const categoryTypes = useMemo(() => [...new Set(products.map((p) => p.type))].sort(), [products]);
   const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
+  const familyTypesByFamily = useMemo(() => {
+    const grouped = new Map<string, Map<string, number>>();
+
+    for (const product of products) {
+      if (!grouped.has(product.family)) grouped.set(product.family, new Map());
+      const familyTypes = grouped.get(product.family)!;
+      familyTypes.set(product.type, (familyTypes.get(product.type) ?? 0) + 1);
+    }
+
+    return new Map(
+      [...grouped.entries()].map(([family, typeMap]) => [
+        family,
+        [...typeMap.entries()]
+          .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "pt-BR"))
+          .map(([type]) => type),
+      ]),
+    );
+  }, [products]);
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const product of products) {
@@ -144,6 +165,27 @@ export default function Index() {
   }, [products, search, selectedType, selectedFamily]);
 
   const visibleFiltered = useMemo(() => filtered.slice(0, visibleProducts), [filtered, visibleProducts]);
+  const orderPopularity = useMemo(() => {
+    const quantityCounts = new Map<string, number>();
+    const orderCounts = new Map<string, number>();
+
+    for (const order of orderHistory) {
+      const seenInOrder = new Set<string>();
+
+      for (const item of order.items) {
+        const productId = typeof item.product_id === "string" ? item.product_id.trim() : "";
+        if (!productId) continue;
+
+        quantityCounts.set(productId, (quantityCounts.get(productId) ?? 0) + Math.max(1, item.quantity));
+        if (!seenInOrder.has(productId)) {
+          orderCounts.set(productId, (orderCounts.get(productId) ?? 0) + 1);
+          seenInOrder.add(productId);
+        }
+      }
+    }
+
+    return { quantityCounts, orderCounts };
+  }, [orderHistory]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -243,6 +285,73 @@ export default function Index() {
     catalogRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  const catalogThemeSections = useMemo(() => {
+    if (filtered.length === 0) return [];
+
+    const baseProducts = [...filtered];
+    const byPriceAscending = [...baseProducts].sort((left, right) => resolveProductPrice(left, customerPriceMap) - resolveProductPrice(right, customerPriceMap) || new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
+    const withPopularSignal = [...baseProducts].sort((left, right) => {
+      const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
+      const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
+      const leftOrders = orderPopularity.orderCounts.get(left.id) ?? 0;
+      const rightOrders = orderPopularity.orderCounts.get(right.id) ?? 0;
+      const leftFallback = familyCounts.get(left.family) ?? 0;
+      const rightFallback = familyCounts.get(right.family) ?? 0;
+
+      return rightQty - leftQty || rightOrders - leftOrders || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
+    });
+
+    const withMostRequests = [...baseProducts].sort((left, right) => {
+      const leftOrders = orderPopularity.orderCounts.get(left.id) ?? 0;
+      const rightOrders = orderPopularity.orderCounts.get(right.id) ?? 0;
+      const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
+      const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
+      const leftFallback = familyCounts.get(left.family) ?? 0;
+      const rightFallback = familyCounts.get(right.family) ?? 0;
+
+      return rightOrders - leftOrders || rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
+    });
+
+    const hasPersonalHistory = orderHistory.length > 0;
+    const promoDescription = "Escolha opções com preço mais leve e aproveite as ofertas com rapidez.";
+    const requestedDescription = hasPersonalHistory
+      ? "Produtos que você costuma pedir com mais frequência, para repetir sua compra sem perder tempo."
+      : "Produtos em destaque para facilitar sua navegação e encontrar o que combina com sua rotina.";
+    const soldDescription = hasPersonalHistory
+      ? "Os produtos mais recorrentes no seu histórico, organizados para consulta rápida."
+      : "Produtos mais procurados para ajudar você a descobrir o catálogo com facilidade.";
+
+    return [
+      {
+        id: "promocoes",
+        eyebrow: "Oferta inteligente",
+        title: "Promoções",
+        description: promoDescription,
+        highlightLabel: "Promoção",
+        highlightTone: "destructive",
+        products: byPriceAscending.slice(0, 8),
+      },
+      {
+        id: "mais-pedidos",
+        eyebrow: hasPersonalHistory ? "Seu histórico" : "Curadoria",
+        title: "Mais pedidos",
+        description: requestedDescription,
+        highlightLabel: "Mais pedido",
+        highlightTone: "primary",
+        products: withMostRequests.slice(0, 8),
+      },
+      {
+        id: "mais-vendidos",
+        eyebrow: hasPersonalHistory ? "Seu histórico" : "Destaques",
+        title: "Mais vendidos",
+        description: soldDescription,
+        highlightLabel: "Mais vendido",
+        highlightTone: "success",
+        products: withPopularSignal.slice(0, 8),
+      },
+    ];
+  }, [customerPriceMap, familyCounts, filtered, orderHistory, orderPopularity]);
+
   return (
     <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
       <StoreHeader
@@ -270,8 +379,8 @@ export default function Index() {
         className="container mx-auto max-w-[1400px] px-4 py-6 scroll-mt-[calc(var(--page-header-shell-height,88px)+var(--catalog-filters-bar-height,132px)+1.5rem)]"
       >
         <CatalogFiltersBarV2
-          categoryTypes={categoryTypes}
           categoryFamilies={categoryFamilies}
+          familyTypesByFamily={familyTypesByFamily}
           typeCounts={typeCounts}
           familyCounts={familyCounts}
           resultCount={filtered.length}
@@ -284,6 +393,31 @@ export default function Index() {
           onFamilyChange={setSelectedFamily}
           onShowAllProducts={showAllProducts}
         />
+
+        <CatalogThemeSections
+          sections={catalogThemeSections}
+          resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+          onAdd={addToCart}
+          inCartIds={cartIds}
+        />
+
+        <div className="mt-10 border-t border-border/70 pt-6">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Catálogo completo
+              </p>
+              <h2 className="text-xl font-black tracking-[-0.04em] text-foreground sm:text-2xl">
+                Navegue pelos demais produtos
+              </h2>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                A vitrine principal continua abaixo, organizada pela busca e pelos filtros ativos.
+              </p>
+            </div>
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+              {filtered.length} item(ns)
+            </Badge>
+          </div>
 
         {isLoading ? (
           <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -331,6 +465,7 @@ export default function Index() {
             ) : null}
           </div>
         )}
+        </div>
       </div>
 
       <CartTotalBar

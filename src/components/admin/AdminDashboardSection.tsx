@@ -169,10 +169,15 @@ export function AdminDashboardSection({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium text-foreground">{product.name}</p>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    {product.type} · {product.family}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+                      {product.type}
+                    </Badge>
+                    <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">
+                      {product.family}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 truncate text-[15px] font-medium text-foreground">{product.name}</p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="font-mono text-[13px] text-foreground">{formatBRL(coercePrice(product.price))}</p>

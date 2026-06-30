@@ -45,6 +45,7 @@ import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
+import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import type {
   AdminCustomerSummary,
@@ -371,10 +372,12 @@ export default function AdminWorkspace() {
     const customers = new Map<
       string,
       {
+        userId: string | null;
         name: string;
         company: string | null | undefined;
         phone: string | null | undefined;
         cnpj: string | null | undefined;
+        customerType: AdminCustomerSummary["customerType"];
         total: number;
         orders: number;
       }
@@ -383,10 +386,12 @@ export default function AdminWorkspace() {
     for (const profile of customerProfiles) {
       const key = onlyDigits(profile.cnpj) || profile.user_id;
       customers.set(key, {
+        userId: profile.user_id,
         name: profile.name,
         company: profile.company,
         phone: profile.phone,
         cnpj: profile.cnpj,
+        customerType: normalizeCustomerType(profile.customer_type),
         total: 0,
         orders: 0,
       });
@@ -399,10 +404,12 @@ export default function AdminWorkspace() {
 
       if (!current) {
         customers.set(key, {
+          userId: null,
           name: order.customer_name,
           company: order.customer_company,
           phone: order.customer_phone,
           cnpj: order.customer_cnpj,
+          customerType: null,
           total: orderTotal,
           orders: 1,
         });
@@ -455,7 +462,7 @@ export default function AdminWorkspace() {
   const sectionTitle: Record<AdminSection, string> = {
     dashboard: "Dashboard",
     produtos: "Produtos",
-    precos: "Pre?os",
+    precos: "Preços",
     pedidos: "Pedidos",
     clientes: "Clientes",
   };
@@ -499,6 +506,22 @@ export default function AdminWorkspace() {
   };
   const refreshTypes = () => queryClient.invalidateQueries({ queryKey: ["product-types"] });
   const refreshOrders = () => queryClient.invalidateQueries({ queryKey: ["orders"] });
+  const updateCustomerType = async (userId: string, customerType: CustomerType) => {
+    const normalizedType = normalizeCustomerType(customerType);
+    const { error } = await supabase
+      .from(CUSTOMER_PROFILES_TABLE)
+      .update({ customer_type: normalizedType })
+      .eq("user_id", userId);
+
+    if (!error) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] }),
+        queryClient.invalidateQueries({ queryKey: ["customer-pricing"] }),
+      ]);
+    }
+
+    return error;
+  };
 
   const startNew = () => {
     setEditing({
@@ -577,8 +600,8 @@ export default function AdminWorkspace() {
     });
 
     const persist = async (body: typeof withGallery | typeof legacyOnly) => {
-      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(body as any);
-      return supabase.from(PRODUCTS_TABLE).update(body as any).eq("id", editing.id!);
+      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(body as never);
+      return supabase.from(PRODUCTS_TABLE).update(body as never).eq("id", editing.id!);
     };
 
     const imageCount = editing.image_urls.filter((u) => u.trim() !== "").length;
@@ -608,7 +631,7 @@ export default function AdminWorkspace() {
   };
 
   const toggleActive = async (id: string, active: boolean) => {
-    const { error } = await supabase.from(PRODUCTS_TABLE).update({ active: !active } as any).eq("id", id);
+    const { error } = await supabase.from(PRODUCTS_TABLE).update({ active: !active } as never).eq("id", id);
     if (error) {
       toast.error(error.message);
       return;
@@ -630,7 +653,7 @@ export default function AdminWorkspace() {
   const addType = async () => {
     const name = newType.trim();
     if (!name) return;
-    const { error } = await supabase.from(PRODUCT_TYPES_TABLE).insert({ name } as any);
+    const { error } = await supabase.from(PRODUCT_TYPES_TABLE).insert({ name } as never);
     if (error) {
       toast.error(error.message);
       return;
@@ -770,6 +793,7 @@ export default function AdminWorkspace() {
           onClientSearchChange={setClientSearch}
           clientFilter={clientFilter}
           onClientFilterChange={setClientFilter}
+          onUpdateCustomerType={updateCustomerType}
         />
       )}
     </AdminWorkspaceShell>

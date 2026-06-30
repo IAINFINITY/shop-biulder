@@ -1,8 +1,26 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 import { formatBRL } from "@/lib/formatMoney";
+import { CUSTOMER_TYPE_LABELS, CUSTOMER_TYPES, type CustomerType } from "@/lib/pricing";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminCustomerSummary } from "./adminTypes";
 
@@ -12,6 +30,7 @@ type AdminClientsSectionProps = {
   onClientSearchChange: (value: string) => void;
   clientFilter: "all" | "orders" | "revenue";
   onClientFilterChange: (value: "all" | "orders" | "revenue") => void;
+  onUpdateCustomerType: (userId: string, customerType: CustomerType) => Promise<Error | null>;
 };
 
 export function AdminClientsSection({
@@ -20,7 +39,13 @@ export function AdminClientsSection({
   onClientSearchChange,
   clientFilter,
   onClientFilterChange,
+  onUpdateCustomerType,
 }: AdminClientsSectionProps) {
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomerSummary | null>(null);
+  const [draftType, setDraftType] = useState<CustomerType>("cliente");
+  const [saving, setSaving] = useState(false);
+
   const filteredCustomers = useMemo(() => {
     const term = clientSearch.trim().toLowerCase();
     const searched = customerSummaries.filter((customer) => {
@@ -36,6 +61,46 @@ export function AdminClientsSection({
       return a.name.localeCompare(b.name, "pt-BR");
     });
   }, [clientFilter, clientSearch, customerSummaries]);
+
+  useEffect(() => {
+    setDraftType(selectedCustomer?.customerType ?? "cliente");
+  }, [selectedCustomer]);
+
+  const openEditor = (customer: AdminCustomerSummary) => {
+    if (!customer.userId) return;
+    setSelectedCustomer(customer);
+    setDraftType(customer.customerType ?? "cliente");
+    setEditorOpen(true);
+  };
+
+  const closeEditor = () => {
+    if (saving) return;
+    setEditorOpen(false);
+  };
+
+  const saveCustomerType = async () => {
+    if (!selectedCustomer?.userId) return;
+
+    setSaving(true);
+    const error = await onUpdateCustomerType(selectedCustomer.userId, draftType);
+    setSaving(false);
+
+    if (error) {
+      toast.error(error.message || "Não foi possível atualizar o tipo do cliente.");
+      return;
+    }
+
+    toast.success("Tipo de cliente atualizado.");
+    setEditorOpen(false);
+  };
+
+  useEffect(() => {
+    if (!editorOpen) {
+      setSelectedCustomer(null);
+      setSaving(false);
+      setDraftType("cliente");
+    }
+  }, [editorOpen]);
 
   return (
     <div className="space-y-4">
@@ -61,7 +126,7 @@ export function AdminClientsSection({
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-                variant={clientFilter === "all" ? "default" : "outline"}
+              variant={clientFilter === "all" ? "default" : "outline"}
               className="h-9 rounded-full px-3 text-[13px]"
               onClick={() => onClientFilterChange("all")}
             >
@@ -94,20 +159,42 @@ export function AdminClientsSection({
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredCustomers.map((customer) => (
               <div
-                key={customer.cnpj || customer.name}
+                key={customer.userId || customer.cnpj || customer.name}
                 className="rounded-[1.15rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]"
               >
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-semibold text-primary">
-                    {customer.name.charAt(0).toUpperCase()}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-semibold text-primary">
+                      {customer.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold leading-5 text-foreground">{customer.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold leading-5 text-foreground">{customer.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
-                  </div>
+
+                  {customer.userId ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 rounded-full px-3 text-[12px]"
+                      onClick={() => openEditor(customer)}
+                    >
+                      Alterar tipo
+                    </Button>
+                  ) : null}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {customer.customerType ? (
+                    <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
+                      {CUSTOMER_TYPE_LABELS[customer.customerType]}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                      Sem tipo definido
+                    </Badge>
+                  )}
                   {customer.phone ? (
                     <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px]">
                       {customer.phone}
@@ -135,6 +222,65 @@ export function AdminClientsSection({
           </div>
         )}
       </div>
+
+      <Dialog
+        open={editorOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && saving) return;
+          setEditorOpen(nextOpen);
+        }}
+      >
+        <DialogContent className="max-w-[34rem] rounded-[1.75rem] border-border/70">
+          <DialogHeader className="text-left">
+            <DialogDescription className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
+              Ajuste administrativo
+            </DialogDescription>
+            <DialogTitle className="text-[1.45rem] font-black tracking-[-0.04em] text-foreground">
+              Alterar tipo de cliente
+            </DialogTitle>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Altere a faixa comercial do cadastro para refletir a tabela correta no catálogo e no admin.
+            </p>
+          </DialogHeader>
+
+          {selectedCustomer ? (
+            <div className="space-y-4 pt-2">
+              <div className="rounded-[1.25rem] border border-border/70 bg-muted/30 p-4">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Cliente selecionado</p>
+                <p className="mt-1 text-base font-semibold text-foreground">{selectedCustomer.name}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selectedCustomer.company || "Sem empresa vinculada"} {selectedCustomer.cnpj ? `• ${selectedCustomer.cnpj}` : ""}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="customer-type-select">Tipo de cliente</Label>
+                <Select value={draftType} onValueChange={(value) => setDraftType(value as CustomerType)}>
+                  <SelectTrigger id="customer-type-select" className="h-11 rounded-2xl">
+                    <SelectValue placeholder="Selecione um tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CUSTOMER_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {CUSTOMER_TYPE_LABELS[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter className="gap-2 pt-2 sm:gap-2">
+            <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm" onClick={closeEditor} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.userId}>
+              {saving ? "Salvando..." : "Salvar alteração"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

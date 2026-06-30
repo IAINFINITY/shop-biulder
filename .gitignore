@@ -33,3 +33,6 @@ scripts/test-*.mjs
 documentation/
 design/
 .od-skills/
+
+# Supabase local temp files
+supabase/.temp/

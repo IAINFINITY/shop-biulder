@@ -10,6 +10,10 @@ export interface CustomerProfile {
   company: string;
   cnpj: string;
   customer_type: CustomerType;
+  proxis_pes_id: number | null;
+  proxis_tpr_id: number | null;
+  proxis_found: boolean | null;
+  proxis_synced_at: string | null;
   address_cep: string;
   address_street: string;
   address_number: string;

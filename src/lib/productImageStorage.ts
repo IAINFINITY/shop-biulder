@@ -7,9 +7,9 @@ const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 const ALLOWED_EXT = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
 function safeExtension(file: File): string {
-  const fromName = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const fromName = file.name.split(".").pop().toLowerCase() ?? "";
   if (ALLOWED_EXT.has(fromName)) return fromName === "jpeg" ? "jpg" : fromName;
-  const fromType = file.type.split("/")[1]?.toLowerCase() ?? "";
+  const fromType = file.type.split("/")[1].toLowerCase() ?? "";
   if (ALLOWED_EXT.has(fromType)) return fromType === "jpeg" ? "jpg" : fromType;
   return "jpg";
 }
@@ -20,7 +20,7 @@ export type UploadProductImageResult =
 
 function isImageFile(file: File): boolean {
   if (file.type.startsWith("image/")) return true;
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  const ext = file.name.split(".").pop().toLowerCase() ?? "";
   return ALLOWED_EXT.has(ext);
 }
 
@@ -59,14 +59,14 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
   let { error } = await supabase.storage.from(BUCKET).upload(path, normalizedFile, {
     cacheControl: "3600",
     upsert: true,
-    contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+      contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
   });
 
   if (error && /already exists|duplicate|invalid/i.test(error.message)) {
     const retryPath = `uploads/${Date.now()}-${crypto.randomUUID()}.${ext}`;
     ({ error } = await supabase.storage.from(BUCKET).upload(retryPath, normalizedFile, {
       cacheControl: "3600",
-      contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
+    contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
     }));
     if (!error) {
       const {

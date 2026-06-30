@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development --config vite.config.js",
     "lint": "eslint .",
     "preview": "vite preview --config vite.config.js",
+    "pricing:seed-joao": "node scripts/import-joao-price-tables.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

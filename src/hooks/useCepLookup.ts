@@ -5,26 +5,26 @@ import { formatCep, type AddressFormData } from "@/lib/address";
 export type CepLookupStatus = "idle" | "loading" | "found" | "not_found" | "error";
 
 type ViaCepResponse = {
-  erro?: boolean;
-  logradouro?: string;
-  bairro?: string;
-  localidade?: string;
-  uf?: string;
-  ibge?: string;
+  erro: boolean;
+  logradouro: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
+  ibge: string;
 };
 
 function mapViaCepToPatch(cep: string, data: ViaCepResponse): Partial<AddressFormData> {
   return {
     cep,
-    street: data.logradouro?.trim() || "",
-    neighborhood: data.bairro?.trim() || "",
-    city: data.localidade?.trim() || "",
-    state: data.uf?.trim() || "",
-    ibge: data.ibge?.trim() || "",
+    street: data.logradouro.trim() || "",
+    neighborhood: data.bairro.trim() || "",
+    city: data.localidade.trim() || "",
+    state: data.uf.trim() || "",
+    ibge: data.ibge.trim() || "",
   };
 }
 
-export function useCepLookup(cep: string, onResolved?: (patch: Partial<AddressFormData>) => void) {
+export function useCepLookup(cep: string, onResolved: (patch: Partial<AddressFormData>) => void) {
   const [status, setStatus] = useState<CepLookupStatus>("idle");
   const onResolvedRef = useRef(onResolved);
   const lastFetchedCepRef = useRef<string | null>(null);

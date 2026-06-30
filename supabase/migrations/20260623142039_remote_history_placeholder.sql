@@ -1,0 +1,2 @@
+-- Placeholder para alinhar o historico remoto do Supabase com o repositorio local.
+-- Sem impacto no schema.

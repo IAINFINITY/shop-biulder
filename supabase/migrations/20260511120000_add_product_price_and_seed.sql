@@ -43,7 +43,7 @@ update public."Clinic+ - Catálogo Front B2B" set price = 79.00 where name = 'Cr
 update public."Clinic+ - Catálogo Front B2B" set price = 23.00 where name = 'Melatonina Gummies sabor Maracujá';
 update public."Clinic+ - Catálogo Front B2B" set price = 29.00 where name = 'Vit.C+Zinco Gummies sabor Laranja';
 update public."Clinic+ - Catálogo Front B2B" set price = 32.99 where name = '3 Ômegas - Óleo de Peixe, Linhaça, Borragem e Vitamina E em cápsulas';
-update public."Clinic+ - Catálogo Front B2B" set price = 24.99 where name = '5 ?leos - ?leo de linha?a, ?leo de girassol, ?leo de c?rtamo, ?leo de borragem e ?leo de chia em c?psulas';
+update public."Clinic+ - Catálogo Front B2B" set price = 24.99 where name = '5 leos - leo de linhaa, leo de girassol, leo de crtamo, leo de borragem e leo de chia em cpsulas';
 update public."Clinic+ - Catálogo Front B2B" set price = 24.99 where name = 'CA - Óleo de Cártamo em cápsulas';
 update public."Clinic+ - Catálogo Front B2B" set price = 24.99 where name = 'Cart+Chia+Coco - Óleo de Chia, Cártamo e Coco em cápsulas';
 update public."Clinic+ - Catálogo Front B2B" set price = 0.00 where name = 'Cártamo+Coco - Óleo de Cártamo e Óleo de Coco em cápsulas';

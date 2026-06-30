@@ -16,9 +16,10 @@ export const CUSTOMER_PRICE_OVERRIDES_TABLE = "customer_price_overrides";
 
 export type CustomerPriceOverride = {
   customer_type: CustomerType;
+  proxis_tpr_id: number | null;
   product_code: string;
   price: number;
-  active?: boolean;
+  active: boolean;
 };
 
 function isCustomerType(value: unknown): value is CustomerType {
@@ -51,10 +52,10 @@ export function buildCustomerPriceMap(overrides: Pick<CustomerPriceOverride, "pr
 
 export function resolveProductPrice(
   product: Pick<Product, "price" | "product_code">,
-  priceOverrides?: Map<string, number>,
+  priceOverrides: Map<string, number>,
 ): number {
   const code = normalizeProductCode(product.product_code);
-  if (code && priceOverrides?.has(code)) {
+  if (code && priceOverrides.has(code)) {
     return priceOverrides.get(code)!;
   }
   return getProductUnitPrice(product);
@@ -62,7 +63,7 @@ export function resolveProductPrice(
 
 export function calculateCartSubtotal(
   cart: CartItem[],
-  priceOverrides?: Map<string, number>,
+  priceOverrides: Map<string, number>,
 ): number {
   return Math.round(
     cart.reduce((sum, item) => sum + resolveProductPrice(item.product, priceOverrides) * item.quantity, 0) * 100,

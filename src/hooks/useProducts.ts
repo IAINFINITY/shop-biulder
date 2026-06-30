@@ -1,4 +1,4 @@
-﻿import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   type Product,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/products";
 
 export type UseProductsOptions = {
-  includeInactive?: boolean;
+  includeInactive: boolean;
 };
 
 const PRODUCTS_CACHE_PREFIX = "clinicplus_products_cache";

@@ -16,15 +16,15 @@ const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
 const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 40);
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
-const PROXSIS_DEFAULT_CEP = process.env.PROXSIS_DEFAULT_CEP?.trim() || "89820000";
-const PROXSIS_DEFAULT_EST_SIGLA = process.env.PROXSIS_DEFAULT_EST_SIGLA?.trim() || "SC";
-const PROXSIS_DOC_MARCADOR = process.env.PROXSIS_DOC_MARCADOR?.trim() || "PEDIDO B2B";
+const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
+const PROXSIS_DEFAULT_EST_SIGLA = (process.env.PROXSIS_DEFAULT_EST_SIGLA ?? "").trim() || "SC";
+const PROXSIS_DOC_MARCADOR = (process.env.PROXSIS_DOC_MARCADOR ?? "").trim() || "PEDIDO B2B";
 
 interface CustomerAddressInput {
   cep: string;
   street: string;
   number: string;
-  complement?: string;
+  complement: string;
   neighborhood: string;
   city: string;
   state: string;
@@ -35,9 +35,9 @@ interface OrderRequestBody {
   customer_name: string;
   customer_cnpj: string;
   customer_company: string;
-  address?: CustomerAddressInput;
-  pes_id_ven?: number | string | null;
-  representative_id?: number | string | null;
+  address: CustomerAddressInput;
+  pes_id_ven: number | string | null;
+  representative_id: number | string | null;
   items: Array<{
     product_code: string;
     quantity: number;
@@ -47,7 +47,7 @@ interface OrderRequestBody {
 }
 
 function parseRepPesIdsFromEnv(): number[] {
-  const raw = process.env.PROXIS_REP_PES_IDS?.trim();
+  const raw = (process.env.PROXIS_REP_PES_IDS ?? "").trim();
   if (raw) {
     const ids = raw
       .split(",")
@@ -94,15 +94,15 @@ function proxsisEndpoint(name: string): string {
 async function proxsisRequest(
   method: string,
   endpointName: string,
-  options?: { body?: unknown; extraHeaders?: Record<string, string> }
+  options: { body: unknown; extraHeaders: Record<string, string> }
 ): Promise<unknown> {
   const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/${proxsisEndpoint(endpointName)}`;
-  const headers: Record<string, string> = { ...baseHeaders(), ...(options?.extraHeaders || {}) };
+  const headers: Record<string, string> = { ...baseHeaders(), ...(options.extraHeaders || {}) };
 
   const res = await fetch(url, {
     method,
     headers,
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    body: options.body ? JSON.stringify(options.body) : undefined,
   });
 
   if (!res.ok) {
@@ -127,6 +127,7 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   const filtro = `pes_cpf_cnpj = '${formatted}'`;
 
   const result = await proxsisRequest("GET", "ObterParticipantes", {
+    body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
@@ -161,7 +162,7 @@ function buildEnderecoPadrao() {
   };
 }
 
-function normalizeAddressInput(address?: CustomerAddressInput): CustomerAddressInput | null {
+function normalizeAddressInput(address: CustomerAddressInput | null): CustomerAddressInput | null {
   if (!address) return null;
   const cep = onlyDigits(address.cep || "");
   const street = String(address.street || "").trim();
@@ -190,6 +191,7 @@ async function buscarMunIdPorIbge(ibge: string): Promise<number> {
   if (ibgeDigits.length < 7) return PROXSIS_DEFAULT_MUN_ID;
 
   const result = await proxsisRequest("GET", "ObterMunicipios", {
+    body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
@@ -199,7 +201,7 @@ async function buscarMunIdPorIbge(ibge: string): Promise<number> {
 
   if (!result) return PROXSIS_DEFAULT_MUN_ID;
   const row = Array.isArray(result) ? result[0] : result;
-  const munId = Number((row as Record<string, unknown>)?.mun_id);
+  const munId = Number((row as Record<string, unknown>).mun_id);
   return Number.isFinite(munId) && munId > 0 ? munId : PROXSIS_DEFAULT_MUN_ID;
 }
 
@@ -236,6 +238,7 @@ async function salvarEnderecoCliente(
       pes_tipo_cliente: true,
       endereco: [endereco],
     },
+    extraHeaders: {},
   });
 }
 
@@ -246,9 +249,9 @@ function clienteTemEndereco(cliente: Record<string, unknown>): boolean {
 
 async function garantirEnderecoCliente(
   cliente: Record<string, unknown>,
-  address?: CustomerAddressInput | null
+  address: CustomerAddressInput | null
 ): Promise<void> {
-  const normalized = normalizeAddressInput(address ?? undefined);
+  const normalized = normalizeAddressInput(address);
   if (normalized) {
     const endereco = await buildEnderecoProxis(normalized);
     await salvarEnderecoCliente(cliente, endereco);
@@ -262,9 +265,9 @@ async function garantirEnderecoCliente(
 async function criarCliente(
   nome: string,
   cnpj: string,
-  address?: CustomerAddressInput | null
+  address: CustomerAddressInput | null
 ): Promise<Record<string, unknown>> {
-  const normalized = normalizeAddressInput(address ?? undefined);
+  const normalized = normalizeAddressInput(address);
   const endereco = normalized
     ? await buildEnderecoProxis(normalized)
     : buildEnderecoPadrao();
@@ -278,7 +281,7 @@ async function criarCliente(
     endereco: [endereco],
   };
 
-  const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload });
+  const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload, extraHeaders: {} });
   return result as Record<string, unknown>;
 }
 
@@ -286,6 +289,7 @@ async function buscarProdutoPorNumero(numero: string): Promise<Record<string, un
   const filtro = `item.ite_numero = '${numero}'`;
 
   const result = await proxsisRequest("GET", "ObterItens", {
+    body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
@@ -299,7 +303,7 @@ async function buscarProdutoPorNumero(numero: string): Promise<Record<string, un
 }
 
 async function criarPedido(pedido: Record<string, unknown>): Promise<unknown> {
-  return proxsisRequest("POST", "SalvarPedidoVenda", { body: pedido });
+  return proxsisRequest("POST", "SalvarPedidoVenda", { body: pedido, extraHeaders: {} });
 }
 
 function parseRepresentativeId(value: unknown): number | null {
@@ -333,7 +337,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = req.body as OrderRequestBody;
 
-  if (!body.customer_cnpj || !body.customer_name || !body.items?.length) {
+  if (!body.customer_cnpj || !body.customer_name || !body.items.length) {
     return res.status(400).json({ error: "Missing required fields: customer_cnpj, customer_name, items" });
   }
 
@@ -341,24 +345,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
     let pesId: number;
 
-    const normalizedAddress = normalizeAddressInput(body.address);
+    const normalizedAddress = normalizeAddressInput(body.address ?? null);
 
     if (cliente?.pes_id) {
       pesId = Number(cliente.pes_id);
     } else {
       const nomeCliente = body.customer_company || body.customer_name;
       const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj, normalizedAddress);
-      if (!novoCliente?.pes_id) {
+      if (!novoCliente.pes_id) {
         return res.status(500).json({ error: "Failed to create customer in Proxsis" });
       }
       pesId = Number(novoCliente.pes_id);
       cliente = novoCliente;
     }
 
-    await garantirEnderecoCliente(cliente, normalizedAddress);
+    if (cliente) await garantirEnderecoCliente(cliente, normalizedAddress);
 
     let tprId = PROXSIS_TPR_ID_DEFAULT;
-    const tabelas = cliente.tabelapreco as Array<{ tpr_id?: number }> | undefined;
+    const tabelas = cliente.tabelapreco as Array<{ tpr_id: number }> | undefined;
     if (tabelas?.length && tabelas[0].tpr_id) {
       tprId = tabelas[0].tpr_id;
     }

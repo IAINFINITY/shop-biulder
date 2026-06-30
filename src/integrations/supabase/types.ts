@@ -26,28 +26,28 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          active?: boolean
-          created_at?: string
-          description?: string
+          active: boolean
+          created_at: string
+          description: string
           family: string
-          id?: string
-          image_url?: string | null
+          id: string
+          image_url: string | null
           name: string
-          price?: number
+          price: number
           type: string
-          updated_at?: string
+          updated_at: string
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          description?: string
-          family?: string
-          id?: string
-          image_url?: string | null
-          name?: string
-          price?: number
-          type?: string
-          updated_at?: string
+          active: boolean
+          created_at: string
+          description: string
+          family: string
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          type: string
+          updated_at: string
         }
         Relationships: []
       }
@@ -67,32 +67,32 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          active?: boolean
-          created_at?: string
-          description?: string
+          active: boolean
+          created_at: string
+          description: string
           family: string
-          id?: string
-          image_url?: string | null
-          image_urls?: string[]
+          id: string
+          image_url: string | null
+          image_urls: string[]
           name: string
-          price?: number
-          product_code?: string | null
+          price: number
+          product_code: string | null
           type: string
-          updated_at?: string
+          updated_at: string
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          description?: string
-          family?: string
-          id?: string
-          image_url?: string | null
-          image_urls?: string[]
-          name?: string
-          price?: number
-          product_code?: string | null
-          type?: string
-          updated_at?: string
+          active: boolean
+          created_at: string
+          description: string
+          family: string
+          id: string
+          image_url: string | null
+          image_urls: string[]
+          name: string
+          price: number
+          product_code: string | null
+          type: string
+          updated_at: string
         }
         Relationships: []
       }
@@ -119,44 +119,44 @@ export type Database = {
           total_items: number
         }
         Insert: {
-          created_at?: string
+          created_at: string
           customer_cnpj: string
           customer_company: string
           customer_name: string
           customer_phone: string
-          customer_address_cep?: string
-          customer_address_street?: string
-          customer_address_number?: string
-          customer_address_complement?: string
-          customer_address_neighborhood?: string
-          customer_address_city?: string
-          customer_address_state?: string
-          customer_address_ibge?: string
-          id?: string
-          items?: Json
-          proxis_import_id?: number | null
-          status?: string
-          total_items?: number
+          customer_address_cep: string
+          customer_address_street: string
+          customer_address_number: string
+          customer_address_complement: string
+          customer_address_neighborhood: string
+          customer_address_city: string
+          customer_address_state: string
+          customer_address_ibge: string
+          id: string
+          items: Json
+          proxis_import_id: number | null
+          status: string
+          total_items: number
         }
         Update: {
-          created_at?: string
-          customer_cnpj?: string
-          customer_company?: string
-          customer_name?: string
-          customer_phone?: string
-          customer_address_cep?: string
-          customer_address_street?: string
-          customer_address_number?: string
-          customer_address_complement?: string
-          customer_address_neighborhood?: string
-          customer_address_city?: string
-          customer_address_state?: string
-          customer_address_ibge?: string
-          id?: string
-          items?: Json
-          proxis_import_id?: number | null
-          status?: string
-          total_items?: number
+          created_at: string
+          customer_cnpj: string
+          customer_company: string
+          customer_name: string
+          customer_phone: string
+          customer_address_cep: string
+          customer_address_street: string
+          customer_address_number: string
+          customer_address_complement: string
+          customer_address_neighborhood: string
+          customer_address_city: string
+          customer_address_state: string
+          customer_address_ibge: string
+          id: string
+          items: Json
+          proxis_import_id: number | null
+          status: string
+          total_items: number
         }
         Relationships: []
       }
@@ -167,14 +167,14 @@ export type Database = {
           name: string
         }
         Insert: {
-          created_at?: string
-          id?: string
+          created_at: string
+          id: string
           name: string
         }
         Update: {
-          created_at?: string
-          id?: string
-          name?: string
+          created_at: string
+          id: string
+          name: string
         }
         Relationships: []
       }
@@ -185,14 +185,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          id?: string
+          id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
         }
         Relationships: []
       }
@@ -204,6 +204,10 @@ export type Database = {
           company: string
           cnpj: string
           customer_type: string
+          proxis_pes_id: number | null
+          proxis_tpr_id: number | null
+          proxis_found: boolean
+          proxis_synced_at: string | null
           address_cep: string
           address_street: string
           address_number: string
@@ -221,35 +225,43 @@ export type Database = {
           phone: string
           company: string
           cnpj: string
-          customer_type?: string
-          address_cep?: string
-          address_street?: string
-          address_number?: string
-          address_complement?: string
-          address_neighborhood?: string
-          address_city?: string
-          address_state?: string
-          address_ibge?: string
-          created_at?: string
-          updated_at?: string
+          customer_type: string
+          proxis_pes_id: number | null
+          proxis_tpr_id: number | null
+          proxis_found: boolean
+          proxis_synced_at: string | null
+          address_cep: string
+          address_street: string
+          address_number: string
+          address_complement: string
+          address_neighborhood: string
+          address_city: string
+          address_state: string
+          address_ibge: string
+          created_at: string
+          updated_at: string
         }
         Update: {
-          user_id?: string
-          name?: string
-          phone?: string
-          company?: string
-          cnpj?: string
-          customer_type?: string
-          address_cep?: string
-          address_street?: string
-          address_number?: string
-          address_complement?: string
-          address_neighborhood?: string
-          address_city?: string
-          address_state?: string
-          address_ibge?: string
-          created_at?: string
-          updated_at?: string
+          user_id: string
+          name: string
+          phone: string
+          company: string
+          cnpj: string
+          customer_type: string
+          proxis_pes_id: number | null
+          proxis_tpr_id: number | null
+          proxis_found: boolean
+          proxis_synced_at: string | null
+          address_cep: string
+          address_street: string
+          address_number: string
+          address_complement: string
+          address_neighborhood: string
+          address_city: string
+          address_state: string
+          address_ibge: string
+          created_at: string
+          updated_at: string
         }
         Relationships: []
       }
@@ -261,25 +273,28 @@ export type Database = {
           id: string
           price: number
           product_code: string
+          proxis_tpr_id: number | null
           updated_at: string
         }
         Insert: {
-          active?: boolean
-          created_at?: string
+          active: boolean
+          created_at: string
           customer_type: string
-          id?: string
+          id: string
           price: number
           product_code: string
-          updated_at?: string
+          proxis_tpr_id: number | null
+          updated_at: string
         }
         Update: {
-          active?: boolean
-          created_at?: string
-          customer_type?: string
-          id?: string
-          price?: number
-          product_code?: string
-          updated_at?: string
+          active: boolean
+          created_at: string
+          customer_type: string
+          id: string
+          price: number
+          product_code: string
+          proxis_tpr_id: number | null
+          updated_at: string
         }
         Relationships: []
       }
@@ -301,15 +316,23 @@ export type Database = {
           p_phone: string
           p_company: string
           p_cnpj: string
-          p_customer_type?: string
-          p_address_cep?: string
-          p_address_street?: string
-          p_address_number?: string
-          p_address_complement?: string
-          p_address_neighborhood?: string
-          p_address_city?: string
-          p_address_state?: string
-          p_address_ibge?: string
+          p_customer_type: string
+          p_address_cep: string
+          p_address_street: string
+          p_address_number: string
+          p_address_complement: string
+          p_address_neighborhood: string
+          p_address_city: string
+          p_address_state: string
+          p_address_ibge: string
+        }
+        Returns: undefined
+      }
+      sync_customer_proxis_link: {
+        Args: {
+          p_proxis_found: boolean
+          p_proxis_pes_id: number | null
+          p_proxis_tpr_id: number | null
         }
         Returns: undefined
       }
@@ -374,12 +397,12 @@ export type TablesInsert<
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
     : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
@@ -399,12 +422,12 @@ export type TablesUpdate<
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
     : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
@@ -420,8 +443,8 @@ export type Enums<
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
@@ -437,8 +460,8 @@ export type CompositeTypes<
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {

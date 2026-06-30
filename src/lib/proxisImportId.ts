@@ -3,13 +3,13 @@ import { ORDERS_TABLE } from "@/lib/orders";
 
 export async function ensureProxisImportId(
   orderId: string,
-  existingProxisImportId?: number | null,
+  existingProxisImportId: number | null,
 ): Promise<number> {
   if (existingProxisImportId != null && existingProxisImportId > 0) {
     return existingProxisImportId;
   }
 
-  const { data, error } = await supabase.rpc("allocate_proxis_import_id", {
+  const { data, error } = await supabase.rpc("allocate_proxis_import_id" as never, {
     p_order_id: orderId,
   });
 
@@ -35,5 +35,5 @@ export async function refreshOrderProxisImportId(orderId: string): Promise<numbe
     .maybeSingle();
 
   if (error) return null;
-  return data?.proxis_import_id ?? null;
+  return data.proxis_import_id ?? null;
 }

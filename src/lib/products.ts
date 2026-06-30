@@ -10,10 +10,10 @@ export interface Product {
   type: string;
   family: string;
   image_url: string | null;
-  image_urls?: string[] | null;
+  image_urls: string[] | null;
   active: boolean;
-  price?: number | null;
-  product_code?: string | null;
+  price: number | null;
+  product_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -34,7 +34,7 @@ export function parseSupabaseTextArray(value: unknown): string[] {
     const inner = s.slice(1, -1).trim();
     if (!inner) return [];
     return inner
-      .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+      .split(/,(=(:(:[^"]*"){2})*[^"]*$)/)
       .map((part) => {
         let p = part.trim();
         if (p.startsWith('"') && p.endsWith('"')) p = p.slice(1, -1);
@@ -95,7 +95,7 @@ export function isMissingProductCodeColumnError(message: string): boolean {
   return isMissingColumnError(message, "product_code");
 }
 
-export function omitProductCode<T extends { product_code?: string | null }>(
+export function omitProductCode<T extends { product_code: string | null }>(
   row: T,
 ): Omit<T, "product_code"> {
   const { product_code: _code, ...rest } = row;
@@ -178,7 +178,7 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
 }
 
 export function getProductCode(product: Pick<Product, "product_code" | "id">): string {
-  const code = product.product_code?.trim();
+  const code = product.product_code.trim();
   if (code) return code;
   return product.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
@@ -188,7 +188,7 @@ export function buildProductCodeLookup(
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const product of products) {
-    const code = product.product_code?.trim();
+    const code = product.product_code.trim();
     if (code) map.set(product.id, code);
   }
   return map;
@@ -228,7 +228,7 @@ export function buildOrderEnrichmentMaps(
 
   for (const product of products) {
     const nameKey = normalizeProductNameKey(product.name);
-    const code = product.product_code?.trim();
+    const code = product.product_code.trim();
     const price = getProductUnitPrice(product);
 
     priceByProductId.set(product.id, price);
@@ -307,7 +307,7 @@ function normalizeCartQuantity(value: unknown): number {
 function normalizeCartItem(item: unknown): CartItem | null {
   if (!item || typeof item !== "object") return null;
 
-  const record = item as { product?: unknown; quantity?: unknown; notes?: unknown };
+  const record = item as { product: unknown; quantity: unknown; notes: unknown };
   if (!record.product || typeof record.product !== "object") return null;
 
   const product = normalizeProductFromSupabaseRow(record.product);

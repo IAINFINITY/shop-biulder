@@ -26,8 +26,8 @@ export type OrderExportInput = {
   customer_cnpj: string;
   status: string;
   items: unknown;
-  proxis_import_id?: number | null;
-  enrichmentMaps?: OrderEnrichmentMaps;
+  proxis_import_id: number | null;
+  enrichmentMaps: OrderEnrichmentMaps;
 };
 
 function orderFileBase(order: OrderExportInput): string {
@@ -191,7 +191,7 @@ export function downloadOrderPdf(order: OrderExportInput): void {
   });
 
   const finalY =
-    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y + 20;
+    (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY ?? y + 20;
   drawPdfOrderTotals(doc, finalY, contentWidth, totalQuantity, totalValue);
 
   doc.save(`${orderFileBase(order)}.pdf`);

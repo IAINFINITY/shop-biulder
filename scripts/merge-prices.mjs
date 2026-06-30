@@ -7,17 +7,17 @@ const root = path.join(__dirname, "..");
 
 function parseUserPrices(raw) {
   const entries = [];
-  const lines = raw.split(/\r?\n/);
+  const lines = raw.split(/\r\n/);
   let pending = null;
   for (const line of lines) {
     const t = line.trim();
     if (!t) continue;
-    if (/^valor\s*:?/i.test(t)) {
+    if (/^valor\s*:/i.test(t)) {
       if (!pending) continue;
       const low = t.toLowerCase();
       let price = 0;
       if (!low.includes("sem preço") && !low.includes("sem preco")) {
-        const m = t.replace(/\s/g, " ").match(/R\$\s*([\d.]+(?:,\d+)?)/i);
+        const m = t.replace(/\s/g, " ").match(/R\$\s*([\d.]+(:,\d+))/i);
         if (m) {
           const num = m[1].includes(",")
             ? parseFloat(m[1].replace(/\./g, "").replace(",", "."))

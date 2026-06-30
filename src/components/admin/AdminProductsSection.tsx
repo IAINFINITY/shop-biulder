@@ -1,4 +1,4 @@
-﻿import { Eye, EyeOff, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, ImageIcon, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -369,7 +369,7 @@ export function AdminProductsSection({
         <AlertDialogContent className="rounded-[1.5rem] border-border/70">
           <AlertDialogHeader className="text-left">
             <AlertDialogTitle className="text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
-              Sair sem salvar?
+              Sair sem salvar
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[13px] leading-6 text-muted-foreground">
               Você tem alterações não salvas neste produto. Se sair agora, tudo o que foi editado será perdido.

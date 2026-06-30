@@ -1,7 +1,7 @@
 import type { Product } from "@/lib/products";
 import type { Json } from "@/integrations/supabase/types";
 
-export type AdminSection = "dashboard" | "produtos" | "pedidos" | "clientes";
+export type AdminSection = "dashboard" | "produtos" | "precos" | "pedidos" | "clientes";
 
 export type AdminOrderSummaryLine = {
   unitPrice: number;

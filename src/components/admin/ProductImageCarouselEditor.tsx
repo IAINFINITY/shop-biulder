@@ -47,7 +47,7 @@ export function ProductImageCarouselEditor({
     if (slideIndex >= urls.length) {
       const next = urls.length - 1;
       setSlideIndex(next);
-      api?.scrollTo(next);
+      api.scrollTo(next);
     }
   }, [urls.length, slideIndex, api]);
 
@@ -58,7 +58,7 @@ export function ProductImageCarouselEditor({
       <Label className="text-sm font-medium">Imagens do produto</Label>
 
       <div className="relative max-w-sm overflow-hidden rounded-xl border border-border bg-background">
-        {urls.length === 0 ? (
+          {urls.length === 0 ? (
           <div className="flex aspect-[4/3] items-center justify-center bg-background p-6">
             <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
           </div>
@@ -97,7 +97,7 @@ export function ProductImageCarouselEditor({
           variant="outline"
           size="sm"
           className="gap-1"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => fileInputRef.current.click()}
           disabled={uploading}
         >
           <Upload className="h-3.5 w-3.5" />

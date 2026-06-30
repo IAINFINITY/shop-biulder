@@ -1,6 +1,6 @@
 ﻿import { Link } from "react-router-dom";
 import type { CSSProperties, ReactNode } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Package, ShoppingBag, Users } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Package, ShoppingBag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -33,6 +33,7 @@ export function AdminWorkspaceShell({
       items: [
         { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, description: "Resumo geral" },
         { id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" },
+        { id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" },
         { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" },
       ],
     },
@@ -177,7 +178,7 @@ export function AdminWorkspaceShell({
                 </Button>
               }
               title="Sair da conta"
-              description="Deseja encerrar a sessão administrativa atual?"
+              description="Deseja encerrar a sessão administrativa atual"
               confirmLabel="Sair"
               destructive
               onConfirm={onLogout}

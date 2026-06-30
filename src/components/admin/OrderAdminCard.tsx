@@ -75,11 +75,11 @@ export function OrderAdminCard({
                 <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
                   {order.status}
                 </Badge>
-                {order.proxis_import_id != null && (
+                {order.proxis_import_id != null ? (
                   <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
                     Proxis {order.proxis_import_id}
                   </Badge>
-                )}
+                ) : null}
                 <span className="whitespace-nowrap text-[11px] text-muted-foreground">{formatDate(order.created_at)}</span>
               </div>
             </div>
@@ -118,8 +118,9 @@ export function OrderAdminCard({
               </Button>
             }
             title="Excluir pedido"
-            description="Deseja excluir este pedido permanentemente?"
+            description="Deseja excluir este pedido permanentemente"
             confirmLabel="Excluir"
+            cancelLabel="Cancelar"
             destructive
             onConfirm={onDelete}
           />
@@ -134,11 +135,11 @@ export function OrderAdminCard({
             CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
           </p>
           <OrderItemsTable lines={lines} maxBodyHeight="max-h-52" />
-          {order.total_items !== orderQty && (
+          {order.total_items !== orderQty ? (
             <p className="text-[11px] text-muted-foreground">
               Quantidade registrada no envio: {order.total_items}
             </p>
-          )}
+          ) : null}
         </div>
       </CollapsibleContent>
     </Collapsible>

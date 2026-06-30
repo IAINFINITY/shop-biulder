@@ -66,7 +66,7 @@ export function AdminOrdersSection({
         </div>
       </div>
 
-      {ordersLoading ? (
+              {ordersLoading ? (
         <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 bg-background p-4">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="rounded-[1.25rem] border border-border/60 bg-card p-4">

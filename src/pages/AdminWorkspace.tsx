@@ -35,14 +35,17 @@ import { uploadProductImageFile } from "@/lib/productImageStorage";
 import { ORDERS_TABLE } from "@/lib/orders";
 import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/lib/orderExport";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
 import { AdminWorkspaceShell } from "@/components/admin/AdminWorkspaceShell";
 import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection";
 import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
+import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
+import { onlyDigits } from "@/lib/brazilianIds";
 import type {
   AdminCustomerSummary,
   AdminDashboardOrder,
@@ -70,9 +73,9 @@ function LoginField({
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
-  type?: string;
-  autoComplete?: string;
-  required?: boolean;
+  type: string;
+  autoComplete: string;
+  required: boolean;
   icon: typeof Mail;
 }) {
   return (
@@ -189,7 +192,7 @@ function LoginForm({
                 Lembrar acesso
               </label>
               <a href="#" className="text-primary transition-colors hover:text-primary/80">
-                Esqueceu a senha?
+                Esqueceu a senha
               </a>
             </div>
 
@@ -213,7 +216,7 @@ function ClientAccessNotice({
   onGoCatalog,
   onLogout,
 }: {
-  email?: string | null;
+  email: string | null;
   onGoCatalog: () => void;
   onLogout: () => void;
 }) {
@@ -237,13 +240,13 @@ function ClientAccessNotice({
 
           <div className="mt-5 rounded-[1.5rem] border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
             {email
-              ? `Você está logado como ${email}. Para acessar o painel, entre com uma conta administrativa.`
-              : "Você está com uma sessão de cliente ativa. Para acessar o painel, entre com uma conta administrativa."}
+              ? `Voc? est? logado como ${email}. Para acessar o painel, entre com uma conta administrativa.`
+              : "Voc? est? com uma sess?o de cliente ativa. Para acessar o painel, entre com uma conta administrativa."}
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoCatalog}>
-              Ir ao catálogo
+              Ir ao cat?logo
             </Button>
             <ConfirmActionDialog
               trigger={
@@ -253,7 +256,7 @@ function ClientAccessNotice({
                 </Button>
               }
               title="Sair da conta"
-              description="Deseja encerrar a sessão atual? Você vai precisar entrar novamente para voltar ao painel."
+              description="Deseja encerrar a sess?o atual? Voc? vai precisar entrar novamente para voltar ao painel."
               confirmLabel="Sair"
               destructive
               onConfirm={onLogout}
@@ -291,6 +294,20 @@ export default function AdminWorkspace() {
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
   const { data: adminTypes = [] } = useAdminProductTypes();
+  const { data: customerProfiles = [] } = useQuery({
+    queryKey: ["admin-customer-profiles"],
+    enabled: Boolean(user && isAdmin),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from(CUSTOMER_PROFILES_TABLE)
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+        return (data ?? []) as CustomerProfile[];
+    },
+    staleTime: 30_000,
+  });
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<AdminProductFormState | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -307,7 +324,7 @@ export default function AdminWorkspace() {
 
   const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
   const derivedTypes = useMemo(() => [...new Set(products.map((p) => p.type))].sort(), [products]);
-  const orderRows = orders as AdminOrderRow[];
+  const orderRows = orders as unknown as AdminOrderRow[];
   const filteredOrders = useMemo<AdminOrderRow[]>(() => {
     const term = orderSearch.trim().toLowerCase();
     if (!term) return orderRows;
@@ -320,7 +337,7 @@ export default function AdminWorkspace() {
         order.status,
         order.id,
       ];
-      return fields.some((value) => value?.toLowerCase().includes(term));
+      return fields.some((value) => value.toLowerCase().includes(term));
     });
   }, [orderRows, orderSearch]);
   const filteredProducts = useMemo(() => {
@@ -328,7 +345,7 @@ export default function AdminWorkspace() {
     if (!term) return products;
     return products.filter((product) => {
       const fields = [product.name, product.family, product.type, product.product_code ?? ""];
-      return fields.some((value) => value?.toLowerCase().includes(term));
+      return fields.some((value) => value.toLowerCase().includes(term));
     });
   }, [products, productSearch]);
   const recentOrders = useMemo(
@@ -363,8 +380,20 @@ export default function AdminWorkspace() {
       }
     >();
 
+    for (const profile of customerProfiles) {
+      const key = onlyDigits(profile.cnpj) || profile.user_id;
+      customers.set(key, {
+        name: profile.name,
+        company: profile.company,
+        phone: profile.phone,
+        cnpj: profile.cnpj,
+        total: 0,
+        orders: 0,
+      });
+    }
+
     for (const order of orderRows) {
-      const key = order.customer_cnpj || order.customer_name;
+      const key = onlyDigits(order.customer_cnpj) || order.customer_name;
       const current = customers.get(key);
       const orderTotal = summarizeOrderItems(order.items).reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
@@ -380,12 +409,17 @@ export default function AdminWorkspace() {
       } else {
         current.total += orderTotal;
         current.orders += 1;
+        current.name = current.name || order.customer_name;
+        current.company = current.company || order.customer_company;
+        current.phone = current.phone || order.customer_phone;
+        current.cnpj = current.cnpj || order.customer_cnpj;
       }
     }
 
-    return [...customers.values()].sort((a, b) => b.total - a.total || b.orders - a.orders);
-  }, [orderRows]);
+    return [...customers.values()].sort((a, b) => b.orders - a.orders || b.total - a.total || a.name.localeCompare(b.name, "pt-BR"));
+  }, [customerProfiles, orderRows]);
   const activeProductsCount = useMemo(() => products.filter((p) => p.active).length, [products]);
+  const inactiveProductsCount = useMemo(() => products.filter((p) => !p.active).length, [products]);
   const pendingOrdersCount = useMemo(
     () => orderRows.filter((o) => o.status === "Separando" || o.status === "Processando").length,
     [orderRows],
@@ -399,9 +433,29 @@ export default function AdminWorkspace() {
       ),
     [orderRows],
   );
+  const averageOrderValue = useMemo(
+    () => (orderRows.length > 0 ? totalRevenue / orderRows.length : 0),
+    [orderRows.length, totalRevenue],
+  );
+  const customersWithOrdersCount = useMemo(
+    () => customerSummaries.filter((customer) => customer.orders > 0).length,
+    [customerSummaries],
+  );
+  const customersWithoutOrdersCount = useMemo(
+    () => customerSummaries.filter((customer) => customer.orders === 0).length,
+    [customerSummaries],
+  );
+  const recentCustomers = useMemo(
+    () =>
+      [...customerProfiles]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5),
+    [customerProfiles],
+  );
   const sectionTitle: Record<AdminSection, string> = {
     dashboard: "Dashboard",
     produtos: "Produtos",
+    precos: "Pre?os",
     pedidos: "Pedidos",
     clientes: "Clientes",
   };
@@ -416,7 +470,7 @@ export default function AdminWorkspace() {
       <AuthStatusScreen
         eyebrow="Painel administrativo"
         title="Abrindo o painel"
-        description="Estamos validando sua sessão administrativa antes de carregar os controles do sistema."
+        description="Estamos validando sua sess?o administrativa antes de carregar os controles do sistema."
       />
     );
   }
@@ -439,6 +493,10 @@ export default function AdminWorkspace() {
   }
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["products"] });
+  const refreshPricing = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-price-overrides"] });
+    queryClient.invalidateQueries({ queryKey: ["customer-pricing"] });
+  };
   const refreshTypes = () => queryClient.invalidateQueries({ queryKey: ["product-types"] });
   const refreshOrders = () => queryClient.invalidateQueries({ queryKey: ["orders"] });
 
@@ -477,7 +535,7 @@ export default function AdminWorkspace() {
   };
 
   const handleImageFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files[0];
     e.target.value = "";
     if (!file) return;
 
@@ -502,7 +560,7 @@ export default function AdminWorkspace() {
 
   const save = async () => {
     if (!editing || !editing.name || !editing.family) {
-      toast.error("Preencha nome e família do produto.");
+      toast.error("Preencha nome e fam?lia do produto.");
       return;
     }
 
@@ -519,8 +577,8 @@ export default function AdminWorkspace() {
     });
 
     const persist = async (body: typeof withGallery | typeof legacyOnly) => {
-      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(body);
-      return supabase.from(PRODUCTS_TABLE).update(body).eq("id", editing.id!);
+      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(body as any);
+      return supabase.from(PRODUCTS_TABLE).update(body as any).eq("id", editing.id!);
     };
 
     const imageCount = editing.image_urls.filter((u) => u.trim() !== "").length;
@@ -550,7 +608,7 @@ export default function AdminWorkspace() {
   };
 
   const toggleActive = async (id: string, active: boolean) => {
-    const { error } = await supabase.from(PRODUCTS_TABLE).update({ active: !active }).eq("id", id);
+    const { error } = await supabase.from(PRODUCTS_TABLE).update({ active: !active } as any).eq("id", id);
     if (error) {
       toast.error(error.message);
       return;
@@ -572,7 +630,7 @@ export default function AdminWorkspace() {
   const addType = async () => {
     const name = newType.trim();
     if (!name) return;
-    const { error } = await supabase.from(PRODUCT_TYPES_TABLE).insert({ name });
+    const { error } = await supabase.from(PRODUCT_TYPES_TABLE).insert({ name } as any);
     if (error) {
       toast.error(error.message);
       return;
@@ -609,7 +667,7 @@ export default function AdminWorkspace() {
       toast.success(`Arquivo Proxis gerado (ID ${proxisId}).`);
       refreshOrders();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao exportar para Proxis.");
+        toast.error(err instanceof Error ? err.message : "Erro ao exportar para Proxis.");
     } finally {
       setProxisExportingId(null);
     }
@@ -633,8 +691,13 @@ export default function AdminWorkspace() {
           recentOrders={recentOrders}
           customerSummaries={customerSummaries}
           activeProductsCount={activeProductsCount}
+          inactiveProductsCount={inactiveProductsCount}
           pendingOrdersCount={pendingOrdersCount}
           totalRevenue={totalRevenue}
+          averageOrderValue={averageOrderValue}
+          customersWithOrdersCount={customersWithOrdersCount}
+          customersWithoutOrdersCount={customersWithoutOrdersCount}
+          recentCustomers={recentCustomers}
           formatDate={formatDate}
           onGoToOrders={() => setSection("pedidos")}
           onGoToProducts={() => setSection("produtos")}
@@ -679,6 +742,10 @@ export default function AdminWorkspace() {
         />
       )}
 
+      {section === "precos" && (
+        <AdminPricingSection products={products} onRefreshPricing={refreshPricing} />
+      )}
+
       {section === "pedidos" && (
         <AdminOrdersSection
           ordersLoading={ordersLoading}
@@ -708,4 +775,3 @@ export default function AdminWorkspace() {
     </AdminWorkspaceShell>
   );
 }
-

@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,7 @@ export function AdminClientsSection({
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              variant={clientFilter === "all" ? "default" : "outline"}
+                variant={clientFilter === "all" ? "default" : "outline"}
               className="h-9 rounded-full px-3 text-[13px]"
               onClick={() => onClientFilterChange("all")}
             >

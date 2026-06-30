@@ -5,7 +5,7 @@ type AdminSectionHeaderProps = {
   eyebrow: string;
   title: string;
   description: string;
-  actions?: ReactNode;
+  actions: ReactNode;
   className?: string;
 };
 

@@ -1,18 +1,25 @@
-﻿import { CreditCard, ImageIcon, Package, ShoppingBag, Users } from "lucide-react";
+﻿import { CreditCard, ImageIcon, Package, ShoppingBag, TrendingUp, UserCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatBRL, coercePrice } from "@/lib/formatMoney";
 import { getProductImageUrls } from "@/lib/products";
+import { formatCnpjDisplay } from "@/lib/brazilianIds";
 import { AdminStatCard } from "./AdminStatCard";
 import type { AdminCustomerSummary, AdminDashboardOrder, AdminProduct } from "./adminTypes";
+import type { CustomerProfile } from "@/lib/customerProfile";
 
 type AdminDashboardSectionProps = {
   products: AdminProduct[];
   recentOrders: AdminDashboardOrder[];
   customerSummaries: AdminCustomerSummary[];
   activeProductsCount: number;
+  inactiveProductsCount: number;
   pendingOrdersCount: number;
   totalRevenue: number;
+  averageOrderValue: number;
+  customersWithOrdersCount: number;
+  customersWithoutOrdersCount: number;
+  recentCustomers: CustomerProfile[];
   formatDate: (value: string) => string;
   onGoToOrders: () => void;
   onGoToProducts: () => void;
@@ -23,21 +30,33 @@ export function AdminDashboardSection({
   recentOrders,
   customerSummaries,
   activeProductsCount,
+  inactiveProductsCount,
   pendingOrdersCount,
   totalRevenue,
+  averageOrderValue,
+  customersWithOrdersCount,
+  customersWithoutOrdersCount,
+  recentCustomers,
   formatDate,
   onGoToOrders,
   onGoToProducts,
 }: AdminDashboardSectionProps) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <AdminStatCard
           icon={Package}
           label="Produtos ativos"
           value={String(activeProductsCount)}
           tone="primary"
           note={`${products.length} produto(s) no total`}
+        />
+        <AdminStatCard
+          icon={UserCheck}
+          label="Clientes com pedidos"
+          value={String(customersWithOrdersCount)}
+          tone="success"
+          note={`${customerSummaries.length} cliente(s) na base`}
         />
         <AdminStatCard
           icon={ShoppingBag}
@@ -48,10 +67,10 @@ export function AdminDashboardSection({
         />
         <AdminStatCard
           icon={Users}
-          label="Clientes ativos"
-          value={String(customerSummaries.length)}
+          label="Clientes sem pedidos"
+          value={String(customersWithoutOrdersCount)}
           tone="muted"
-          note="Base consolidada por CNPJ"
+          note="Cadastros ainda sem movimentação"
         />
         <AdminStatCard
           icon={CreditCard}
@@ -60,16 +79,28 @@ export function AdminDashboardSection({
           tone="warn"
           note="Valor consolidado dos pedidos"
         />
+        <AdminStatCard
+          icon={TrendingUp}
+          label="Ticket médio"
+          value={formatBRL(averageOrderValue)}
+          tone="primary"
+          note={`${inactiveProductsCount} produto(s) inativos`}
+        />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
               <p className="text-sm text-foreground">Acompanhe a operação sem sair da visão geral</p>
             </div>
-            <Button type="button" variant="ghost" className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary" onClick={onGoToOrders}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary"
+              onClick={onGoToOrders}
+            >
               Ver todos
             </Button>
           </div>
@@ -94,7 +125,10 @@ export function AdminDashboardSection({
                       <td className="px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
                       <td className="px-4 py-3 text-right font-mono text-foreground">{formatBRL(total)}</td>
                       <td className="px-4 py-3">
-                        <Badge variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"} className="rounded-full px-2.5 py-0.5 text-[11px]">
+                        <Badge
+                            variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
+                          className="rounded-full px-2.5 py-0.5 text-[11px]"
+                        >
                           {order.status}
                         </Badge>
                       </td>
@@ -112,7 +146,12 @@ export function AdminDashboardSection({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Produtos</p>
               <p className="text-sm text-foreground">Resumo rápido dos itens mais recentes</p>
             </div>
-            <Button type="button" variant="ghost" className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary" onClick={onGoToProducts}>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary"
+              onClick={onGoToProducts}
+            >
               Gerenciar
             </Button>
           </div>
@@ -144,6 +183,40 @@ export function AdminDashboardSection({
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Clientes recentes</p>
+            <p className="text-sm text-foreground">Cadastros que acabaram de entrar no sistema</p>
+          </div>
+          <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+            {recentCustomers.length} registro(s)
+          </Badge>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {recentCustomers.map((customer) => (
+            <div
+              key={customer.user_id}
+              className="flex h-full flex-col rounded-[1.1rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="truncate text-[15px] font-semibold text-foreground">{customer.name}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                </div>
+                <Badge variant="secondary" className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px]">
+                  {customer.proxis_found ? "Proxsys ok" : "Sem vínculo"}
+                </Badge>
+              </div>
+              <div className="mt-4 space-y-1 text-[12px] leading-5 text-muted-foreground">
+                <p className="break-words">CNPJ {formatCnpjDisplay(customer.cnpj)}</p>
+                <p>{formatDate(customer.created_at)}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

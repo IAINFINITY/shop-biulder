@@ -16,7 +16,7 @@ type ProductTypeOption = string;
 
 type AdminProductFormProps = {
   editing: AdminProductFormState;
-  className?: string;
+  className: string;
   typeOptions: ProductTypeOption[];
   newType: string;
   onNewTypeChange: (value: string) => void;
@@ -170,7 +170,7 @@ export function AdminProductForm({
                 </Button>
               }
               title="Remover tipo"
-              description={`Deseja remover o tipo "${t.name}"? Essa ação altera a organização do catálogo.`}
+              description={`Deseja remover o tipo "${t.name}" Essa ação altera a organização do catálogo.`}
               confirmLabel="Remover"
               destructive
               onConfirm={() => onDeleteType(t.id)}

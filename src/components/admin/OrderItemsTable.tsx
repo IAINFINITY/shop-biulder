@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   lines: OrderTableLine[];
-  maxBodyHeight?: string;
+  maxBodyHeight: string;
 };
 
 export function OrderItemsTable({ lines, maxBodyHeight }: Props) {

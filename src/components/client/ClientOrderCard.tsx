@@ -79,10 +79,10 @@ export function ClientOrderCard({ order, lines, totalItems, totalValue }: Client
               <p className="text-sm font-medium text-foreground">{formatBRL(line.subtotal)}</p>
             </div>
           ))}
-          {remainingCount > 0 ? (
+              {remainingCount > 0 ? (
             <p className="text-xs text-muted-foreground">+ {remainingCount} item(ns) adicionais</p>
           ) : null}
-          {visibleLines.length === 0 ? (
+              {visibleLines.length === 0 ? (
             <p className="text-sm text-muted-foreground">Itens ainda não sincronizados para visualização.</p>
           ) : null}
         </div>

@@ -15,9 +15,9 @@ export type AuthShellProps = {
   description: string;
   highlights: AuthHighlight[];
   children: ReactNode;
-  footer?: ReactNode;
-  className?: string;
-  cardClassName?: string;
+  footer: ReactNode;
+  className: string;
+  cardClassName: string;
 };
 
 export function AuthShell({

@@ -18,7 +18,7 @@ type AdminAuthStageProps = {
 const highlights: AdminAuthHighlight[] = [
   {
     title: "Gestão de produtos",
-    text: "Edite catálogo, imagens, preços e status de uma só vez.",
+    text: "Edite catálogo, imagens, preços e status em um só lugar.",
   },
   {
     title: "Pedidos recebidos",

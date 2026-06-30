@@ -107,7 +107,7 @@ export function ClientWorkspaceShell({
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {navGroups.map((group) => (
             <div key={group.label} className="mb-4">
-              {!collapsed ? (
+{!collapsed ? (
                 <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
                 </p>
@@ -188,7 +188,7 @@ export function ClientWorkspaceShell({
                 </Button>
               }
               title="Sair da conta"
-              description="Deseja encerrar a sessão do cliente atual?"
+              description="Deseja encerrar a sessão do cliente atual"
               confirmLabel="Sair"
               destructive
               onConfirm={onLogout}

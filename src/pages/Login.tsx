@@ -6,13 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AddressFields } from "@/components/pedido/AddressFields";
+import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
-import { Building2, LockKeyhole, Mail, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { assertAddressReady, emptyAddressForm } from "@/lib/address";
+import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 
 const emptyCustomerForm = {
   name: "",
@@ -20,17 +23,6 @@ const emptyCustomerForm = {
   company: "",
   cnpj: "",
   customer_type: DEFAULT_CUSTOMER_TYPE,
-};
-
-const emptyAddressData = {
-  cep: "",
-  street: "",
-  number: "",
-  complement: "",
-  neighborhood: "",
-  city: "",
-  state: "",
-  ibge: "",
 };
 
 const AUTH_FEEDBACK_MIN_MS = 700;
@@ -41,9 +33,9 @@ type AuthFieldProps = {
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
-  type?: string;
-  autoComplete?: string;
-  required?: boolean;
+  type: string;
+  autoComplete: string;
+  required: boolean;
   icon: LucideIcon;
   onBlur?: () => void;
 };
@@ -73,7 +65,7 @@ function AuthField({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onBlur={onBlur}
+          onBlur={onBlur ?? (() => {})}
           placeholder={placeholder}
           required={required}
           autoComplete={autoComplete}
@@ -93,6 +85,7 @@ export default function Login() {
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpPasswordConfirm, setSignUpPasswordConfirm] = useState("");
   const [customerForm, setCustomerForm] = useState(emptyCustomerForm);
+  const [addressForm, setAddressForm] = useState(emptyAddressForm());
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [authTab, setAuthTab] = useState<"entrar" | "cadastro">("entrar");
@@ -133,16 +126,22 @@ export default function Login() {
       return;
     }
 
+    const addressMessage = assertAddressReady(addressForm);
+    if (addressMessage) {
+      toast.error(addressMessage);
+      return;
+    }
+
     setSubmitting(true);
     const { error, needsEmailConfirmation } = await signUpCustomer({
       ...customerForm,
-      ...emptyAddressData,
+      ...addressForm,
       email: signUpEmail.trim(),
       password: signUpPassword,
     });
 
     if (error) {
-      const message = error.message?.toLowerCase() ?? "";
+      const message = error.message.toLowerCase() ?? "";
       if (message.includes("customer_profiles_cnpj_unique") || message.includes("duplicate")) {
         toast.error("Este CNPJ ja possui cadastro.");
       } else {
@@ -189,15 +188,15 @@ export default function Login() {
               {authTab === "entrar" ? "Entrar na conta" : "Criar conta corporativa"}
             </h2>
             <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-muted-foreground">
-              {authTab === "entrar"
-                ? "Entre com seu e-mail e senha cadastrados."
-                : "Preencha os dados da sua empresa para criar sua conta B2B."}
+{authTab === "entrar"
+                  ? "Entre com seu e-mail e senha cadastrados."
+                 : "Preencha os dados da sua empresa para criar sua conta B2B."}
             </p>
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6 sm:px-8">
-          <Tabs value={authTab} onValueChange={setAuthTab} className="flex min-h-0 w-full flex-1 flex-col">
+          <Tabs value={authTab} onValueChange={(value) => setAuthTab(value as "entrar" | "cadastro")} className="flex min-h-0 w-full flex-1 flex-col">
             <TabsList className="grid h-12 w-full grid-cols-2 items-stretch rounded-full border border-border/70 bg-muted/60 p-1">
               <TabsTrigger
                 value="entrar"
@@ -248,7 +247,7 @@ export default function Login() {
                     Lembrar acesso
                   </label>
                   <a href="#" className="text-primary transition-colors hover:text-primary/80">
-                    Esqueceu a senha?
+                    Esqueceu a senha
                   </a>
                 </div>
 
@@ -268,50 +267,18 @@ export default function Login() {
                 onSubmit={handleSignUp}
                 className="mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
               >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <AuthField
-                    id="signup-name"
-                    label="Nome completo"
-                    placeholder="Seu nome"
-                    value={customerForm.name}
-                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, name: value }))}
-                    required
-                    icon={UserRound}
-                  />
+                <CustomerDataFields
+                  form={customerForm}
+                  onChange={(patch) => setCustomerForm((prev) => ({ ...prev, ...patch }))}
+                  onCnpjBlur={() => setCnpjTouched(true)}
+                  cnpjValidation={cnpjValidation}
+                  showCustomerType
+                />
 
-                  <AuthField
-                    id="signup-company"
-                    label="Empresa"
-                    placeholder="Nome da empresa"
-                    value={customerForm.company}
-                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, company: value }))}
-                    required
-                    icon={Building2}
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <AuthField
-                    id="signup-cnpj"
-                    label="CNPJ"
-                    placeholder="00.000.000/0001-00"
-                    value={customerForm.cnpj}
-                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, cnpj: value }))}
-                    onBlur={() => setCnpjTouched(true)}
-                    required
-                    icon={Building2}
-                  />
-
-                  <AuthField
-                    id="signup-phone"
-                    label="Telefone"
-                    placeholder="(11) 99999-9999"
-                    value={customerForm.phone}
-                    onChange={(value) => setCustomerForm((prev) => ({ ...prev, phone: value }))}
-                    required
-                    icon={Phone}
-                  />
-                </div>
+                <AddressFields
+                  form={addressForm}
+                  onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
+                />
 
                 <AuthField
                   id="signup-email"

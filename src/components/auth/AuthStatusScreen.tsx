@@ -25,7 +25,7 @@ export function AuthStatusScreen({ eyebrow, title, description, actions }: AuthS
           {description}
         </div>
 
-        {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
+         {actions ? <div className="mt-5 flex flex-wrap gap-3">{actions}</div> : null}
       </div>
     </div>
   );

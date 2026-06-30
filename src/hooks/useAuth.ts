@@ -7,6 +7,7 @@ import {
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
+import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 
 type AuthContextValue = {
@@ -36,6 +37,10 @@ function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
   return {
     ...profile,
     customer_type: normalizeCustomerType(profile.customer_type),
+    proxis_pes_id: profile.proxis_pes_id ?? null,
+    proxis_tpr_id: profile.proxis_tpr_id ?? null,
+    proxis_found: profile.proxis_found ?? false,
+    proxis_synced_at: profile.proxis_synced_at ?? null,
   };
 }
 
@@ -52,7 +57,7 @@ function readAuthBootstrap(): AuthBootstrapSnapshot | null {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw) as Partial<AuthBootstrapSnapshot> | null;
-    if (!parsed?.user || typeof parsed.user !== "object") return null;
+    if (!parsed.user || typeof parsed.user !== "object") return null;
 
     return {
       user: parsed.user as User,
@@ -118,13 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(
     bootstrapSnapshot?.user ? readCachedCustomerProfile(bootstrapSnapshot.user.id) : null,
   );
-  const [loading, setLoading] = useState(!bootstrapSnapshot);
+  const [loading, setLoading] = useState(true);
   const [isResolvingAccess, setIsResolvingAccess] = useState(false);
-  const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user.id ?? null);
+  const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user?.id ?? null);
   const userRef = useRef<User | null>(bootstrapSnapshot?.user ?? null);
   const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
 
-  const fetchCustomerProfile = useCallback(async (userId: string, resolutionId?: number) => {
+  const fetchCustomerProfile = useCallback(async (userId: string, resolutionId: number) => {
     const { data, error } = await supabase
       .from(CUSTOMER_PROFILES_TABLE)
       .select("*")
@@ -191,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchCustomerProfile]);
 
-  const resolveAuthState = useCallback((nextUser: User | null) => {
+  const resolveAuthState = useCallback(async (nextUser: User | null, forceRefresh = false) => {
     if (!nextUser) {
       authResolutionCounter += 1;
       activeUserIdRef.current = null;
@@ -203,23 +208,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsResolvingAccess(false);
       clearAuthBootstrap();
       clearCachedCustomerProfile();
+      setLoading(false);
       return;
     }
 
-    if (activeUserIdRef.current === nextUser.id && userRef.current?.id === nextUser.id) {
+    if (!forceRefresh && activeUserIdRef.current === nextUser.id && userRef.current?.id === nextUser.id) {
       userRef.current = nextUser;
       setUser((currentUser) => currentUser ?? nextUser);
+      setLoading(false);
       return;
     }
 
     const resolutionId = ++authResolutionCounter;
     activeUserIdRef.current = nextUser.id;
     userRef.current = nextUser;
+    setLoading(true);
     setUser(nextUser);
     isAdminRef.current = false;
     setIsAdmin(false);
     setCustomerProfile(readCachedCustomerProfile(nextUser.id));
-    void hydrateSessionDetails(nextUser, resolutionId);
+    await hydrateSessionDetails(nextUser, resolutionId);
+    if (resolutionId === authResolutionCounter) {
+      setLoading(false);
+    }
   }, [hydrateSessionDetails]);
 
   useEffect(() => {
@@ -229,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         const currentUser = data.session?.user ?? null;
-        resolveAuthState(currentUser);
+        await resolveAuthState(currentUser, true);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -247,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "TOKEN_REFRESHED" && session?.user && activeUserIdRef.current === session.user.id) {
         return;
       }
-      resolveAuthState(session?.user ?? null);
+      void resolveAuthState(session?.user ?? null);
     });
 
     return () => {
@@ -257,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [resolveAuthState]);
 
   const updateCustomerType = async (customerType: CustomerType) => {
-    if (!user) return new Error("UsuÃ¡rio nÃ£o autenticado");
+    if (!user) return new Error("Usuário não autenticado");
 
     const normalizedType = normalizeCustomerType(customerType);
     const { error } = await supabase
@@ -306,6 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ...addressFormToProfileColumns(data),
     });
     if (!error && user) {
+      await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
       await fetchCustomerProfile(user.id);
     }
     return error;
@@ -331,7 +343,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...addressFormToProfileColumns(data),
       });
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
-      if (sessionUser) await fetchCustomerProfile(sessionUser.id);
+      if (sessionUser) {
+        await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
+        await fetchCustomerProfile(sessionUser.id);
+      }
     }
 
     return { error: null, needsEmailConfirmation };

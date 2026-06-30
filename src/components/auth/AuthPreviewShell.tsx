@@ -17,7 +17,7 @@ type AuthPreviewShellProps = {
   footerHref: string;
   footerLabel: string;
   children: ReactNode;
-  className?: string;
+  className: string;
 };
 
 export function AuthPreviewShell({

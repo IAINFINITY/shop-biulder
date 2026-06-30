@@ -87,7 +87,7 @@ function AdminAccessNotice({
                 </Button>
               }
               title="Sair da conta"
-              description="Deseja encerrar a sessão administrativa atual?"
+              description="Deseja encerrar a sessão administrativa atual"
               confirmLabel="Sair"
               destructive
               onConfirm={onLogout}
@@ -425,7 +425,7 @@ export default function Account() {
               </Button>
             }
             title="Sair da conta"
-            description="Deseja encerrar sua sessão de cliente?"
+            description="Deseja encerrar sua sessão de cliente"
             confirmLabel="Sair"
             destructive
             onConfirm={async () => {

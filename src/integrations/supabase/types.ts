@@ -102,6 +102,7 @@ export type Database = {
           created_at: string
           customer_cnpj: string
           customer_company: string
+          customer_observation: string | null
           customer_name: string
           customer_phone: string
           customer_address_cep: string
@@ -122,6 +123,7 @@ export type Database = {
           created_at: string
           customer_cnpj: string
           customer_company: string
+          customer_observation: string | null
           customer_name: string
           customer_phone: string
           customer_address_cep: string
@@ -142,6 +144,7 @@ export type Database = {
           created_at: string
           customer_cnpj: string
           customer_company: string
+          customer_observation: string | null
           customer_name: string
           customer_phone: string
           customer_address_cep: string
@@ -298,6 +301,141 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_type_overrides: {
+        Row: {
+          cnpj: string
+          customer_type: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          cnpj: string
+          customer_type?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string
+          customer_type?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      support_conversations: {
+        Row: {
+          assigned_admin_id: string | null
+          created_at: string
+          customer_cnpj: string | null
+          customer_company: string | null
+          customer_name: string
+          customer_phone: string | null
+          customer_user_id: string
+          customer_typing_at: string | null
+          id: string
+          last_message_at: string
+          last_message_preview: string | null
+          admin_typing_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_admin_id?: string | null
+          created_at?: string
+          customer_cnpj?: string | null
+          customer_company?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          customer_user_id: string
+          customer_typing_at?: string | null
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          admin_typing_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_admin_id?: string | null
+          created_at?: string
+          customer_cnpj?: string | null
+          customer_company?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          customer_user_id?: string
+          customer_typing_at?: string | null
+          id?: string
+          last_message_at?: string
+          last_message_preview?: string | null
+          admin_typing_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_conversations_assigned_admin_id_fkey"
+            columns: ["assigned_admin_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_conversations_customer_user_id_fkey"
+            columns: ["customer_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_role: string
+          sender_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_role: string
+          sender_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_role?: string
+          sender_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "support_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_messages_sender_user_id_fkey"
+            columns: ["sender_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -328,6 +466,28 @@ export type Database = {
         }
         Returns: undefined
       }
+      ensure_support_conversation: {
+        Args: {
+          p_subject?: string
+        }
+        Returns: string
+      }
+      list_internal_staff: {
+        Args: Record<string, never>
+        Returns: {
+          created_at: string
+          email: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
+      set_internal_staff_role: {
+        Args: {
+          p_email: string
+          p_role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: undefined
+      }
       sync_customer_proxis_link: {
         Args: {
           p_proxis_found: boolean
@@ -338,7 +498,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "consultor" | "representante" | "admin_atendimento"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -466,7 +626,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "consultor", "representante", "admin_atendimento"],
     },
   },
 } as const

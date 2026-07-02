@@ -167,24 +167,17 @@ export default function Index() {
   const visibleFiltered = useMemo(() => filtered.slice(0, visibleProducts), [filtered, visibleProducts]);
   const orderPopularity = useMemo(() => {
     const quantityCounts = new Map<string, number>();
-    const orderCounts = new Map<string, number>();
 
     for (const order of orderHistory) {
-      const seenInOrder = new Set<string>();
-
       for (const item of order.items) {
         const productId = typeof item.product_id === "string" ? item.product_id.trim() : "";
         if (!productId) continue;
 
         quantityCounts.set(productId, (quantityCounts.get(productId) ?? 0) + Math.max(1, item.quantity));
-        if (!seenInOrder.has(productId)) {
-          orderCounts.set(productId, (orderCounts.get(productId) ?? 0) + 1);
-          seenInOrder.add(productId);
-        }
       }
     }
 
-    return { quantityCounts, orderCounts };
+    return { quantityCounts };
   }, [orderHistory]);
 
   useEffect(() => {
@@ -215,7 +208,7 @@ export default function Index() {
     return filtered
       .map((product) => {
         const normalizedName = product.name.toLowerCase();
-        const normalizedCode = product.product_code.toLowerCase() ?? "";
+        const normalizedCode = product.product_code?.toLowerCase() ?? "";
         const nameStarts = normalizedName.startsWith(query) ? 3 : 0;
         const nameContains = normalizedName.includes(query) ? 2 : 0;
         const codeMatches = normalizedCode.includes(query) ? 2 : 0;
@@ -276,6 +269,12 @@ export default function Index() {
     [cart, customerPriceMap],
   );
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
+  const setQuantity = useCallback((id: string, quantity: number) => {
+    const safeQuantity = Number.isFinite(quantity) ? Math.max(1, Math.min(99, Math.round(quantity))) : 1;
+    setCart((prev) =>
+      prev.map((item) => (item.product.id === id ? { ...item, quantity: safeQuantity } : item)),
+    );
+  }, []);
 
   const showAllProducts = useCallback(() => {
     setSearch("");
@@ -289,35 +288,23 @@ export default function Index() {
     if (filtered.length === 0) return [];
 
     const baseProducts = [...filtered];
-    const byPriceAscending = [...baseProducts].sort((left, right) => resolveProductPrice(left, customerPriceMap) - resolveProductPrice(right, customerPriceMap) || new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
+    const byPriceAscending = [...baseProducts].sort(
+      (left, right) =>
+        resolveProductPrice(left, customerPriceMap) -
+          resolveProductPrice(right, customerPriceMap) ||
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
+    );
     const withPopularSignal = [...baseProducts].sort((left, right) => {
       const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
       const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
-      const leftOrders = orderPopularity.orderCounts.get(left.id) ?? 0;
-      const rightOrders = orderPopularity.orderCounts.get(right.id) ?? 0;
       const leftFallback = familyCounts.get(left.family) ?? 0;
       const rightFallback = familyCounts.get(right.family) ?? 0;
 
-      return rightQty - leftQty || rightOrders - leftOrders || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
+      return rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
     });
 
-    const withMostRequests = [...baseProducts].sort((left, right) => {
-      const leftOrders = orderPopularity.orderCounts.get(left.id) ?? 0;
-      const rightOrders = orderPopularity.orderCounts.get(right.id) ?? 0;
-      const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
-      const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
-      const leftFallback = familyCounts.get(left.family) ?? 0;
-      const rightFallback = familyCounts.get(right.family) ?? 0;
-
-      return rightOrders - leftOrders || rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
-    });
-
-    const hasPersonalHistory = orderHistory.length > 0;
     const promoDescription = "Escolha opções com preço mais leve e aproveite as ofertas com rapidez.";
-    const requestedDescription = hasPersonalHistory
-      ? "Produtos que você costuma pedir com mais frequência, para repetir sua compra sem perder tempo."
-      : "Produtos em destaque para facilitar sua navegação e encontrar o que combina com sua rotina.";
-    const soldDescription = hasPersonalHistory
+    const soldDescription = orderHistory.length > 0
       ? "Os produtos mais recorrentes no seu histórico, organizados para consulta rápida."
       : "Produtos mais procurados para ajudar você a descobrir o catálogo com facilidade.";
 
@@ -328,29 +315,20 @@ export default function Index() {
         title: "Promoções",
         description: promoDescription,
         highlightLabel: "Promoção",
-        highlightTone: "destructive",
+        highlightTone: "destructive" as const,
         products: byPriceAscending.slice(0, 8),
       },
       {
-        id: "mais-pedidos",
-        eyebrow: hasPersonalHistory ? "Seu histórico" : "Curadoria",
-        title: "Mais pedidos",
-        description: requestedDescription,
-        highlightLabel: "Mais pedido",
-        highlightTone: "primary",
-        products: withMostRequests.slice(0, 8),
-      },
-      {
         id: "mais-vendidos",
-        eyebrow: hasPersonalHistory ? "Seu histórico" : "Destaques",
+        eyebrow: orderHistory.length > 0 ? "Seu histórico" : "Destaques",
         title: "Mais vendidos",
         description: soldDescription,
         highlightLabel: "Mais vendido",
-        highlightTone: "success",
+        highlightTone: "success" as const,
         products: withPopularSignal.slice(0, 8),
       },
     ];
-  }, [customerPriceMap, familyCounts, filtered, orderHistory, orderPopularity]);
+  }, [customerPriceMap, familyCounts, filtered, orderHistory.length, orderPopularity]);
 
   return (
     <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
@@ -362,6 +340,7 @@ export default function Index() {
           <CartDrawer
             cart={cart}
             onUpdateQuantity={updateQuantity}
+            onSetQuantity={setQuantity}
             onRemove={removeFromCart}
             onClear={clearCart}
             open={isCartOpen}

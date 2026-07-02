@@ -32,7 +32,7 @@ type CustomerDataFieldsProps = {
     status: CnpjValidationStatus;
   };
   idPrefix?: string;
-  showCustomerType: boolean;
+  showCustomerType?: boolean;
 };
 
 export function CustomerDataFields({

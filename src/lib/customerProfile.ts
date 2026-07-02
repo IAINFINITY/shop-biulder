@@ -31,7 +31,7 @@ export type CustomerFormCore = {
   phone: string;
   company: string;
   cnpj: string;
-  customer_type: CustomerType;
+  customer_type?: CustomerType;
 };
 
 export interface CustomerRegistrationData extends CustomerFormCore, AddressFormData {

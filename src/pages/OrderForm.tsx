@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { AddressFields } from "@/components/pedido/AddressFields";
 import { CustomerDataFields } from "@/components/pedido/CustomerDataFields";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
@@ -27,6 +28,7 @@ function getCartImage(item: CartItem): string | null {
 export default function OrderForm() {
   const navigate = useNavigate();
   const { user, customerProfile, loading, isResolvingAccess } = useAuth();
+  const allowGuestCheckout = import.meta.env.DEV;
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
   const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
@@ -36,6 +38,7 @@ export default function OrderForm() {
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [submitting, setSubmitting] = useState(false);
   const [cnpjTouched, setCnpjTouched] = useState(false);
+  const [orderNote, setOrderNote] = useState("");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -67,7 +70,7 @@ export default function OrderForm() {
     );
   }
 
-  if (!user) {
+  if (!user && !allowGuestCheckout) {
     return (
       <AuthStatusScreen
         eyebrow="Checkout"
@@ -121,6 +124,7 @@ export default function OrderForm() {
       customer_phone: form.phone.trim(),
       customer_company: form.company.trim(),
       customer_cnpj: form.cnpj.trim(),
+      customer_observation: orderNote.trim() || null,
       ...addressToOrderColumns(addressForm),
       items: orderItems as unknown as Json,
       total_items: totalItems,
@@ -135,7 +139,7 @@ export default function OrderForm() {
       const isRlsError = lowerMessage.includes("row-level security");
       toast.error(
         isRlsError
-          ? "Permissao negada ao salvar o pedido. Verifique as politicas (RLS) da tabela orders."
+          ? "Permissão negada ao salvar o pedido. Verifique as políticas (RLS) da tabela orders."
           : error.message || "Erro ao enviar pedido"
       );
       setSubmitting(false);
@@ -157,8 +161,10 @@ export default function OrderForm() {
           customer_name: form.name.trim(),
           customer_cnpj: form.cnpj.trim(),
           customer_company: form.company.trim(),
+          customer_observation: orderNote.trim() || null,
           address: addressToProxisPayload(addressForm),
           items: proxisItems,
+          note: orderNote.trim() || "Pedido enviado a partir do carrinho do catalogo.",
         }),
       });
 
@@ -182,6 +188,7 @@ export default function OrderForm() {
           customer_company: form.company.trim(),
           customer_cnpj: form.cnpj.trim(),
           customer_phone: form.phone.trim(),
+          customer_observation: orderNote.trim() || null,
           address: {
             cep: addressForm.cep,
             street: addressForm.street,
@@ -194,7 +201,7 @@ export default function OrderForm() {
           items: proxisItems,
           total_amount: orderSubtotal,
           source: "clinicplus-b2b",
-          note: "Pedido enviado a partir do carrinho do catalogo.",
+          note: orderNote.trim() || "Pedido enviado a partir do carrinho do catalogo.",
         }),
       });
 
@@ -267,6 +274,7 @@ export default function OrderForm() {
         totalItems: payload.total_items,
         submittedCart,
         orderSubtotal,
+        orderNote: orderNote.trim(),
       },
     });
   };
@@ -310,6 +318,15 @@ export default function OrderForm() {
       </PageHeaderShell>
 
       <div className="container mx-auto max-w-[1400px] px-4 py-6 lg:py-8">
+        {!user && allowGuestCheckout ? (
+          <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
+            <p className="font-semibold text-primary">Modo de diagnóstico ativo</p>
+            <p className="mt-1 text-muted-foreground">
+              O acesso ao checkout está liberado temporariamente para depuração local. Isso não altera a regra normal de login.
+            </p>
+          </div>
+        ) : null}
+
         {cart.length === 0 ? (
           <div className="mx-auto max-w-xl space-y-3 rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
             <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground/40" />
@@ -373,6 +390,27 @@ export default function OrderForm() {
                     form={addressForm}
                     onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
                   />
+
+                  <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                    <div className="mb-4 flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold text-foreground">Observações do pedido</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Use este campo para orientar entrega, complemento do endereço ou qualquer detalhe importante.
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="rounded-full px-3 py-1">
+                        Opcional
+                      </Badge>
+                    </div>
+
+                    <Textarea
+                      value={orderNote}
+                      onChange={(e) => setOrderNote(e.target.value)}
+                      placeholder="Ex.: Deixar na portaria, entregar no horário comercial, confirmar complemento antes de enviar."
+                      className="min-h-32 rounded-2xl border-border/70 bg-background text-sm leading-6"
+                    />
+                  </section>
 
                   <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -455,16 +493,20 @@ export default function OrderForm() {
                               <span className="font-semibold text-foreground tabular-nums">{formatBRL(line)}</span>
                             </div>
 
-                            {item.notes.trim() && (
+                            {(() => {
+                              const notes = item.notes?.trim() ?? "";
+                              if (!notes) return null;
+                              return (
                               <div className="rounded-xl bg-muted/50 p-3">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                                   Observações
                                 </p>
                                 <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
-                                  {item.notes.trim()}
+                                  {notes}
                                 </p>
                               </div>
-                            )}
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>

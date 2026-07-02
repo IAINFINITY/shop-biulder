@@ -13,6 +13,7 @@ type OrderSuccessState = {
   totalItems: number;
   submittedCart: SubmittedCartLine[];
   orderSubtotal: number;
+  orderNote?: string | null;
 };
 
 export default function OrderSuccess() {
@@ -21,6 +22,7 @@ export default function OrderSuccess() {
   const hasOrderDetails = Boolean(state.customerName || state.company || state.totalItems);
   const submittedCart = Array.isArray(state.submittedCart) ? state.submittedCart : [];
   const hasSubmittedCart = submittedCart.length > 0;
+  const orderNote = typeof state.orderNote === "string" ? state.orderNote.trim() : "";
   const [cartOpen, setCartOpen] = useState(false);
 
   return (
@@ -44,7 +46,7 @@ export default function OrderSuccess() {
             </div>
 
             <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
-              Obrigado! Sua solicitacao foi enviada.
+              Obrigado! Sua solicitação foi enviada.
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
@@ -72,6 +74,17 @@ export default function OrderSuccess() {
                 </div>
               </div>
             )}
+
+            {orderNote ? (
+              <div className="mt-4 w-full rounded-3xl border border-border/70 bg-background/80 p-5 text-left">
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Observação do pedido
+                </p>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-foreground">
+                  {orderNote}
+                </p>
+              </div>
+            ) : null}
 
             <div className="mt-8 flex w-full max-w-lg flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
               {hasSubmittedCart && (
@@ -130,7 +143,7 @@ export default function OrderSuccess() {
                     {line.notes.trim() && (
                       <div className="mt-2 rounded-md bg-muted/50 p-2">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Observacoes
+                          Observações
                         </p>
                         <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">{line.notes.trim()}</p>
                       </div>

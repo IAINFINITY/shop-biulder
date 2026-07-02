@@ -1,14 +1,13 @@
-import { Minus, Plus, Trash2, ShoppingBag, Send, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CartItem } from "@/lib/products";
-import { resolveProductPrice } from "@/lib/pricing";
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Minus, Plus, Send, ShoppingBag, Trash2, X } from "lucide-react";
 import { getProductImageUrls } from "@/lib/products";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 
@@ -19,6 +18,7 @@ function getCartImage(item: CartItem): string | null {
 interface CartDrawerProps {
   cart: CartItem[];
   onUpdateQuantity: (productId: string, delta: number) => void;
+  onSetQuantity: (productId: string, quantity: number) => void;
   onRemove: (productId: string) => void;
   onClear: () => void;
   open: boolean;
@@ -29,6 +29,7 @@ interface CartDrawerProps {
 export function CartDrawer({
   cart,
   onUpdateQuantity,
+  onSetQuantity,
   onRemove,
   onClear,
   open,
@@ -36,9 +37,8 @@ export function CartDrawer({
   resolveUnitPrice,
 }: CartDrawerProps) {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const unitPrice = resolveUnitPrice ?? resolveProductPrice;
   const subtotal = Math.round(
-    cart.reduce((sum, item) => sum + unitPrice(item.product) * item.quantity, 0) * 100,
+    cart.reduce((sum, item) => sum + resolveUnitPrice(item.product) * item.quantity, 0) * 100,
   ) / 100;
   const navigate = useNavigate();
 
@@ -47,8 +47,8 @@ export function CartDrawer({
       toast.info("Carrinho vazio");
       return;
     }
-      onOpenChange(false);
-    navigate("/pedido", { viewTransition: true });
+    onOpenChange(false);
+    navigate("/pedido");
   };
 
   return (
@@ -127,7 +127,7 @@ export function CartDrawer({
                             Unitário
                           </p>
                           <p className="text-sm font-semibold tabular-nums text-foreground">
-                            {formatBRL(unitPrice(item.product))}
+                            {formatBRL(resolveUnitPrice(item.product))}
                           </p>
                         </div>
                         <div className="text-right">
@@ -135,7 +135,7 @@ export function CartDrawer({
                             Subtotal
                           </p>
                           <p className="text-sm font-semibold tabular-nums text-foreground">
-                            {formatBRL(unitPrice(item.product) * item.quantity)}
+                            {formatBRL(resolveUnitPrice(item.product) * item.quantity)}
                           </p>
                         </div>
                       </div>
@@ -155,9 +155,17 @@ export function CartDrawer({
                       >
                         <Minus className="h-3.5 w-3.5" />
                       </Button>
-                      <div className="min-w-10 rounded-full border border-border bg-background px-3 py-1 text-center text-sm font-medium tabular-nums text-foreground">
-                        {item.quantity}
-                      </div>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={99}
+                        step={1}
+                        inputMode="numeric"
+                        aria-label={`Quantidade de ${item.product.name}`}
+                        value={item.quantity}
+                        onChange={(e) => onSetQuantity(item.product.id, Number(e.target.value))}
+                        className="h-8 w-20 rounded-full border-border bg-background px-3 text-center text-sm font-medium tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
                       <Button
                         variant="outline"
                         size="icon"
@@ -173,7 +181,7 @@ export function CartDrawer({
             </div>
 
             <div className="space-y-3 border-t border-border pt-4">
-              <CatalogOrderNotice variant="compact" />
+              <CatalogOrderNotice variant="compact" className="rounded-2xl border-border/60 bg-muted/40" />
               <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
                 <span className="text-sm font-medium text-muted-foreground">Subtotal</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">{formatBRL(subtotal)}</span>

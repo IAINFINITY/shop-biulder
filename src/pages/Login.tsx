@@ -12,7 +12,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
-import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
 import { assertAddressReady, emptyAddressForm } from "@/lib/address";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
@@ -22,7 +21,6 @@ const emptyCustomerForm = {
   phone: "",
   company: "",
   cnpj: "",
-  customer_type: DEFAULT_CUSTOMER_TYPE,
 };
 
 const AUTH_FEEDBACK_MIN_MS = 700;
@@ -122,7 +120,7 @@ export default function Login() {
     }
 
     if (signUpPassword !== signUpPasswordConfirm) {
-      toast.error("As senhas nao coincidem.");
+      toast.error("As senhas não coincidem.");
       return;
     }
 
@@ -272,7 +270,6 @@ export default function Login() {
                   onChange={(patch) => setCustomerForm((prev) => ({ ...prev, ...patch }))}
                   onCnpjBlur={() => setCnpjTouched(true)}
                   cnpjValidation={cnpjValidation}
-                  showCustomerType
                 />
 
                 <AddressFields

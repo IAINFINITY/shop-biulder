@@ -37,6 +37,7 @@ export interface Order {
   customer_phone: string;
   customer_company: string;
   customer_cnpj: string;
+  customer_observation?: string | null;
   items: OrderItem[];
   total_items: number;
   status: string;
@@ -167,7 +168,7 @@ export function getOrderLinesQuantityTotal(lines: OrderTableLine[]): number {
 
 export function toOrderItems(
   cart: { product: Product; quantity: number; notes?: string }[],
-  resolvePrice: (product: Product) => number = (product) => resolveProductPrice(product),
+  resolvePrice: (product: Product) => number = (product) => resolveProductPrice(product, new Map()),
 ): OrderItem[] {
   return cart.map((item) => {
     const unit = resolvePrice(item.product);

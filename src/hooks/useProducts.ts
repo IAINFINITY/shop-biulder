@@ -5,11 +5,16 @@ import {
   PRODUCTS_TABLE,
   PRODUCT_SELECT_COLUMNS,
   PRODUCT_SELECT_COLUMNS_LEGACY,
+  PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION,
   PRODUCT_SELECT_COLUMNS_NO_CODE,
+  PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION,
   PRODUCT_SELECT_COLUMNS_NO_GALLERY,
+  PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION,
+  PRODUCT_SELECT_COLUMNS_NO_PROMOTION,
   normalizeProductFromSupabaseRow,
   isMissingImageUrlsColumnError,
   isMissingProductCodeColumnError,
+  isMissingPromotionColumnError,
 } from "@/lib/products";
 
 export type UseProductsOptions = {
@@ -70,6 +75,10 @@ export function useProducts(options?: UseProductsOptions) {
         PRODUCT_SELECT_COLUMNS_NO_GALLERY,
         PRODUCT_SELECT_COLUMNS_NO_CODE,
         PRODUCT_SELECT_COLUMNS_LEGACY,
+        PRODUCT_SELECT_COLUMNS_NO_PROMOTION,
+        PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION,
+        PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION,
+        PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION,
       ] as const;
 
       let data: unknown[] | null = null;
@@ -84,7 +93,8 @@ export function useProducts(options?: UseProductsOptions) {
         lastError = result.error;
         const missingColumn =
           isMissingImageUrlsColumnError(result.error.message) ||
-          isMissingProductCodeColumnError(result.error.message);
+          isMissingProductCodeColumnError(result.error.message) ||
+          isMissingPromotionColumnError(result.error.message);
         if (!missingColumn) throw result.error;
       }
 

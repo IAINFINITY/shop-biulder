@@ -12,6 +12,7 @@ export interface Product {
   image_url: string | null;
   image_urls: string[] | null;
   active: boolean;
+  is_promotion: boolean;
   price: number | null;
   product_code: string | null;
   created_at: string;
@@ -70,18 +71,30 @@ export function getProductImageUrls(product: Pick<Product, "image_url" | "image_
 }
 
 const PRODUCT_SELECT_BASE =
+  "id,name,description,type,family,image_url,active,is_promotion,price,created_at,updated_at" as const;
+const PRODUCT_SELECT_BASE_NO_PROMOTION =
   "id,name,description,type,family,image_url,active,price,created_at,updated_at" as const;
 
 export const PRODUCT_SELECT_COLUMNS =
   `${PRODUCT_SELECT_BASE},image_urls,product_code` as const;
 
+export const PRODUCT_SELECT_COLUMNS_NO_PROMOTION =
+  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls,product_code` as const;
+
 export const PRODUCT_SELECT_COLUMNS_NO_GALLERY =
   `${PRODUCT_SELECT_BASE},product_code` as const;
+
+export const PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION =
+  `${PRODUCT_SELECT_BASE_NO_PROMOTION},product_code` as const;
 
 export const PRODUCT_SELECT_COLUMNS_NO_CODE =
   `${PRODUCT_SELECT_BASE},image_urls` as const;
 
+export const PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION =
+  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls` as const;
+
 export const PRODUCT_SELECT_COLUMNS_LEGACY = PRODUCT_SELECT_BASE;
+export const PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION = PRODUCT_SELECT_BASE_NO_PROMOTION;
 
 export function isMissingColumnError(message: string, column: string): boolean {
   return new RegExp(column, "i").test(message) && /(column|schema cache)/i.test(message);
@@ -95,10 +108,21 @@ export function isMissingProductCodeColumnError(message: string): boolean {
   return isMissingColumnError(message, "product_code");
 }
 
+export function isMissingPromotionColumnError(message: string): boolean {
+  return isMissingColumnError(message, "is_promotion");
+}
+
 export function omitProductCode<T extends { product_code: string | null }>(
   row: T,
 ): Omit<T, "product_code"> {
   const { product_code: _code, ...rest } = row;
+  return rest;
+}
+
+export function omitProductPromotion<T extends { is_promotion: boolean }>(
+  row: T,
+): Omit<T, "is_promotion"> {
+  const { is_promotion: _promotion, ...rest } = row;
   return rest;
 }
 
@@ -109,6 +133,7 @@ export type ProductDbPayloadInput = {
   family: string;
   image_urls: string[];
   active: boolean;
+  is_promotion: boolean;
   price: number;
   product_code: string;
 };
@@ -120,6 +145,7 @@ type ProductDbRow = {
   family: string;
   image_url: string | null;
   active: boolean;
+  is_promotion: boolean;
   price: number;
   product_code: string | null;
 };
@@ -135,6 +161,7 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     type: input.type,
     family: input.family,
     active: input.active,
+    is_promotion: input.is_promotion,
     price: input.price,
     image_url: urls[0] ?? null,
     product_code: input.product_code.trim() || null,
@@ -170,6 +197,7 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     image_url: gallery[0] ?? null,
     image_urls: gallery.length > 0 ? gallery : null,
     active: Boolean(record.active),
+    is_promotion: Boolean(record.is_promotion),
     price: coercePrice(record.price),
     product_code: productCode,
     created_at: typeof record.created_at === "string" ? record.created_at : "",

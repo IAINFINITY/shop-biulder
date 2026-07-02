@@ -60,6 +60,7 @@ export type Database = {
           id: string
           image_url: string | null
           image_urls: string[]
+          is_promotion: boolean
           name: string
           price: number
           product_code: string | null
@@ -74,6 +75,7 @@ export type Database = {
           id: string
           image_url: string | null
           image_urls: string[]
+          is_promotion: boolean
           name: string
           price: number
           product_code: string | null
@@ -88,6 +90,7 @@ export type Database = {
           id: string
           image_url: string | null
           image_urls: string[]
+          is_promotion: boolean
           name: string
           price: number
           product_code: string | null
@@ -163,6 +166,41 @@ export type Database = {
         }
         Relationships: []
       }
+
+      catalog_banners: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          image_url: string
+          label: string
+          link_url: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          image_url: string
+          label: string
+          link_url?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          image_url?: string
+          label?: string
+          link_url?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+
       product_types: {
         Row: {
           created_at: string
@@ -178,6 +216,30 @@ export type Database = {
           created_at: string
           id: string
           name: string
+        }
+        Relationships: []
+      }
+      product_families: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          type_id: string
+          updated_at: string
+        }
+        Insert: {
+          name: string
+          type_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          type_id?: string
+          updated_at?: string
         }
         Relationships: []
       }

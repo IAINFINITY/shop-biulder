@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
-import { useAdminProductTypes } from "@/hooks/useAdminProductTypes";
+import { useAdminProductTypes, type ProductType } from "@/hooks/useAdminProductTypes";
 import {
   getProductTypes,
   PRODUCTS_TABLE,
@@ -21,7 +21,9 @@ import {
   buildProductDbPayload,
   isMissingImageUrlsColumnError,
   isMissingProductCodeColumnError,
+  isMissingPromotionColumnError,
   omitProductCode,
+  omitProductPromotion,
   type Product,
 } from "@/lib/products";
 import {
@@ -39,6 +41,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
 import { AdminWorkspaceShell } from "@/components/admin/AdminWorkspaceShell";
 import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection";
+import { AdminBannersSection } from "@/components/admin/AdminBannersSection";
 import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
 import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
@@ -351,6 +354,23 @@ export default function AdminWorkspace() {
     [customerTypeOverrides],
   );
   const orderRows = orders as unknown as AdminOrderRow[];
+  const productSalesById = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const order of orderRows) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        const record = item as Record<string, unknown>;
+        const productId = typeof record.product_id === "string" ? record.product_id.trim() : "";
+        if (!productId) continue;
+        const quantity = typeof record.quantity === "number" ? record.quantity : Number(record.quantity) || 0;
+        counts.set(productId, (counts.get(productId) ?? 0) + Math.max(1, Math.trunc(quantity) || 1));
+      }
+    }
+
+    return counts;
+  }, [orderRows]);
   const filteredOrders = useMemo<AdminOrderRow[]>(() => {
     const term = orderSearch.trim().toLowerCase();
     if (!term) return orderRows;
@@ -489,6 +509,7 @@ export default function AdminWorkspace() {
   );
   const sectionTitle: Record<AdminSection, string> = {
     dashboard: "Dashboard",
+    banners: "Banners do catálogo",
     produtos: "Produtos",
     precos: "Preços",
     pedidos: "Pedidos",
@@ -587,6 +608,7 @@ export default function AdminWorkspace() {
       family: "",
       image_urls: [],
       active: true,
+      is_promotion: false,
       priceInput: "",
       productCode: "",
     });
@@ -599,9 +621,10 @@ export default function AdminWorkspace() {
       name: p.name,
       description: p.description,
       type: p.type,
-      family: p.family,
+      family: p.family.trim(),
       image_urls: getProductImageUrls(p),
       active: p.active,
+      is_promotion: p.is_promotion,
       priceInput: priceToAdminInput(coercePrice(p.price)),
       productCode: p.product_code ?? "",
     });
@@ -648,9 +671,10 @@ export default function AdminWorkspace() {
       name: editing.name,
       description,
       type: editing.type,
-      family: editing.family,
+      family: editing.family.trim(),
       image_urls: editing.image_urls.filter((u) => u.trim() !== ""),
       active: editing.active,
+      is_promotion: editing.is_promotion,
       price: Math.max(0, parsePriceInput(editing.priceInput)),
       product_code: editing.productCode,
     });
@@ -668,6 +692,11 @@ export default function AdminWorkspace() {
         toast.warning("Só a primeira foto foi salva. Execute supabase/APLICAR_NO_SUPABASE_image_urls.sql no Supabase para várias imagens.");
       }
       body = legacyOnly;
+      ({ error } = await persist(body));
+    }
+    if (error && isMissingPromotionColumnError(error.message)) {
+      toast.warning("Promoção não salva. Execute a migração da coluna is_promotion no Supabase e tente de novo.");
+      body = omitProductPromotion(body) as typeof withGallery;
       ({ error } = await persist(body));
     }
     if (error && isMissingProductCodeColumnError(error.message)) {
@@ -709,13 +738,21 @@ export default function AdminWorkspace() {
   const addType = async () => {
     const name = newType.trim();
     if (!name) return;
-    const { error } = await supabase.from(PRODUCT_TYPES_TABLE).insert({ name } as never);
+    const { data, error } = await supabase
+      .from(PRODUCT_TYPES_TABLE)
+      .insert({ name } as never)
+      .select("id,name,created_at")
+      .single();
     if (error) {
       toast.error(error.message);
       return;
     }
     setNewType("");
     toast.success("Tipo adicionado!");
+    queryClient.setQueryData<ProductType[]>(["product-types"], (current = []) => {
+      const next = [...current.filter((type) => type.name !== name), data ?? { id: name, name, created_at: new Date().toISOString() }];
+      return next.sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+    });
     refreshTypes();
   };
 
@@ -726,6 +763,9 @@ export default function AdminWorkspace() {
       return;
     }
     toast.success("Tipo removido.");
+    queryClient.setQueryData<ProductType[]>(["product-types"], (current = []) =>
+      current.filter((type) => type.id !== id),
+    );
     refreshTypes();
   };
 
@@ -765,6 +805,8 @@ export default function AdminWorkspace() {
       sidebarOpen={sidebarOpen}
       onSidebarToggle={() => setSidebarOpen((value) => !value)}
     >
+      {section === "banners" && <AdminBannersSection />}
+
       {section === "dashboard" && (
         <AdminDashboardSection
           products={products}
@@ -787,7 +829,9 @@ export default function AdminWorkspace() {
       {section === "produtos" && (
         <AdminProductsSection
           isLoading={isLoading}
+          allProducts={products}
           filteredProducts={filteredProducts}
+          salesByProductId={productSalesById}
           editing={editing}
           isNew={isNew}
           productSearch={productSearch}
@@ -845,6 +889,7 @@ export default function AdminWorkspace() {
 
       {section === "clientes" && (
         <AdminClientsSection
+          customerProfiles={customerProfiles}
           customerSummaries={customerSummaries}
           clientSearch={clientSearch}
           onClientSearchChange={setClientSearch}

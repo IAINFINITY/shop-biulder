@@ -1,4 +1,4 @@
-import { type ChangeEvent, type RefObject } from "react";
+﻿import { type ChangeEvent, type RefObject } from "react";
 import { Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,10 @@ type AdminProductFormProps = {
   editing: AdminProductFormState;
   className: string;
   typeOptions: ProductTypeOption[];
-  newType: string;
-  onNewTypeChange: (value: string) => void;
-  adminTypes: Array<{ id: string; name: string }>;
+  familyOptions: string[];
   uploading: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   onChange: (next: AdminProductFormState) => void;
-  onAddType: () => void;
-  onDeleteType: (id: string) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   onRemoveImageAt: (index: number) => void;
   onSave: () => void;
@@ -36,14 +32,10 @@ export function AdminProductForm({
   editing,
   className,
   typeOptions,
-  newType,
-  onNewTypeChange,
-  adminTypes,
+  familyOptions,
   uploading,
   fileInputRef,
   onChange,
-  onAddType,
-  onDeleteType,
   onFileChange,
   onRemoveImageAt,
   onSave,
@@ -73,18 +65,74 @@ export function AdminProductForm({
         </div>
 
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="product-family" className="text-[13px] font-medium">
-            Família
+          <Label htmlFor="product-type" className="text-[13px] font-medium">
+            Categoria
           </Label>
-          <Input
-            id="product-family"
-            placeholder="Ex: Detox, Beleza, Chá"
-            value={editing.family}
-            onChange={(e) => onChange({ ...editing, family: e.target.value })}
-            className="h-11 rounded-2xl border-border/70 bg-background"
-          />
+          <Select value={editing.type} onValueChange={(v) => onChange({ ...editing, type: v, family: "" })}>
+            <SelectTrigger id="product-type" className="h-11 w-full rounded-2xl border-border/70 bg-background text-[13px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="product-family" className="text-[13px] font-medium">
+            Subcategoria
+          </Label>
+          <p className="text-[11px] leading-5 text-muted-foreground">
+            Depende da categoria selecionada.
+          </p>
+          <Select
+            value={editing.family}
+            onValueChange={(v) => onChange({ ...editing, family: v })}
+            disabled={!editing.type}
+          >
+            <SelectTrigger id="product-family" className="h-11 w-full rounded-2xl border-border/70 bg-background text-[13px]">
+              <SelectValue
+                placeholder={
+                  editing.type
+                    ? familyOptions.length > 0
+                      ? "Selecione uma subcategoria"
+                      : "Cadastre subcategorias para esta categoria"
+                    : "Escolha uma categoria primeiro"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {familyOptions.map((family) => (
+                <SelectItem key={family} value={family}>
+                  {family}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {editing.type && familyOptions.length === 0 ? (
+            <p className="text-[11px] leading-5 text-muted-foreground">
+              Não há subcategorias cadastradas para essa categoria.
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <Label htmlFor="product-description" className="text-[13px] font-medium">
+          Texto da descrição
+        </Label>
+        <RichTextEditor
+          value={editing.description}
+          onChange={(html) => onChange({ ...editing, description: html })}
+          placeholder="Descreva o produto..."
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="product-code" className="text-[13px] font-medium">
             Código do produto
@@ -121,63 +169,23 @@ export function AdminProductForm({
         </div>
       </div>
 
-      <div className="mt-4 space-y-2">
-        <Label htmlFor="product-description" className="text-[13px] font-medium">
-          Texto da descrição
-        </Label>
-        <RichTextEditor
-          value={editing.description}
-          onChange={(html) => onChange({ ...editing, description: html })}
-          placeholder="Descreva o produto..."
-        />
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Select value={editing.type} onValueChange={(v) => onChange({ ...editing, type: v })}>
-          <SelectTrigger className="h-11 w-full rounded-2xl border-border/70 bg-background text-[13px] sm:w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {typeOptions.map((t) => (
-              <SelectItem key={t} value={t}>
-                {t}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex min-w-[240px] flex-1 items-center gap-2">
-          <Input
-            placeholder="Novo tipo"
-            value={newType}
-            onChange={(e) => onNewTypeChange(e.target.value)}
-            className="h-11 flex-1 rounded-2xl border-border/70 bg-background text-[13px]"
-          />
-          <Button type="button" size="sm" variant="outline" onClick={onAddType} className="h-11 rounded-2xl px-4 text-sm">
-            Adicionar
-          </Button>
-        </div>
-      </div>
-
-      {adminTypes.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {adminTypes.map((t) => (
-            <ConfirmActionDialog
-              key={t.id}
-              trigger={
-                <Button type="button" variant="secondary" size="sm" className="h-8 gap-2 rounded-full px-3 text-[12px]">
-                  {t.name}
-                  <X className="h-3 w-3" />
-                </Button>
-              }
-              title="Remover tipo"
-              description={`Deseja remover o tipo "${t.name}" Essa ação altera a organização do catálogo.`}
-              confirmLabel="Remover"
-              destructive
-              onConfirm={() => onDeleteType(t.id)}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Destaque promocional
+              </p>
+              <p className="text-sm text-foreground">Exibir no bloco Promoções da home. O produto também precisa estar ativo.</p>
+            </div>
+            <Switch
+              checked={editing.is_promotion}
+              onCheckedChange={(checked) => onChange({ ...editing, is_promotion: checked })}
+              className="scale-95 origin-center"
             />
-          ))}
+          </div>
         </div>
-      )}
+      </div>
 
       <div className="mt-4">
         <ProductImageCarouselEditor

@@ -2,7 +2,14 @@ import type { Product } from "@/lib/products";
 import type { Json } from "@/integrations/supabase/types";
 import type { CustomerType } from "@/lib/pricing";
 
-export type AdminSection = "dashboard" | "produtos" | "precos" | "pedidos" | "clientes" | "mensagens";
+export type AdminSection =
+  | "dashboard"
+  | "banners"
+  | "produtos"
+  | "precos"
+  | "pedidos"
+  | "clientes"
+  | "mensagens";
 
 export type AdminOrderSummaryLine = {
   unitPrice: number;
@@ -45,6 +52,7 @@ export type AdminProductFormState = {
   family: string;
   image_urls: string[];
   active: boolean;
+  is_promotion: boolean;
   priceInput: string;
   productCode: string;
 };
@@ -78,3 +86,14 @@ export type AdminRecentOrder = {
 };
 
 export type AdminProduct = Product;
+
+export type AdminBanner = {
+  id: string;
+  label: string;
+  image_url: string;
+  link_url: string | null;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};

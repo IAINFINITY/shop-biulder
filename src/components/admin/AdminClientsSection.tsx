@@ -17,8 +17,10 @@ import { formatBRL } from "@/lib/formatMoney";
 import { CUSTOMER_TYPE_LABELS, CUSTOMER_TYPES, type CustomerType } from "@/lib/pricing";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminCustomerSummary } from "./adminTypes";
+import type { CustomerProfile } from "@/lib/customerProfile";
 
 type AdminClientsSectionProps = {
+  customerProfiles: CustomerProfile[];
   customerSummaries: AdminCustomerSummary[];
   clientSearch: string;
   onClientSearchChange: (value: string) => void;
@@ -35,7 +37,38 @@ function getCustomerKey(customer: AdminCustomerSummary) {
   return customer.userId ?? customer.cnpj ?? customer.name;
 }
 
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function DetailField({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex h-full min-h-[96px] flex-col justify-between rounded-[1.2rem] border border-border/70 bg-muted/20 p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+      <div className="mt-2 space-y-1">
+        <p className="text-sm font-medium leading-6 text-foreground">{value}</p>
+        {hint ? <p className="text-xs leading-5 text-muted-foreground">{hint}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 export function AdminClientsSection({
+  customerProfiles,
   customerSummaries,
   clientSearch,
   onClientSearchChange,
@@ -44,6 +77,8 @@ export function AdminClientsSection({
   onUpdateCustomerType,
 }: AdminClientsSectionProps) {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsCustomer, setDetailsCustomer] = useState<AdminCustomerSummary | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomerSummary | null>(null);
   const [draftType, setDraftType] = useState<CustomerType>("cliente");
   const [saving, setSaving] = useState(false);
@@ -65,14 +100,48 @@ export function AdminClientsSection({
     });
   }, [clientFilter, clientSearch, customerSummaries]);
 
+  const customerProfilesByKey = useMemo(() => {
+    const map = new Map<string, CustomerProfile>();
+    for (const profile of customerProfiles) {
+      const userKey = profile.user_id?.trim();
+      const cnpjKey = profile.cnpj?.replace(/\D/g, "");
+      if (userKey) map.set(userKey, profile);
+      if (cnpjKey) map.set(cnpjKey, profile);
+    }
+    return map;
+  }, [customerProfiles]);
+
+  const selectedDetailsProfile = useMemo(() => {
+    if (!detailsCustomer) return null;
+    if (detailsCustomer.userId && customerProfilesByKey.has(detailsCustomer.userId)) {
+      return customerProfilesByKey.get(detailsCustomer.userId) ?? null;
+    }
+    const cnpjKey = detailsCustomer.cnpj?.replace(/\D/g, "");
+    if (cnpjKey && customerProfilesByKey.has(cnpjKey)) {
+      return customerProfilesByKey.get(cnpjKey) ?? null;
+    }
+    return null;
+  }, [customerProfilesByKey, detailsCustomer]);
+
   useEffect(() => {
     setDraftType(selectedCustomer?.customerType ?? "cliente");
   }, [selectedCustomer]);
+
+  useEffect(() => {
+    if (!detailsOpen) {
+      setDetailsCustomer(null);
+    }
+  }, [detailsOpen]);
 
   const openEditor = (customer: AdminCustomerSummary) => {
     setSelectedCustomer(customer);
     setDraftType(customer.customerType ?? "cliente");
     setEditorOpen(true);
+  };
+
+  const openDetails = (customer: AdminCustomerSummary) => {
+    setDetailsCustomer(customer);
+    setDetailsOpen(true);
   };
 
   const updateCustomerType = async (customer: AdminCustomerSummary, value: CustomerType) => {
@@ -206,14 +275,24 @@ export function AdminClientsSection({
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 rounded-full px-3 text-[12px]"
-                      onClick={() => openEditor(customer)}
-                    >
-                      Alterar tipo
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 rounded-full px-3 text-[12px]"
+                        onClick={() => openDetails(customer)}
+                      >
+                        Ver dados
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 rounded-full px-3 text-[12px]"
+                        onClick={() => openEditor(customer)}
+                      >
+                        Alterar tipo
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -284,6 +363,132 @@ export function AdminClientsSection({
           </div>
         )}
       </div>
+
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-h-[92vh] w-[min(98vw,1240px)] max-w-[1240px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
+          <div className="flex max-h-[92vh] flex-col overflow-hidden">
+            <DialogHeader className="border-b border-border/70 px-5 py-4">
+              <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                Dados completos do cliente
+              </DialogTitle>
+              <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                Veja os dados de cadastro, endereço, vínculo Proxsys e resumo comercial em um só lugar.
+              </DialogDescription>
+            </DialogHeader>
+
+            {detailsCustomer ? (
+              <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.98fr)_minmax(0,1.02fr)] lg:items-start">
+                <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+                  <div className="space-y-4">
+                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                            Cadastro selecionado
+                          </p>
+                          <h3 className="mt-2 text-[1.2rem] font-black tracking-[-0.04em] text-foreground">
+                            {detailsCustomer.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {detailsCustomer.company || "Sem empresa vinculada"}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary"
+                        >
+                          {detailsCustomer.customerType ? CUSTOMER_TYPE_LABELS[detailsCustomer.customerType] : "Sem tipo"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-4 grid auto-rows-fr gap-3 md:grid-cols-2">
+                        <DetailField label="Usuário" value={detailsCustomer.userId ?? "Cadastro sem login"} />
+                        <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
+                        <DetailField label="CNPJ" value={detailsCustomer.cnpj || "—"} />
+                        <DetailField label="Pedidos" value={String(detailsCustomer.orders)} />
+                        <DetailField label="Total gasto" value={formatBRL(detailsCustomer.total)} />
+                        <DetailField label="Origem" value={detailsCustomer.userId ? "Conta do front" : "Agregado por CNPJ"} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                            Atualização
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {selectedDetailsProfile ? formatDateTime(selectedDetailsProfile.updated_at) : "—"}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
+                          {selectedDetailsProfile ? "Perfil cadastrado" : "Perfil parcial"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-4 grid auto-rows-fr gap-3 md:grid-cols-2">
+                        <DetailField label="Proxis encontrado" value={selectedDetailsProfile?.proxis_found ? "Sim" : "Não"} />
+                        <DetailField label="PES ID" value={selectedDetailsProfile?.proxis_pes_id?.toString() || "—"} />
+                        <DetailField label="TPR ID" value={selectedDetailsProfile?.proxis_tpr_id?.toString() || "—"} />
+                        <DetailField label="Sincronizado em" value={formatDateTime(selectedDetailsProfile?.proxis_synced_at)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:border-l lg:border-t-0">
+                  <div className="space-y-4">
+                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        Dados completos
+                      </p>
+                      <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2">
+                        <DetailField label="Nome" value={selectedDetailsProfile?.name || detailsCustomer.name} />
+                        <DetailField label="Empresa" value={selectedDetailsProfile?.company || detailsCustomer.company || "—"} />
+                        <DetailField label="Telefone" value={selectedDetailsProfile?.phone || detailsCustomer.phone || "—"} />
+                        <DetailField label="CNPJ" value={selectedDetailsProfile?.cnpj || detailsCustomer.cnpj || "—"} />
+                        <DetailField
+                          label="Tipo de cliente"
+                          value={
+                            selectedDetailsProfile?.customer_type
+                              ? CUSTOMER_TYPE_LABELS[selectedDetailsProfile.customer_type]
+                              : detailsCustomer.customerType
+                                ? CUSTOMER_TYPE_LABELS[detailsCustomer.customerType]
+                                : "—"
+                          }
+                        />
+                        <DetailField label="Último acesso" value={formatDateTime(selectedDetailsProfile?.created_at)} />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        Endereço
+                      </p>
+                      {selectedDetailsProfile ? (
+                        <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2">
+                          <DetailField label="CEP" value={selectedDetailsProfile.address_cep || "—"} />
+                          <DetailField label="Rua" value={selectedDetailsProfile.address_street || "—"} />
+                          <DetailField label="Número" value={selectedDetailsProfile.address_number || "—"} />
+                          <DetailField label="Complemento" value={selectedDetailsProfile.address_complement || "—"} />
+                          <DetailField label="Bairro" value={selectedDetailsProfile.address_neighborhood || "—"} />
+                          <DetailField label="Cidade" value={selectedDetailsProfile.address_city || "—"} />
+                          <DetailField label="Estado" value={selectedDetailsProfile.address_state || "—"} />
+                          <DetailField label="IBGE" value={selectedDetailsProfile.address_ibge || "—"} />
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-[1.2rem] border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
+                          Este cliente ainda não tem perfil cadastral completo salvo no sistema.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={editorOpen}

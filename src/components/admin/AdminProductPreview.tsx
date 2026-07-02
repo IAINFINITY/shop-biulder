@@ -75,6 +75,11 @@ function CatalogPreview({
             <Badge variant="secondary" className="shrink-0 text-xs">
               {productFamily}
             </Badge>
+            {editing?.is_promotion ? (
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+                Promoção
+              </Badge>
+            ) : null}
           </div>
 
           <h3 className="line-clamp-2 min-h-[3.25rem] text-base font-semibold leading-tight text-card-foreground sm:text-[1.05rem]">
@@ -164,6 +169,11 @@ function ExpandedPreview({
               <Badge variant="secondary" className="text-xs">
                 {productFamily}
               </Badge>
+              {editing?.is_promotion ? (
+                <Badge variant="outline" className="text-xs border-primary/20 bg-primary/5 text-primary">
+                  Promoção
+                </Badge>
+              ) : null}
               {productCode ? (
                 <Badge variant="outline" className="text-xs">
                   Código {productCode}

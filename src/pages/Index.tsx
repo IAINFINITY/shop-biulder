@@ -288,12 +288,15 @@ export default function Index() {
     if (filtered.length === 0) return [];
 
     const baseProducts = [...filtered];
-    const byPriceAscending = [...baseProducts].sort(
-      (left, right) =>
-        resolveProductPrice(left, customerPriceMap) -
-          resolveProductPrice(right, customerPriceMap) ||
-        new Date(right.created_at).getTime() - new Date(left.created_at).getTime(),
-    );
+    const promotedProducts = [...baseProducts]
+      .filter((product) => product.is_promotion)
+      .sort(
+        (left, right) =>
+          resolveProductPrice(left, customerPriceMap) -
+            resolveProductPrice(right, customerPriceMap) ||
+          new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime() ||
+          left.name.localeCompare(right.name, "pt-BR"),
+      );
     const withPopularSignal = [...baseProducts].sort((left, right) => {
       const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
       const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
@@ -303,7 +306,7 @@ export default function Index() {
       return rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
     });
 
-    const promoDescription = "Escolha opções com preço mais leve e aproveite as ofertas com rapidez.";
+    const promoDescription = "Produtos marcados pelo time como promoção para aparecer primeiro na vitrine.";
     const soldDescription = orderHistory.length > 0
       ? "Os produtos mais recorrentes no seu histórico, organizados para consulta rápida."
       : "Produtos mais procurados para ajudar você a descobrir o catálogo com facilidade.";
@@ -316,7 +319,7 @@ export default function Index() {
         description: promoDescription,
         highlightLabel: "Promoção",
         highlightTone: "destructive" as const,
-        products: byPriceAscending.slice(0, 8),
+        products: promotedProducts.slice(0, 8),
       },
       {
         id: "mais-vendidos",

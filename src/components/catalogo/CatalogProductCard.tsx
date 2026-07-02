@@ -63,6 +63,11 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
               <Badge variant="secondary" className="shrink-0 text-xs">
                 {product.family}
               </Badge>
+              {product.is_promotion ? (
+                <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+                  Promoção
+                </Badge>
+              ) : null}
             </div>
           </div>
 

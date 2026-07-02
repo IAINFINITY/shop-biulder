@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import heroGummiesBanner from "@/assets/hero-gummies-banner.png";
-import heroVitaminsBanner from "@/assets/hero-vitamins-banner.png";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Carousel,
   CarouselContent,
@@ -9,28 +8,66 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 import { cn } from "@/lib/utils";
-
-const SLIDES = [
-  {
-    src: heroGummiesBanner,
-    alt: "Mais sabor, praticidade e inovação - linha de gomas Clinic+",
-  },
-  {
-    src: heroVitaminsBanner,
-    alt: "Vitaminas pensadas para a rotina moderna - Clinic+",
-  },
-] as const;
 
 const AUTOPLAY_MS = 5500;
 
 const slideImageClass = "absolute inset-0 block h-full w-full object-cover object-center";
+
+type HeroSlide = {
+  src: string;
+  alt: string;
+  label: string;
+  linkUrl: string | null;
+};
+
+function isInternalLink(value: string): boolean {
+  return value.startsWith("/");
+}
+
+function HeroSlideFrame({ slide }: { slide: HeroSlide }) {
+  const content = (
+    <img
+      src={slide.src}
+      alt={slide.alt}
+      className={slideImageClass}
+      width={1400}
+      height={350}
+      loading="eager"
+      fetchPriority="high"
+      decoding="async"
+    />
+  );
+
+  if (!slide.linkUrl) return content;
+
+  return isInternalLink(slide.linkUrl) ? (
+    <Link to={slide.linkUrl} viewTransition className="block h-full w-full" aria-label={slide.label}>
+      {content}
+    </Link>
+  ) : (
+    <a href={slide.linkUrl} target="_blank" rel="noreferrer" className="block h-full w-full" aria-label={slide.label}>
+      {content}
+    </a>
+  );
+}
 
 export function StoreHeroBanner() {
   const [api, setApi] = useState<CarouselApi>();
   const [activeIndex, setActiveIndex] = useState(0);
   const autoplayTimerRef = useRef<number>();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
+
+  const slides = useMemo<HeroSlide[]>(() => {
+    return banners.map((banner) => ({
+      src: banner.image_url,
+      alt: banner.label,
+      label: banner.label,
+      linkUrl: banner.link_url,
+    }));
+  }, [banners]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -66,6 +103,13 @@ export function StoreHeroBanner() {
   }, [api, onSelect]);
 
   useEffect(() => {
+    setActiveIndex(0);
+    if (api) {
+      api.scrollTo(0, true);
+    }
+  }, [api, slides.length]);
+
+  useEffect(() => {
     if (!api) return;
     if (prefersReducedMotion) {
       if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
@@ -80,6 +124,10 @@ export function StoreHeroBanner() {
     };
   }, [api, prefersReducedMotion, scheduleAutoplay]);
 
+  if (slides.length === 0) {
+    return null;
+  }
+
   return (
     <section
       className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden border-b border-border/40 bg-muted/30"
@@ -93,19 +141,10 @@ export function StoreHeroBanner() {
           setApi={setApi}
         >
           <CarouselContent className="!ml-0 h-full">
-            {SLIDES.map((slide, index) => (
-              <CarouselItem key={slide.alt} className="basis-full !pl-0 h-full">
+            {slides.map((slide, index) => (
+              <CarouselItem key={`${slide.alt}-${index}`} className="basis-full !pl-0 h-full">
                 <div className="relative aspect-[1024/266] w-full bg-muted/30">
-                  <img
-                    src={slide.src}
-                    alt={slide.alt}
-                    className={slideImageClass}
-                    width={1400}
-                    height={350}
-                    loading={index === 0 ? "eager" : "lazy"}
-                    fetchPriority={index === 0 ? "high" : "auto"}
-                    decoding="async"
-                  />
+                  <HeroSlideFrame slide={slide} />
                 </div>
               </CarouselItem>
             ))}
@@ -123,9 +162,9 @@ export function StoreHeroBanner() {
           />
 
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2" role="tablist" aria-label="Slides do banner">
-            {SLIDES.map((slide, index) => (
+            {slides.map((slide, index) => (
               <button
-                key={slide.alt}
+                key={`${slide.alt}-${index}`}
                 type="button"
                 role="tab"
                 aria-selected={activeIndex === index}

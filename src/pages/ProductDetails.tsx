@@ -22,6 +22,7 @@ import {
   PRODUCT_SELECT_COLUMNS,
   PRODUCT_SELECT_COLUMNS_LEGACY,
   isMissingImageUrlsColumnError,
+  isMissingPromotionColumnError,
 } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,9 @@ export default function ProductDetails() {
 
       let { data, error } = await run(PRODUCT_SELECT_COLUMNS);
       if (error && isMissingImageUrlsColumnError(error.message)) {
+        ({ data, error } = await run(PRODUCT_SELECT_COLUMNS_LEGACY));
+      }
+      if (error && isMissingPromotionColumnError(error.message)) {
         ({ data, error } = await run(PRODUCT_SELECT_COLUMNS_LEGACY));
       }
       if (error) throw error;
@@ -492,6 +496,11 @@ export default function ProductDetails() {
                     <Badge variant="secondary" className="text-xs">
                       {product.family}
                     </Badge>
+                    {product.is_promotion ? (
+                      <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 text-xs text-primary">
+                        Promoção
+                      </Badge>
+                    ) : null}
                   </div>
 
                   <div className="space-y-3">

@@ -1,5 +1,5 @@
-﻿import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+﻿import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
@@ -39,7 +39,7 @@ export function AdminOrdersSection({
 }: AdminOrdersSectionProps) {
   return (
     <div className="space-y-6">
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <div className="space-y-4">
         <AdminSectionHeader
           eyebrow="Pedidos"
           title="Operação diária"
@@ -55,18 +55,15 @@ export function AdminOrdersSection({
             </div>
           }
         />
-
-        <div className="mt-4">
-          <Input
-            placeholder="Pesquisar pedido (nome, empresa, telefone, CNPJ, status)"
-            value={orderSearch}
-            onChange={(e) => onOrderSearchChange(e.target.value)}
-            className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-          />
-        </div>
+        <Input
+          placeholder="Pesquisar pedido (nome, empresa, telefone, CNPJ, status, observação)"
+          value={orderSearch}
+          onChange={(e) => onOrderSearchChange(e.target.value)}
+          className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+        />
       </div>
 
-              {ordersLoading ? (
+      {ordersLoading ? (
         <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 bg-background p-4">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="rounded-[1.25rem] border border-border/60 bg-card p-4">
@@ -93,6 +90,8 @@ export function AdminOrdersSection({
             const lines = parseOrderTableLines(order.items, orderEnrichment);
             const orderTotal = getOrderLinesGrandTotal(lines);
             const orderQty = getOrderLinesQuantityTotal(lines);
+            const customerObservation =
+              typeof order.customer_observation === "string" ? order.customer_observation : "";
             const exportPayload = {
               id: order.id,
               created_at: order.created_at,
@@ -100,6 +99,7 @@ export function AdminOrdersSection({
               customer_company: order.customer_company,
               customer_phone: order.customer_phone,
               customer_cnpj: order.customer_cnpj,
+              customer_observation: customerObservation || null,
               status: order.status,
               items: order.items,
               proxis_import_id: order.proxis_import_id,
@@ -116,6 +116,7 @@ export function AdminOrdersSection({
                   customer_company: order.customer_company,
                   customer_phone: order.customer_phone,
                   customer_cnpj: order.customer_cnpj,
+                  customer_observation: customerObservation || null,
                   status: order.status,
                   total_items: order.total_items,
                   proxis_import_id: order.proxis_import_id,

@@ -139,33 +139,31 @@ export function AdminProductsSection({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <AdminSectionHeader
-          eyebrow="Produtos"
-          title={title}
-          description="Pesquise, atualize e cadastre produtos sem sair da mesma tela."
-          actions={
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative w-full sm:w-[360px]">
-                <Input
-                  placeholder="Pesquisar produto (nome, família, tipo)"
-                  value={productSearch}
-                  onChange={(e) => onProductSearchChange(e.target.value)}
-                  className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[13px]"
-                />
-                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium text-muted-foreground">
-                  {filteredProducts.length} itens
-                </div>
+      <AdminSectionHeader
+        eyebrow="Produtos"
+        title={title}
+        description="Pesquise, atualize e cadastre produtos sem sair da mesma tela."
+        actions={
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-[360px]">
+              <Input
+                placeholder="Pesquisar produto (nome, família, tipo)"
+                value={productSearch}
+                onChange={(e) => onProductSearchChange(e.target.value)}
+                className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[13px]"
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium text-muted-foreground">
+                {filteredProducts.length} itens
               </div>
-
-              <Button onClick={onStartNew} className="h-10 rounded-2xl px-4 text-sm">
-                <Plus className="h-4 w-4" />
-                Novo produto
-              </Button>
             </div>
-          }
-        />
-      </div>
+
+            <Button onClick={onStartNew} className="h-10 rounded-2xl px-4 text-sm">
+              <Plus className="h-4 w-4" />
+              Novo produto
+            </Button>
+          </div>
+        }
+      />
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">

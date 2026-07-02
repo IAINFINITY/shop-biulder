@@ -2,7 +2,7 @@ import type { Product } from "@/lib/products";
 import type { Json } from "@/integrations/supabase/types";
 import type { CustomerType } from "@/lib/pricing";
 
-export type AdminSection = "dashboard" | "produtos" | "precos" | "pedidos" | "clientes";
+export type AdminSection = "dashboard" | "produtos" | "precos" | "pedidos" | "clientes" | "mensagens";
 
 export type AdminOrderSummaryLine = {
   unitPrice: number;
@@ -16,6 +16,7 @@ export type AdminDashboardOrder = {
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
   customer_cnpj: string | null | undefined;
+  customer_observation?: string | null | undefined;
   status: string;
   total_items: number;
   proxis_import_id: number | null | undefined;
@@ -29,6 +30,7 @@ export type AdminOrderRow = {
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
   customer_cnpj: string | null | undefined;
+  customer_observation?: string | null | undefined;
   status: string;
   total_items: number;
   proxis_import_id: number | null;
@@ -65,9 +67,10 @@ export type AdminRecentOrder = {
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
   customer_cnpj: string | null | undefined;
+  customer_observation?: string | null | undefined;
   status: string;
   total_items: number;
-  proxis_import_id: string | null | undefined;
+  proxis_import_id: number | null | undefined;
   items: Array<{
     unitPrice: number;
     quantity: number;

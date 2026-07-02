@@ -13,9 +13,10 @@ export type OrderAdminCardPayload = {
   id: string;
   created_at: string;
   customer_name: string;
-  customer_company: string;
-  customer_phone: string;
-  customer_cnpj: string;
+  customer_company: string | null | undefined;
+  customer_phone: string | null | undefined;
+  customer_cnpj: string | null | undefined;
+  customer_observation?: string | null;
   status: string;
   total_items: number;
   proxis_import_id: number | null;
@@ -134,6 +135,16 @@ export function OrderAdminCard({
             {" · "}
             CNPJ: <span className="text-foreground">{order.customer_cnpj}</span>
           </p>
+          {order.customer_observation?.trim() ? (
+            <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Observação do pedido
+              </p>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+                {order.customer_observation.trim()}
+              </p>
+            </div>
+          ) : null}
           <OrderItemsTable lines={lines} maxBodyHeight="max-h-52" />
           {order.total_items !== orderQty ? (
             <p className="text-[11px] text-muted-foreground">

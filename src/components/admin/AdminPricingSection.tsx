@@ -262,24 +262,23 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <AdminSectionHeader
-          eyebrow="Preços"
-          title="Tabela de preços por cliente ou tabela ERP"
-          description="Carregue uma tabela por tipo de cliente ou por TPR do Proxsys, edite valores e aplique ajustes em lote."
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
-                {loadedCount} item(ns)
-              </Badge>
-              <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
-                {activeCount} ativos
-              </Badge>
-            </div>
-          }
-        />
+      <AdminSectionHeader
+        eyebrow="Preços"
+        title="Tabela de preços por cliente ou tabela ERP"
+        description="Carregue uma tabela por tipo de cliente ou por TPR do Proxsys, edite valores e aplique ajustes em lote."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
+              {loadedCount} item(ns)
+            </Badge>
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
+              {activeCount} ativos
+            </Badge>
+          </div>
+        }
+      />
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
           <div className="rounded-[1.25rem] border border-border/70 bg-card p-4">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               <BadgeDollarSign className="h-4 w-4 text-primary" />
@@ -442,9 +441,8 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
         <div className="mt-4 rounded-[1.25rem] border border-border/70 bg-primary/5 px-4 py-3 text-[13px] leading-6 text-foreground">
           Escopo atual: <span className="font-semibold">{scopeLabel}</span>. Os preços são salvos por produto e respeitam a tabela ERP quando houver TPR vinculado.
         </div>
-      </div>
 
-              {!scopeReady ? (
+      {!scopeReady ? (
         <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
           Selecione uma tabela Proxsys para carregar os preços.
         </div>

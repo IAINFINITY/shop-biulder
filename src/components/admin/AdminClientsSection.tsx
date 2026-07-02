@@ -11,13 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/formatMoney";
 import { CUSTOMER_TYPE_LABELS, CUSTOMER_TYPES, type CustomerType } from "@/lib/pricing";
@@ -30,8 +24,16 @@ type AdminClientsSectionProps = {
   onClientSearchChange: (value: string) => void;
   clientFilter: "all" | "orders" | "revenue";
   onClientFilterChange: (value: "all" | "orders" | "revenue") => void;
-  onUpdateCustomerType: (userId: string, customerType: CustomerType) => Promise<Error | null>;
+  onUpdateCustomerType: (payload: {
+    userId: string | null;
+    cnpj: string;
+    customerType: CustomerType;
+  }) => Promise<Error | null>;
 };
+
+function getCustomerKey(customer: AdminCustomerSummary) {
+  return customer.userId ?? customer.cnpj ?? customer.name;
+}
 
 export function AdminClientsSection({
   customerSummaries,
@@ -45,6 +47,7 @@ export function AdminClientsSection({
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomerSummary | null>(null);
   const [draftType, setDraftType] = useState<CustomerType>("cliente");
   const [saving, setSaving] = useState(false);
+  const [updatingCustomerKey, setUpdatingCustomerKey] = useState<string | null>(null);
 
   const filteredCustomers = useMemo(() => {
     const term = clientSearch.trim().toLowerCase();
@@ -67,10 +70,32 @@ export function AdminClientsSection({
   }, [selectedCustomer]);
 
   const openEditor = (customer: AdminCustomerSummary) => {
-    if (!customer.userId) return;
     setSelectedCustomer(customer);
     setDraftType(customer.customerType ?? "cliente");
     setEditorOpen(true);
+  };
+
+  const updateCustomerType = async (customer: AdminCustomerSummary, value: CustomerType) => {
+    if (!customer.cnpj) {
+      toast.error("Não foi possível identificar o CNPJ deste cadastro.");
+      return;
+    }
+
+    const key = getCustomerKey(customer);
+    setUpdatingCustomerKey(key);
+    const error = await onUpdateCustomerType({
+      userId: customer.userId,
+      cnpj: customer.cnpj,
+      customerType: value,
+    });
+    setUpdatingCustomerKey(null);
+
+    if (error) {
+      toast.error(error.message || "Não foi possível atualizar o tipo do cliente.");
+      return;
+    }
+
+    toast.success("Tipo de cliente atualizado.");
   };
 
   const closeEditor = () => {
@@ -79,10 +104,14 @@ export function AdminClientsSection({
   };
 
   const saveCustomerType = async () => {
-    if (!selectedCustomer?.userId) return;
+    if (!selectedCustomer?.cnpj) return;
 
     setSaving(true);
-    const error = await onUpdateCustomerType(selectedCustomer.userId, draftType);
+    const error = await onUpdateCustomerType({
+      userId: selectedCustomer.userId,
+      cnpj: selectedCustomer.cnpj,
+      customerType: draftType,
+    });
     setSaving(false);
 
     if (error) {
@@ -104,7 +133,7 @@ export function AdminClientsSection({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <div className="space-y-4">
         <AdminSectionHeader
           eyebrow="Clientes"
           title="Visão consolidada de quem compra com frequência"
@@ -116,7 +145,7 @@ export function AdminClientsSection({
           }
         />
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <Input
             placeholder="Pesquisar cliente (nome, empresa, telefone, CNPJ)"
             value={clientSearch}
@@ -152,28 +181,31 @@ export function AdminClientsSection({
         </div>
 
         {filteredCustomers.length === 0 ? (
-          <div className="mt-4 rounded-[1.1rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
+          <div className="rounded-[1.1rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
             Nenhum cliente encontrado ainda.
           </div>
         ) : (
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredCustomers.map((customer) => (
-              <div
-                key={customer.userId || customer.cnpj || customer.name}
-                className="rounded-[1.15rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-semibold text-primary">
-                      {customer.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold leading-5 text-foreground">{customer.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
-                    </div>
-                  </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredCustomers.map((customer) => {
+              const key = getCustomerKey(customer);
+              const isUpdating = updatingCustomerKey === key;
 
-                  {customer.userId ? (
+              return (
+                <div
+                  key={key}
+                  className="rounded-[1.15rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-semibold text-primary">
+                        {customer.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-semibold leading-5 text-foreground">{customer.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                      </div>
+                    </div>
+
                     <Button
                       type="button"
                       variant="outline"
@@ -182,43 +214,73 @@ export function AdminClientsSection({
                     >
                       Alterar tipo
                     </Button>
-                  ) : null}
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  {customer.customerType ? (
-                    <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
-                      {CUSTOMER_TYPE_LABELS[customer.customerType]}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] text-muted-foreground">
-                      Sem tipo definido
-                    </Badge>
-                  )}
-                  {customer.phone ? (
-                    <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px]">
-                      {customer.phone}
-                    </Badge>
-                  ) : null}
-                  {customer.cnpj ? (
-                    <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
-                      {customer.cnpj}
-                    </Badge>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-4">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Pedidos</p>
-                    <p className="mt-1 text-[1rem] font-black tracking-[-0.04em] text-foreground">{customer.orders}</p>
                   </div>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Total gasto</p>
-                    <p className="mt-1 font-mono text-[13px] font-semibold text-foreground">{formatBRL(customer.total)}</p>
+
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    {customer.customerType ? (
+                      <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
+                        {CUSTOMER_TYPE_LABELS[customer.customerType]}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                        Sem tipo definido
+                      </Badge>
+                    )}
+                    {customer.phone ? (
+                      <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                        {customer.phone}
+                      </Badge>
+                    ) : null}
+                    {customer.cnpj ? (
+                      <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
+                        {customer.cnpj}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 rounded-[1rem] border border-border/70 bg-muted/25 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Tipo de cadastro
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {customer.userId ? "Vinculado ao front" : "Salvo por CNPJ"}
+                      </p>
+                    </div>
+                    <Select
+                      value={customer.customerType ?? "cliente"}
+                      onValueChange={(value) => updateCustomerType(customer, value as CustomerType)}
+                      disabled={!customer.cnpj || isUpdating}
+                    >
+                      <SelectTrigger className="h-10 rounded-2xl bg-background">
+                        <SelectValue placeholder="Selecione um tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CUSTOMER_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {CUSTOMER_TYPE_LABELS[type]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                      A regra fica salva por CNPJ. Se o cliente criar conta no front depois, ele herda essa definição.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-4">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Pedidos</p>
+                      <p className="mt-1 text-[1rem] font-black tracking-[-0.04em] text-foreground">{customer.orders}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Total gasto</p>
+                      <p className="mt-1 font-mono text-[13px] font-semibold text-foreground">{formatBRL(customer.total)}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -275,7 +337,7 @@ export function AdminClientsSection({
             <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm" onClick={closeEditor} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.userId}>
+            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.cnpj}>
               {saving ? "Salvando..." : "Salvar alteração"}
             </Button>
           </DialogFooter>

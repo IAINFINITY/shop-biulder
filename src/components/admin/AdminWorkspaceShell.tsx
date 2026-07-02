@@ -1,6 +1,6 @@
 ﻿import { Link } from "react-router-dom";
 import type { CSSProperties, ReactNode } from "react";
-import { ArrowLeft, BadgeDollarSign, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Package, ShoppingBag, Users } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, MessageSquareText, Package, ShoppingBag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -39,7 +39,10 @@ export function AdminWorkspaceShell({
     },
     {
       label: "Consultas",
-      items: [{ id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" }],
+      items: [
+        { id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" },
+        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" },
+      ],
     },
   ];
 

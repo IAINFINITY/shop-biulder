@@ -44,7 +44,14 @@ import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
+import {
+  CUSTOMER_TYPE_OVERRIDES_TABLE,
+  buildCustomerTypeOverrideMap,
+  type CustomerTypeOverride,
+  normalizeCustomerCnpj,
+} from "@/lib/customerTypeOverrides";
 import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import type {
@@ -241,13 +248,13 @@ function ClientAccessNotice({
 
           <div className="mt-5 rounded-[1.5rem] border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
             {email
-              ? `Voc? est? logado como ${email}. Para acessar o painel, entre com uma conta administrativa.`
-              : "Voc? est? com uma sess?o de cliente ativa. Para acessar o painel, entre com uma conta administrativa."}
+              ? `Você está logado como ${email}. Para acessar o painel, entre com uma conta administrativa.`
+              : "Você está com uma sessão de cliente ativa. Para acessar o painel, entre com uma conta administrativa."}
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoCatalog}>
-              Ir ao cat?logo
+              Ir ao catálogo
             </Button>
             <ConfirmActionDialog
               trigger={
@@ -257,7 +264,7 @@ function ClientAccessNotice({
                 </Button>
               }
               title="Sair da conta"
-              description="Deseja encerrar a sess?o atual? Voc? vai precisar entrar novamente para voltar ao painel."
+              description="Deseja encerrar a sessão atual? Você vai precisar entrar novamente para voltar ao painel."
               confirmLabel="Sair"
               destructive
               onConfirm={onLogout}
@@ -309,6 +316,20 @@ export default function AdminWorkspace() {
     },
     staleTime: 30_000,
   });
+  const { data: customerTypeOverrides = [] } = useQuery({
+    queryKey: ["admin-customer-type-overrides"],
+    enabled: Boolean(user && isAdmin),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from(CUSTOMER_TYPE_OVERRIDES_TABLE)
+        .select("cnpj, customer_type, created_at, updated_at")
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []) as CustomerTypeOverride[];
+    },
+    staleTime: 30_000,
+  });
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<AdminProductFormState | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -325,6 +346,10 @@ export default function AdminWorkspace() {
 
   const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
   const derivedTypes = useMemo(() => [...new Set(products.map((p) => p.type))].sort(), [products]);
+  const customerTypeOverrideMap = useMemo(
+    () => buildCustomerTypeOverrideMap(customerTypeOverrides),
+    [customerTypeOverrides],
+  );
   const orderRows = orders as unknown as AdminOrderRow[];
   const filteredOrders = useMemo<AdminOrderRow[]>(() => {
     const term = orderSearch.trim().toLowerCase();
@@ -332,13 +357,14 @@ export default function AdminWorkspace() {
     return orderRows.filter((order) => {
       const fields = [
         order.customer_name,
-        order.customer_company,
-        order.customer_phone,
-        order.customer_cnpj,
+        order.customer_company ?? "",
+        order.customer_phone ?? "",
+        order.customer_cnpj ?? "",
+        order.customer_observation ?? "",
         order.status,
         order.id,
-      ];
-      return fields.some((value) => value.toLowerCase().includes(term));
+      ].map((value) => String(value).toLowerCase());
+      return fields.some((value) => value.includes(term));
     });
   }, [orderRows, orderSearch]);
   const filteredProducts = useMemo(() => {
@@ -361,6 +387,7 @@ export default function AdminWorkspace() {
           customer_company: order.customer_company,
           customer_phone: order.customer_phone,
           customer_cnpj: order.customer_cnpj,
+          customer_observation: order.customer_observation ?? null,
           status: order.status,
           total_items: order.total_items,
           proxis_import_id: order.proxis_import_id,
@@ -385,13 +412,14 @@ export default function AdminWorkspace() {
 
     for (const profile of customerProfiles) {
       const key = onlyDigits(profile.cnpj) || profile.user_id;
+      const overrideType = customerTypeOverrideMap.get(onlyDigits(profile.cnpj));
       customers.set(key, {
         userId: profile.user_id,
         name: profile.name,
         company: profile.company,
         phone: profile.phone,
         cnpj: profile.cnpj,
-        customerType: normalizeCustomerType(profile.customer_type),
+        customerType: normalizeCustomerType(overrideType ?? profile.customer_type),
         total: 0,
         orders: 0,
       });
@@ -409,7 +437,7 @@ export default function AdminWorkspace() {
           company: order.customer_company,
           phone: order.customer_phone,
           cnpj: order.customer_cnpj,
-          customerType: null,
+          customerType: customerTypeOverrideMap.get(onlyDigits(order.customer_cnpj)) ?? null,
           total: orderTotal,
           orders: 1,
         });
@@ -424,7 +452,7 @@ export default function AdminWorkspace() {
     }
 
     return [...customers.values()].sort((a, b) => b.orders - a.orders || b.total - a.total || a.name.localeCompare(b.name, "pt-BR"));
-  }, [customerProfiles, orderRows]);
+  }, [customerProfiles, customerTypeOverrideMap, orderRows]);
   const activeProductsCount = useMemo(() => products.filter((p) => p.active).length, [products]);
   const inactiveProductsCount = useMemo(() => products.filter((p) => !p.active).length, [products]);
   const pendingOrdersCount = useMemo(
@@ -465,6 +493,7 @@ export default function AdminWorkspace() {
     precos: "Preços",
     pedidos: "Pedidos",
     clientes: "Clientes",
+    mensagens: "Mensagens",
   };
   const typeOptions = adminTypes.length
     ? adminTypes.map((t) => t.name)
@@ -477,7 +506,7 @@ export default function AdminWorkspace() {
       <AuthStatusScreen
         eyebrow="Painel administrativo"
         title="Abrindo o painel"
-        description="Estamos validando sua sess?o administrativa antes de carregar os controles do sistema."
+        description="Estamos validando sua sessão administrativa antes de carregar os controles do sistema."
       />
     );
   }
@@ -506,21 +535,48 @@ export default function AdminWorkspace() {
   };
   const refreshTypes = () => queryClient.invalidateQueries({ queryKey: ["product-types"] });
   const refreshOrders = () => queryClient.invalidateQueries({ queryKey: ["orders"] });
-  const updateCustomerType = async (userId: string, customerType: CustomerType) => {
+  const updateCustomerType = async ({
+    userId,
+    cnpj,
+    customerType,
+  }: {
+    userId: string | null;
+    cnpj: string;
+    customerType: CustomerType;
+  }) => {
     const normalizedType = normalizeCustomerType(customerType);
-    const { error } = await supabase
-      .from(CUSTOMER_PROFILES_TABLE)
-      .update({ customer_type: normalizedType })
-      .eq("user_id", userId);
+    const normalizedCnpj = normalizeCustomerCnpj(cnpj);
 
-    if (!error) {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] }),
-        queryClient.invalidateQueries({ queryKey: ["customer-pricing"] }),
-      ]);
+    if (!normalizedCnpj) {
+      return new Error("Não foi possível identificar o CNPJ deste cadastro.");
     }
 
-    return error;
+    if (userId) {
+      const { error: profileError } = await supabase
+        .from(CUSTOMER_PROFILES_TABLE)
+        .update({ customer_type: normalizedType } as never)
+        .eq("user_id", userId);
+
+      if (profileError) {
+        return profileError;
+      }
+    }
+
+    const { error: overrideError } = await supabase
+      .from(CUSTOMER_TYPE_OVERRIDES_TABLE)
+      .upsert({ cnpj: normalizedCnpj, customer_type: normalizedType }, { onConflict: "cnpj" });
+
+    if (overrideError) {
+      return overrideError;
+    }
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-customer-type-overrides"] }),
+      queryClient.invalidateQueries({ queryKey: ["customer-pricing"] }),
+    ]);
+
+    return null;
   };
 
   const startNew = () => {
@@ -583,7 +639,7 @@ export default function AdminWorkspace() {
 
   const save = async () => {
     if (!editing || !editing.name || !editing.family) {
-      toast.error("Preencha nome e fam?lia do produto.");
+      toast.error("Preencha nome e família do produto.");
       return;
     }
 
@@ -697,6 +753,7 @@ export default function AdminWorkspace() {
   };
 
   const formatDate = (value: string) => new Date(value).toLocaleString("pt-BR");
+  const chatContent = <SupportChatPanel mode="admin" />;
 
   return (
     <AdminWorkspaceShell
@@ -796,6 +853,8 @@ export default function AdminWorkspace() {
           onUpdateCustomerType={updateCustomerType}
         />
       )}
+
+      {section === "mensagens" && chatContent}
     </AdminWorkspaceShell>
   );
 }

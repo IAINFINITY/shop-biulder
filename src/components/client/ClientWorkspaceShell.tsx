@@ -7,6 +7,7 @@ import {
   ChevronRight,
   LayoutGrid,
   LogOut,
+  MessageSquareText,
   ShieldCheck,
   ShoppingBag,
 } from "lucide-react";
@@ -48,6 +49,7 @@ export function ClientWorkspaceShell({
       label: "Acesso e histórico",
       items: [
         { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Acompanhamento" },
+        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Falar com consultor" },
         { id: "seguranca" as const, label: "Segurança", icon: ShieldCheck, description: "Sessão ativa" },
       ],
     },

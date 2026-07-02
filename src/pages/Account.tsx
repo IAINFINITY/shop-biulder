@@ -20,6 +20,7 @@ import { ClientWorkspaceShell } from "@/components/client/ClientWorkspaceShell";
 import { ClientSectionHeader } from "@/components/client/ClientSectionHeader";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import type { ClientSection } from "@/components/client/clientTypes";
 import { formatCnpjDisplay, formatPhone, onlyDigits } from "@/lib/brazilianIds";
 import { formatCep } from "@/lib/address";
@@ -34,6 +35,7 @@ const sectionTitle: Record<ClientSection, string> = {
   empresa: "Dados da empresa",
   pedidos: "Meus pedidos",
   seguranca: "Segurança e acesso",
+  mensagens: "Mensagens",
 };
 
 function formatDateTime(value: string) {
@@ -438,6 +440,8 @@ export default function Account() {
     </div>
   );
 
+  const messagesContent = <SupportChatPanel mode="customer" />;
+
   return (
     <ClientWorkspaceShell
       section={section}
@@ -455,6 +459,7 @@ export default function Account() {
       {section === "empresa" && companyContent}
       {section === "pedidos" && ordersContent}
       {section === "seguranca" && securityContent}
+      {section === "mensagens" && messagesContent}
     </ClientWorkspaceShell>
   );
 }

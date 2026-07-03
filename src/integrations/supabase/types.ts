@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -201,6 +201,100 @@ export type Database = {
         Relationships: []
       }
 
+      catalog_notifications: {
+        Row: {
+          active: boolean
+          body: string
+          cta_label: string | null
+          cta_url: string | null
+          created_at: string
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          priority: number
+          target_user_id: string | null
+          starts_at: string | null
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          cta_label?: string | null
+          cta_url?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          priority?: number
+          target_user_id?: string | null
+          starts_at?: string | null
+          summary: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          cta_label?: string | null
+          cta_url?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          priority?: number
+          target_user_id?: string | null
+          starts_at?: string | null
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+
+      catalog_notification_reads: {
+        Row: {
+          created_at: string
+          id: string
+          notification_id: string
+          read_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notification_id: string
+          read_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notification_id?: string
+          read_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_notification_reads_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_notification_reads_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_types: {
         Row: {
           created_at: string
@@ -240,6 +334,58 @@ export type Database = {
           name?: string
           type_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+
+      customer_addresses: {
+        Row: {
+          cep: string
+          city: string
+          complement: string
+          created_at: string
+          id: string
+          ibge: string
+          is_default: boolean
+          label: string
+          neighborhood: string
+          number: string
+          state: string
+          street: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cep?: string
+          city?: string
+          complement?: string
+          created_at?: string
+          id?: string
+          ibge?: string
+          is_default?: boolean
+          label?: string
+          neighborhood?: string
+          number?: string
+          state?: string
+          street?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cep?: string
+          city?: string
+          complement?: string
+          created_at?: string
+          id?: string
+          ibge?: string
+          is_default?: boolean
+          label?: string
+          neighborhood?: string
+          number?: string
+          state?: string
+          street?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -555,6 +701,13 @@ export type Database = {
           p_proxis_found: boolean
           p_proxis_pes_id: number | null
           p_proxis_tpr_id: number | null
+        }
+        Returns: undefined
+      }
+      set_customer_default_address: {
+        Args: {
+          p_address_id: string
+          p_user_id: string
         }
         Returns: undefined
       }

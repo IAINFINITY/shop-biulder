@@ -1,5 +1,10 @@
 ﻿import type { ReactNode } from "react";
 import { Handshake } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  REPRESENTATIVE_PHONE_DISPLAY,
+  REPRESENTATIVE_PHONE_WHATSAPP_URL,
+} from "@/lib/supportContact";
 import { cn } from "@/lib/utils";
 
 type CatalogOrderNoticeProps = {
@@ -72,6 +77,16 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
                   <Highlight>pedido</Highlight> é encaminhado automaticamente ao time com todos os produtos e informações
                   do <Highlight>carrinho</Highlight>.
                 </p>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <p className="text-xs font-medium text-foreground">
+                    Fale com o consultor: {REPRESENTATIVE_PHONE_DISPLAY}
+                  </p>
+                  <Button asChild variant="outline" size="sm" className="rounded-full">
+                    <a href={REPRESENTATIVE_PHONE_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                      WhatsApp
+                    </a>
+                  </Button>
+                </div>
               </>
             ) : (
               <>
@@ -82,6 +97,9 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
                   Após enviar o pedido, aguarde o <Highlight>contato</Highlight> - o pedido segue para o time com todas as
                   informações.
                 </SentenceLine>
+                <SentenceLine>
+                  Consultor no WhatsApp: <Highlight>{REPRESENTATIVE_PHONE_DISPLAY}</Highlight>
+                </SentenceLine>
               </>
             )}
           </div>
@@ -90,5 +108,3 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
     </div>
   );
 }
-
-

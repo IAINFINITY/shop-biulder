@@ -7,6 +7,7 @@ import {
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
+import { CUSTOMER_ADDRESSES_TABLE, customerAddressRowFromForm } from "@/lib/customerAddresses";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 
@@ -129,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userRef = useRef<User | null>(bootstrapSnapshot?.user ?? null);
   const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
 
-  const fetchCustomerProfile = useCallback(async (userId: string, resolutionId: number) => {
+  const fetchCustomerProfile = useCallback(async (userId: string, resolutionId?: number) => {
     const { data, error } = await supabase
       .from(CUSTOMER_PROFILES_TABLE)
       .select("*")
@@ -274,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalizedType = normalizeCustomerType(customerType);
     const { error } = await supabase
       .from(CUSTOMER_PROFILES_TABLE)
-      .update({ customer_type: normalizedType })
+      .update({ customer_type: normalizedType } as never)
       .eq("user_id", user.id);
 
     if (!error) {
@@ -346,6 +347,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
       if (sessionUser) {
         await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
+        const initialAddress = customerAddressRowFromForm(sessionUser.id, {
+          label: "Principal",
+          is_default: true,
+          cep: data.cep,
+          street: data.street,
+          number: data.number,
+          complement: data.complement,
+          neighborhood: data.neighborhood,
+          city: data.city,
+          state: data.state,
+          ibge: data.ibge,
+        });
+        await supabase.from(CUSTOMER_ADDRESSES_TABLE).insert(initialAddress);
         await fetchCustomerProfile(sessionUser.id);
       }
     }

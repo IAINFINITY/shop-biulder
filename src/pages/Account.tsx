@@ -19,6 +19,8 @@ import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ClientWorkspaceShell } from "@/components/client/ClientWorkspaceShell";
 import { ClientSectionHeader } from "@/components/client/ClientSectionHeader";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
+import { ClientAddressesSection } from "@/components/client/ClientAddressesSection";
+import { CatalogNotificationImageFrame } from "@/components/shared/CatalogNotificationImageFrame";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import type { ClientSection } from "@/components/client/clientTypes";
@@ -29,14 +31,28 @@ import { formatBRL } from "@/lib/formatMoney";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
 import { useOrders } from "@/hooks/useOrders";
+import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
+import { useCatalogNotificationReads } from "@/hooks/useCatalogNotificationReads";
+import type { CatalogNotification } from "@/lib/catalogNotifications";
+
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  REPRESENTATIVE_PHONE_DISPLAY,
+  REPRESENTATIVE_PHONE_TEL,
+  REPRESENTATIVE_PHONE_WHATSAPP_URL,
+} from "@/lib/supportContact";
 
 const sectionTitle: Record<ClientSection, string> = {
   resumo: "Resumo da conta",
   empresa: "Dados da empresa",
+  enderecos: "Meus endereços",
   pedidos: "Meus pedidos",
   seguranca: "Segurança e acesso",
   mensagens: "Mensagens",
+  notificacoes: "Notificações",
 };
+
+type CustomerCatalogNotification = CatalogNotification & { isRead: boolean };
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -45,6 +61,26 @@ function formatDateTime(value: string) {
     dateStyle: "long",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatCompactDateTime(value: string | null | undefined) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const datePart = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+
+  return { datePart, timePart };
 }
 
 function AdminAccessNotice({
@@ -141,6 +177,63 @@ function EmptyPanel({ title, description }: { title: string; description: string
   );
 }
 
+function CustomerNotificationPreview({ notification }: { notification: CustomerCatalogNotification }) {
+  const notificationDateTime = formatCompactDateTime(notification.starts_at ?? notification.created_at);
+  const ctaLabel = notification.cta_label?.trim();
+  const ctaUrl = notification.cta_url?.trim();
+
+  return (
+    <div className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-background shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <CatalogNotificationImageFrame src={notification.image_url} alt={notification.title} className="aspect-[3/1]" fit="cover" />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={notification.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[11px]">
+              {notification.isRead ? "Lida" : "Nova"}
+            </Badge>
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
+              Campanha do catálogo
+            </Badge>
+          </div>
+          {notificationDateTime ? (
+            <p className="text-[11px] text-muted-foreground">
+              {notification.starts_at ? "Início" : "Publicado"} {notificationDateTime.datePart} às {notificationDateTime.timePart}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</p>
+          <p className="text-[1.03rem] font-semibold text-foreground">{notification.title}</p>
+          {notification.summary ? <p className="text-sm text-muted-foreground">{notification.summary}</p> : null}
+        </div>
+
+        {notification.body ? (
+          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground/90">{notification.body}</p>
+        ) : null}
+
+        {ctaLabel || ctaUrl ? (
+          <div className="mt-auto flex flex-wrap items-center gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Ação</p>
+              <p className="truncate text-sm font-medium text-foreground">{ctaLabel || "Abrir link"}</p>
+              <p className="truncate text-xs text-muted-foreground">{ctaUrl || "Sem link configurado"}</p>
+            </div>
+            {ctaUrl ? (
+              <Button asChild className="h-10 rounded-2xl px-4 text-sm">
+                <a href={ctaUrl} target="_blank" rel="noreferrer">
+                  {ctaLabel || "Abrir link"}
+                </a>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function Account() {
   const navigate = useNavigate();
   const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut } = useAuth();
@@ -148,8 +241,11 @@ export default function Account() {
     Boolean(user && customerProfile && !isAdmin),
     user?.id ?? "customer",
   );
+  const { data: notifications = [], isLoading: notificationsLoading } = useCatalogNotifications();
+  const { data: notificationReads = [], isLoading: notificationReadsLoading, markAsRead } = useCatalogNotificationReads(user?.id ?? null);
   const [section, setSection] = useState<ClientSection>("resumo");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -183,6 +279,30 @@ export default function Account() {
     () => orderViews.reduce((sum, item) => sum + item.totalValue, 0),
     [orderViews],
   );
+  const readNotificationIds = useMemo(
+    () => new Set(notificationReads.map((item) => item.notification_id)),
+    [notificationReads],
+  );
+  const notificationsWithState = useMemo(
+    () =>
+      [...notifications]
+        .map((item) => ({ ...item, isRead: readNotificationIds.has(item.id) }))
+        .sort((left, right) => {
+          const readOrder = Number(left.isRead) - Number(right.isRead);
+          if (readOrder !== 0) return readOrder;
+          return right.priority - left.priority || right.created_at.localeCompare(left.created_at);
+        }),
+    [notifications, readNotificationIds],
+  );
+  const unreadNotificationCount = useMemo(
+    () => notificationsWithState.filter((item) => !item.isRead).length,
+    [notificationsWithState],
+  );
+  const selectedNotification = useMemo(
+    () => notificationsWithState.find((item) => item.id === selectedNotificationId) ?? null,
+    [notificationsWithState, selectedNotificationId],
+  );
+  const isNotificationsLoading = notificationsLoading || notificationReadsLoading;
   if (loading || isResolvingAccess) {
     return (
       <AuthStatusScreen
@@ -331,6 +451,8 @@ export default function Account() {
     </div>
   );
 
+  const addressesContent = <ClientAddressesSection />;
+
   const ordersContent = (
     <div className="space-y-6">
       <ClientSectionHeader
@@ -437,10 +559,177 @@ export default function Account() {
           />
         </div>
       </div>
+
     </div>
   );
 
-  const messagesContent = <SupportChatPanel mode="customer" />;
+  const messagesContent = (
+    <div className="space-y-6">
+      <ClientSectionHeader
+        eyebrow="Atendimento"
+        title="Mensagens e suporte"
+        description="Fale com o time e use o contato do consultor quando precisar de uma resposta mais direta."
+      />
+
+      <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
+        <div className="flex items-center gap-2">
+          <Phone className="h-5 w-5 text-primary" />
+          <p className="text-sm font-semibold text-foreground">Consultor / representante</p>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Precisa de ajuda com pedidos, campanhas ou orientações do catálogo? Fale direto com o representante.
+        </p>
+        <p className="mt-3 text-base font-semibold text-foreground">{REPRESENTATIVE_PHONE_DISPLAY}</p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <a href={REPRESENTATIVE_PHONE_TEL} className="sm:flex-1">
+            <Button variant="outline" className="h-11 w-full rounded-2xl border-border/70 bg-background px-5 text-sm">
+              Ligar
+            </Button>
+          </a>
+          <a href={REPRESENTATIVE_PHONE_WHATSAPP_URL} target="_blank" rel="noreferrer" className="sm:flex-1">
+            <Button className="h-11 w-full rounded-2xl px-5 text-sm">WhatsApp</Button>
+          </a>
+        </div>
+      </div>
+
+      <SupportChatPanel mode="customer" />
+    </div>
+  );
+
+  const notificationsContent = (
+    <div className="space-y-6">
+      <ClientSectionHeader
+        eyebrow="Comunicação"
+        title="Notificações do catálogo"
+        description="Veja campanhas, avisos e destaques que o time quer comunicar dentro do catálogo."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {unreadNotificationCount > 0 ? (
+              <Badge variant="default" className="rounded-full px-3 py-1 text-[11px] font-medium">
+                {unreadNotificationCount} nova(s)
+              </Badge>
+            ) : null}
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+              {notificationsWithState.length} ativa(s)
+            </Badge>
+          </div>
+        }
+      />
+
+      {isNotificationsLoading ? (
+        <div className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="flex gap-4 border-b border-border/60 p-4 last:border-b-0">
+              <Skeleton className="aspect-[16/10] w-28 shrink-0 rounded-xl sm:w-36" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-3 w-28 rounded-full" />
+                <Skeleton className="h-5 w-2/5 rounded-full" />
+                <Skeleton className="h-4 w-3/5 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : notificationsWithState.length > 0 ? (
+        <div className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm">
+          {notificationsWithState.map((item) => {
+            const notificationDateTime = formatCompactDateTime(item.starts_at ?? item.created_at);
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setSelectedNotificationId(item.id);
+                  if (!item.isRead) {
+                    void markAsRead(item.id).catch(() => null);
+                  }
+                }}
+                className={`group flex w-full gap-4 border-b border-border/60 p-4 text-left transition-colors last:border-b-0 hover:bg-muted/35 ${
+                  item.isRead ? "bg-background" : "bg-primary/[0.035]"
+                }`}
+              >
+                <CatalogNotificationImageFrame
+                  src={item.image_url}
+                  alt={item.title}
+                  className="aspect-[16/10] w-28 shrink-0 rounded-xl border border-border/60 sm:w-36"
+                  iconClassName="h-7 w-7 text-muted-foreground/35"
+                  fit="cover"
+                />
+
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={item.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[11px] font-medium">
+                      {item.isRead ? "Lida" : "Nova"}
+                    </Badge>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</span>
+                    {notificationDateTime ? (
+                      <span className="text-[11px] text-muted-foreground">
+                        {item.starts_at ? "Início" : "Publicado"} {notificationDateTime.datePart} às {notificationDateTime.timePart}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="min-w-0 space-y-1">
+                    <h2 className="line-clamp-1 text-base font-semibold text-foreground sm:text-lg">{item.title}</h2>
+                    {item.summary ? <p className="text-sm font-medium leading-6 text-foreground">{item.summary}</p> : null}
+                    {item.body ? <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">{item.body}</p> : null}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="text-[12px] font-medium text-primary transition-colors group-hover:text-primary/80">
+                      Ver detalhes
+                    </span>
+                    {item.cta_label ? (
+                      <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+                        {item.cta_label}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <EmptyPanel
+          title="Nenhuma notificação ativa"
+          description="Quando o time publicar uma campanha, ela vai aparecer nesta área da conta do cliente."
+        />
+      )}
+
+      <Dialog
+        open={Boolean(selectedNotification)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedNotificationId(null);
+        }}
+      >
+        <DialogContent className="max-h-[92vh] w-[min(96vw,860px)] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
+          {selectedNotification ? (
+            <div className="flex max-h-[92vh] flex-col overflow-hidden">
+              <DialogHeader className="border-b border-border/70 px-5 py-4">
+                <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                  Detalhes da notificação
+                </DialogTitle>
+                <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                  Visualização completa da campanha enviada pelo catálogo.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+                <CustomerNotificationPreview notification={selectedNotification} />
+              </div>
+
+              <DialogFooter className="border-t border-border/70 bg-background px-5 py-4">
+                <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm" onClick={() => setSelectedNotificationId(null)}>
+                  Fechar
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 
   return (
     <ClientWorkspaceShell
@@ -454,12 +743,15 @@ export default function Account() {
       userLabel={displayName}
       sidebarOpen={sidebarOpen}
       onSidebarToggle={() => setSidebarOpen((current) => !current)}
+      unreadNotificationCount={unreadNotificationCount}
     >
       {section === "resumo" && summaryContent}
       {section === "empresa" && companyContent}
+      {section === "enderecos" && addressesContent}
       {section === "pedidos" && ordersContent}
       {section === "seguranca" && securityContent}
       {section === "mensagens" && messagesContent}
+      {section === "notificacoes" && notificationsContent}
     </ClientWorkspaceShell>
   );
 }

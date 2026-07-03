@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
 import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
 import { assertAddressReady, emptyAddressForm } from "@/lib/address";
+import { getSafeReturnToPath } from "@/lib/navigation";
+import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 
 const emptyCustomerForm = {
@@ -21,6 +23,7 @@ const emptyCustomerForm = {
   phone: "",
   company: "",
   cnpj: "",
+  customer_type: DEFAULT_CUSTOMER_TYPE,
 };
 
 const AUTH_FEEDBACK_MIN_MS = 700;
@@ -76,6 +79,7 @@ function AuthField({
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isAdmin, loading, isResolvingAccess, signIn, signUpCustomer } = useAuth();
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
@@ -87,6 +91,7 @@ export default function Login() {
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [authTab, setAuthTab] = useState<"entrar" | "cadastro">("entrar");
+  const returnTo = getSafeReturnToPath(searchParams.get("returnTo"));
 
   const cnpjValidation = useCnpjValidation(customerForm.cnpj, cnpjTouched);
 
@@ -153,7 +158,7 @@ export default function Login() {
       toast.success("Conta criada! Confirme seu e-mail para concluir o cadastro.");
     } else {
       toast.success("Conta criada com sucesso!");
-      navigate("/conta", { replace: true, viewTransition: true });
+      navigate(returnTo ?? "/conta", { replace: true, viewTransition: true });
     }
     setSubmitting(false);
   };
@@ -169,7 +174,7 @@ export default function Login() {
   }
 
   if (user) {
-    return <Navigate to={isAdmin ? "/admin" : "/conta"} replace />;
+    return <Navigate to={isAdmin ? "/admin" : returnTo ?? "/conta"} replace />;
   }
 
   return (

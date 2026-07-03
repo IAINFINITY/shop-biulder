@@ -19,7 +19,14 @@ import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
+import { useCustomerAddresses } from "@/hooks/useCustomerAddresses";
 import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, resolveProductPrice } from "@/lib/pricing";
+import { buildLoginPath } from "@/lib/navigation";
+import { formatCep } from "@/lib/address";
+import {
+  REPRESENTATIVE_PHONE_DISPLAY,
+  REPRESENTATIVE_PHONE_WHATSAPP_URL,
+} from "@/lib/supportContact";
 
 function getCartImage(item: CartItem): string | null {
   return getProductImageUrls(item.product)[0] ?? item.product.image_url ?? null;
@@ -35,10 +42,13 @@ export default function OrderForm() {
     customerType,
     customerTprId,
   );
+  const { data: savedAddresses = [] } = useCustomerAddresses(user?.id ?? null);
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [submitting, setSubmitting] = useState(false);
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [orderNote, setOrderNote] = useState("");
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [manualAddressEdit, setManualAddressEdit] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -50,7 +60,10 @@ export default function OrderForm() {
   const summaryRef = useRef<HTMLDivElement>(null);
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
   const { assertCnpjReady } = cnpjValidation;
-
+  const selectedSavedAddress = useMemo(
+    () => savedAddresses.find((address) => address.id === selectedAddressId) ?? savedAddresses[0] ?? null,
+    [savedAddresses, selectedAddressId],
+  );
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const cartSubtotal = useMemo(
     () => calculateCartSubtotal(cart, customerPriceMap),
@@ -73,21 +86,29 @@ export default function OrderForm() {
   if (!user && !allowGuestCheckout) {
     return (
       <AuthStatusScreen
-        eyebrow="Checkout"
-        title="Acesso ao pedido necessário"
-        description="Para finalizar seu pedido, entre com sua conta e volte ao carrinho. Assim mantemos seus dados e preços vinculados corretamente."
-        actions={
-          <>
-            <Link to="/login" viewTransition>
-              <Button className="rounded-full px-5">Entrar</Button>
-            </Link>
-            <Link to="/" viewTransition>
-              <Button variant="outline" className="rounded-full px-5">
-                Voltar ao catálogo
-              </Button>
-            </Link>
-          </>
-        }
+          eyebrow="Checkout"
+          title="Acesso ao pedido necessário"
+          description="Para finalizar seu pedido, entre com sua conta e volte ao carrinho. Assim mantemos seus dados e preços vinculados corretamente."
+          actions={
+            <div className="space-y-3">
+              <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 text-sm text-muted-foreground">
+                Se preferir, fale com o consultor / representante no WhatsApp:{" "}
+                <a className="font-medium text-primary hover:underline" href={REPRESENTATIVE_PHONE_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                  {REPRESENTATIVE_PHONE_DISPLAY}
+                </a>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link to={buildLoginPath("/pedido")} viewTransition>
+                  <Button className="rounded-full px-5">Entrar</Button>
+                </Link>
+                <Link to="/" viewTransition>
+                  <Button variant="outline" className="rounded-full px-5">
+                    Voltar ao catálogo
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          }
       />
     );
   }
@@ -107,7 +128,8 @@ export default function OrderForm() {
       return;
     }
 
-    const addressMessage = assertAddressReady(addressForm);
+    const checkoutAddress = !manualAddressEdit && selectedSavedAddress ? selectedSavedAddress : addressForm;
+    const addressMessage = assertAddressReady(checkoutAddress);
     if (addressMessage) {
       toast.error(addressMessage);
       return;
@@ -125,7 +147,7 @@ export default function OrderForm() {
       customer_company: form.company.trim(),
       customer_cnpj: form.cnpj.trim(),
       customer_observation: orderNote.trim() || null,
-      ...addressToOrderColumns(addressForm),
+      ...addressToOrderColumns(checkoutAddress),
       items: orderItems as unknown as Json,
       total_items: totalItems,
       status: "NOVO CARRINHO",
@@ -162,7 +184,7 @@ export default function OrderForm() {
           customer_cnpj: form.cnpj.trim(),
           customer_company: form.company.trim(),
           customer_observation: orderNote.trim() || null,
-          address: addressToProxisPayload(addressForm),
+          address: addressToProxisPayload(checkoutAddress),
           items: proxisItems,
           note: orderNote.trim() || "Pedido enviado a partir do carrinho do catalogo.",
         }),
@@ -190,13 +212,13 @@ export default function OrderForm() {
           customer_phone: form.phone.trim(),
           customer_observation: orderNote.trim() || null,
           address: {
-            cep: addressForm.cep,
-            street: addressForm.street,
-            number: addressForm.number,
-            complement: addressForm.complement,
-            neighborhood: addressForm.neighborhood,
-            city: addressForm.city,
-            state: addressForm.state,
+            cep: checkoutAddress.cep,
+            street: checkoutAddress.street,
+            number: checkoutAddress.number,
+            complement: checkoutAddress.complement,
+            neighborhood: checkoutAddress.neighborhood,
+            city: checkoutAddress.city,
+            state: checkoutAddress.state,
           },
           items: proxisItems,
           total_amount: orderSubtotal,
@@ -386,9 +408,85 @@ export default function OrderForm() {
                     </div>
                   </section>
 
+                  {savedAddresses.length > 0 ? (
+                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <h2 className="text-lg font-semibold text-foreground">Endereços salvos</h2>
+                          <p className="text-sm text-muted-foreground">
+                            Selecione um endereço existente para usar na compra ou editar os campos abaixo.
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="rounded-full px-3 py-1">
+                          {savedAddresses.length}/5
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-3">
+                        {savedAddresses.map((address, index) => {
+                          const isActive = selectedAddressId ? selectedAddressId === address.id : index === 0 || address.is_default;
+
+                          return (
+                          <button
+                            key={address.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAddressId(address.id);
+                              setManualAddressEdit(false);
+                              setAddressForm({
+                                cep: address.cep,
+                                street: address.street,
+                                number: address.number,
+                                complement: address.complement,
+                                neighborhood: address.neighborhood,
+                                city: address.city,
+                                state: address.state,
+                                ibge: address.ibge,
+                              });
+                            }}
+                            className={`rounded-2xl border p-4 text-left transition-colors ${
+                              isActive
+                                ? "border-primary bg-primary/5"
+                                : "border-border bg-background hover:border-primary/20 hover:bg-muted/20"
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold text-foreground">{address.label}</p>
+                                  {address.is_default ? (
+                                    <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                                      Padrão
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                  {address.street}, {address.number}
+                                  {address.complement ? ` · ${address.complement}` : ""}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {address.neighborhood} · {address.city}/{address.state}
+                                </p>
+                                <p className="text-sm text-muted-foreground">{formatCep(address.cep)}</p>
+                              </div>
+                              <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                Usar
+                              </span>
+                            </div>
+                          </button>
+                        );
+                        })}
+                      </div>
+                    </section>
+                  ) : null}
+
                   <AddressFields
                     form={addressForm}
-                    onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
+                    onChange={(patch) => {
+                      setManualAddressEdit(true);
+                      setSelectedAddressId(null);
+                      setAddressForm((prev) => ({ ...prev, ...patch }));
+                    }}
                   />
 
                   <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">

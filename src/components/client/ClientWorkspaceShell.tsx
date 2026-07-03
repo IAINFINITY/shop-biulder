@@ -5,9 +5,11 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Bell,
   LayoutGrid,
   LogOut,
   MessageSquareText,
+  MapPinned,
   ShieldCheck,
   ShoppingBag,
 } from "lucide-react";
@@ -24,6 +26,7 @@ type ClientWorkspaceShellProps = {
   userLabel: string;
   sidebarOpen: boolean;
   onSidebarToggle: () => void;
+  unreadNotificationCount?: number;
   children: ReactNode;
 };
 
@@ -35,6 +38,7 @@ export function ClientWorkspaceShell({
   userLabel,
   sidebarOpen,
   onSidebarToggle,
+  unreadNotificationCount = 0,
   children,
 }: ClientWorkspaceShellProps) {
   const navGroups = [
@@ -43,12 +47,14 @@ export function ClientWorkspaceShell({
       items: [
         { id: "resumo" as const, label: "Resumo", icon: LayoutGrid, description: "Visão geral" },
         { id: "empresa" as const, label: "Empresa", icon: Building2, description: "Dados cadastrados" },
+        { id: "enderecos" as const, label: "Endereços", icon: MapPinned, description: "Locais de entrega" },
       ],
     },
     {
       label: "Acesso e histórico",
       items: [
         { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Acompanhamento" },
+        { id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" },
         { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Falar com consultor" },
         { id: "seguranca" as const, label: "Segurança", icon: ShieldCheck, description: "Sessão ativa" },
       ],
@@ -133,15 +139,26 @@ export function ClientWorkspaceShell({
                           : "text-foreground/80 hover:bg-muted/40 hover:text-foreground",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
-                          collapsed && "h-10 w-10 rounded-[0.9rem]",
-                          active ? "border-white/10 bg-white/15" : "border-border bg-background",
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </span>
+                    <span
+                      className={cn(
+                        "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
+                        collapsed && "h-10 w-10 rounded-[0.9rem]",
+                        active ? "border-white/10 bg-white/15" : "border-border bg-background",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.id === "notificacoes" && unreadNotificationCount > 0 ? (
+                        <span
+                          className={cn(
+                            "absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border border-background bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground shadow-sm",
+                            unreadNotificationCount > 9 && "min-w-6",
+                          )}
+                          aria-label={`${unreadNotificationCount} notificações não lidas`}
+                        >
+                          {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                        </span>
+                      ) : null}
+                    </span>
 
                       {!collapsed ? (
                         <span className="min-w-0 flex-1">
@@ -164,8 +181,16 @@ export function ClientWorkspaceShell({
               collapsed && "justify-between px-2.5 py-2",
             )}
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
               {userLabel.slice(0, 1).toUpperCase()}
+              {unreadNotificationCount > 0 ? (
+                <span
+                  className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border border-background bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground shadow-sm"
+                  aria-label={`${unreadNotificationCount} notificações não lidas`}
+                >
+                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                </span>
+              ) : null}
             </div>
             {!collapsed ? (
               <div className="min-w-0 flex-1">

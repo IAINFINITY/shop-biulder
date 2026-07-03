@@ -391,7 +391,10 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
   const isOtherTyping = selectedConversation ? isTypingRecently(otherTypingAt, now) : false;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1800px] flex-col space-y-6 h-full min-h-0">
+    <div
+      className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 overflow-hidden"
+      style={{ height: "min(90vh, 64rem)" }}
+    >
       <section className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-4 shrink-0">
         <div className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:text-[12px]">

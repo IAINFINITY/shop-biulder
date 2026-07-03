@@ -5,6 +5,7 @@ import type { CustomerType } from "@/lib/pricing";
 export type AdminSection =
   | "dashboard"
   | "banners"
+  | "notificacoes"
   | "produtos"
   | "precos"
   | "pedidos"

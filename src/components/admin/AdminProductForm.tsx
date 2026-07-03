@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/shared/RichTextEditor";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarouselEditor";
+import { ADMIN_TEXT_LIMITS, countRichTextCharacters } from "@/lib/adminTextLimits";
 import { normalizePriceInputDraft } from "@/lib/formatMoney";
 import { cn } from "@/lib/utils";
 import type { AdminProductFormState } from "./adminTypes";
@@ -52,14 +53,20 @@ export function AdminProductForm({
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="product-name" className="text-[13px] font-medium">
-            Nome do produto
-          </Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="product-name" className="text-[13px] font-medium">
+              Nome do produto
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              {editing.name.length}/{ADMIN_TEXT_LIMITS.products.name} caracteres
+            </p>
+          </div>
           <Input
             id="product-name"
             placeholder="Nome do produto"
             value={editing.name}
             onChange={(e) => onChange({ ...editing, name: e.target.value })}
+            maxLength={ADMIN_TEXT_LIMITS.products.name}
             className="h-11 rounded-2xl border-border/70 bg-background"
           />
         </div>
@@ -122,26 +129,40 @@ export function AdminProductForm({
       </div>
 
       <div className="mt-4 space-y-2">
-        <Label htmlFor="product-description" className="text-[13px] font-medium">
-          Texto da descrição
-        </Label>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="product-description" className="text-[13px] font-medium">
+            Texto da descrição
+          </Label>
+          <p className="text-[11px] text-muted-foreground">
+            {countRichTextCharacters(editing.description)}/{ADMIN_TEXT_LIMITS.products.description} caracteres
+          </p>
+        </div>
         <RichTextEditor
           value={editing.description}
           onChange={(html) => onChange({ ...editing, description: html })}
           placeholder="Descreva o produto..."
         />
+        <p className="text-[11px] leading-5 text-muted-foreground">
+          O texto fica mais legível quando a descrição é direta e objetiva.
+        </p>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="product-code" className="text-[13px] font-medium">
-            Código do produto
-          </Label>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="product-code" className="text-[13px] font-medium">
+              Código do produto
+            </Label>
+            <p className="text-[11px] text-muted-foreground">
+              {editing.productCode.length}/{ADMIN_TEXT_LIMITS.products.code} caracteres
+            </p>
+          </div>
           <Input
             id="product-code"
             placeholder="Ex: CHA-001"
             value={editing.productCode}
             onChange={(e) => onChange({ ...editing, productCode: e.target.value.toUpperCase() })}
+            maxLength={ADMIN_TEXT_LIMITS.products.code}
             className="h-11 rounded-2xl border-border/70 bg-background font-mono"
           />
           <p className="text-[11px] leading-5 text-muted-foreground">Uso interno para pedidos e exportações</p>

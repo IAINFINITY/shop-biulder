@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+﻿import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { LockKeyhole, LogOut, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
 import { AdminWorkspaceShell } from "@/components/admin/AdminWorkspaceShell";
 import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection";
 import { AdminBannersSection } from "@/components/admin/AdminBannersSection";
+import { AdminNotificationsSection } from "@/components/admin/AdminNotificationsSection";
 import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
 import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
@@ -510,6 +511,7 @@ export default function AdminWorkspace() {
   const sectionTitle: Record<AdminSection, string> = {
     dashboard: "Dashboard",
     banners: "Banners do catálogo",
+    notificacoes: "Notificações",
     produtos: "Produtos",
     precos: "Preços",
     pedidos: "Pedidos",
@@ -806,6 +808,7 @@ export default function AdminWorkspace() {
       onSidebarToggle={() => setSidebarOpen((value) => !value)}
     >
       {section === "banners" && <AdminBannersSection />}
+      {section === "notificacoes" && <AdminNotificationsSection />}
 
       {section === "dashboard" && (
         <AdminDashboardSection

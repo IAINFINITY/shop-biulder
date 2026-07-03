@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+﻿import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ImageIcon, Link as LinkIcon, Pencil, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminBanner } from "./adminTypes";
 import { CATALOG_BANNERS_TABLE } from "@/lib/catalogBanners";
 import { uploadProductImageFile } from "@/lib/productImageStorage";
+import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 import { cn } from "@/lib/utils";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 
@@ -233,7 +234,7 @@ export function AdminBannersSection() {
                       <p className="truncate text-[15px] font-semibold text-foreground">{banner.label}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Ordem {banner.sort_order}
-                        {banner.link_url ? " · com link" : " · sem link"}
+                        {banner.link_url ? " • com link" : " • sem link"}
                       </p>
                     </div>
                     <Badge variant={banner.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[11px]">
@@ -312,22 +313,31 @@ export function AdminBannersSection() {
                 {draft ? (
                   <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                     <div className="space-y-2">
-                      <Label htmlFor="banner-label" className="text-[13px] font-medium">
-                        Nome do banner
-                      </Label>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="banner-label" className="text-[13px] font-medium">
+                          Nome do banner
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          {draft.label.length}/{ADMIN_TEXT_LIMITS.banners.label} caracteres
+                        </p>
+                      </div>
                       <Input
                         id="banner-label"
                         placeholder="Ex: Promoção de verão"
                         value={draft.label}
                         onChange={(e) => setDraft((current) => (current ? { ...current, label: e.target.value } : current))}
+                        maxLength={ADMIN_TEXT_LIMITS.banners.label}
                         className="h-11 rounded-2xl border-border/70 bg-background"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="banner-image-url" className="text-[13px] font-medium">
-                        Imagem
-                      </Label>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="banner-image-url" className="text-[13px] font-medium">
+                          Imagem
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">URL opcional</p>
+                      </div>
                       <Input
                         id="banner-image-url"
                         placeholder="Cole a URL da imagem ou envie um arquivo"
@@ -357,14 +367,20 @@ export function AdminBannersSection() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="banner-link-url" className="text-[13px] font-medium">
-                        Link do banner
-                      </Label>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="banner-link-url" className="text-[13px] font-medium">
+                          Link do banner
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          {draft.linkUrl.length}/{ADMIN_TEXT_LIMITS.banners.linkUrl} caracteres
+                        </p>
+                      </div>
                       <Input
                         id="banner-link-url"
                         placeholder="Ex: /produto/123 ou https://..."
                         value={draft.linkUrl}
                         onChange={(e) => setDraft((current) => (current ? { ...current, linkUrl: e.target.value } : current))}
+                        maxLength={ADMIN_TEXT_LIMITS.banners.linkUrl}
                         className="h-11 rounded-2xl border-border/70 bg-background"
                       />
                     </div>

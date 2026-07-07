@@ -669,6 +669,12 @@ export default function AdminWorkspace() {
     }
 
     const description = isRichTextEmpty(editing.description) ? "" : sanitizeRichText(editing.description);
+    const normalizedPrice = Math.max(0, parsePriceInput(editing.priceInput));
+    if (normalizedPrice <= 0) {
+      toast.error("O preço precisa ser maior que zero para salvar o produto.");
+      return;
+    }
+
     const { withGallery, legacyOnly } = buildProductDbPayload({
       name: editing.name,
       description,
@@ -677,7 +683,7 @@ export default function AdminWorkspace() {
       image_urls: editing.image_urls.filter((u) => u.trim() !== ""),
       active: editing.active,
       is_promotion: editing.is_promotion,
-      price: Math.max(0, parsePriceInput(editing.priceInput)),
+      price: normalizedPrice,
       product_code: editing.productCode,
     });
 

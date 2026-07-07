@@ -186,7 +186,9 @@ export function AdminProductForm({
             }
             className="h-11 rounded-2xl border-border/70 bg-background"
           />
-          <p className="text-[11px] leading-5 text-muted-foreground">Use vírgula ou ponto para centavos</p>
+          <p className="text-[11px] leading-5 text-muted-foreground">
+            Use vírgula ou ponto para centavos. O valor precisa ser maior que zero.
+          </p>
         </div>
       </div>
 

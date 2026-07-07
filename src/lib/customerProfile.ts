@@ -1,5 +1,5 @@
-import type { AddressFormData } from "@/lib/address";
 import type { CustomerType } from "@/lib/pricing";
+import type { AddressFormData } from "@/lib/address";
 
 export const CUSTOMER_PROFILES_TABLE = "customer_profiles";
 
@@ -34,7 +34,7 @@ export type CustomerFormCore = {
   customer_type?: CustomerType;
 };
 
-export interface CustomerRegistrationData extends CustomerFormCore, AddressFormData {
+export interface CustomerRegistrationData extends CustomerFormCore {
   email: string;
   password: string;
 }

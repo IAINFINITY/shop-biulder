@@ -663,14 +663,14 @@ export type Database = {
           p_company: string
           p_cnpj: string
           p_customer_type: string
-          p_address_cep: string
-          p_address_street: string
-          p_address_number: string
-          p_address_complement: string
-          p_address_neighborhood: string
-          p_address_city: string
-          p_address_state: string
-          p_address_ibge: string
+          p_address_cep?: string
+          p_address_street?: string
+          p_address_number?: string
+          p_address_complement?: string
+          p_address_neighborhood?: string
+          p_address_city?: string
+          p_address_state?: string
+          p_address_ibge?: string
         }
         Returns: undefined
       }

@@ -313,6 +313,12 @@ function parseRepresentativeId(value: unknown): number | null {
   return Math.trunc(numeric);
 }
 
+function parsePesId(value: unknown): number | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return Math.trunc(numeric);
+}
+
 function nextRepresentativeId(): number {
   const index = representativeRotationIndex % REPRESENTATIVE_ROTATION.length;
   const repId = REPRESENTATIVE_ROTATION[index];
@@ -343,23 +349,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
-    let pesId: number;
+    let pesId: number | null = null;
 
     const normalizedAddress = normalizeAddressInput(body.address ?? null);
 
     if (cliente?.pes_id) {
-      pesId = Number(cliente.pes_id);
+      const existingPesId = parsePesId(cliente.pes_id);
+      if (!existingPesId) {
+        cliente = await buscarClientePorCnpj(body.customer_cnpj);
+      } else {
+        pesId = existingPesId;
+      }
     } else {
       const nomeCliente = body.customer_company || body.customer_name;
       const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj, normalizedAddress);
-      if (!novoCliente.pes_id) {
-        return res.status(500).json({ error: "Failed to create customer in Proxsis" });
+      const novoPesId = parsePesId(novoCliente.pes_id);
+      if (novoPesId) {
+        pesId = novoPesId;
+        cliente = novoCliente;
+      } else {
+        cliente = await buscarClientePorCnpj(body.customer_cnpj);
+        const clientePesId = parsePesId(cliente?.pes_id);
+        if (!clientePesId) {
+          return res.status(500).json({
+            error: "Failed to create customer in Proxsis",
+            detail: "Proxsis returned a create response without pes_id and the follow-up lookup also failed.",
+          });
+        }
+        pesId = clientePesId;
       }
-      pesId = Number(novoCliente.pes_id);
-      cliente = novoCliente;
     }
 
-    if (cliente) await garantirEnderecoCliente(cliente, normalizedAddress);
+    if (!pesId) {
+      return res.status(500).json({
+        error: "Failed to resolve customer in Proxsis",
+        detail: "Proxsis customer lookup did not return a valid pes_id.",
+      });
+    }
+
+    if (!cliente) {
+      return res.status(500).json({
+        error: "Failed to resolve customer in Proxsis",
+        detail: "Proxsis customer lookup did not return customer data.",
+      });
+    }
+
+    await garantirEnderecoCliente(cliente, normalizedAddress);
 
     let tprId = PROXSIS_TPR_ID_DEFAULT;
     const tabelas = cliente.tabelapreco as Array<{ tpr_id: number }> | undefined;

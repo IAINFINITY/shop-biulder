@@ -22,6 +22,7 @@ export interface OrderItem {
 }
 
 export type SubmittedCartLine = {
+  imageUrl?: string | null;
   name: string;
   type: string;
   family: string;

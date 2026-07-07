@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
   CalendarClock,
@@ -236,6 +236,7 @@ function CustomerNotificationPreview({ notification }: { notification: CustomerC
 
 export default function Account() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useOrders(
     Boolean(user && customerProfile && !isAdmin),
@@ -246,6 +247,13 @@ export default function Account() {
   const [section, setSection] = useState<ClientSection>("resumo");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sectionParam = searchParams.get("section");
+    if (sectionParam === "resumo" || sectionParam === "empresa" || sectionParam === "enderecos" || sectionParam === "pedidos" || sectionParam === "seguranca" || sectionParam === "mensagens" || sectionParam === "notificacoes") {
+      setSection(sectionParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!loading && !user) {

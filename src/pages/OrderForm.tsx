@@ -1,5 +1,6 @@
 ﻿import { useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { ArrowLeft, Send, ShoppingBag, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,13 +24,37 @@ import { useCustomerAddresses } from "@/hooks/useCustomerAddresses";
 import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, resolveProductPrice } from "@/lib/pricing";
 import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
+import { profileAddressToForm } from "@/lib/customerProfile";
+import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_WHATSAPP_URL,
 } from "@/lib/supportContact";
 
+const ORDER_SUCCESS_SNAPSHOT_KEY = "clinicplus_last_order_success";
+
 function getCartImage(item: CartItem): string | null {
   return getProductImageUrls(item.product)[0] ?? item.product.image_url ?? null;
+}
+
+function isAddressFormBlank(form: ReturnType<typeof emptyAddressForm>) {
+  return Object.values(form).every((value) => typeof value === "string" && value.trim() === "");
+}
+
+function isSameAddressForm(
+  left: ReturnType<typeof emptyAddressForm>,
+  right: ReturnType<typeof emptyAddressForm>,
+) {
+  return (
+    left.cep === right.cep &&
+    left.street === right.street &&
+    left.number === right.number &&
+    left.complement === right.complement &&
+    left.neighborhood === right.neighborhood &&
+    left.city === right.city &&
+    left.state === right.state &&
+    left.ibge === right.ibge
+  );
 }
 
 export default function OrderForm() {
@@ -42,9 +67,10 @@ export default function OrderForm() {
     customerType,
     customerTprId,
   );
-  const { data: savedAddresses = [] } = useCustomerAddresses(user?.id ?? null);
+  const { data: savedAddresses = [], saveAddress, setDefaultAddress } = useCustomerAddresses(user?.id ?? null);
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [submitting, setSubmitting] = useState(false);
+  const [savingAddress, setSavingAddress] = useState(false);
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [orderNote, setOrderNote] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
@@ -61,17 +87,105 @@ export default function OrderForm() {
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
   const { assertCnpjReady } = cnpjValidation;
   const selectedSavedAddress = useMemo(
-    () => savedAddresses.find((address) => address.id === selectedAddressId) ?? savedAddresses[0] ?? null,
+    () => (selectedAddressId ? savedAddresses.find((address) => address.id === selectedAddressId) ?? null : null),
     [savedAddresses, selectedAddressId],
   );
+  const preferredSavedAddress = useMemo(
+    () => savedAddresses.find((address) => address.is_default) ?? savedAddresses[0] ?? null,
+    [savedAddresses],
+  );
+  const selectedSavedAddressForm = useMemo(
+    () => (selectedSavedAddress ? customerAddressFormFromAddress(selectedSavedAddress) : null),
+    [selectedSavedAddress],
+  );
+  const checkoutAddress = !manualAddressEdit && selectedSavedAddress ? selectedSavedAddress : addressForm;
+  const checkoutAddressIsSaved =
+    Boolean(selectedSavedAddressForm) &&
+    !manualAddressEdit &&
+    isSameAddressForm(addressForm, selectedSavedAddressForm);
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const cartSubtotal = useMemo(
     () => calculateCartSubtotal(cart, customerPriceMap),
     [cart, customerPriceMap],
   );
+
   const scrollToSummary = useCallback(() => {
     summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  useEffect(() => {
+    if (!customerProfile) return;
+
+    setForm((prev) => ({
+      name: prev.name.trim() ? prev.name : customerProfile.name ?? "",
+      phone: prev.phone.trim() ? prev.phone : customerProfile.phone ?? "",
+      company: prev.company.trim() ? prev.company : customerProfile.company ?? "",
+      cnpj: prev.cnpj.trim() ? prev.cnpj : customerProfile.cnpj ?? "",
+      customer_type:
+        prev.customer_type === DEFAULT_CUSTOMER_TYPE
+          ? customerProfile.customer_type ?? prev.customer_type
+          : prev.customer_type,
+    }));
+  }, [customerProfile]);
+
+  useEffect(() => {
+    if (savedAddresses.length > 0) {
+      const nextAddress = selectedSavedAddress ?? preferredSavedAddress;
+
+      if (!nextAddress || manualAddressEdit) return;
+
+      const nextForm = customerAddressFormFromAddress(nextAddress);
+
+      setSelectedAddressId(nextAddress.id);
+      setAddressForm((prev) => (isSameAddressForm(prev, nextForm) ? prev : nextForm));
+      return;
+    }
+
+    if (manualAddressEdit || !customerProfile) return;
+
+    const profileAddress = profileAddressToForm(customerProfile);
+    if (!isAddressFormBlank(profileAddress)) {
+      setSelectedAddressId(null);
+      setAddressForm((prev) => (isSameAddressForm(prev, profileAddress) ? prev : profileAddress));
+    }
+  }, [customerProfile, manualAddressEdit, savedAddresses, selectedSavedAddress, preferredSavedAddress]);
+
+  const handleSaveCheckoutAddress = async () => {
+    if (!user) return;
+
+    const addressMessage = assertAddressReady(checkoutAddress);
+    if (addressMessage) {
+      toast.error(addressMessage);
+      return;
+    }
+
+    setSavingAddress(true);
+    const addressPayload: CustomerAddressFormData = {
+      ...checkoutAddress,
+      label: savedAddresses.length > 0 ? "Endereço do pedido" : "Principal",
+      is_default: savedAddresses.length === 0,
+    };
+
+    const { error, data } = await saveAddress(addressPayload);
+    if (error) {
+      toast.error(error.message || "Não foi possível salvar o endereço");
+      setSavingAddress(false);
+      return;
+    }
+
+    if (addressPayload.is_default && data?.id) {
+      const defaultResult = await setDefaultAddress(data.id);
+      if (defaultResult.error) {
+        toast.error(defaultResult.error.message || "Não foi possível definir o endereço padrão");
+        setSavingAddress(false);
+        return;
+      }
+    }
+
+    toast.success("Endereço salvo na sua conta.");
+    setSavingAddress(false);
+    navigate("/conta?section=enderecos", { replace: true, viewTransition: true });
+  };
 
   if (loading || isResolvingAccess) {
     return (
@@ -128,7 +242,6 @@ export default function OrderForm() {
       return;
     }
 
-    const checkoutAddress = !manualAddressEdit && selectedSavedAddress ? selectedSavedAddress : addressForm;
     const addressMessage = assertAddressReady(checkoutAddress);
     if (addressMessage) {
       toast.error(addressMessage);
@@ -174,6 +287,7 @@ export default function OrderForm() {
       unit_price: row.unit_price,
       name: row.name,
     }));
+    let proxisWarning: string | null = null;
 
     try {
       const proxisRes = await fetch("/api/proxis-order", {
@@ -193,12 +307,17 @@ export default function OrderForm() {
       if (!proxisRes.ok) {
         const errBody = await proxisRes.json().catch(() => ({}));
         console.warn("Proxis ERP retornou erro", { status: proxisRes.status, errBody });
+        proxisWarning =
+          typeof errBody.error === "string" && errBody.error.trim()
+            ? errBody.error
+            : `status ${proxisRes.status}`;
       } else {
         const proxisData = await proxisRes.json().catch(() => null);
         console.info("Pedido enviado ao Proxis ERP", proxisData);
       }
     } catch (err) {
       console.warn("Falha ao enviar pedido para Proxis ERP", err);
+      proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
     }
 
     try {
@@ -242,6 +361,7 @@ export default function OrderForm() {
       const unit = resolveProductPrice(item.product, customerPriceMap);
       const qty = item.quantity;
       return {
+        imageUrl: getCartImage(item),
         name: item.product.name,
         type: item.product.type,
         family: item.product.family,
@@ -255,6 +375,9 @@ export default function OrderForm() {
     saveCart([]);
     setCart([]);
     toast.success("Pedido enviado com sucesso!");
+    if (proxisWarning) {
+      toast.warning(`O pedido foi salvo, mas o Proxsys não recebeu o envio. Motivo: ${proxisWarning}`);
+    }
 
     try {
       const itemsForWebhook = orderItems.map((row) => ({
@@ -287,17 +410,28 @@ export default function OrderForm() {
       console.warn("Falha ao enviar webhook do pedido", err);
     }
 
+    const successState = {
+      customerName: payload.customer_name,
+      customerPhone: payload.customer_phone,
+      company: payload.customer_company,
+      customerCnpj: payload.customer_cnpj,
+      customerAddress: checkoutAddress,
+      totalItems: payload.total_items,
+      submittedCart,
+      orderSubtotal,
+      orderNote: orderNote.trim(),
+    };
+
+    try {
+      sessionStorage.setItem(ORDER_SUCCESS_SNAPSHOT_KEY, JSON.stringify(successState));
+    } catch {
+      // ignore storage failures
+    }
+
     navigate("/pedido/obrigado", {
       replace: true,
       viewTransition: true,
-      state: {
-        customerName: payload.customer_name,
-        company: payload.customer_company,
-        totalItems: payload.total_items,
-        submittedCart,
-        orderSubtotal,
-        orderNote: orderNote.trim(),
-      },
+      state: successState,
     });
   };
 
@@ -478,7 +612,15 @@ export default function OrderForm() {
                         })}
                       </div>
                     </section>
-                  ) : null}
+                  ) : (
+                    <section className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
+                      <p className="font-semibold text-primary">Nenhum endereço salvo no seu cadastro.</p>
+                      <p className="mt-1 text-muted-foreground">
+                        Preencha os campos abaixo para usar este endereço neste pedido. Se quiser, depois você pode
+                        salvar essa entrega na área do cliente.
+                      </p>
+                    </section>
+                  )}
 
                   <AddressFields
                     form={addressForm}
@@ -488,6 +630,26 @@ export default function OrderForm() {
                       setAddressForm((prev) => ({ ...prev, ...patch }));
                     }}
                   />
+
+                  <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="space-y-1">
+                        <h2 className="text-lg font-semibold text-foreground">Salvar endereço na conta</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Salve este endereço na área do cliente para continuar com a compra e reutilizá-lo depois.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full rounded-full border-primary/30 px-5 sm:w-auto"
+                        onClick={handleSaveCheckoutAddress}
+                        disabled={savingAddress || submitting || checkoutAddressIsSaved}
+                      >
+                        {savingAddress ? "Salvando..." : checkoutAddressIsSaved ? "Endereço salvo" : "Salvar endereço"}
+                      </Button>
+                    </div>
+                  </section>
 
                   <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
                     <div className="mb-4 flex items-start justify-between gap-4">
@@ -519,11 +681,21 @@ export default function OrderForm() {
                         </p>
                       </div>
 
-                      <Button type="submit" className="w-full gap-2 sm:w-auto" size="lg" disabled={submitting}>
+                      <Button
+                        type="submit"
+                        className="w-full gap-2 sm:w-auto"
+                        size="lg"
+                        disabled={submitting || !checkoutAddressIsSaved}
+                      >
                         <Send className="h-4 w-4" />
                         {submitting ? "Enviando..." : "Enviar pedido"}
                       </Button>
                     </div>
+                    {!checkoutAddressIsSaved ? (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        O envio do pedido fica disponível depois que o endereço estiver salvo na sua conta.
+                      </p>
+                    ) : null}
                   </section>
                 </form>
               </div>

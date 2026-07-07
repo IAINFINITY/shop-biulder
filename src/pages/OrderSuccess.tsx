@@ -1,14 +1,26 @@
-import { useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, CheckCircle2, ShoppingBag, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, ImageIcon, PackageCheck, Phone, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
+import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
+import { useAuth } from "@/hooks/useAuth";
 import { formatBRL } from "@/lib/formatMoney";
+import { formatCep, type AddressFormData } from "@/lib/address";
+import { profileAddressToForm } from "@/lib/customerProfile";
+import { REPRESENTATIVE_PHONE_DISPLAY, REPRESENTATIVE_PHONE_WHATSAPP_URL } from "@/lib/supportContact";
 import type { SubmittedCartLine } from "@/lib/orders";
+import { getProductImageUrls, readCachedProductsFromStorage } from "@/lib/products";
+
+const ORDER_SUCCESS_SNAPSHOT_KEY = "clinicplus_last_order_success";
 
 type OrderSuccessState = {
   customerName: string;
+  customerPhone?: string;
+  customerCnpj?: string;
+  customerAddress?: AddressFormData | null;
   company: string;
   totalItems: number;
   submittedCart: SubmittedCartLine[];
@@ -16,78 +28,159 @@ type OrderSuccessState = {
   orderNote?: string | null;
 };
 
+function formatStepCount(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "A confirmar";
+  return value > 0 ? `${value} item(ns)` : "Carrinho enviado";
+}
+
+function formatAddress(address: AddressFormData | null | undefined) {
+  if (!address) return null;
+
+  const streetLine = [address.street?.trim(), address.number?.trim()].filter(Boolean).join(", ");
+  const locality = [address.neighborhood?.trim(), address.city?.trim(), address.state?.trim()]
+    .filter(Boolean)
+    .join(" · ");
+  const complement = address.complement?.trim();
+
+  const lines = [streetLine, locality, formatCep(address.cep) || null, complement || null].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  if (lines.length === 0) return null;
+  return lines;
+}
+
+function getItemImage(line: SubmittedCartLine) {
+  const directImage = typeof line.imageUrl === "string" ? line.imageUrl.trim() : "";
+  if (directImage) return directImage;
+
+  const cachedProducts = [...readCachedProductsFromStorage(false), ...readCachedProductsFromStorage(true)];
+  const match = cachedProducts.find((product) => {
+    const sameName = product.name.trim().toLowerCase() === line.name.trim().toLowerCase();
+    const sameType = product.type.trim().toLowerCase() === line.type.trim().toLowerCase();
+    const sameFamily = product.family.trim().toLowerCase() === line.family.trim().toLowerCase();
+    return sameName && sameType && sameFamily;
+  });
+
+  return match ? getProductImageUrls(match)[0] ?? match.image_url ?? null : null;
+}
+
 export default function OrderSuccess() {
   const location = useLocation();
-  const state = (location.state ?? {}) as OrderSuccessState;
-  const hasOrderDetails = Boolean(state.customerName || state.company || state.totalItems);
+  const { customerProfile } = useAuth();
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const savedSnapshot = (() => {
+    try {
+      const raw = sessionStorage.getItem(ORDER_SUCCESS_SNAPSHOT_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as Partial<OrderSuccessState> | null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const state = { ...(savedSnapshot ?? {}), ...(location.state ?? {}) } as OrderSuccessState;
   const submittedCart = Array.isArray(state.submittedCart) ? state.submittedCart : [];
   const hasSubmittedCart = submittedCart.length > 0;
   const orderNote = typeof state.orderNote === "string" ? state.orderNote.trim() : "";
-  const [cartOpen, setCartOpen] = useState(false);
+  const fallbackAddress = customerProfile ? profileAddressToForm(customerProfile) : null;
+  const resolvedCustomerName = state.customerName?.trim() || customerProfile?.name?.trim() || "Pedido confirmado";
+  const resolvedCustomerPhone = state.customerPhone?.trim() || customerProfile?.phone?.trim() || "Não informado";
+  const resolvedCustomerCompany =
+    state.company?.trim() || customerProfile?.company?.trim() || "Cadastro recebido";
+  const resolvedCustomerCnpj = state.customerCnpj?.trim() || customerProfile?.cnpj?.trim() || "CNPJ não informado";
+  const resolvedCustomerAddress = state.customerAddress ?? fallbackAddress;
+  const addressLines = formatAddress(resolvedCustomerAddress);
+
+  const totalItems = useMemo(
+    () => (typeof state.totalItems === "number" && Number.isFinite(state.totalItems) ? state.totalItems : 0),
+    [state.totalItems],
+  );
+  const orderSubtotal = useMemo(
+    () => (typeof state.orderSubtotal === "number" && Number.isFinite(state.orderSubtotal) ? state.orderSubtotal : null),
+    [state.orderSubtotal],
+  );
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,hsl(var(--accent)/0.12),hsl(var(--background))_38%,hsl(var(--background)))]">
+    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,hsl(var(--accent)/0.08),hsl(var(--background))_28%,hsl(var(--background)))]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-120px] h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
-        <div className="absolute right-[-60px] top-40 h-56 w-56 rounded-full bg-accent/30 blur-3xl" />
-        <div className="absolute bottom-[-100px] left-[-40px] h-72 w-72 rounded-full bg-secondary/60 blur-3xl" />
+        <div className="absolute left-1/2 top-[-160px] h-80 w-80 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute right-[-120px] top-20 h-80 w-80 rounded-full bg-accent/15 blur-3xl" />
       </div>
 
-      <div className="relative container mx-auto flex min-h-screen max-w-4xl items-center px-4 py-10">
-        <div className="w-full rounded-[2rem] border border-border/60 bg-card/95 p-6 shadow-2xl shadow-primary/10 backdrop-blur sm:p-10">
-          <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
-              <Sparkles className="h-4 w-4" />
-              Pedido recebido com sucesso
+      <PageHeaderShell className="border-b-border/60">
+        <div className="flex w-full items-center justify-between gap-4">
+          <ClinicPlusLogo className="h-10 sm:h-11" />
+          <Link to="/" viewTransition>
+            <Button variant="outline" className="h-10 rounded-full px-4">
+              Voltar ao catálogo
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </PageHeaderShell>
+
+      <main className="relative mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <section className="rounded-[1.75rem] border border-border/60 bg-card/95 p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-5">
+            <div className="max-w-4xl space-y-3">
+              <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                Obrigado, seu pedido foi enviado.
+              </h2>
+              <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                Nosso time já recebeu sua solicitação e vai seguir com a validação do pedido. Se algo estiver
+                faltando, retornamos pelo contato cadastrado.
+              </p>
+              <div className="space-y-1 text-sm leading-7 text-muted-foreground">
+                <p>Se precisar falar com o consultor, use o WhatsApp:</p>
+                <a
+                  className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
+                  href={REPRESENTATIVE_PHONE_WHATSAPP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                  {REPRESENTATIVE_PHONE_DISPLAY}
+                </a>
+                <p>
+                  Você também pode falar com o consultor pelo chat do próprio site, na área de cliente.
+                </p>
+              </div>
             </div>
 
-            <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-              <CheckCircle2 className="h-10 w-10" />
-            </div>
-
-            <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
-              Obrigado! Sua solicitação foi enviada.
-            </h1>
-
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-              Nosso time recebeu seu pedido e vai seguir com o atendimento em breve.
-            </p>
-
-            {hasOrderDetails && (
-              <div className="mt-8 grid w-full gap-3 rounded-3xl border border-border/70 bg-background/80 p-5 text-left sm:grid-cols-3">
-                <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">{state.customerName || "Pedido confirmado"}</p>
-                </div>
-                <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Empresa</p>
-                  <p className="mt-2 text-sm font-semibold text-foreground">{state.company || "Cadastro recebido"}</p>
-                </div>
-                <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Itens enviados</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-semibold text-foreground">
-                      {state.totalItems ? `${state.totalItems} item(ns)` : "Carrinho enviado"}
-                    </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:max-w-[520px]">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Status</p>
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <PackageCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Em análise</p>
+                    <p className="text-xs text-muted-foreground">Processando com atendimento</p>
                   </div>
                 </div>
               </div>
-            )}
+
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Itens</p>
+                <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">{totalItems || 0}</p>
+                <p className="text-xs text-muted-foreground">Item(ns) no pedido</p>
+              </div>
+            </div>
 
             {orderNote ? (
-              <div className="mt-4 w-full rounded-3xl border border-border/70 bg-background/80 p-5 text-left">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
                   Observação do pedido
                 </p>
-                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-foreground">
-                  {orderNote}
-                </p>
+                <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-foreground">{orderNote}</p>
               </div>
             ) : null}
 
-            <div className="mt-8 flex w-full max-w-lg flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-              {hasSubmittedCart && (
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              {hasSubmittedCart ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -96,30 +189,116 @@ export default function OrderSuccess() {
                   onClick={() => setCartOpen(true)}
                 >
                   <ShoppingBag className="h-4 w-4" />
-                  Visualizar carrinho
+                  Ver itens enviados
                 </Button>
-              )}
-              <Link to="/" viewTransition>
-                <Button size="lg" className="w-full gap-2 rounded-full px-6 sm:w-auto">
-                  Voltar ao catálogo
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+          <section className="rounded-[1.75rem] border border-border/60 bg-card/95 p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">Resumo</p>
+                <h3 className="text-lg font-semibold text-foreground">Dados do pedido</h3>
+              </div>
             </div>
 
-            <Badge variant="secondary" className="mt-6 rounded-full px-4 py-2 text-sm font-medium">
-              Atendimento iniciado
-            </Badge>
-          </div>
+            <div className="mt-5 grid gap-3">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Cliente</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {resolvedCustomerName}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{resolvedCustomerPhone}</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Empresa</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {resolvedCustomerCompany}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">{resolvedCustomerCnpj}</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                  Endereço de entrega
+                </p>
+                {addressLines ? (
+                  <div className="mt-2 space-y-1">
+                    {addressLines.map((line) => (
+                      <p key={line} className="text-sm font-medium text-foreground">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm font-medium text-foreground">Endereço não informado</p>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                    Itens enviados
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">{formatStepCount(totalItems)}</p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                    Total estimado
+                  </p>
+                  <p className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+                    {typeof orderSubtotal === "number" ? formatBRL(orderSubtotal) : "A confirmar"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[1.75rem] border border-border/60 bg-card/95 p-6 shadow-sm">
+            <div className="space-y-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">Próximos passos</p>
+              <h3 className="text-lg font-semibold text-foreground">Como o atendimento segue</h3>
+              <div className="space-y-3 pt-2">
+                <div className="flex gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    1
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Conferimos o pedido</p>
+                    <p className="text-sm text-muted-foreground">Validamos cadastro, itens e endereço.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    2
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Entramos em contato</p>
+                    <p className="text-sm text-muted-foreground">Se necessário, confirmamos detalhes pelo WhatsApp.</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    3
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Seguimos com o fluxo interno</p>
+                    <p className="text-sm text-muted-foreground">O pedido fica pronto para o próximo passo operacional.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
 
       <Sheet open={cartOpen} onOpenChange={setCartOpen}>
-        <SheetContent className="flex w-full flex-col sm:max-w-md">
+        <SheetContent className="!flex w-full flex-col sm:max-w-md">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <ShoppingBag className="h-5 w-5 text-primary" />
-              Carrinho enviado
+              Itens enviados
             </SheetTitle>
           </SheetHeader>
 
@@ -127,38 +306,83 @@ export default function OrderSuccess() {
             <p className="text-sm text-muted-foreground">Nenhum detalhe do carrinho disponível para esta página.</p>
           ) : (
             <>
-              <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1">
+              <div className="flex-1 space-y-3 overflow-y-auto py-4 pr-1">
                 {submittedCart.map((line, index) => (
-                  <div key={`${line.name}-${index}`} className="rounded-lg border border-border p-3 text-left">
-                    <p className="text-sm font-medium text-foreground">{line.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {line.type} · {line.family}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Quantidade: <span className="font-medium text-foreground">{line.quantity}</span>
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-foreground tabular-nums">
-                      {formatBRL(line.unit_price)} × {line.quantity} = {formatBRL(line.line_total)}
-                    </p>
-                    {line.notes.trim() && (
-                      <div className="mt-2 rounded-md bg-muted/50 p-2">
+                  <div key={`${line.name}-${index}`} className="space-y-3 rounded-2xl border border-border bg-card p-3.5 text-left">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-background">
+                        {getItemImage(line) ? (
+                          <img
+                            src={getItemImage(line) ?? ""}
+                            alt={line.name}
+                            className="h-full w-full object-contain p-1.5"
+                          />
+                        ) : (
+                          <ImageIcon className="h-6 w-6 text-muted-foreground/35" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground">{line.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {line.type} · {line.family}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="space-y-0.5">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                              Unitário
+                            </p>
+                            <p className="text-sm font-semibold tabular-nums text-foreground">
+                              {formatBRL(line.unit_price)}
+                            </p>
+                          </div>
+                          <div className="space-y-0.5 text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                              Subtotal
+                            </p>
+                            <p className="text-sm font-semibold tabular-nums text-foreground">
+                              {formatBRL(line.line_total)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {String(line.notes ?? "").trim() ? (
+                      <div className="rounded-xl bg-muted/50 p-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Observações
                         </p>
-                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">{line.notes.trim()}</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
+                          {String(line.notes ?? "").trim()}
+                        </p>
                       </div>
-                    )}
+                    ) : null}
+
+                    <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Quantidade
+                      </p>
+                      <div className="flex min-w-20 items-center justify-center rounded-full border border-border px-4 py-1.5 text-sm font-medium tabular-nums text-foreground">
+                        {line.quantity}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-              {typeof state.orderSubtotal === "number" && (
+              {typeof orderSubtotal === "number" ? (
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                   <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
                   <span className="text-lg font-semibold text-foreground tabular-nums">
-                    {formatBRL(state.orderSubtotal)}
+                    {formatBRL(orderSubtotal)}
                   </span>
                 </div>
-              )}
+              ) : null}
             </>
           )}
         </SheetContent>

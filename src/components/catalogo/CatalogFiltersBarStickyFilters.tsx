@@ -1,16 +1,21 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Filter, Menu, X } from "lucide-react";
+import { ChevronRight, Filter, Menu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const navInner = "mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8";
-const featuredFamilyLimit = 12;
 const filtersHeightVariable = "--catalog-filters-bar-height";
 
-export type CatalogFiltersBarV2Props = {
+type CatalogFiltersBarV2Props = {
   categoryFamilies: string[];
   familyTypesByFamily: Map<string, string[]>;
   typeCounts: Map<string, number>;
@@ -24,30 +29,247 @@ export type CatalogFiltersBarV2Props = {
   onTypeChange: (type: string | null) => void;
   onFamilyChange: (family: string | null) => void;
   onShowAllProducts: () => void;
+  sortMode: CatalogSortMode;
+  onSortChange: (mode: CatalogSortMode) => void;
 };
+
+export type CatalogSortMode = "relevance" | "best_sellers" | "price_asc" | "price_desc" | "name_asc";
+
+type SharedFilterProps = Pick<
+  CatalogFiltersBarV2Props,
+  | "categoryFamilies"
+  | "familyTypesByFamily"
+  | "typeCounts"
+  | "familyCounts"
+  | "selectedType"
+  | "selectedFamily"
+  | "onTypeChange"
+  | "onFamilyChange"
+  | "sortMode"
+  | "onSortChange"
+>;
+
+function getSortedFamilies(categoryFamilies: string[], familyCounts: Map<string, number>) {
+  return [...categoryFamilies].sort((left, right) => {
+    const rightCount = familyCounts.get(right) ?? 0;
+    const leftCount = familyCounts.get(left) ?? 0;
+    return rightCount - leftCount || left.localeCompare(right);
+  });
+}
+
+function SortModeControl({
+  value,
+  onChange,
+}: {
+  value: CatalogSortMode;
+  onChange: (mode: CatalogSortMode) => void;
+}) {
+  return (
+    <div className="rounded-[1.4rem] border border-border/70 bg-background/90 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Ordenar por</p>
+      <div className="mt-3">
+        <Select value={value} onValueChange={(next) => onChange(next as CatalogSortMode)}>
+          <SelectTrigger className="h-10 rounded-2xl border-border/70 bg-background">
+            <SelectValue placeholder="Selecione a ordenação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="relevance">Relevância</SelectItem>
+            <SelectItem value="best_sellers">Mais vendidos</SelectItem>
+            <SelectItem value="price_asc">Menor preço</SelectItem>
+            <SelectItem value="price_desc">Maior preço</SelectItem>
+            <SelectItem value="name_asc">Nome A-Z</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
+function ActiveFilterSummary({
+  selectedType,
+  selectedFamily,
+  onClear,
+}: Pick<CatalogFiltersBarV2Props, "selectedType" | "selectedFamily"> & {
+  onClear: () => void;
+}) {
+  const activeLabel = selectedType ?? selectedFamily;
+  const activeKind = selectedType ? "Tipo" : selectedFamily ? "Familia" : null;
+
+  if (!activeLabel || !activeKind) return null;
+
+  return (
+    <div className="rounded-[1.4rem] border border-primary/15 bg-primary/5 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Filtro atual</p>
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">{activeKind}</p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-foreground">{activeLabel}</p>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 shrink-0 rounded-full border-primary/20 bg-background px-3 text-xs text-primary hover:bg-primary/10 hover:text-primary"
+          onClick={onClear}
+        >
+          Limpar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function FamilyCollapsibleList({
+  categoryFamilies,
+  familyTypesByFamily,
+  typeCounts,
+  familyCounts,
+  selectedType,
+  selectedFamily,
+  onTypeChange,
+  onFamilyChange,
+  onClose,
+}: SharedFilterProps & {
+  onClose?: () => void;
+}) {
+  const sortedFamilies = useMemo(() => getSortedFamilies(categoryFamilies, familyCounts), [categoryFamilies, familyCounts]);
+
+  const selectFamily = (family: string) => {
+    const isActive = selectedFamily === family && selectedType == null;
+    onFamilyChange(isActive ? null : family);
+    onTypeChange(null);
+  };
+
+  const selectType = (family: string, type: string) => {
+    onFamilyChange(family);
+    onTypeChange(type);
+    onClose?.();
+  };
+
+  return (
+    <div className="space-y-3">
+      {sortedFamilies.map((family) => {
+        const active = selectedFamily === family;
+        const count = familyCounts.get(family) ?? 0;
+        const types = familyTypesByFamily.get(family) ?? [];
+
+        return (
+          <Collapsible
+            key={family}
+            open={active}
+            onOpenChange={(open) => {
+              if (open) {
+                onFamilyChange(family);
+                onTypeChange(null);
+                return;
+              }
+
+              if (selectedFamily === family) {
+                onFamilyChange(null);
+                onTypeChange(null);
+              }
+            }}
+            className="rounded-[1.4rem] border border-border/70 bg-background/90"
+          >
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-center justify-between gap-3 rounded-[1.4rem] px-4 py-3 text-left transition-colors",
+                  active ? "bg-primary/5 text-primary" : "hover:bg-muted/40",
+                )}
+                onClick={() => selectFamily(family)}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{family}</p>
+                  <p className="text-xs text-muted-foreground">{count} produto(s)</p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant="outline" className="rounded-full border-border/70 bg-background px-2.5 py-0 text-[11px] font-medium">
+                    {types.length} tipo(s)
+                  </Badge>
+                  <ChevronRight className={cn("h-4 w-4 transition-transform", active && "rotate-90")} />
+                </div>
+              </button>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent className="border-t border-border/70 px-3 pb-3 pt-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={selectedFamily === family && selectedType == null ? "default" : "outline"}
+                  className="h-8 rounded-full px-3 text-xs"
+                  onClick={() => {
+                    onFamilyChange(family);
+                    onTypeChange(null);
+                    onClose?.();
+                  }}
+                >
+                  Todos os tipos
+                </Button>
+
+                {types.map((type) => {
+                  const typeActive = selectedFamily === family && selectedType === type;
+                  const countByType = typeCounts.get(type) ?? 0;
+
+                  return (
+                    <Button
+                      key={`${family}-${type}`}
+                      type="button"
+                      variant={typeActive ? "default" : "outline"}
+                      className="h-8 rounded-full px-3 text-xs"
+                      onClick={() => selectType(family, type)}
+                    >
+                      <span className="max-w-[11rem] truncate">{type}</span>
+                      <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.68rem]">
+                        {countByType}
+                      </Badge>
+                    </Button>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        );
+      })}
+    </div>
+  );
+}
 
 export function CatalogFiltersBarV2({
   categoryFamilies,
   familyTypesByFamily,
   typeCounts,
   familyCounts,
-  resultCount,
   isLoading,
-  hasSearch,
-  searchQuery,
   selectedType,
   selectedFamily,
   onTypeChange,
   onFamilyChange,
   onShowAllProducts,
+  sortMode,
+  onSortChange,
 }: CatalogFiltersBarV2Props) {
   const filtersRef = useRef<HTMLDivElement>(null);
-  const familiesScrollRef = useRef<HTMLDivElement>(null);
   const [familiesOpen, setFamiliesOpen] = useState(false);
 
+  const totalProducts = useMemo(
+    () => Array.from(typeCounts.values()).reduce((sum, count) => sum + count, 0),
+    [typeCounts],
+  );
+  const sortedFamilies = useMemo(() => getSortedFamilies(categoryFamilies, familyCounts), [categoryFamilies, familyCounts]);
+  const showFiltersSummary = isLoading;
+
   useLayoutEffect(() => {
+    if (typeof document === "undefined") return;
+
     const filtersRow = filtersRef.current;
-    if (!filtersRow || typeof window === "undefined") return;
+    if (!filtersRow || !showFiltersSummary) {
+      document.documentElement.style.setProperty(filtersHeightVariable, "0px");
+      return;
+    }
 
     const updateHeight = () => {
       document.documentElement.style.setProperty(filtersHeightVariable, `${Math.ceil(filtersRow.offsetHeight)}px`);
@@ -61,264 +283,56 @@ export function CatalogFiltersBarV2({
     resizeObserver.observe(filtersRow);
 
     return () => resizeObserver.disconnect();
-  }, []);
-
-  const totalProducts = useMemo(
-    () => Array.from(typeCounts.values()).reduce((sum, count) => sum + count, 0),
-    [typeCounts],
-  );
-  const activeStateCount = useMemo(
-    () => [hasSearch, selectedType, selectedFamily].filter(Boolean).length,
-    [hasSearch, selectedType, selectedFamily],
-  );
-  const sortedFamilies = useMemo(
-    () =>
-      [...categoryFamilies].sort((left, right) => {
-        const rightCount = familyCounts.get(right) ?? 0;
-        const leftCount = familyCounts.get(left) ?? 0;
-        return rightCount - leftCount || left.localeCompare(right);
-      }),
-    [categoryFamilies, familyCounts],
-  );
-  const visibleFamilies = sortedFamilies.slice(0, featuredFamilyLimit);
-  const extraFamilies = Math.max(0, sortedFamilies.length - featuredFamilyLimit);
+  }, [showFiltersSummary]);
 
   const clearFilters = () => {
     onShowAllProducts();
     setFamiliesOpen(false);
   };
 
-  const selectFamily = (family: string) => {
-    const isActive = selectedFamily === family && selectedType == null;
-    onFamilyChange(isActive ? null : family);
-    onTypeChange(null);
-  };
-
-  const selectType = (family: string, type: string) => {
-    onFamilyChange(family);
-    onTypeChange(type);
-  };
-
-  const scrollFamilies = (direction: -1 | 1) => {
-    const container = familiesScrollRef.current;
-    if (!container) return;
-    container.scrollBy({ left: direction * 360, behavior: "smooth" });
-  };
-
   return (
-    <nav className="border-b border-border/70 bg-card/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur" aria-label="Filtros do catálogo">
-      <div className={cn(navInner, "py-3 sm:py-3.5")}>
-        <div className="flex flex-col gap-3 border-b border-border/60 pb-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Catálogo de produtos</p>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Navegue pelas categorias e refine a busca por família ou tipo.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <p>{`${resultCount} produto(s) encontrado(s)`}</p>
-            {hasSearch || selectedType || selectedFamily ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={clearFilters}
-              >
-                Limpar filtros
-              </Button>
+    <div className="space-y-4">
+      {showFiltersSummary ? (
+        <div
+          ref={filtersRef}
+          className="rounded-[1.6rem] border border-border/70 bg-background/80 px-4 py-4 shadow-sm backdrop-blur sm:px-6"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            {isLoading ? (
+              <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
+                Carregando catalogo
+              </Badge>
             ) : null}
           </div>
         </div>
-      </div>
+      ) : null}
 
-      <div
-        ref={filtersRef}
-        className="sticky top-[var(--page-header-shell-height,88px)] z-30 border-y border-border/70 bg-card/95 backdrop-blur"
-      >
-        <div className={cn(navInner, "py-3")}>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <Button
-                type="button"
-                variant="destructive"
-                className={cn(
-                  "h-9 shrink-0 gap-2 self-start rounded-full px-3 text-xs font-semibold sm:h-10 sm:px-4 sm:text-sm",
-                  "shadow-sm shadow-primary/15 transition-colors hover:opacity-95",
-                )}
-                onClick={clearFilters}
-              >
-                <Menu className="h-4 w-4" strokeWidth={2.25} />
-                <span className="normal-case">Todos os produtos</span>
-                <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.7rem]">
-                  {totalProducts}
-                </Badge>
-              </Button>
+      <div className="flex flex-wrap gap-2 lg:hidden">
+        <Button
+          type="button"
+          variant="destructive"
+          className="h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
+          onClick={clearFilters}
+        >
+          <Menu className="h-4 w-4" strokeWidth={2.25} />
+          <span className="normal-case">Todos os produtos</span>
+          <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.7rem]">
+            {totalProducts}
+          </Badge>
+        </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="h-9 shrink-0 gap-2 self-start rounded-full px-3 text-xs font-semibold sm:h-10 sm:px-4 sm:text-sm"
-                onClick={() => setFamiliesOpen(true)}
-              >
-                <Filter className="h-4 w-4" />
-                <span className="normal-case">Categorias</span>
-                {extraFamilies > 0 ? (
-                  <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.7rem]">
-                    +{extraFamilies}
-                  </Badge>
-                ) : null}
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="hidden h-10 w-10 rounded-full border-border/70 bg-background sm:inline-flex"
-                onClick={() => scrollFamilies(-1)}
-                aria-label="Ver filtros anteriores"
-              >
-                <ChevronRight className="h-4 w-4 rotate-180" />
-              </Button>
-
-              <div
-                ref={familiesScrollRef}
-                className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-1 pr-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                role="list"
-                aria-label="Categorias do catálogo"
-              >
-                {visibleFamilies.map((family) => {
-                const active = selectedFamily === family;
-                const count = familyCounts.get(family) ?? 0;
-                const familyTypes = familyTypesByFamily.get(family) ?? [];
-
-                return (
-                  <HoverCard key={family} openDelay={120} closeDelay={80}>
-                    <HoverCardTrigger asChild>
-                      <button
-                        type="button"
-                        role="listitem"
-                        aria-pressed={active}
-                        onClick={() => selectFamily(family)}
-                        className={cn(
-                          "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors sm:h-10 sm:px-4 sm:text-[0.9375rem]",
-                          active
-                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                            : "border-border/70 bg-background text-foreground/80 hover:border-primary/30 hover:bg-muted/40",
-                        )}
-                      >
-                        <span className="max-w-[10rem] truncate">{family}</span>
-                        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-current/10 px-1.5 py-0 text-[0.7rem] font-semibold leading-none">
-                          {count}
-                        </span>
-                        <ChevronRight className="hidden h-3.5 w-3.5 opacity-60 lg:block" />
-                      </button>
-                    </HoverCardTrigger>
-
-                    <HoverCardContent align="start" sideOffset={12} className="w-[23rem] rounded-[1.35rem] border-border/70 p-0 shadow-[0_18px_50px_rgba(16,24,40,0.14)]">
-                      <div className="border-b border-border/70 px-4 py-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Categoria</p>
-                            <h3 className="mt-1 truncate text-base font-semibold text-foreground">{family}</h3>
-                            <p className="mt-1 text-xs text-muted-foreground">{familyTypes.length} tipo(s) nesta categoria</p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8 rounded-full px-3 text-xs"
-                            onClick={() => selectFamily(family)}
-                          >
-                            Ver categoria
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant={selectedFamily === family && selectedType == null ? "default" : "outline"}
-                            className="h-8 rounded-full px-3 text-xs"
-                            onClick={() => {
-                              onFamilyChange(family);
-                              onTypeChange(null);
-                            }}
-                          >
-                            Todos os tipos
-                          </Button>
-
-                          {familyTypes.map((type) => {
-                            const typeActive = selectedFamily === family && selectedType === type;
-                            const countByType = typeCounts.get(type) ?? 0;
-
-                            return (
-                              <Button
-                                key={type}
-                                type="button"
-                                variant={typeActive ? "default" : "outline"}
-                                className="h-8 rounded-full px-3 text-xs"
-                                onClick={() => selectType(family, type)}
-                              >
-                                <span className="max-w-[11rem] truncate">{type}</span>
-                                <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.68rem]">
-                                  {countByType}
-                                </Badge>
-                              </Button>
-                            );
-                          })}
-                        </div>
-
-                        <p className="text-[12px] leading-5 text-muted-foreground">
-                          Passe o mouse nas categorias do topo para refinar por tipos sem perder a leitura da vitrine.
-                        </p>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                );
-                })}
-                <div className="w-28 shrink-0 lg:w-36" aria-hidden="true" />
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="hidden h-10 w-10 rounded-full border-border/70 bg-background sm:inline-flex"
-                onClick={() => scrollFamilies(1)}
-                aria-label="Ver filtros seguintes"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium uppercase tracking-[0.16em]">
-              {activeStateCount > 0 ? "Filtros ativos" : "Sem filtros"}
-            </span>
-            {hasSearch ? (
-              <Badge variant="outline" className="max-w-[16rem] truncate rounded-full border-primary/20 bg-primary/5 text-primary">
-                Busca: {searchQuery}
-              </Badge>
-            ) : null}
-            {selectedType ? (
-              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 text-primary">
-                Tipo: {selectedType}
-              </Badge>
-            ) : null}
-            {selectedFamily ? (
-              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 text-primary">
-                Família: {selectedFamily}
-              </Badge>
-            ) : null}
-            {activeStateCount === 0 ? <span>{totalProducts} itens disponíveis</span> : null}
-          </div>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold"
+          onClick={() => setFamiliesOpen(true)}
+        >
+          <Filter className="h-4 w-4" />
+          <span className="normal-case">Categorias</span>
+          <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.7rem]">
+            {sortedFamilies.length}
+          </Badge>
+        </Button>
       </div>
 
       <Sheet
@@ -332,114 +346,100 @@ export function CatalogFiltersBarV2({
             <div className="shrink-0 px-6 pt-6">
               <SheetHeader className="pr-8">
                 <SheetTitle>Categorias</SheetTitle>
-                <SheetDescription>Escolha uma família e abra os tipos relacionados sem perder o foco da vitrine.</SheetDescription>
+                <SheetDescription>Escolha uma familia e abra os tipos relacionados sem perder o foco da vitrine.</SheetDescription>
               </SheetHeader>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Todas as categorias</p>
-                      <p className="text-sm text-foreground">Selecione uma família para ver os tipos disponíveis</p>
-                    </div>
-                    <Badge variant="outline" className="rounded-full">
-                      {sortedFamilies.length} categorias
-                    </Badge>
-                  </div>
+            <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-4">
+              <div className="h-full overflow-y-auto overscroll-contain pr-2 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+                <div className="space-y-4 px-2">
+                  <SortModeControl value={sortMode} onChange={onSortChange} />
+                  <ActiveFilterSummary selectedType={selectedType} selectedFamily={selectedFamily} onClear={clearFilters} />
 
-                  <div className="space-y-3">
-                    <Button
-                      type="button"
-                      variant={selectedFamily == null ? "default" : "outline"}
-                      className="h-9 rounded-full px-4"
-                      onClick={() => {
-                        onFamilyChange(null);
-                        onTypeChange(null);
-                        setFamiliesOpen(false);
-                      }}
-                    >
-                      Todas as categorias
-                    </Button>
-
-                    {sortedFamilies.map((family) => {
-                      const active = selectedFamily === family;
-                      const count = familyCounts.get(family) ?? 0;
-                      const types = familyTypesByFamily.get(family) ?? [];
-
-                      return (
-                        <div key={family} className="rounded-[1.1rem] border border-border/70 bg-background p-3">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{family}</p>
-                              <p className="text-xs text-muted-foreground">{count} produto(s)</p>
-                            </div>
-                            <Button
-                              type="button"
-                              variant={active ? "default" : "outline"}
-                              className="h-8 rounded-full px-3 text-xs"
-                              onClick={() => {
-                                onFamilyChange(active ? null : family);
-                                onTypeChange(null);
-                              }}
-                            >
-                              {active ? "Categoria ativa" : "Selecionar"}
-                            </Button>
-                          </div>
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant={selectedFamily === family && selectedType == null ? "default" : "outline"}
-                              className="h-8 rounded-full px-3 text-xs"
-                              onClick={() => {
-                                onFamilyChange(family);
-                                onTypeChange(null);
-                                setFamiliesOpen(false);
-                              }}
-                            >
-                              Todos os tipos
-                            </Button>
-
-                            {types.map((type) => (
-                              <Button
-                                key={`${family}-${type}`}
-                                type="button"
-                                variant={selectedFamily === family && selectedType === type ? "default" : "outline"}
-                                className="h-8 rounded-full px-3 text-xs"
-                                onClick={() => {
-                                  onFamilyChange(family);
-                                  onTypeChange(type);
-                                  setFamiliesOpen(false);
-                                }}
-                              >
-                                {type}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {selectedType || selectedFamily ? (
                   <Button
                     type="button"
-                    variant="ghost"
-                    className="w-full justify-start gap-2 text-muted-foreground"
-                    onClick={clearFilters}
+                    variant={selectedFamily == null ? "default" : "outline"}
+                    className="h-9 w-full justify-start rounded-2xl px-4"
+                    onClick={() => {
+                      clearFilters();
+                      setFamiliesOpen(false);
+                    }}
                   >
-                    <X className="h-4 w-4" />
-                    Limpar filtros
+                    Todas as categorias
                   </Button>
-                ) : null}
+
+                  <FamilyCollapsibleList
+                    categoryFamilies={categoryFamilies}
+                    familyTypesByFamily={familyTypesByFamily}
+                    typeCounts={typeCounts}
+                    familyCounts={familyCounts}
+                    selectedType={selectedType}
+                    selectedFamily={selectedFamily}
+                    onTypeChange={onTypeChange}
+                    onFamilyChange={onFamilyChange}
+                    onClose={() => setFamiliesOpen(false)}
+                  />
+                </div>
               </div>
             </div>
           </div>
         </SheetContent>
       </Sheet>
-    </nav>
+    </div>
+  );
+}
+
+export function CatalogFiltersSidebar({
+  categoryFamilies,
+  familyTypesByFamily,
+  typeCounts,
+  familyCounts,
+  selectedType,
+  selectedFamily,
+  onTypeChange,
+  onFamilyChange,
+  onShowAllProducts,
+  sortMode,
+  onSortChange,
+}: Omit<CatalogFiltersBarV2Props, "resultCount" | "isLoading" | "hasSearch" | "searchQuery">) {
+  const totalProducts = useMemo(
+    () => Array.from(typeCounts.values()).reduce((sum, count) => sum + count, 0),
+    [typeCounts],
+  );
+
+  return (
+    <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:self-start">
+      <div className="flex h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-background/80 p-4 shadow-sm backdrop-blur">
+        <div className="flex shrink-0 flex-col gap-3">
+          <SortModeControl value={sortMode} onChange={onSortChange} />
+          <ActiveFilterSummary selectedType={selectedType} selectedFamily={selectedFamily} onClear={onShowAllProducts} />
+          <Button
+            type="button"
+            variant="destructive"
+            className="h-9 w-full justify-start gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
+            onClick={onShowAllProducts}
+          >
+            <Menu className="h-4 w-4" strokeWidth={2.25} />
+            <span className="normal-case">Todos os produtos</span>
+            <Badge variant="secondary" className="ml-auto rounded-full px-1.5 py-0 text-[0.7rem]">
+              {totalProducts}
+            </Badge>
+          </Button>
+        </div>
+
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+          <FamilyCollapsibleList
+            categoryFamilies={categoryFamilies}
+            familyTypesByFamily={familyTypesByFamily}
+            typeCounts={typeCounts}
+            familyCounts={familyCounts}
+            selectedType={selectedType}
+            selectedFamily={selectedFamily}
+            onTypeChange={onTypeChange}
+            onFamilyChange={onFamilyChange}
+          />
+        </div>
+      </div>
+    </aside>
   );
 }

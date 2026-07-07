@@ -32,14 +32,14 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
   const displayPrice = Number.isFinite(price ?? Number.NaN) ? (price as number) : getProductUnitPrice(product);
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/5">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.65rem] bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)]">
       <Link
         to={`/produto/${product.id}`}
         viewTransition
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         {coverUrl ? (
-          <div className="aspect-[4/3] overflow-hidden border-b border-border/70 bg-background p-2 sm:p-3">
+          <div className="aspect-[4/3] overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background p-2 sm:p-3">
             <img
               src={coverUrl}
               alt={product.name}

@@ -46,12 +46,12 @@ function SearchPanel({
   };
 
   const wrapperClassName = floating
-    ? "pointer-events-none absolute left-1/2 top-[calc((var(--page-header-shell-height,88px)-3rem)/2)] z-[70] w-full max-w-xl -translate-x-1/2 px-4 sm:max-w-2xl lg:w-[min(100%,40rem)] lg:max-w-none lg:px-0 xl:w-[44rem]"
-    : "relative w-full max-w-xl sm:max-w-2xl lg:w-[min(100%,40rem)] lg:max-w-none xl:w-[44rem]";
+    ? "pointer-events-none absolute left-1/2 top-[calc((var(--page-header-shell-height,88px)-3rem)/2)] z-[70] w-full max-w-2xl -translate-x-1/2 px-4 lg:w-[min(100%,46rem)] lg:max-w-none lg:px-0 xl:w-[48rem]"
+    : "relative w-full max-w-2xl lg:w-[min(100%,46rem)] lg:max-w-none xl:w-[48rem]";
 
   const cardClassName = floating
-    ? "pointer-events-auto overflow-hidden rounded-[28px] border border-border bg-background shadow-[0_18px_50px_rgba(0,0,0,0.12)]"
-    : "overflow-hidden rounded-[28px] border border-border bg-background shadow-inner";
+    ? "pointer-events-auto overflow-hidden rounded-[32px] bg-background/95 ring-1 ring-black/5 shadow-[0_18px_50px_rgba(0,0,0,0.10)]"
+    : "overflow-hidden rounded-[32px] bg-background/80 ring-1 ring-black/5";
 
   return (
     <div className={wrapperClassName}>
@@ -62,7 +62,7 @@ function SearchPanel({
             placeholder="O que você procura?..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-11 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-12 sm:pl-5 sm:pr-16"
+            className="h-12 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-14 sm:pl-5 sm:pr-16"
             aria-label="Buscar produtos"
             aria-expanded={showSuggestions}
             aria-controls={showSuggestions ? panelId : undefined}

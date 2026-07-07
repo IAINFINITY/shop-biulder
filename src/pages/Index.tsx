@@ -6,7 +6,11 @@ import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
-import { CatalogFiltersBarV2 } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
+import {
+  CatalogFiltersBarV2,
+  CatalogFiltersSidebar,
+  type CatalogSortMode,
+} from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
 import { Product, CartItem, getCart, getProductImageUrls, saveCart } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
@@ -26,6 +30,7 @@ type CatalogViewState = {
   selectedFamily: string | null;
   visibleProducts: number;
   scrollY: number;
+  sortMode: CatalogSortMode;
 };
 
 function readCatalogViewState(): CatalogViewState | null {
@@ -43,6 +48,13 @@ function readCatalogViewState(): CatalogViewState | null {
           : INITIAL_PRODUCTS_VISIBLE,
       scrollY:
         typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY) ? Math.max(0, parsed.scrollY) : 0,
+      sortMode:
+        parsed.sortMode === "best_sellers" ||
+        parsed.sortMode === "price_asc" ||
+        parsed.sortMode === "price_desc" ||
+        parsed.sortMode === "name_asc"
+          ? parsed.sortMode
+          : "relevance",
     };
   } catch {
     return null;
@@ -75,6 +87,7 @@ export default function Index() {
   const [selectedFamily, setSelectedFamily] = useState<string | null>(
     () => readCatalogViewState()?.selectedFamily ?? null,
   );
+  const [sortMode, setSortMode] = useState<CatalogSortMode>(() => readCatalogViewState()?.sortMode ?? "relevance");
   const [visibleProducts, setVisibleProducts] = useState(
     () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
   );
@@ -101,7 +114,7 @@ export default function Index() {
 
   useEffect(() => {
     setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
-  }, [search, selectedType, selectedFamily]);
+  }, [search, selectedType, selectedFamily, sortMode]);
 
   useEffect(() => {
     return () => {
@@ -111,9 +124,10 @@ export default function Index() {
         selectedFamily,
         visibleProducts,
         scrollY: typeof window === "undefined" ? 0 : window.scrollY,
+        sortMode,
       });
     };
-  }, [search, selectedType, selectedFamily, visibleProducts]);
+  }, [search, selectedType, selectedFamily, visibleProducts, sortMode]);
 
   const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
   const familyTypesByFamily = useMemo(() => {
@@ -164,7 +178,6 @@ export default function Index() {
     });
   }, [products, search, selectedType, selectedFamily]);
 
-  const visibleFiltered = useMemo(() => filtered.slice(0, visibleProducts), [filtered, visibleProducts]);
   const orderPopularity = useMemo(() => {
     const quantityCounts = new Map<string, number>();
 
@@ -180,15 +193,56 @@ export default function Index() {
     return { quantityCounts };
   }, [orderHistory]);
 
+  const sortedFiltered = useMemo(() => {
+    const list = [...filtered];
+
+    switch (sortMode) {
+      case "best_sellers":
+        return list.sort((left, right) => {
+          const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
+          const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
+          const leftPromo = left.is_promotion ? 1 : 0;
+          const rightPromo = right.is_promotion ? 1 : 0;
+          return rightQty - leftQty || rightPromo - leftPromo || left.name.localeCompare(right.name, "pt-BR");
+        });
+      case "price_asc":
+        return list.sort(
+          (left, right) =>
+            resolveProductPrice(left, customerPriceMap) - resolveProductPrice(right, customerPriceMap) ||
+            left.name.localeCompare(right.name, "pt-BR"),
+        );
+      case "price_desc":
+        return list.sort(
+          (left, right) =>
+            resolveProductPrice(right, customerPriceMap) - resolveProductPrice(left, customerPriceMap) ||
+            left.name.localeCompare(right.name, "pt-BR"),
+        );
+      case "name_asc":
+        return list.sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+      case "relevance":
+      default:
+        return list.sort((left, right) => {
+          const leftPromo = left.is_promotion ? 1 : 0;
+          const rightPromo = right.is_promotion ? 1 : 0;
+          const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
+          const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
+
+          return rightPromo - leftPromo || rightQty - leftQty || left.name.localeCompare(right.name, "pt-BR");
+        });
+    }
+  }, [filtered, sortMode, orderPopularity, customerPriceMap]);
+
+  const visibleFiltered = useMemo(() => sortedFiltered.slice(0, visibleProducts), [sortedFiltered, visibleProducts]);
+
   useEffect(() => {
     const sentinel = loadMoreRef.current;
     if (!sentinel || typeof IntersectionObserver === "undefined") return;
-    if (isLoading || visibleProducts >= filtered.length) return;
+    if (isLoading || visibleProducts >= sortedFiltered.length) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
-        setVisibleProducts((current) => Math.min(current + PRODUCTS_VISIBLE_STEP, filtered.length));
+        setVisibleProducts((current) => Math.min(current + PRODUCTS_VISIBLE_STEP, sortedFiltered.length));
       },
       {
         root: null,
@@ -199,7 +253,7 @@ export default function Index() {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [filtered.length, isLoading, visibleProducts]);
+  }, [sortedFiltered.length, isLoading, visibleProducts]);
 
   const searchSuggestions = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -334,7 +388,9 @@ export default function Index() {
   }, [customerPriceMap, familyCounts, filtered, orderHistory.length, orderPopularity]);
 
   return (
-    <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""}`}>
+    <div
+      className={`min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] ${cart.length > 0 ? "pb-28" : ""}`}
+    >
       <StoreHeader
         search={search}
         onSearchChange={setSearch}
@@ -358,95 +414,114 @@ export default function Index() {
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className="container mx-auto max-w-[1400px] px-4 py-6 scroll-mt-[calc(var(--page-header-shell-height,88px)+var(--catalog-filters-bar-height,132px)+1.5rem)]"
+        className="mx-auto max-w-[1600px] px-3 py-6 sm:px-6 lg:px-8 scroll-mt-[calc(var(--page-header-shell-height,88px)+var(--catalog-filters-bar-height,132px)+1.5rem)]"
       >
-        <CatalogFiltersBarV2
-          categoryFamilies={categoryFamilies}
-          familyTypesByFamily={familyTypesByFamily}
-          typeCounts={typeCounts}
-          familyCounts={familyCounts}
-          resultCount={filtered.length}
-          isLoading={isLoading}
-          hasSearch={search.trim().length > 0}
-          searchQuery={search.trim()}
-          selectedType={selectedType}
-          selectedFamily={selectedFamily}
-          onTypeChange={setSelectedType}
-          onFamilyChange={setSelectedFamily}
-          onShowAllProducts={showAllProducts}
-        />
+        <div className="space-y-8">
+          <CatalogFiltersBarV2
+            categoryFamilies={categoryFamilies}
+            familyTypesByFamily={familyTypesByFamily}
+            typeCounts={typeCounts}
+            familyCounts={familyCounts}
+            resultCount={filtered.length}
+            isLoading={isLoading}
+            hasSearch={search.trim().length > 0}
+            searchQuery={search.trim()}
+            selectedType={selectedType}
+            selectedFamily={selectedFamily}
+            onTypeChange={setSelectedType}
+            onFamilyChange={setSelectedFamily}
+            onShowAllProducts={showAllProducts}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+          />
 
-        <CatalogThemeSections
-          sections={catalogThemeSections}
-          resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
-          onAdd={addToCart}
-          inCartIds={cartIds}
-        />
+          <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
+            <CatalogFiltersSidebar
+              categoryFamilies={categoryFamilies}
+              familyTypesByFamily={familyTypesByFamily}
+              typeCounts={typeCounts}
+              familyCounts={familyCounts}
+              selectedType={selectedType}
+              selectedFamily={selectedFamily}
+              onTypeChange={setSelectedType}
+              onFamilyChange={setSelectedFamily}
+              onShowAllProducts={showAllProducts}
+              sortMode={sortMode}
+              onSortChange={setSortMode}
+            />
 
-        <div className="mt-10 border-t border-border/70 pt-6">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Catálogo completo
-              </p>
-              <h2 className="text-xl font-black tracking-[-0.04em] text-foreground sm:text-2xl">
-                Navegue pelos demais produtos
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                A vitrine principal continua abaixo, organizada pela busca e pelos filtros ativos.
-              </p>
-            </div>
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
-              {filtered.length} item(ns)
-            </Badge>
-          </div>
+            <div className="min-w-0 space-y-10">
+              <CatalogThemeSections
+                sections={catalogThemeSections}
+                resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+                onAdd={addToCart}
+                inCartIds={cartIds}
+              />
 
-        {isLoading ? (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div
-                key={index}
-                className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-card shadow-[0_12px_32px_rgba(16,24,40,0.04)]"
-              >
-                <Skeleton className="aspect-[1/1] w-full rounded-none" />
-                <div className="space-y-3 p-4">
-                  <div className="flex gap-2">
-                    <Skeleton className="h-6 w-16 rounded-full" />
-                    <Skeleton className="h-6 w-20 rounded-full" />
+              <section className="space-y-4 pt-2">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                      Cat?logo completo
+                    </p>
+                    <h2 className="text-xl font-black tracking-[-0.04em] text-foreground sm:text-2xl">
+                      Navegue pelos demais produtos
+                    </h2>
+                    <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                      A vitrine principal continua abaixo, organizada pela busca e pelos filtros ativos.
+                    </p>
                   </div>
-                  <Skeleton className="h-5 w-3/4 rounded-md" />
-                  <Skeleton className="h-4 w-5/6 rounded-md" />
-                  <Skeleton className="h-4 w-1/3 rounded-md" />
-                  <Skeleton className="h-10 w-full rounded-2xl" />
+                  <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
+                    {filtered.length} item(ns)
+                  </Badge>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="py-20 text-center text-muted-foreground">
-            <p className="text-lg font-medium">Nenhum produto encontrado</p>
-            <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
-          </div>
-        ) : (
-          <div className="mt-4">
-            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {visibleFiltered.map((product) => (
-                <CatalogProductCard
-                  key={product.id}
-                  product={product}
-                  price={resolveProductPrice(product, customerPriceMap)}
-                  onAdd={addToCart}
-                  inCart={cartIds.has(product.id)}
-                />
-              ))}
+
+                {isLoading ? (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      <div key={index} className="overflow-hidden rounded-[1.5rem] bg-background/70 ring-1 ring-black/5">
+                        <Skeleton className="aspect-[1/1] w-full rounded-none" />
+                        <div className="space-y-3 p-4">
+                          <div className="flex gap-2">
+                            <Skeleton className="h-6 w-16 rounded-full" />
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                          </div>
+                          <Skeleton className="h-5 w-3/4 rounded-md" />
+                          <Skeleton className="h-4 w-5/6 rounded-md" />
+                          <Skeleton className="h-4 w-1/3 rounded-md" />
+                          <Skeleton className="h-10 w-full rounded-2xl" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="rounded-[1.75rem] bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
+                    <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
+                    <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {visibleFiltered.map((product) => (
+                        <CatalogProductCard
+                          key={product.id}
+                          product={product}
+                          price={resolveProductPrice(product, customerPriceMap)}
+                          onAdd={addToCart}
+                          inCart={cartIds.has(product.id)}
+                        />
+                      ))}
+                    </div>
+                    {visibleProducts < filtered.length ? (
+                      <div ref={loadMoreRef} className="py-8 text-center text-sm text-muted-foreground">
+                        Carregando mais produtos...
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </section>
             </div>
-            {visibleProducts < filtered.length ? (
-              <div ref={loadMoreRef} className="py-8 text-center text-sm text-muted-foreground">
-                Carregando mais produtos...
-              </div>
-            ) : null}
           </div>
-        )}
         </div>
       </div>
 

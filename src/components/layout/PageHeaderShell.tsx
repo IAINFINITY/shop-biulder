@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const headerShellClassName = "sticky top-0 z-50 border-b border-border/70 bg-card/95 shadow-sm backdrop-blur";
-const headerInnerClassName = "mx-auto flex min-h-[88px] w-full max-w-[1400px] items-center px-4 sm:px-6 lg:px-8";
+const headerInnerClassName = "mx-auto flex min-h-[88px] w-full max-w-[1600px] items-center px-4 sm:px-6 lg:px-8";
 const headerHeightVariable = "--page-header-shell-height";
 
 export type PageHeaderShellProps = {

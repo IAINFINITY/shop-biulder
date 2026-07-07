@@ -3,11 +3,9 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CUSTOMER_PROFILES_TABLE,
-  addressFormToProfileColumns,
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
-import { CUSTOMER_ADDRESSES_TABLE, customerAddressRowFromForm } from "@/lib/customerAddresses";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 
@@ -316,7 +314,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       p_company: data.company.trim(),
       p_cnpj: data.cnpj.trim(),
       p_customer_type: normalizeCustomerType(data.customer_type),
-      ...addressFormToProfileColumns(data),
     });
     if (!error && user) {
       await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
@@ -342,24 +339,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         p_company: data.company.trim(),
         p_cnpj: data.cnpj.trim(),
         p_customer_type: normalizeCustomerType(data.customer_type),
-        ...addressFormToProfileColumns(data),
       });
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
       if (sessionUser) {
         await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
-        const initialAddress = customerAddressRowFromForm(sessionUser.id, {
-          label: "Principal",
-          is_default: true,
-          cep: data.cep,
-          street: data.street,
-          number: data.number,
-          complement: data.complement,
-          neighborhood: data.neighborhood,
-          city: data.city,
-          state: data.state,
-          ibge: data.ibge,
-        });
-        await supabase.from(CUSTOMER_ADDRESSES_TABLE).insert(initialAddress);
         await fetchCustomerProfile(sessionUser.id);
       }
     }

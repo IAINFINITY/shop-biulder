@@ -6,14 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AddressFields } from "@/components/pedido/AddressFields";
 import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
 import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
-import { assertAddressReady, emptyAddressForm } from "@/lib/address";
 import { getSafeReturnToPath } from "@/lib/navigation";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
@@ -87,7 +85,6 @@ export default function Login() {
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpPasswordConfirm, setSignUpPasswordConfirm] = useState("");
   const [customerForm, setCustomerForm] = useState(emptyCustomerForm);
-  const [addressForm, setAddressForm] = useState(emptyAddressForm());
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [authTab, setAuthTab] = useState<"entrar" | "cadastro">("entrar");
@@ -129,16 +126,9 @@ export default function Login() {
       return;
     }
 
-    const addressMessage = assertAddressReady(addressForm);
-    if (addressMessage) {
-      toast.error(addressMessage);
-      return;
-    }
-
     setSubmitting(true);
     const { error, needsEmailConfirmation } = await signUpCustomer({
       ...customerForm,
-      ...addressForm,
       email: signUpEmail.trim(),
       password: signUpPassword,
     });
@@ -275,11 +265,6 @@ export default function Login() {
                   onChange={(patch) => setCustomerForm((prev) => ({ ...prev, ...patch }))}
                   onCnpjBlur={() => setCnpjTouched(true)}
                   cnpjValidation={cnpjValidation}
-                />
-
-                <AddressFields
-                  form={addressForm}
-                  onChange={(patch) => setAddressForm((prev) => ({ ...prev, ...patch }))}
                 />
 
                 <AuthField

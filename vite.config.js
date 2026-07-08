@@ -1,6 +1,47 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
+
+function inlineCriticalCss() {
+  return {
+    name: "inline-critical-css",
+    enforce: "post",
+    apply: "build",
+    closeBundle() {
+      const distDir = path.resolve(__dirname, "dist");
+      const htmlPath = path.join(distDir, "index.html");
+      if (!fs.existsSync(htmlPath)) return;
+
+      let html = fs.readFileSync(htmlPath, "utf-8");
+      const cssMatch = html.match(/<link rel="stylesheet"[^>]*href="([^"]+\.css)"[^>]*>/);
+      if (!cssMatch) return;
+
+      const cssPath = path.join(distDir, cssMatch[1]);
+      if (!fs.existsSync(cssPath)) return;
+
+      const css = fs.readFileSync(cssPath, "utf-8");
+
+      // Move all <script> and <link rel="modulepreload"> to end of <body>
+      const scripts = html.match(/<script[^>]*><\/script>/g) || [];
+      const preloads = html.match(/<link rel="modulepreload"[^>]*>/g) || [];
+
+      for (const s of scripts) html = html.replace(s, "");
+      for (const p of preloads) html = html.replace(p, "");
+
+      // Replace <link rel="stylesheet"> with inline <style>
+      html = html.replace(cssMatch[0], `<style>${css}</style>`);
+
+      // Append scripts before </body>
+      const allTags = [...preloads, ...scripts].join("\n    ");
+      html = html.replace("</body>", `${allTags}\n  </body>`);
+
+      fs.writeFileSync(htmlPath, html, "utf-8");
+      fs.rmSync(cssPath);
+      console.log(`  ✓ Inlined ${cssMatch[1]} into index.html (${(css.length / 1024).toFixed(0)} KB). Scripts moved to end of <body>.`);
+    },
+  };
+}
 
 export default defineConfig(() => ({
   server: {
@@ -10,7 +51,20 @@ export default defineConfig(() => ({
       overlay: false,
     },
   },
-  plugins: [react()],
+  plugins: [react(), inlineCriticalCss()],
+  build: {
+    cssMinify: "esbuild",
+    rollupOptions: {
+      output: {
+manualChunks(id) {
+          if (id.includes("node_modules/jspdf") || id.includes("node_modules/jspdf-autotable")) return "pdf";
+          if (id.includes("node_modules/xlsx")) return "xlsx";
+          if (id.includes("node_modules/@tiptap")) return "tiptap";
+        },
+        chunkFileNames: "assets/[name]-[hash].js",
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

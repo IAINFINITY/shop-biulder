@@ -43,6 +43,10 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
             <img
               src={coverUrl}
               alt={product.name}
+              width={1200}
+              height={900}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
             />
           </div>

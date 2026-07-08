@@ -100,6 +100,10 @@ export function CartDrawer({
                         <img
                           src={getCartImage(item) ?? ""}
                           alt={item.product.name}
+                          width={1200}
+                          height={900}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-contain p-1.5"
                         />
                       ) : (

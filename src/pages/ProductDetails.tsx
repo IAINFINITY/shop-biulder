@@ -240,7 +240,7 @@ export default function ProductDetails() {
 
   if (isLoading && !product) {
     return (
-      <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
+      <div className="min-h-screen bg-background pb-28 flex flex-col">
         <PageHeaderShell>
           <div className="flex items-center gap-3">
               <Skeleton className="h-10 w-10 rounded-full" />
@@ -337,7 +337,7 @@ export default function ProductDetails() {
   const hasDescription = Boolean(product.description.trim());
 
   return (
-      <div className={`min-h-screen bg-background ${cart.length > 0 ? "pb-28" : ""} flex flex-col`}>
+      <div className="min-h-screen bg-background pb-28 flex flex-col">
         <PageHeaderShell>
           <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -382,7 +382,7 @@ export default function ProductDetails() {
                     }`}
                     aria-label={`Ver imagem ${index + 1}`}
                   >
-                    <img src={src} alt="" className="aspect-square h-full w-full rounded-md object-contain" />
+                    <img src={src} alt="" width={1200} height={900} loading="lazy" decoding="async" className="aspect-square h-full w-full rounded-md object-contain" />
                   </button>
                 ))
               ) : (
@@ -407,6 +407,9 @@ export default function ProductDetails() {
                         ref={productImageRef}
                         src={selectedImage}
                         alt={product.name}
+                        width={1200}
+                        height={900}
+                        fetchPriority="high"
                         className="max-h-[560px] w-full max-w-[560px] object-contain object-center transition-transform duration-300"
                       />
                     ) : (
@@ -462,7 +465,7 @@ export default function ProductDetails() {
                         }`}
                       aria-label={`Ver imagem ${index + 1}`}
                     >
-                      <img src={src} alt="" className="h-full w-full rounded-md object-contain" />
+                      <img src={src} alt="" width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full rounded-md object-contain" />
                     </button>
                   ))}
                 </div>

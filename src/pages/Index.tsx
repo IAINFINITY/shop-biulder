@@ -360,7 +360,7 @@ export default function Index() {
 
   return (
     <div
-      className={`min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] ${cart.length > 0 ? "pb-[10rem]" : ""}`}
+      className="min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] pb-[10rem]"
     >
       <StoreHeader
         search={search}
@@ -451,7 +451,7 @@ export default function Index() {
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, index) => (
                       <div key={index} className="overflow-hidden rounded-[1.5rem] bg-background/70 ring-1 ring-black/5">
-                        <Skeleton className="aspect-[1/1] w-full rounded-none" />
+                        <Skeleton className="aspect-[4/3] w-full rounded-none" />
                         <div className="space-y-3 p-4">
                           <div className="flex gap-2">
                             <Skeleton className="h-6 w-16 rounded-full" />

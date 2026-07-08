@@ -71,7 +71,15 @@ function ThemeProductCard({
 
           <div className="mt-3 flex min-h-[11rem] items-center justify-center rounded-[1.15rem] bg-background/90 p-3 ring-1 ring-black/5">
             {imageUrl ? (
-              <img src={imageUrl} alt={product.name} className="max-h-[9.8rem] w-full object-contain" />
+              <img
+                src={imageUrl}
+                alt={product.name}
+                width={1200}
+                height={900}
+                loading="lazy"
+                decoding="async"
+                className="max-h-[9.8rem] w-full object-contain"
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
@@ -195,7 +203,11 @@ function ThemeShelf({
 export function CatalogThemeSections({ sections, resolvePrice, onAdd, inCartIds }: CatalogThemeSectionsProps) {
   const visibleSections = sections.filter((section) => section.products.length > 0);
 
-  if (visibleSections.length === 0) return null;
-
-  return <div className="mt-10 space-y-10">{visibleSections.map((section) => <ThemeShelf key={section.id} section={section} resolvePrice={resolvePrice} onAdd={onAdd} inCartIds={inCartIds} />)}</div>;
+  return (
+    <div className="mt-10 space-y-10" style={visibleSections.length === 0 ? { minHeight: '280px' } : undefined}>
+      {visibleSections.map((section) => (
+        <ThemeShelf key={section.id} section={section} resolvePrice={resolvePrice} onAdd={onAdd} inCartIds={inCartIds} />
+      ))}
+    </div>
+  );
 }

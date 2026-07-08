@@ -112,7 +112,7 @@ function SearchPanel({
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain p-1" />
+                        <img src={item.imageUrl} alt={item.name} width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
                       ) : (
                         <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
                       )}

@@ -260,7 +260,7 @@ export function CatalogFiltersBarV2({
     [typeCounts],
   );
   const sortedFamilies = useMemo(() => getSortedFamilies(categoryFamilies, familyCounts), [categoryFamilies, familyCounts]);
-  const showFiltersSummary = isLoading;
+  const showFiltersSummary = true;
 
   useLayoutEffect(() => {
     if (typeof document === "undefined") return;

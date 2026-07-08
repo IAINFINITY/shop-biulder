@@ -124,10 +124,6 @@ export function StoreHeroBanner() {
     };
   }, [api, prefersReducedMotion, scheduleAutoplay]);
 
-  if (slides.length === 0) {
-    return null;
-  }
-
   return (
     <section
       className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden border-b border-border/40 bg-muted/30"
@@ -135,6 +131,9 @@ export function StoreHeroBanner() {
       aria-roledescription="carousel"
     >
       <div className="relative w-full overflow-hidden">
+        {slides.length === 0 ? (
+          <div className="aspect-[1024/266] w-full bg-muted/30" />
+        ) : (
         <Carousel
           className="h-full w-full"
           opts={{ loop: true, align: "center", duration: 35 }}
@@ -181,6 +180,7 @@ export function StoreHeroBanner() {
             ))}
           </div>
         </Carousel>
+        )}
       </div>
     </section>
   );

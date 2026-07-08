@@ -29,7 +29,6 @@ export function useCustomerAddresses(userId: string | null | undefined) {
       if (error) throw error;
       return (data ?? []).map((row) => customerAddressFromRow(row)) as CustomerAddress[];
     },
-    initialData: [] as CustomerAddress[],
   });
 
   const refresh = async () => {

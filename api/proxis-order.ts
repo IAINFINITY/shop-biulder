@@ -407,7 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    console.log("[proxis-order] Garantindo endereco do cliente");
+    console.log("[proxis-order] Garantindo endereço do cliente");
     await garantirEnderecoCliente(cliente, normalizedAddress);
 
     let tprId = PROXSIS_TPR_ID_DEFAULT;

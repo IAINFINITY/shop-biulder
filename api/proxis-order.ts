@@ -343,12 +343,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = req.body as OrderRequestBody;
 
+  console.log("[proxis-order] POST recebido", {
+    customer_cnpj: body.customer_cnpj,
+    customer_name: body.customer_name,
+    items_count: body.items?.length,
+  });
+
   if (!body.customer_cnpj || !body.customer_name || !body.items.length) {
     return res.status(400).json({ error: "Missing required fields: customer_cnpj, customer_name, items" });
   }
 
   try {
+    console.log("[proxis-order] Buscando cliente por CNPJ:", body.customer_cnpj);
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
+    console.log("[proxis-order] Resultado da busca de cliente:", cliente ? "encontrado" : "nao encontrado", cliente);
     let pesId: number | null = null;
 
     const normalizedAddress = normalizeAddressInput(body.address ?? null);
@@ -356,18 +364,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (cliente?.pes_id) {
       const existingPesId = parsePesId(cliente.pes_id);
       if (!existingPesId) {
+        console.log("[proxis-order] Cliente encontrado mas pes_id invalido, refazendo busca");
         cliente = await buscarClientePorCnpj(body.customer_cnpj);
       } else {
         pesId = existingPesId;
+        console.log("[proxis-order] Cliente existente encontrado, pes_id:", pesId);
       }
     } else {
       const nomeCliente = body.customer_company || body.customer_name;
+      console.log("[proxis-order] Cliente nao encontrado, criando novo:", nomeCliente);
       const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj, normalizedAddress);
       const novoPesId = parsePesId(novoCliente.pes_id);
       if (novoPesId) {
         pesId = novoPesId;
         cliente = novoCliente;
+        console.log("[proxis-order] Cliente criado com sucesso, pes_id:", pesId);
       } else {
+        console.log("[proxis-order] Criacao retornou sem pes_id, tentando buscar novamente");
         cliente = await buscarClientePorCnpj(body.customer_cnpj);
         const clientePesId = parsePesId(cliente?.pes_id);
         if (!clientePesId) {
@@ -394,6 +407,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    console.log("[proxis-order] Garantindo endereco do cliente");
     await garantirEnderecoCliente(cliente, normalizedAddress);
 
     let tprId = PROXSIS_TPR_ID_DEFAULT;
@@ -411,18 +425,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const failedProducts: string[] = [];
 
+    console.log("[proxis-order] Buscando produtos no Proxis, total de itens:", body.items.length);
     for (const item of body.items) {
       if (!item.product_code) {
         failedProducts.push(item.name || "Unknown product");
         continue;
       }
 
+      console.log("[proxis-order] Buscando produto:", item.product_code, item.name);
       const produto = await buscarProdutoPorNumero(item.product_code);
       if (!produto || !produto.ite_id) {
+        console.log("[proxis-order] Produto NAO encontrado:", item.product_code, item.name);
         failedProducts.push(`${item.name} (code: ${item.product_code})`);
         continue;
       }
 
+      console.log("[proxis-order] Produto encontrado:", item.product_code, "ite_id:", produto.ite_id);
       documentoItens.push({
         ite_id: Number(produto.ite_id),
         dit_quantidade: item.quantity,
@@ -431,6 +449,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    console.log("[proxis-order] Produtos resolvidos:", documentoItens.length, "falhas:", failedProducts.length);
     if (documentoItens.length === 0) {
       return res.status(400).json({
         error: "No valid products found in Proxsis",
@@ -457,7 +476,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       DocumentoItens: documentoItens,
     };
 
+    console.log("[proxis-order] Enviando pedido para SalvarPedidoVenda", {
+      doc_ped_web: docPedWeb,
+      pes_id_cli: pesId,
+      pes_id_ven: pedido.pes_id_ven,
+      total_itens: documentoItens.length,
+    });
+
     const resultado = await criarPedido(pedido);
+
+    console.log("[proxis-order] Resposta do SalvarPedidoVenda:", JSON.stringify(resultado));
 
     return res.status(200).json({
       success: true,
@@ -468,7 +496,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       proxsis_response: resultado,
     });
   } catch (error) {
-    console.error("Proxsis integration error:", error);
+    console.error("[proxis-order] Proxsis integration error:", error);
     return res.status(500).json({
       error: "Proxsis integration failed",
       detail: error instanceof Error ? error.message : String(error),

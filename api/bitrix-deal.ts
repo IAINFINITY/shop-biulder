@@ -126,6 +126,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    console.log("[bitrix-deal] Criando deal para:", body.customer_company || body.customer_name, "itens:", body.items.length);
+
     const dealFields: Record<string, unknown> = {
       TITLE: `Pedido Clinic+ - ${body.customer_company || body.customer_name}`,
       CURRENCY_ID: BITRIX_CURRENCY_ID,
@@ -148,18 +150,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       dealFields.ASSIGNED_BY_ID = Math.trunc(responsibleId);
     }
 
+    console.log("[bitrix-deal] Chamando crm.deal.add...");
     const dealId = await callBitrix<number>("crm.deal.add", {
       fields: dealFields,
       params: {
         REGISTER_SONET_EVENT: "Y",
       },
     });
+    console.log("[bitrix-deal] Deal criado, ID:", dealId);
 
     const productRows = buildProductRows(body.items);
+    console.log("[bitrix-deal] Adicionando product rows, total:", productRows.length);
     await callBitrix<number>("crm.deal.productrows.set", {
       id: dealId,
       rows: productRows,
     });
+    console.log("[bitrix-deal] Product rows adicionados com sucesso");
 
     return res.status(200).json({
       success: true,
@@ -167,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       product_rows: productRows.length,
     });
   } catch (error) {
-    console.error("Bitrix deal integration error:", error);
+    console.error("[bitrix-deal] Bitrix deal integration error:", error);
     return res.status(500).json({
       error: "Bitrix deal integration failed",
       detail: error instanceof Error ? error.message : String(error),

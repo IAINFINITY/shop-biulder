@@ -306,17 +306,12 @@ export default function OrderForm() {
 
       if (!proxisRes.ok) {
         const errBody = await proxisRes.json().catch(() => ({}));
-        console.warn("Proxis ERP retornou erro", { status: proxisRes.status, errBody });
         proxisWarning =
           typeof errBody.error === "string" && errBody.error.trim()
             ? errBody.error
             : `status ${proxisRes.status}`;
-      } else {
-        const proxisData = await proxisRes.json().catch(() => null);
-        console.info("Pedido enviado ao Proxis ERP", proxisData);
       }
     } catch (err) {
-      console.warn("Falha ao enviar pedido para Proxis ERP", err);
       proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
     }
 
@@ -347,14 +342,10 @@ export default function OrderForm() {
       });
 
       if (!bitrixRes.ok) {
-        const errBody = await bitrixRes.json().catch(() => ({}));
-        console.warn("Bitrix CRM retornou erro", { status: bitrixRes.status, errBody });
-      } else {
-        const bitrixData = await bitrixRes.json().catch(() => null);
-        console.info("Pedido enviado ao Bitrix CRM", bitrixData);
+        await bitrixRes.json().catch(() => ({}));
       }
     } catch (err) {
-      console.warn("Falha ao enviar pedido para Bitrix CRM", err);
+      void err;
     }
 
     const submittedCart: SubmittedCartLine[] = cart.map((item) => {

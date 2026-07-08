@@ -109,10 +109,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    console.log("[proxis-customer] Buscando cliente CNPJ:", cnpj);
     const cliente = await buscarClientePorCnpj(cnpj);
     const pesId = Number(cliente?.pes_id);
     const found = !!cliente && Number.isFinite(pesId) && pesId > 0;
     const tprId = resolveTprId(cliente);
+
+    console.log("[proxis-customer] Resultado:", { found, pes_id: found ? Math.trunc(pesId) : null, tpr_id: tprId });
 
     return res.status(200).json({
       found,
@@ -122,7 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       customer_company: found ? String(cliente.pes_fantasia ?? cliente.pes_nome ?? "") : null,
     });
   } catch (error) {
-    console.error("Proxsis customer lookup error:", error);
+    console.error("[proxis-customer] Proxsis customer lookup error:", error);
     return res.status(500).json({
       error: "Proxsis customer lookup failed",
       detail: error instanceof Error ? error.message : String(error),

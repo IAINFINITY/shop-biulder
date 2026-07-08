@@ -37,7 +37,7 @@ export function useCustomerAddresses(userId: string | null | undefined) {
   };
 
   const saveAddress = async (form: CustomerAddressFormData, addressId?: string) => {
-    if (!userId) return { error: new Error("UsuÃ¡rio nÃ£o autenticado"), data: null as CustomerAddress | null };
+    if (!userId) return { error: new Error("Usuário não autenticado"), data: null as CustomerAddress | null };
     const payload = { ...customerAddressRowFromForm(userId, form), is_default: false };
     const mutation = addressId
       ? supabase.from(CUSTOMER_ADDRESSES_TABLE).update(payload).eq("id", addressId).select().single()
@@ -54,7 +54,7 @@ export function useCustomerAddresses(userId: string | null | undefined) {
   };
 
   const setDefaultAddress = async (addressId: string) => {
-    if (!userId) return { error: new Error("UsuÃ¡rio nÃ£o autenticado") };
+    if (!userId) return { error: new Error("Usuário não autenticado") };
     const { error } = await supabase.rpc("set_customer_default_address", {
       p_user_id: userId,
       p_address_id: addressId,

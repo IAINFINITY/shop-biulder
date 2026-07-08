@@ -462,7 +462,7 @@ export default function Index() {
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                      Cat?logo completo
+                      Catálogo completo
                     </p>
                     <h2 className="text-xl font-black tracking-[-0.04em] text-foreground sm:text-2xl">
                       Navegue pelos demais produtos

@@ -10,8 +10,8 @@ function safeExtension(file: File): string {
   const fromName = file.name.split(".").pop().toLowerCase() ?? "";
   if (ALLOWED_EXT.has(fromName)) return fromName === "jpeg" ? "jpg" : fromName;
   const fromType = file.type.split("/")[1].toLowerCase() ?? "";
-  if (ALLOWED_EXT.has(fromType)) return fromType === "jpeg" ? "jpg" : fromType;
-  return "jpg";
+  if (ALLOWED_EXT.has(fromType)) return fromType === "jpeg" ? "webp" : fromType;
+  return "webp";
 }
 
 export type UploadProductImageResult =
@@ -57,7 +57,7 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
   const path = `${crypto.randomUUID()}.${ext}`;
 
   let { error } = await supabase.storage.from(BUCKET).upload(path, normalizedFile, {
-    cacheControl: "3600",
+    cacheControl: "31536000",
     upsert: true,
       contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
   });
@@ -65,7 +65,7 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
   if (error && /already exists|duplicate|invalid/i.test(error.message)) {
     const retryPath = `uploads/${Date.now()}-${crypto.randomUUID()}.${ext}`;
     ({ error } = await supabase.storage.from(BUCKET).upload(retryPath, normalizedFile, {
-      cacheControl: "3600",
+      cacheControl: "31536000",
     contentType: normalizedFile.type || `image/${ext === "jpg" ? "jpeg" : ext}`,
     }));
     if (!error) {
@@ -104,4 +104,30 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
 
 export function isBlobPreviewUrl(url: string): boolean {
   return url.startsWith("blob:");
+}
+
+function extractStoragePath(publicUrl: string): string | null {
+  const marker = `/object/public/${BUCKET}/`;
+  const idx = publicUrl.indexOf(marker);
+  if (idx === -1) return null;
+  return publicUrl.slice(idx + marker.length).split("?")[0];
+}
+
+export type DeleteImageResult =
+  | { ok: true }
+  | { ok: false; message: string };
+
+export async function deleteStorageImage(publicUrl: string | null | undefined): Promise<DeleteImageResult> {
+  if (!publicUrl) return { ok: true };
+
+  const path = extractStoragePath(publicUrl);
+  if (!path) return { ok: false, message: "URL inválida: não pertence ao bucket product-images." };
+
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) {
+    console.error("Erro ao remover imagem do storage:", error);
+    return { ok: false, message: error.message };
+  }
+
+  return { ok: true };
 }

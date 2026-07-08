@@ -1,7 +1,8 @@
 const DEFAULT_TARGET_WIDTH = 1200;
 const DEFAULT_TARGET_HEIGHT = 900;
 const DEFAULT_BACKGROUND = "#ffffff";
-const DEFAULT_QUALITY = 0.92;
+const DEFAULT_QUALITY = 0.80;
+const DEFAULT_FORMAT = "webp";
 
 type NormalizeProductImageOptions = {
   targetWidth?: number;
@@ -70,13 +71,13 @@ export async function normalizeProductImageFile(
 
     ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
 
-    const blob = await canvasToBlob(canvas, "image/jpeg", quality);
+    const blob = await canvasToBlob(canvas, `image/${DEFAULT_FORMAT}`, quality);
     if (!blob) {
       return file;
     }
 
-    return new File([blob], `${basename(file.name)}.jpg`, {
-      type: "image/jpeg",
+    return new File([blob], `${basename(file.name)}.${DEFAULT_FORMAT}`, {
+      type: `image/${DEFAULT_FORMAT}`,
       lastModified: file.lastModified,
     });
   } finally {

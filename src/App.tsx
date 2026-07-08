@@ -34,7 +34,7 @@ function AppRoutes() {
   const location = useLocation();
 
   return (
-    <div
+<main
       data-native-view-transition={supportsViewTransitions ? "true" : "false"}
       className="page-shell"
     >
@@ -49,8 +49,8 @@ function AppRoutes() {
           <Route path="/conta" element={<Account />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Suspense>
-    </div>
+</Suspense>
+    </main>
   );
 }
 

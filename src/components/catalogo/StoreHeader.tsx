@@ -64,8 +64,10 @@ function SearchPanel({
             onChange={(e) => onSearchChange(e.target.value)}
             className="h-12 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-14 sm:pl-5 sm:pr-16"
             aria-label="Buscar produtos"
-            aria-expanded={showSuggestions}
             aria-controls={showSuggestions ? panelId : undefined}
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-autocomplete="list"
           />
           <Button
             type="submit"

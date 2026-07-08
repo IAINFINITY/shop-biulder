@@ -144,6 +144,7 @@ function ThemeShelf({
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const scroll = useCallback((direction: -1 | 1) => scrollRow(rowRef.current, direction), []);
+  const rowGridClass = "grid auto-cols-[100%] grid-flow-col gap-4 overflow-x-auto overscroll-x-contain px-1.5 pb-2 [scrollbar-width:none] snap-x snap-mandatory scroll-smooth scroll-px-1.5 sm:auto-cols-[calc((100%_-_1rem)/2)] lg:auto-cols-[calc((100%_-_2rem)/3)] xl:auto-cols-[calc((100%_-_3rem)/4)] 2xl:auto-cols-[calc((100%_-_4rem)/5)] [&::-webkit-scrollbar]:hidden";
 
   return (
     <section className="space-y-4">
@@ -155,7 +156,7 @@ function ThemeShelf({
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
+          <Badge variant="outline" className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
             {section.products.length} item(ns)
           </Badge>
           <Button
@@ -180,8 +181,6 @@ function ThemeShelf({
           </Button>
         </div>
       </div>
-
-      const rowGridClass = "grid auto-cols-[100%] grid-flow-col gap-4 overflow-x-auto overscroll-x-contain px-1.5 pb-2 [scrollbar-width:none] snap-x snap-mandatory scroll-smooth scroll-px-1.5 sm:auto-cols-[calc((100%_-_1rem)/2)] lg:auto-cols-[calc((100%_-_2rem)/3)] xl:auto-cols-[calc((100%_-_3rem)/4)] 2xl:auto-cols-[calc((100%_-_4rem)/5)] [&::-webkit-scrollbar]:hidden";
 
       <div
         ref={rowRef}

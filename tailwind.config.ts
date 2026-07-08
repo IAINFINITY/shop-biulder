@@ -106,6 +106,19 @@ export default {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.08)" },
         },
+        "cart-bounce": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.3)" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-3px)" },
+          "20%, 40%, 60%, 80%": { transform: "translateX(3px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -114,6 +127,9 @@ export default {
         "notice-glow": "notice-glow 2.8s ease-in-out infinite",
         "notice-shimmer": "notice-shimmer 4s linear infinite",
         "notice-icon": "notice-icon 2.2s ease-in-out infinite",
+        "cart-bounce": "cart-bounce 0.4s ease-out",
+        shimmer: "shimmer 2s linear infinite",
+        shake: "shake 0.5s ease-out",
       },
     },
   },

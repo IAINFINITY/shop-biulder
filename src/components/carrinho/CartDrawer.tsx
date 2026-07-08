@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { useRef, useEffect, useState } from "react";
 import { CartItem } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,15 @@ export function CartDrawer({
     cart.reduce((sum, item) => sum + resolveUnitPrice(item.product) * item.quantity, 0) * 100,
   ) / 100;
   const navigate = useNavigate();
+  const [bounceKey, setBounceKey] = useState(0);
+  const prevTotalRef = useRef(totalItems);
+
+  useEffect(() => {
+    if (totalItems !== prevTotalRef.current) {
+      prevTotalRef.current = totalItems;
+      setBounceKey((k) => k + 1);
+    }
+  }, [totalItems]);
 
   const handleSend = () => {
     if (cart.length === 0) {
@@ -58,7 +68,7 @@ export function CartDrawer({
           <ShoppingBag className="h-5 w-5" />
           <span className="hidden sm:inline">Meu Carrinho</span>
           {totalItems > 0 && (
-            <Badge className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center bg-warm p-0 text-xs text-warm-foreground">
+            <Badge key={bounceKey} className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center bg-warm p-0 text-xs text-warm-foreground animate-cart-bounce">
               {totalItems}
             </Badge>
           )}
@@ -74,7 +84,7 @@ export function CartDrawer({
         </SheetHeader>
 
         {cart.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground animate-in fade-in slide-in-from-bottom-4 duration-500">
             <ShoppingBag className="h-16 w-16 opacity-30" />
             <p className="text-lg font-medium">Carrinho vazio</p>
             <p className="text-center text-sm">Adicione produtos do catálogo para montar seu interesse.</p>
@@ -150,7 +160,7 @@ export function CartDrawer({
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 rounded-full"
+                        className="h-8 w-8 rounded-full transition-transform active:scale-90"
                         onClick={() => onUpdateQuantity(item.product.id, -1)}
                       >
                         <Minus className="h-3.5 w-3.5" />
@@ -169,7 +179,7 @@ export function CartDrawer({
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 rounded-full"
+                        className="h-8 w-8 rounded-full transition-transform active:scale-90"
                         onClick={() => onUpdateQuantity(item.product.id, 1)}
                       >
                         <Plus className="h-3.5 w-3.5" />

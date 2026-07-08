@@ -32,7 +32,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
   const displayPrice = Number.isFinite(price ?? Number.NaN) ? (price as number) : getProductUnitPrice(product);
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.65rem] bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.65rem] bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)] active:scale-[0.985]">
       <Link
         to={`/produto/${product.id}`}
         viewTransition
@@ -95,7 +95,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
           type="button"
           onClick={() => onAdd(product)}
           variant={inCart ? "secondary" : "default"}
-          className="h-10 w-full gap-1.5 text-xs sm:text-sm"
+          className="h-10 w-full gap-1.5 text-xs transition-all active:scale-95 sm:text-sm"
           size="sm"
         >
           <Plus className="h-4 w-4" />

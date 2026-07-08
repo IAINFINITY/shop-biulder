@@ -427,7 +427,7 @@ export function CatalogFiltersSidebar({
           </Button>
         </div>
 
-        <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-3 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 pr-3 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
           <FamilyCollapsibleList
             categoryFamilies={categoryFamilies}
             familyTypesByFamily={familyTypesByFamily}

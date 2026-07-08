@@ -19,7 +19,7 @@ export function CartTotalBar({ total, itemCount, onOpenCart, visible }: CartTota
       role="region"
       aria-label="Resumo do valor do carrinho"
     >
-      <div className="container mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:py-3.5">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-6 sm:py-3.5 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
             <ShoppingBag className="h-5 w-5" aria-hidden />

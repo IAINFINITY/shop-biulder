@@ -54,7 +54,7 @@ function ThemeProductCard({
   const price = resolvePrice(product);
 
   return (
-    <article className="flex h-full w-full min-w-0 snap-start flex-col overflow-hidden rounded-[1.45rem] bg-background/85 ring-1 ring-black/5 transition-transform duration-200 hover:-translate-y-1 hover:ring-black/10">
+    <article className="flex h-full w-full min-w-0 snap-start flex-col overflow-hidden rounded-[1.45rem] bg-background/85 ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-1 hover:ring-black/10 active:scale-[0.985]">
       <Link to={`/produto/${product.id}`} viewTransition className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
         <div className="bg-gradient-to-b from-muted/30 via-background to-background p-3">
           <div className="flex items-center">
@@ -105,7 +105,7 @@ function ThemeProductCard({
           type="button"
           size="sm"
           variant={inCart ? "secondary" : "default"}
-          className={cn("h-9 shrink-0 rounded-full px-3 text-xs", inCart && "text-foreground")}
+          className={cn("h-9 shrink-0 rounded-full px-3 text-xs transition-all active:scale-90", inCart && "text-foreground")}
           onClick={() => onAdd(product)}
         >
           <Plus className="h-4 w-4" />

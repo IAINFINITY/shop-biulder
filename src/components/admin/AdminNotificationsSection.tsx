@@ -834,7 +834,8 @@ export function AdminNotificationsSection() {
     setSaving(false);
 
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao salvar notificação", error);
+      toast.error("Erro ao salvar notificação.");
       return;
     }
 
@@ -847,7 +848,8 @@ export function AdminNotificationsSection() {
   const deleteNotification = async (id: string) => {
     const { error } = await supabase.from(CATALOG_NOTIFICATIONS_TABLE).delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover notificação", error);
+      toast.error("Erro ao remover notificação.");
       return;
     }
     toast.success("Notificação removida.");
@@ -861,7 +863,8 @@ export function AdminNotificationsSection() {
       .eq("id", notification.id);
 
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao atualizar notificação", error);
+      toast.error("Erro ao atualizar notificação.");
       return;
     }
 

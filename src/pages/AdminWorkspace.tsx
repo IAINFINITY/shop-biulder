@@ -714,7 +714,8 @@ export default function AdminWorkspace() {
     }
 
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao salvar produto", error);
+      toast.error("Erro ao salvar produto.");
       return;
     }
 
@@ -726,7 +727,8 @@ export default function AdminWorkspace() {
   const toggleActive = async (id: string, active: boolean) => {
     const { error } = await supabase.from(PRODUCTS_TABLE).update({ active: !active } as never).eq("id", id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao atualizar produto", error);
+      toast.error("Erro ao atualizar produto.");
       return;
     }
     toast.success(active ? "Produto desativado" : "Produto ativado");
@@ -736,7 +738,8 @@ export default function AdminWorkspace() {
   const remove = async (id: string) => {
     const { error } = await supabase.from(PRODUCTS_TABLE).delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover produto", error);
+      toast.error("Erro ao remover produto.");
       return;
     }
     toast.success("Produto removido.");
@@ -752,7 +755,8 @@ export default function AdminWorkspace() {
       .select("id,name,created_at")
       .single();
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao adicionar tipo", error);
+      toast.error("Erro ao adicionar tipo.");
       return;
     }
     setNewType("");
@@ -767,7 +771,8 @@ export default function AdminWorkspace() {
   const deleteType = async (id: string) => {
     const { error } = await supabase.from(PRODUCT_TYPES_TABLE).delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover tipo", error);
+      toast.error("Erro ao remover tipo.");
       return;
     }
     toast.success("Tipo removido.");
@@ -780,7 +785,8 @@ export default function AdminWorkspace() {
   const deleteOrder = async (id: string) => {
     const { error } = await supabase.from(ORDERS_TABLE).delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover pedido", error);
+      toast.error("Erro ao remover pedido.");
       return;
     }
     toast.success("Pedido removido.");
@@ -794,7 +800,8 @@ export default function AdminWorkspace() {
       toast.success(`Arquivo Proxis gerado (ID ${proxisId}).`);
       refreshOrders();
     } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao exportar para Proxis.");
+        console.error("Erro ao exportar para Proxis", err);
+        toast.error("Erro ao exportar para Proxis.");
     } finally {
       setProxisExportingId(null);
     }

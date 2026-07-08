@@ -101,7 +101,10 @@ export default function Login() {
     if (elapsed < AUTH_FEEDBACK_MIN_MS) {
       await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
     }
-    if (error) toast.error(error.message);
+    if (error) {
+      console.error("Erro ao fazer login", error);
+      toast.error("E-mail ou senha incorretos.");
+    }
     setSubmitting(false);
   };
 
@@ -138,7 +141,8 @@ export default function Login() {
       if (message.includes("customer_profiles_cnpj_unique") || message.includes("duplicate")) {
         toast.error("Este CNPJ ja possui cadastro.");
       } else {
-        toast.error(error.message || "Erro ao criar conta");
+        console.error("Erro ao criar conta", error);
+        toast.error("Erro ao criar conta");
       }
       setSubmitting(false);
       return;

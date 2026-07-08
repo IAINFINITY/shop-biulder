@@ -133,7 +133,8 @@ export function AdminBannersSection() {
     setSaving(false);
 
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao salvar banner", error);
+      toast.error("Erro ao salvar banner.");
       return;
     }
 
@@ -146,7 +147,8 @@ export function AdminBannersSection() {
   const deleteBanner = async (id: string) => {
     const { error } = await supabase.from(CATALOG_BANNERS_TABLE).delete().eq("id", id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover banner", error);
+      toast.error("Erro ao remover banner.");
       return;
     }
     toast.success("Banner removido.");
@@ -160,7 +162,8 @@ export function AdminBannersSection() {
       .eq("id", banner.id);
 
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao atualizar banner", error);
+      toast.error("Erro ao atualizar banner.");
       return;
     }
 

@@ -160,7 +160,8 @@ export function AdminClientsSection({
     setUpdatingCustomerKey(null);
 
     if (error) {
-      toast.error(error.message || "Não foi possível atualizar o tipo do cliente.");
+      console.error("Erro ao atualizar tipo do cliente", error);
+      toast.error("Não foi possível atualizar o tipo do cliente.");
       return;
     }
 
@@ -184,7 +185,8 @@ export function AdminClientsSection({
     setSaving(false);
 
     if (error) {
-      toast.error(error.message || "Não foi possível atualizar o tipo do cliente.");
+      console.error("Erro ao atualizar tipo do cliente", error);
+      toast.error("Não foi possível atualizar o tipo do cliente.");
       return;
     }
 

@@ -225,7 +225,8 @@ export function ClientAddressesSection() {
     setSaving(true);
     const { error, data } = await saveAddress(draft, editingId ?? undefined);
     if (error) {
-      toast.error(error.message || "Não foi possível salvar o endereço");
+      console.error("Erro ao salvar endereço", error);
+      toast.error("Não foi possível salvar o endereço");
       setSaving(false);
       return;
     }
@@ -233,7 +234,8 @@ export function ClientAddressesSection() {
     if (draft.is_default && data?.id) {
       const defaultResult = await setDefaultAddress(data.id);
       if (defaultResult.error) {
-        toast.error(defaultResult.error.message || "Não foi possível definir o endereço padrão");
+        console.error("Erro ao definir endereço padrão", defaultResult.error);
+        toast.error("Não foi possível definir o endereço padrão");
         setSaving(false);
         return;
       }
@@ -247,7 +249,8 @@ export function ClientAddressesSection() {
   const handleDelete = async (address: CustomerAddress) => {
     const { error } = await deleteAddress(address.id);
     if (error) {
-      toast.error(error.message || "Não foi possível excluir o endereço");
+      console.error("Erro ao excluir endereço", error);
+      toast.error("Não foi possível excluir o endereço");
       return;
     }
     toast.success("Endereço excluído.");
@@ -256,7 +259,8 @@ export function ClientAddressesSection() {
   const handleSetDefault = async (address: CustomerAddress) => {
     const { error } = await setDefaultAddress(address.id);
     if (error) {
-      toast.error(error.message || "Não foi possível definir o endereço padrão");
+      console.error("Erro ao definir endereço padrão", error);
+      toast.error("Não foi possível definir o endereço padrão");
       return;
     }
     toast.success("Endereço padrão atualizado.");

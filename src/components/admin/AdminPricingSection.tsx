@@ -192,7 +192,8 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
       toast.success(`Preço salvo para ${productCode}.`);
       onRefreshPricing();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o preço.");
+      console.error("Erro ao salvar preço", error);
+      toast.error("Não foi possível salvar o preço.");
     } finally {
       setSavingKeys((current) => {
         const next = { ...current };
@@ -212,7 +213,8 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
 
     const { error } = await supabase.from(CUSTOMER_PRICE_OVERRIDES_TABLE).delete().eq("id", existing.id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover preço", error);
+      toast.error("Erro ao remover preço.");
       return;
     }
 
@@ -249,7 +251,8 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
       toast.success("Ajuste em massa aplicado com sucesso.");
       onRefreshPricing();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível aplicar o ajuste em massa.");
+      console.error("Erro ao aplicar ajuste em massa", error);
+      toast.error("Não foi possível aplicar o ajuste em massa.");
     } finally {
       setBulkSaving(false);
     }

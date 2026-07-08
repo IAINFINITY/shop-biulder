@@ -91,7 +91,8 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
           "Sem permissão para enviar imagens. No Supabase, confira as políticas do bucket product-images (usuário admin autenticado).",
       };
     }
-    return { ok: false, message: error.message };
+    console.error("Erro ao enviar imagem", error);
+    return { ok: false, message: "Erro ao enviar imagem. Verifique sua conexão e o storage do Supabase." };
   }
 
   const {

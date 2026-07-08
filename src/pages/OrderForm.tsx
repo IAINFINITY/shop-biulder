@@ -33,7 +33,6 @@ import {
 } from "@/lib/supportContact";
 
 const ORDER_SUCCESS_SNAPSHOT_KEY = "clinicplus_last_order_success";
-const ORDER_SUBMISSION_KEY_STORAGE = "clinicplus_order_submission_key";
 const ORDER_WEBHOOK_URL =
   import.meta.env.VITE_ORDER_WEBHOOK_URL?.trim() || "https://webhooks-n8n.iainfinity.app/webhook/novo-carrinho";
 
@@ -63,37 +62,6 @@ function isSameAddressForm(
   );
 }
 
-function createSubmissionKey() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function readOrCreateSubmissionKey() {
-  try {
-    const stored = sessionStorage.getItem(ORDER_SUBMISSION_KEY_STORAGE);
-    if (stored) return stored;
-    const next = createSubmissionKey();
-    sessionStorage.setItem(ORDER_SUBMISSION_KEY_STORAGE, next);
-    return next;
-  } catch {
-    return createSubmissionKey();
-  }
-}
-
-function clearSubmissionKey() {
-  try {
-    sessionStorage.removeItem(ORDER_SUBMISSION_KEY_STORAGE);
-  } catch {
-    // ignore storage failures
-  }
-}
-
-function isUniqueViolation(error: { code?: string | null; message?: string | null }) {
-  return error.code === "23505" || (error.message ?? "").toLowerCase().includes("duplicate key");
-}
-
 export default function OrderForm() {
   const navigate = useNavigate();
   const { user, customerProfile, loading, isResolvingAccess } = useAuth();
@@ -112,7 +80,6 @@ export default function OrderForm() {
   const [orderNote, setOrderNote] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [manualAddressEdit, setManualAddressEdit] = useState(false);
-  const [submissionKey] = useState(() => readOrCreateSubmissionKey());
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -206,14 +173,20 @@ export default function OrderForm() {
 
       const { error, data } = await saveAddress(addressPayload);
       if (error) {
-        if (notify) toast.error(error.message || "Não foi possível salvar o endereço");
+        if (notify) {
+          console.error("Erro ao salvar endereço", error);
+          toast.error("Não foi possível salvar o endereço");
+        }
         return { ok: false as const, saved: false as const };
       }
 
       if (addressPayload.is_default && data?.id) {
         const defaultResult = await setDefaultAddress(data.id);
         if (defaultResult.error) {
-          if (notify) toast.error(defaultResult.error.message || "Não foi possível definir o endereço padrão");
+          if (notify) {
+            console.error("Erro ao definir endereço padrão", defaultResult.error);
+            toast.error("Não foi possível definir o endereço padrão");
+          }
           return { ok: false as const, saved: false as const };
         }
       }
@@ -321,7 +294,6 @@ export default function OrderForm() {
       const orderSubtotal = calculateCartSubtotal(cart, customerPriceMap);
 
       const payload = {
-        submission_key: submissionKey,
         customer_name: form.name.trim(),
         customer_phone: form.phone.trim(),
         customer_company: form.company.trim(),
@@ -335,22 +307,10 @@ export default function OrderForm() {
 
       const { error } = await supabase.from(ORDERS_TABLE).insert(payload as never);
 
-      let duplicateSubmission = false;
-
       if (error) {
-        if (isUniqueViolation(error)) {
-          duplicateSubmission = true;
-        } else {
-          console.error("Erro ao inserir pedido no Supabase", { error, payload });
-          const lowerMessage = error.message.toLowerCase() ?? "";
-          const isRlsError = lowerMessage.includes("row-level security");
-          toast.error(
-            isRlsError
-              ? "Permissão negada ao salvar o pedido. Verifique as políticas (RLS) da tabela orders."
-              : error.message || "Erro ao enviar pedido",
-          );
-          return;
-        }
+        console.error("Erro ao inserir pedido no Supabase", { error, payload });
+        toast.error("Erro ao enviar pedido. Tente novamente.");
+        return;
       }
 
       const proxisItems = orderItems.map((row) => ({
@@ -361,102 +321,98 @@ export default function OrderForm() {
       }));
       let proxisWarning: string | null = null;
 
-      if (!duplicateSubmission) {
-        try {
-          const proxisRes = await fetch("/api/proxis-order", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              customer_name: form.name.trim(),
-              customer_cnpj: form.cnpj.trim(),
-              customer_company: form.company.trim(),
-              customer_observation: orderNote.trim() || null,
-              address: addressToProxisPayload(checkoutAddress),
-              items: proxisItems,
-              note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
-            }),
-          });
+      try {
+        const proxisRes = await fetch("/api/proxis-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer_name: form.name.trim(),
+            customer_cnpj: form.cnpj.trim(),
+            customer_company: form.company.trim(),
+            customer_observation: orderNote.trim() || null,
+            address: addressToProxisPayload(checkoutAddress),
+            items: proxisItems,
+            note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
+          }),
+        });
 
-          if (!proxisRes.ok) {
-            const errBody = await proxisRes.json().catch(() => ({}));
-            proxisWarning =
-              typeof errBody.error === "string" && errBody.error.trim()
-                ? errBody.error
-                : `status ${proxisRes.status}`;
-          }
-        } catch (err) {
-          proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
+        if (!proxisRes.ok) {
+          const errBody = await proxisRes.json().catch(() => ({}));
+          proxisWarning =
+            typeof errBody.error === "string" && errBody.error.trim()
+              ? errBody.error
+              : `status ${proxisRes.status}`;
         }
+      } catch (err) {
+        proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
+      }
 
-        try {
-          const bitrixRes = await fetch("/api/bitrix-deal", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              customer_name: form.name.trim(),
-              customer_company: form.company.trim(),
-              customer_cnpj: form.cnpj.trim(),
-              customer_phone: form.phone.trim(),
-              customer_observation: orderNote.trim() || null,
-              address: {
-                cep: checkoutAddress.cep,
-                street: checkoutAddress.street,
-                number: checkoutAddress.number,
-                complement: checkoutAddress.complement,
-                neighborhood: checkoutAddress.neighborhood,
-                city: checkoutAddress.city,
-                state: checkoutAddress.state,
-              },
-              items: proxisItems,
-              total_amount: orderSubtotal,
-              source: "clinicplus-b2b",
-              note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
-            }),
-          });
+      try {
+        const bitrixRes = await fetch("/api/bitrix-deal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customer_name: form.name.trim(),
+            customer_company: form.company.trim(),
+            customer_cnpj: form.cnpj.trim(),
+            customer_phone: form.phone.trim(),
+            customer_observation: orderNote.trim() || null,
+            address: {
+              cep: checkoutAddress.cep,
+              street: checkoutAddress.street,
+              number: checkoutAddress.number,
+              complement: checkoutAddress.complement,
+              neighborhood: checkoutAddress.neighborhood,
+              city: checkoutAddress.city,
+              state: checkoutAddress.state,
+            },
+            items: proxisItems,
+            total_amount: orderSubtotal,
+            source: "clinicplus-b2b",
+            note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
+          }),
+        });
 
-          if (!bitrixRes.ok) {
-            await bitrixRes.json().catch(() => ({}));
-          }
-        } catch (err) {
-          void err;
+        if (!bitrixRes.ok) {
+          await bitrixRes.json().catch(() => ({}));
         }
+      } catch (err) {
+        void err;
+      }
 
-        try {
-          const itemsForWebhook = orderItems.map((row) => ({
-            product_id: row.product_id,
-            name: row.name,
-            type: row.type,
-            family: row.family,
-            quantity: row.quantity,
-            unit_price: row.unit_price,
-            line_total: row.line_total,
-            notes: row.notes,
-          }));
-          const cartTotal = Math.round(orderSubtotal * 100) / 100;
+      try {
+        const itemsForWebhook = orderItems.map((row) => ({
+          product_id: row.product_id,
+          name: row.name,
+          type: row.type,
+          family: row.family,
+          quantity: row.quantity,
+          unit_price: row.unit_price,
+          line_total: row.line_total,
+          notes: row.notes,
+        }));
+        const cartTotal = Math.round(orderSubtotal * 100) / 100;
 
-          await fetch(ORDER_WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              order: payload,
-              items: itemsForWebhook,
-              total_items: payload.total_items,
-              order_subtotal: cartTotal,
-              cart_total: cartTotal,
-              valor_total_carrinho: cartTotal,
-              currency: "BRL",
-              status: payload.status,
-            }),
-          });
-        } catch (err) {
-          console.warn("Falha ao enviar webhook do pedido", err);
-        }
+        await fetch(ORDER_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order: payload,
+            items: itemsForWebhook,
+            total_items: payload.total_items,
+            order_subtotal: cartTotal,
+            cart_total: cartTotal,
+            valor_total_carrinho: cartTotal,
+            currency: "BRL",
+            status: payload.status,
+          }),
+        });
+      } catch (err) {
+        console.warn("Falha ao enviar webhook do pedido", err);
+      }
 
-        if (proxisWarning) {
-          toast.warning(`O pedido foi salvo, mas o Proxsys não recebeu o envio. Motivo: ${proxisWarning}`);
-        }
-      } else {
-        toast.success("Este pedido já tinha sido enviado. Reaproveitamos o registro salvo.");
+      if (proxisWarning) {
+        toast.warning(`O pedido foi salvo, mas o Proxsys não recebeu o envio. Motivo: ${proxisWarning}`);
       }
 
       const submittedCart: SubmittedCartLine[] = cart.map((item) => {
@@ -475,10 +431,7 @@ export default function OrderForm() {
       });
 
       clearCart();
-      clearSubmissionKey();
-      if (!duplicateSubmission) {
-        toast.success("Pedido enviado com sucesso!");
-      }
+      toast.success("Pedido enviado com sucesso!");
 
       const successState = {
         customerName: payload.customer_name,

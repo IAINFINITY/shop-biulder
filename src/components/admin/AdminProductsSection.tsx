@@ -256,7 +256,8 @@ export function AdminProductsSection({
       .select("id,name,type_id,created_at,updated_at")
       .single();
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao adicionar subcategoria", error);
+      toast.error("Erro ao adicionar subcategoria.");
       return;
     }
 
@@ -288,7 +289,8 @@ export function AdminProductsSection({
 
     const { error } = await supabase.from(PRODUCT_FAMILIES_TABLE).delete().eq("id", family.id);
     if (error) {
-      toast.error(error.message);
+      console.error("Erro ao remover subcategoria", error);
+      toast.error("Erro ao remover subcategoria.");
       return;
     }
 

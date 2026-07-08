@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
@@ -12,13 +13,15 @@ import {
   type CatalogSortMode,
 } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
-import { Product, CartItem, getCart, getProductImageUrls, saveCart } from "@/lib/products";
+import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richText";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
+import { ChevronUp, Loader2 } from "lucide-react";
 
 const INITIAL_PRODUCTS_VISIBLE = 12;
 const PRODUCTS_VISIBLE_STEP = 12;
@@ -80,7 +83,7 @@ export default function Index() {
     customerType,
     customerTprId,
   );
-  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [search, setSearch] = useState(() => readCatalogViewState()?.search ?? "");
   const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
@@ -94,10 +97,15 @@ export default function Index() {
   const catalogRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
-    saveCart(cart);
-  }, [cart]);
+    if (typeof window === "undefined") return;
+    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useLayoutEffect(() => {
     if (typeof window === "undefined" || restoredScrollRef.current) return;
@@ -288,48 +296,11 @@ export default function Index() {
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
-  const addToCart = useCallback(
-    (product: Product, quantity = 1) => {
-      const safeQuantity = Number.isFinite(quantity) ? Math.max(1, quantity) : 1;
-      setCart((prev) => {
-        const existing = prev.find((c) => c.product.id === product.id);
-        if (existing) {
-          return prev.map((c) =>
-            c.product.id === product.id ? { ...c, quantity: safeQuantity } : c,
-          );
-        }
-        return [...prev, { product, quantity: safeQuantity }];
-      });
-    },
-    [],
-  );
-
-  const updateQuantity = useCallback((id: string, delta: number) => {
-    setCart((prev) =>
-      prev.map((c) => (c.product.id === id ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)),
-    );
-  }, []);
-
-  const removeFromCart = useCallback((id: string) => {
-    setCart((prev) => prev.filter((c) => c.product.id !== id));
-  }, []);
-
-  const clearCart = useCallback(() => {
-    setCart([]);
-  }, []);
-
   const cartSubtotal = useMemo(
     () => calculateCartSubtotal(cart, customerPriceMap),
     [cart, customerPriceMap],
   );
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
-  const setQuantity = useCallback((id: string, quantity: number) => {
-    const safeQuantity = Number.isFinite(quantity) ? Math.max(1, Math.min(99, Math.round(quantity))) : 1;
-    setCart((prev) =>
-      prev.map((item) => (item.product.id === id ? { ...item, quantity: safeQuantity } : item)),
-    );
-  }, []);
-
   const showAllProducts = useCallback(() => {
     setSearch("");
     setSelectedType(null);
@@ -389,7 +360,7 @@ export default function Index() {
 
   return (
     <div
-      className={`min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] ${cart.length > 0 ? "pb-28" : ""}`}
+      className={`min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] ${cart.length > 0 ? "pb-[10rem]" : ""}`}
     >
       <StoreHeader
         search={search}
@@ -495,7 +466,7 @@ export default function Index() {
                     ))}
                   </div>
                 ) : filtered.length === 0 ? (
-                  <div className="rounded-[1.75rem] bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-[1.75rem] bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
                     <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
                     <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
                   </div>
@@ -513,7 +484,8 @@ export default function Index() {
                       ))}
                     </div>
                     {visibleProducts < filtered.length ? (
-                      <div ref={loadMoreRef} className="py-8 text-center text-sm text-muted-foreground">
+                      <div ref={loadMoreRef} className="flex items-center justify-center gap-3 py-8 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Carregando mais produtos...
                       </div>
                     ) : null}
@@ -531,6 +503,18 @@ export default function Index() {
         visible={cart.length > 0}
         onOpenCart={openCart}
       />
+
+      {showBackToTop ? (
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed bottom-24 right-4 z-40 h-10 w-10 rounded-full border-border/60 bg-background/90 shadow-md backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-300"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Voltar ao topo"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </Button>
+      ) : null}
     </div>
   );
 }

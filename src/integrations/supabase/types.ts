@@ -119,6 +119,7 @@ export type Database = {
           id: string
           items: Json
           proxis_import_id: number | null
+          submission_key: string
           status: string
           total_items: number
         }
@@ -140,6 +141,7 @@ export type Database = {
           id: string
           items: Json
           proxis_import_id: number | null
+          submission_key?: string
           status: string
           total_items: number
         }
@@ -161,6 +163,7 @@ export type Database = {
           id: string
           items: Json
           proxis_import_id: number | null
+          submission_key?: string
           status: string
           total_items: number
         }

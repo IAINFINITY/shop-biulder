@@ -13,9 +13,6 @@ import { type LucideIcon, ArrowLeft, Plus, Leaf, Pill, FlaskConical, ImageIcon }
 import { supabase } from "@/integrations/supabase/client";
 import {
   PRODUCTS_TABLE,
-  CartItem,
-  getCart,
-  saveCart,
   normalizeProductFromSupabaseRow,
   getProductImageUrls,
   readCachedProductFromStorage,
@@ -35,21 +32,29 @@ import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { useProducts } from "@/hooks/useProducts";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 
-const typeIcons: Record<string, LucideIcon> = {
-  Chá: Leaf,
-  Cápsula: Pill,
-  Solúvel: FlaskConical,
+type ProductTypeTheme = {
+  Icon: LucideIcon;
+  className: string;
 };
 
-const typeColors: Record<string, string> = {
-  Chá: "bg-success/10 text-success border-success/20",
-  Cápsula: "bg-warm/10 text-warm border-warm/20",
-  Solúvel: "bg-primary/10 text-primary border-primary/20",
-};
+const TYPE_THEME_PALETTE: ProductTypeTheme[] = [
+  { Icon: Leaf, className: "bg-success/10 text-success border-success/20" },
+  { Icon: Pill, className: "bg-warm/10 text-warm border-warm/20" },
+  { Icon: FlaskConical, className: "bg-primary/10 text-primary border-primary/20" },
+];
+
+function hashTypeName(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -67,7 +72,7 @@ export default function ProductDetails() {
     [storageCachedProduct, allProducts, id],
   );
 
-  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const { cart, addToCart, updateQuantity, removeFromCart, clearCart } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isImageHovered, setIsImageHovered] = useState(false);
@@ -83,29 +88,11 @@ export default function ProductDetails() {
     imageRect: DOMRect;
   } | null>(null);
 
-  useEffect(() => {
-    saveCart(cart);
-  }, [cart]);
-
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [id]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
-
-  const updateQuantity = useCallback((itemId: string, delta: number) => {
-    setCart((prev) =>
-      prev.map((c) => (c.product.id === itemId ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)),
-    );
-  }, []);
-
-  const removeFromCart = useCallback((itemId: string) => {
-    setCart((prev) => prev.filter((c) => c.product.id !== itemId));
-  }, []);
-
-  const clearCart = useCallback(() => {
-    setCart([]);
-  }, []);
 
   const cartSubtotal = useMemo(() => calculateCartSubtotal(cart, customerPriceMap), [cart, customerPriceMap]);
   const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
@@ -139,6 +126,16 @@ export default function ProductDetails() {
   const galleryUrls = product ? getProductImageUrls(product) : [];
   const selectedImage = galleryUrls[selectedImageIndex] ?? galleryUrls[0] ?? null;
   const productPrice = product ? resolveProductPrice(product, customerPriceMap) : 0;
+  const typeThemeMap = useMemo(() => {
+    const uniqueTypes = [...new Set(allProducts.map((item) => item.type).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b),
+    );
+
+    return uniqueTypes.reduce((acc, type, index) => {
+      acc[type] = TYPE_THEME_PALETTE[hashTypeName(type) % TYPE_THEME_PALETTE.length] ?? TYPE_THEME_PALETTE[index % TYPE_THEME_PALETTE.length];
+      return acc;
+    }, {} as Record<string, ProductTypeTheme>);
+  }, [allProducts]);
 
   useEffect(() => {
     setSelectedImageIndex(0);
@@ -178,27 +175,13 @@ export default function ProductDetails() {
       .slice(0, 4);
   }, [allProducts, product]);
 
-  const addProductToCart = useCallback(
-    (targetProduct: typeof product) => {
-      if (!targetProduct) return;
-      setCart((prev) => {
-        const existing = prev.find((c) => c.product.id === targetProduct.id);
-        if (existing) {
-          return prev;
-        }
-        return [...prev, { product: targetProduct, quantity: 1 }];
-      });
-    },
-    [],
-  );
-
   const handleAdd = () => {
     if (!product) return;
-    addProductToCart(product);
+    addToCart(product);
   };
 
   const handleRelatedAdd = (targetProduct: (typeof allProducts)[number]) => {
-    addProductToCart(targetProduct);
+    addToCart(targetProduct);
   };
 
   const handleImageMove = useCallback(
@@ -349,7 +332,8 @@ export default function ProductDetails() {
     );
   }
 
-  const Icon = typeIcons[product.type] || Leaf;
+  const typeTheme = typeThemeMap[product.type] ?? TYPE_THEME_PALETTE[0];
+  const Icon = typeTheme.Icon;
   const hasDescription = Boolean(product.description.trim());
 
   return (
@@ -489,7 +473,7 @@ export default function ProductDetails() {
               <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm xl:min-h-[640px]">
                 <CardHeader className="space-y-4 p-4 sm:p-5">
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
+                    <Badge variant="outline" className={`${typeTheme.className} text-xs font-medium`}>
                       <Icon className="mr-1 h-3 w-3" />
                       {product.type}
                     </Badge>

@@ -34,6 +34,7 @@ export type SubmittedCartLine = {
 
 export interface Order {
   id: string;
+  submission_key: string;
   customer_name: string;
   customer_phone: string;
   customer_company: string;

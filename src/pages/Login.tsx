@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CustomerDataFields } from "@/components/customer/CustomerDataFields";
+import { CustomerDataFields } from "@/components/pedido/CustomerDataFields";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";

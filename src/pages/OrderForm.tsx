@@ -1,7 +1,7 @@
 ﻿import { useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { ArrowLeft, Send, ShoppingBag, ImageIcon } from "lucide-react";
+import { ArrowLeft, Send, ShoppingBag, ImageIcon, User, MapPin, FileText, CreditCard, CheckCircle2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,14 +11,14 @@ import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { assertAddressReady, addressToOrderColumns, addressToProxisPayload, emptyAddressForm } from "@/lib/address";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { CartItem, getCart, getProductImageUrls, saveCart } from "@/lib/products";
+import { type CartItem, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
-import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { useCustomerAddresses } from "@/hooks/useCustomerAddresses";
 import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, resolveProductPrice } from "@/lib/pricing";
@@ -26,12 +26,16 @@ import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
 import { profileAddressToForm } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
+import { ORDER_TEXT_LIMITS } from "@/lib/orderTextLimits";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_WHATSAPP_URL,
 } from "@/lib/supportContact";
 
 const ORDER_SUCCESS_SNAPSHOT_KEY = "clinicplus_last_order_success";
+const ORDER_SUBMISSION_KEY_STORAGE = "clinicplus_order_submission_key";
+const ORDER_WEBHOOK_URL =
+  import.meta.env.VITE_ORDER_WEBHOOK_URL?.trim() || "https://webhooks-n8n.iainfinity.app/webhook/novo-carrinho";
 
 function getCartImage(item: CartItem): string | null {
   return getProductImageUrls(item.product)[0] ?? item.product.image_url ?? null;
@@ -45,16 +49,49 @@ function isSameAddressForm(
   left: ReturnType<typeof emptyAddressForm>,
   right: ReturnType<typeof emptyAddressForm>,
 ) {
+  const normalize = (value: string) => value.trim();
+  const normalizeDigits = (value: string) => normalize(value).replace(/\D/g, "");
   return (
-    left.cep === right.cep &&
-    left.street === right.street &&
-    left.number === right.number &&
-    left.complement === right.complement &&
-    left.neighborhood === right.neighborhood &&
-    left.city === right.city &&
-    left.state === right.state &&
-    left.ibge === right.ibge
+    normalizeDigits(left.cep) === normalizeDigits(right.cep) &&
+    normalize(left.street) === normalize(right.street) &&
+    normalize(left.number) === normalize(right.number) &&
+    normalize(left.complement) === normalize(right.complement) &&
+    normalize(left.neighborhood) === normalize(right.neighborhood) &&
+    normalize(left.city) === normalize(right.city) &&
+    normalize(left.state).toUpperCase() === normalize(right.state).toUpperCase() &&
+    normalizeDigits(left.ibge) === normalizeDigits(right.ibge)
   );
+}
+
+function createSubmissionKey() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function readOrCreateSubmissionKey() {
+  try {
+    const stored = sessionStorage.getItem(ORDER_SUBMISSION_KEY_STORAGE);
+    if (stored) return stored;
+    const next = createSubmissionKey();
+    sessionStorage.setItem(ORDER_SUBMISSION_KEY_STORAGE, next);
+    return next;
+  } catch {
+    return createSubmissionKey();
+  }
+}
+
+function clearSubmissionKey() {
+  try {
+    sessionStorage.removeItem(ORDER_SUBMISSION_KEY_STORAGE);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function isUniqueViolation(error: { code?: string | null; message?: string | null }) {
+  return error.code === "23505" || (error.message ?? "").toLowerCase().includes("duplicate key");
 }
 
 export default function OrderForm() {
@@ -68,13 +105,14 @@ export default function OrderForm() {
     customerTprId,
   );
   const { data: savedAddresses = [], saveAddress, setDefaultAddress } = useCustomerAddresses(user?.id ?? null);
-  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const { cart, clearCart } = useCart();
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [orderNote, setOrderNote] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [manualAddressEdit, setManualAddressEdit] = useState(false);
+  const [submissionKey] = useState(() => readOrCreateSubmissionKey());
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -86,6 +124,7 @@ export default function OrderForm() {
   const summaryRef = useRef<HTMLDivElement>(null);
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
   const { assertCnpjReady } = cnpjValidation;
+  const submitLockRef = useRef(false);
   const selectedSavedAddress = useMemo(
     () => (selectedAddressId ? savedAddresses.find((address) => address.id === selectedAddressId) ?? null : null),
     [savedAddresses, selectedAddressId],
@@ -94,15 +133,14 @@ export default function OrderForm() {
     () => savedAddresses.find((address) => address.is_default) ?? savedAddresses[0] ?? null,
     [savedAddresses],
   );
-  const selectedSavedAddressForm = useMemo(
-    () => (selectedSavedAddress ? customerAddressFormFromAddress(selectedSavedAddress) : null),
-    [selectedSavedAddress],
-  );
   const checkoutAddress = !manualAddressEdit && selectedSavedAddress ? selectedSavedAddress : addressForm;
-  const checkoutAddressIsSaved =
-    Boolean(selectedSavedAddressForm) &&
-    !manualAddressEdit &&
-    isSameAddressForm(addressForm, selectedSavedAddressForm);
+  const checkoutAddressMatchesSavedAddress = useMemo(
+    () =>
+      savedAddresses.some((address) =>
+        isSameAddressForm(checkoutAddress, customerAddressFormFromAddress(address)),
+      ),
+    [checkoutAddress, savedAddresses],
+  );
   const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
   const cartSubtotal = useMemo(
     () => calculateCartSubtotal(cart, customerPriceMap),
@@ -150,42 +188,59 @@ export default function OrderForm() {
     }
   }, [customerProfile, manualAddressEdit, savedAddresses, selectedSavedAddress, preferredSavedAddress]);
 
-  const handleSaveCheckoutAddress = async () => {
-    if (!user) return;
+  const persistCheckoutAddress = useCallback(
+    async ({ notify }: { notify: boolean }) => {
+      if (!user) return { ok: false as const, saved: false as const };
 
-    const addressMessage = assertAddressReady(checkoutAddress);
-    if (addressMessage) {
-      toast.error(addressMessage);
-      return;
-    }
-
-    setSavingAddress(true);
-    const addressPayload: CustomerAddressFormData = {
-      ...checkoutAddress,
-      label: savedAddresses.length > 0 ? "Endereço do pedido" : "Principal",
-      is_default: savedAddresses.length === 0,
-    };
-
-    const { error, data } = await saveAddress(addressPayload);
-    if (error) {
-      toast.error(error.message || "Não foi possível salvar o endereço");
-      setSavingAddress(false);
-      return;
-    }
-
-    if (addressPayload.is_default && data?.id) {
-      const defaultResult = await setDefaultAddress(data.id);
-      if (defaultResult.error) {
-        toast.error(defaultResult.error.message || "Não foi possível definir o endereço padrão");
-        setSavingAddress(false);
-        return;
+      const addressMessage = assertAddressReady(checkoutAddress);
+      if (addressMessage) {
+        if (notify) toast.error(addressMessage);
+        return { ok: false as const, saved: false as const };
       }
-    }
 
-    toast.success("Endereço salvo na sua conta.");
+      const addressPayload: CustomerAddressFormData = {
+        ...checkoutAddress,
+        label: savedAddresses.length > 0 ? "Endereço do pedido" : "Principal",
+        is_default: savedAddresses.length === 0,
+      };
+
+      const { error, data } = await saveAddress(addressPayload);
+      if (error) {
+        if (notify) toast.error(error.message || "Não foi possível salvar o endereço");
+        return { ok: false as const, saved: false as const };
+      }
+
+      if (addressPayload.is_default && data?.id) {
+        const defaultResult = await setDefaultAddress(data.id);
+        if (defaultResult.error) {
+          if (notify) toast.error(defaultResult.error.message || "Não foi possível definir o endereço padrão");
+          return { ok: false as const, saved: false as const };
+        }
+      }
+
+      if (data?.id) {
+        setSelectedAddressId(data.id);
+      }
+      setManualAddressEdit(false);
+      if (data) {
+        setAddressForm(customerAddressFormFromAddress(data));
+      }
+
+      if (notify) {
+        toast.success("Endereço salvo na sua conta.");
+      }
+
+      return { ok: true as const, saved: true as const };
+    },
+    [checkoutAddress, savedAddresses.length, saveAddress, setDefaultAddress, user],
+  );
+
+  const handleSaveCheckoutAddress = useCallback(async () => {
+    if (!user) return;
+    setSavingAddress(true);
+    await persistCheckoutAddress({ notify: true });
     setSavingAddress(false);
-    navigate("/conta?section=enderecos", { replace: true, viewTransition: true });
-  };
+  }, [persistCheckoutAddress, user]);
 
   if (loading || isResolvingAccess) {
     return (
@@ -230,6 +285,8 @@ export default function OrderForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (submitLockRef.current) return;
+
     if (cart.length === 0) {
       toast.info("Carrinho vazio");
       return;
@@ -242,192 +299,223 @@ export default function OrderForm() {
       return;
     }
 
-    const addressMessage = assertAddressReady(checkoutAddress);
-    if (addressMessage) {
-      toast.error(addressMessage);
-      return;
-    }
-
+    submitLockRef.current = true;
     setSubmitting(true);
 
-    const priceResolver = (product: CartItem["product"]) => resolveProductPrice(product, customerPriceMap);
-    const orderItems = toOrderItems(cart, priceResolver);
-    const orderSubtotal = calculateCartSubtotal(cart, customerPriceMap);
-
-    const payload = {
-      customer_name: form.name.trim(),
-      customer_phone: form.phone.trim(),
-      customer_company: form.company.trim(),
-      customer_cnpj: form.cnpj.trim(),
-      customer_observation: orderNote.trim() || null,
-      ...addressToOrderColumns(checkoutAddress),
-      items: orderItems as unknown as Json,
-      total_items: totalItems,
-      status: "NOVO CARRINHO",
-    };
-
-    const { error } = await supabase.from(ORDERS_TABLE).insert(payload as never);
-
-    if (error) {
-      console.error("Erro ao inserir pedido no Supabase", { error, payload });
-      const lowerMessage = error.message.toLowerCase() ?? "";
-      const isRlsError = lowerMessage.includes("row-level security");
-      toast.error(
-        isRlsError
-          ? "Permissão negada ao salvar o pedido. Verifique as políticas (RLS) da tabela orders."
-          : error.message || "Erro ao enviar pedido"
-      );
-      setSubmitting(false);
-      return;
-    }
-
-    const proxisItems = orderItems.map((row) => ({
-      product_code: row.product_code || "",
-      quantity: row.quantity,
-      unit_price: row.unit_price,
-      name: row.name,
-    }));
-    let proxisWarning: string | null = null;
-
     try {
-      const proxisRes = await fetch("/api/proxis-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_name: form.name.trim(),
-          customer_cnpj: form.cnpj.trim(),
-          customer_company: form.company.trim(),
-          customer_observation: orderNote.trim() || null,
-          address: addressToProxisPayload(checkoutAddress),
-          items: proxisItems,
-          note: orderNote.trim() || "Pedido enviado a partir do carrinho do catalogo.",
-        }),
-      });
-
-      if (!proxisRes.ok) {
-        const errBody = await proxisRes.json().catch(() => ({}));
-        proxisWarning =
-          typeof errBody.error === "string" && errBody.error.trim()
-            ? errBody.error
-            : `status ${proxisRes.status}`;
+      const addressMessage = assertAddressReady(checkoutAddress);
+      if (addressMessage) {
+        toast.error(addressMessage);
+        return;
       }
-    } catch (err) {
-      proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
-    }
 
-    try {
-      const bitrixRes = await fetch("/api/bitrix-deal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_name: form.name.trim(),
-          customer_company: form.company.trim(),
-          customer_cnpj: form.cnpj.trim(),
-          customer_phone: form.phone.trim(),
-          customer_observation: orderNote.trim() || null,
-          address: {
-            cep: checkoutAddress.cep,
-            street: checkoutAddress.street,
-            number: checkoutAddress.number,
-            complement: checkoutAddress.complement,
-            neighborhood: checkoutAddress.neighborhood,
-            city: checkoutAddress.city,
-            state: checkoutAddress.state,
-          },
-          items: proxisItems,
-          total_amount: orderSubtotal,
-          source: "clinicplus-b2b",
-          note: orderNote.trim() || "Pedido enviado a partir do carrinho do catalogo.",
-        }),
-      });
-
-      if (!bitrixRes.ok) {
-        await bitrixRes.json().catch(() => ({}));
+      if (!checkoutAddressMatchesSavedAddress) {
+        const savedAddressResult = await persistCheckoutAddress({ notify: false });
+        if (!savedAddressResult.ok) {
+          return;
+        }
       }
-    } catch (err) {
-      void err;
-    }
 
-    const submittedCart: SubmittedCartLine[] = cart.map((item) => {
-      const unit = resolveProductPrice(item.product, customerPriceMap);
-      const qty = item.quantity;
-      return {
-        imageUrl: getCartImage(item),
-        name: item.product.name,
-        type: item.product.type,
-        family: item.product.family,
-        quantity: qty,
-        unit_price: unit,
-        line_total: Math.round(unit * qty * 100) / 100,
-        notes: item.notes,
+      const priceResolver = (product: CartItem["product"]) => resolveProductPrice(product, customerPriceMap);
+      const orderItems = toOrderItems(cart, priceResolver);
+      const orderSubtotal = calculateCartSubtotal(cart, customerPriceMap);
+
+      const payload = {
+        submission_key: submissionKey,
+        customer_name: form.name.trim(),
+        customer_phone: form.phone.trim(),
+        customer_company: form.company.trim(),
+        customer_cnpj: form.cnpj.trim(),
+        customer_observation: orderNote.trim() || null,
+        ...addressToOrderColumns(checkoutAddress),
+        items: orderItems as unknown as Json,
+        total_items: totalItems,
+        status: "NOVO CARRINHO",
       };
-    });
 
-    saveCart([]);
-    setCart([]);
-    toast.success("Pedido enviado com sucesso!");
-    if (proxisWarning) {
-      toast.warning(`O pedido foi salvo, mas o Proxsys não recebeu o envio. Motivo: ${proxisWarning}`);
-    }
+      const { error } = await supabase.from(ORDERS_TABLE).insert(payload as never);
 
-    try {
-      const itemsForWebhook = orderItems.map((row) => ({
-        product_id: row.product_id,
-        name: row.name,
-        type: row.type,
-        family: row.family,
+      let duplicateSubmission = false;
+
+      if (error) {
+        if (isUniqueViolation(error)) {
+          duplicateSubmission = true;
+        } else {
+          console.error("Erro ao inserir pedido no Supabase", { error, payload });
+          const lowerMessage = error.message.toLowerCase() ?? "";
+          const isRlsError = lowerMessage.includes("row-level security");
+          toast.error(
+            isRlsError
+              ? "Permissão negada ao salvar o pedido. Verifique as políticas (RLS) da tabela orders."
+              : error.message || "Erro ao enviar pedido",
+          );
+          return;
+        }
+      }
+
+      const proxisItems = orderItems.map((row) => ({
+        product_code: row.product_code || "",
         quantity: row.quantity,
         unit_price: row.unit_price,
-        line_total: row.line_total,
-        notes: row.notes,
+        name: row.name,
       }));
-      const cartTotal = Math.round(orderSubtotal * 100) / 100;
+      let proxisWarning: string | null = null;
 
-      await fetch("https://webhooks-n8n.iainfinity.app/webhook/novo-carrinho", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order: payload,
-          items: itemsForWebhook,
-          total_items: payload.total_items,
-          order_subtotal: cartTotal,
-          cart_total: cartTotal,
-          valor_total_carrinho: cartTotal,
-          currency: "BRL",
-          status: payload.status,
-        }),
+      if (!duplicateSubmission) {
+        try {
+          const proxisRes = await fetch("/api/proxis-order", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customer_name: form.name.trim(),
+              customer_cnpj: form.cnpj.trim(),
+              customer_company: form.company.trim(),
+              customer_observation: orderNote.trim() || null,
+              address: addressToProxisPayload(checkoutAddress),
+              items: proxisItems,
+              note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
+            }),
+          });
+
+          if (!proxisRes.ok) {
+            const errBody = await proxisRes.json().catch(() => ({}));
+            proxisWarning =
+              typeof errBody.error === "string" && errBody.error.trim()
+                ? errBody.error
+                : `status ${proxisRes.status}`;
+          }
+        } catch (err) {
+          proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
+        }
+
+        try {
+          const bitrixRes = await fetch("/api/bitrix-deal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              customer_name: form.name.trim(),
+              customer_company: form.company.trim(),
+              customer_cnpj: form.cnpj.trim(),
+              customer_phone: form.phone.trim(),
+              customer_observation: orderNote.trim() || null,
+              address: {
+                cep: checkoutAddress.cep,
+                street: checkoutAddress.street,
+                number: checkoutAddress.number,
+                complement: checkoutAddress.complement,
+                neighborhood: checkoutAddress.neighborhood,
+                city: checkoutAddress.city,
+                state: checkoutAddress.state,
+              },
+              items: proxisItems,
+              total_amount: orderSubtotal,
+              source: "clinicplus-b2b",
+              note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
+            }),
+          });
+
+          if (!bitrixRes.ok) {
+            await bitrixRes.json().catch(() => ({}));
+          }
+        } catch (err) {
+          void err;
+        }
+
+        try {
+          const itemsForWebhook = orderItems.map((row) => ({
+            product_id: row.product_id,
+            name: row.name,
+            type: row.type,
+            family: row.family,
+            quantity: row.quantity,
+            unit_price: row.unit_price,
+            line_total: row.line_total,
+            notes: row.notes,
+          }));
+          const cartTotal = Math.round(orderSubtotal * 100) / 100;
+
+          await fetch(ORDER_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order: payload,
+              items: itemsForWebhook,
+              total_items: payload.total_items,
+              order_subtotal: cartTotal,
+              cart_total: cartTotal,
+              valor_total_carrinho: cartTotal,
+              currency: "BRL",
+              status: payload.status,
+            }),
+          });
+        } catch (err) {
+          console.warn("Falha ao enviar webhook do pedido", err);
+        }
+
+        if (proxisWarning) {
+          toast.warning(`O pedido foi salvo, mas o Proxsys não recebeu o envio. Motivo: ${proxisWarning}`);
+        }
+      } else {
+        toast.success("Este pedido já tinha sido enviado. Reaproveitamos o registro salvo.");
+      }
+
+      const submittedCart: SubmittedCartLine[] = cart.map((item) => {
+        const unit = resolveProductPrice(item.product, customerPriceMap);
+        const qty = item.quantity;
+        return {
+          imageUrl: getCartImage(item),
+          name: item.product.name,
+          type: item.product.type,
+          family: item.product.family,
+          quantity: qty,
+          unit_price: unit,
+          line_total: Math.round(unit * qty * 100) / 100,
+          notes: item.notes,
+        };
       });
-    } catch (err) {
-      console.warn("Falha ao enviar webhook do pedido", err);
+
+      clearCart();
+      clearSubmissionKey();
+      if (!duplicateSubmission) {
+        toast.success("Pedido enviado com sucesso!");
+      }
+
+      const successState = {
+        customerName: payload.customer_name,
+        customerPhone: payload.customer_phone,
+        company: payload.customer_company,
+        customerCnpj: payload.customer_cnpj,
+        customerAddress: checkoutAddress,
+        totalItems: payload.total_items,
+        submittedCart,
+        orderSubtotal,
+        orderNote: orderNote.trim(),
+      };
+
+      try {
+        sessionStorage.setItem(ORDER_SUCCESS_SNAPSHOT_KEY, JSON.stringify(successState));
+      } catch {
+        // ignore storage failures
+      }
+
+      navigate("/pedido/obrigado", {
+        replace: true,
+        viewTransition: true,
+        state: successState,
+      });
+    } finally {
+      setSubmitting(false);
+      submitLockRef.current = false;
     }
-
-    const successState = {
-      customerName: payload.customer_name,
-      customerPhone: payload.customer_phone,
-      company: payload.customer_company,
-      customerCnpj: payload.customer_cnpj,
-      customerAddress: checkoutAddress,
-      totalItems: payload.total_items,
-      submittedCart,
-      orderSubtotal,
-      orderNote: orderNote.trim(),
-    };
-
-    try {
-      sessionStorage.setItem(ORDER_SUCCESS_SNAPSHOT_KEY, JSON.stringify(successState));
-    } catch {
-      // ignore storage failures
-    }
-
-    navigate("/pedido/obrigado", {
-      replace: true,
-      viewTransition: true,
-      state: successState,
-    });
   };
 
   return (
-      <div className={`min-h-screen bg-background${cart.length > 0 ? " pb-28" : ""}`}>
+    <div className="relative min-h-screen bg-[linear-gradient(180deg,hsl(var(--primary)/0.04),hsl(var(--background))_28%,hsl(var(--background)))]">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
+        <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+      </div>
+      <div className={`relative${cart.length > 0 ? " pb-28" : ""}`}>
       <PageHeaderShell>
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
@@ -466,11 +554,16 @@ export default function OrderForm() {
 
       <div className="container mx-auto max-w-[1400px] px-4 py-6 lg:py-8">
         {!user && allowGuestCheckout ? (
-          <div className="mb-6 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
-            <p className="font-semibold text-primary">Modo de diagnóstico ativo</p>
-            <p className="mt-1 text-muted-foreground">
-              O acesso ao checkout está liberado temporariamente para depuração local. Isso não altera a regra normal de login.
-            </p>
+          <div className="mb-6 flex items-start gap-3 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="font-semibold text-primary">Modo de diagnóstico ativo</p>
+              <p className="text-muted-foreground">
+                Checkout liberado para depuração local. Isso não altera a regra normal de login.
+              </p>
+            </div>
           </div>
         ) : null}
 
@@ -485,24 +578,32 @@ export default function OrderForm() {
           </div>
         ) : (
           <div className="space-y-6">
-            <section className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-              <div className="grid gap-0">
-                <div className="relative z-10 p-6 sm:p-8 lg:p-10">
-                  <h1 className="mt-4 text-2xl font-semibold leading-tight text-foreground sm:text-3xl lg:text-4xl">
-                    Finalizar pedido
-                  </h1>
-                  <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-                    Revise seus dados, confirme o endereço e envie tudo de uma vez para o atendimento.
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary" className="rounded-full px-3 py-1">
-                      {totalItems} item(ns)
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full px-3 py-1 tabular-nums">
-                      {formatBRL(cartSubtotal)}
-                    </Badge>
+            <section className="relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card/95 shadow-sm">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-transparent" />
+              <div className="relative z-10 p-6 sm:p-8 lg:p-10">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <ShoppingBag className="h-6 w-6 text-primary" />
                   </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">
+                      Checkout
+                    </p>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+                      Finalizar pedido
+                    </h1>
+                  </div>
+                </div>
+                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                  Revise seus dados, confirme o endereço e envie tudo para o atendimento.
+                </p>
+                <div className="mt-6 flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="rounded-full px-3 py-1">
+                    {totalItems} item(ns)
+                  </Badge>
+                  <Badge variant="outline" className="rounded-full px-3 py-1 tabular-nums">
+                    {formatBRL(cartSubtotal)}
+                  </Badge>
                 </div>
               </div>
             </section>
@@ -510,13 +611,18 @@ export default function OrderForm() {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
               <div className="space-y-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
                     <div className="mb-5 flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-foreground">Dados do cliente</h2>
-                        <p className="text-sm text-muted-foreground">
-                          Contato, empresa e identificação para confirmar o pedido.
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                          <User className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <h2 className="text-base font-semibold text-foreground">Dados do cliente</h2>
+                          <p className="text-sm text-muted-foreground">
+                            Contato, empresa e CNPJ para confirmar o pedido.
+                          </p>
+                        </div>
                       </div>
                       <Badge variant="secondary" className="rounded-full px-3 py-1">
                         Cadastro
@@ -534,13 +640,18 @@ export default function OrderForm() {
                   </section>
 
                   {savedAddresses.length > 0 ? (
-                    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                    <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
                       <div className="mb-4 flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <h2 className="text-lg font-semibold text-foreground">Endereços salvos</h2>
-                          <p className="text-sm text-muted-foreground">
-                            Selecione um endereço existente para usar na compra ou editar os campos abaixo.
-                          </p>
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warm/10">
+                            <MapPin className="h-4 w-4 text-warm" />
+                          </div>
+                          <div className="space-y-1">
+                            <h2 className="text-base font-semibold text-foreground">Endereços salvos</h2>
+                            <p className="text-sm text-muted-foreground">
+                              Selecione um endereço para usar na compra ou edite os campos abaixo.
+                            </p>
+                          </div>
                         </div>
                         <Badge variant="secondary" className="rounded-full px-3 py-1">
                           {savedAddresses.length}/5
@@ -604,87 +715,127 @@ export default function OrderForm() {
                       </div>
                     </section>
                   ) : (
-                    <section className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-4 text-sm text-foreground">
-                      <p className="font-semibold text-primary">Nenhum endereço salvo no seu cadastro.</p>
-                      <p className="mt-1 text-muted-foreground">
-                        Preencha os campos abaixo para usar este endereço neste pedido. Se quiser, depois você pode
-                        salvar essa entrega na área do cliente.
-                      </p>
+                    <section className="rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-5 text-sm text-foreground">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warm/10">
+                          <MapPin className="h-4 w-4 text-warm" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-semibold text-primary">Nenhum endereço salvo</p>
+                          <p className="text-muted-foreground">
+                            Preencha os campos abaixo para usar este endereço no pedido.
+                          </p>
+                        </div>
+                      </div>
                     </section>
                   )}
 
-                  <AddressFields
-                    form={addressForm}
-                    onChange={(patch) => {
-                      setManualAddressEdit(true);
-                      setSelectedAddressId(null);
-                      setAddressForm((prev) => ({ ...prev, ...patch }));
-                    }}
-                  />
+                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warm/10">
+                        <MapPin className="h-4 w-4 text-warm" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <h2 className="text-base font-semibold text-foreground">Endereço de entrega</h2>
+                        <p className="text-sm text-muted-foreground">Informe o local para receber o pedido.</p>
+                      </div>
+                    </div>
+                    <AddressFields
+                      form={addressForm}
+                      onChange={(patch) => {
+                        setManualAddressEdit(true);
+                        setSelectedAddressId(null);
+                        setAddressForm((prev) => ({ ...prev, ...patch }));
+                      }}
+                    />
+                  </section>
 
-                  <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-foreground">Salvar endereço na conta</h2>
-                        <p className="text-sm text-muted-foreground">
-                          Salve este endereço na área do cliente para continuar com a compra e reutilizá-lo depois.
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/5">
+                          <CreditCard className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <h2 className="text-base font-semibold text-foreground">Salvar endereço na conta</h2>
+                          <p className="text-sm text-muted-foreground">
+                            Salve para reutilizar depois ou continue — será salvo automaticamente no envio.
+                          </p>
+                        </div>
                       </div>
                       <Button
                         type="button"
                         variant="outline"
                         className="w-full rounded-full border-primary/30 px-5 sm:w-auto"
                         onClick={handleSaveCheckoutAddress}
-                        disabled={savingAddress || submitting || checkoutAddressIsSaved}
+                        disabled={savingAddress || submitting || checkoutAddressMatchesSavedAddress}
                       >
-                        {savingAddress ? "Salvando..." : checkoutAddressIsSaved ? "Endereço salvo" : "Salvar endereço"}
+                        {savingAddress ? "Salvando..." : checkoutAddressMatchesSavedAddress ? "Endereço salvo" : "Salvar endereço"}
                       </Button>
                     </div>
                   </section>
 
-                  <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
                     <div className="mb-4 flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-foreground">Observações do pedido</h2>
-                        <p className="text-sm text-muted-foreground">
-                          Use este campo para orientar entrega, complemento do endereço ou qualquer detalhe importante.
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/50">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="space-y-1">
+                          <h2 className="text-base font-semibold text-foreground">Observações do pedido</h2>
+                          <p className="text-sm text-muted-foreground">
+                            Orientação de entrega, complemento ou qualquer detalhe importante.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="secondary" className="rounded-full px-3 py-1">
+                          Opcional
+                        </Badge>
+                        <p className="text-[11px] text-muted-foreground">
+                          {orderNote.length}/{ORDER_TEXT_LIMITS.observation} caracteres
                         </p>
                       </div>
-                      <Badge variant="secondary" className="rounded-full px-3 py-1">
-                        Opcional
-                      </Badge>
                     </div>
 
                     <Textarea
                       value={orderNote}
-                      onChange={(e) => setOrderNote(e.target.value)}
+                      onChange={(e) => setOrderNote(e.target.value.slice(0, ORDER_TEXT_LIMITS.observation))}
                       placeholder="Ex.: Deixar na portaria, entregar no horário comercial, confirmar complemento antes de enviar."
+                      maxLength={ORDER_TEXT_LIMITS.observation}
                       className="min-h-32 rounded-2xl border-border/70 bg-background text-sm leading-6"
                     />
                   </section>
 
-                  <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+                  <section className="rounded-2xl border border-primary/20 bg-card p-5 shadow-sm sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-foreground">Pronto para enviar</p>
-                        <p className="text-sm text-muted-foreground">
-                          O resumo ao lado mostra itens, quantidades e total estimado.
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-base font-semibold text-foreground">Pronto para enviar</p>
+                          <p className="text-sm text-muted-foreground">
+            {submitting
+              ? "Enviando seu pedido..."
+              : "Revise os itens ao lado e confirme o pedido."}
+                          </p>
+                        </div>
                       </div>
 
                       <Button
                         type="submit"
-                        className="w-full gap-2 sm:w-auto"
+                        className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 sm:w-auto"
                         size="lg"
-                        disabled={submitting || !checkoutAddressIsSaved}
+                        disabled={submitting}
                       >
                         <Send className="h-4 w-4" />
                         {submitting ? "Enviando..." : "Enviar pedido"}
                       </Button>
                     </div>
-                    {!checkoutAddressIsSaved ? (
+                    {!checkoutAddressMatchesSavedAddress ? (
                       <p className="mt-3 text-sm text-muted-foreground">
-                        O envio do pedido fica disponível depois que o endereço estiver salvo na sua conta.
+                        Se o endereço ainda não estiver salvo, ele será salvo automaticamente antes do envio.
                       </p>
                     ) : null}
                   </section>
@@ -693,14 +844,19 @@ export default function OrderForm() {
 
               <div
                 ref={summaryRef}
-                className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6 lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:self-start"
+                className="rounded-[1.75rem] border border-border/60 bg-card/95 p-5 shadow-sm sm:p-6 lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:self-start"
               >
                 <div className="mb-5 flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-semibold text-foreground">Resumo do carrinho</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Confira itens, quantidades e totais antes de enviar.
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                      <ShoppingBag className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="space-y-1">
+                      <h2 className="text-base font-semibold text-foreground">Resumo do carrinho</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Confira itens e quantidades antes de enviar.
+                      </p>
+                    </div>
                   </div>
                   <Badge variant="secondary" className="rounded-full px-3 py-1">
                     {totalItems} item(ns)
@@ -775,10 +931,10 @@ export default function OrderForm() {
                   })}
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-border bg-muted/20 p-4 lg:mt-4">
+                <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-5 lg:mt-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
-                    <span className="text-xl font-semibold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
+                    <span className="text-2xl font-bold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
                   </div>
                 </div>
               </div>
@@ -787,12 +943,7 @@ export default function OrderForm() {
         )}
       </div>
 
-      <CartTotalBar
-        total={cartSubtotal}
-        itemCount={totalItems}
-        visible={cart.length > 0}
-        onOpenCart={scrollToSummary}
-      />
-    </div>
-  );
-}
+        </div>
+      </div>
+    );
+  }

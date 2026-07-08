@@ -1,17 +1,30 @@
 ﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
-import Index from "./pages/Index.tsx";
-import Admin from "./pages/AdminWorkspace.tsx";
-import ProductDetails from "./pages/ProductDetails.tsx";
-import OrderForm from "./pages/OrderForm.tsx";
-import OrderSuccess from "./pages/OrderSuccess.tsx";
-import Login from "./pages/Login.tsx";
-import Account from "./pages/Account.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { CartProvider } from "@/hooks/useCart";
+const Index = lazy(() => import("./pages/Index.tsx"));
+const Admin = lazy(() => import("./pages/AdminWorkspace.tsx"));
+const ProductDetails = lazy(() => import("./pages/ProductDetails.tsx"));
+const OrderForm = lazy(() => import("./pages/OrderForm.tsx"));
+const OrderSuccess = lazy(() => import("./pages/OrderSuccess.tsx"));
+const Login = lazy(() => import("./pages/Login.tsx"));
+const Account = lazy(() => import("./pages/Account.tsx"));
+const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+
+function RouteLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="space-y-3 text-center">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Carregando página...</p>
+      </div>
+    </div>
+  );
+}
 
 const queryClient = new QueryClient();
 const supportsViewTransitions =
@@ -25,16 +38,18 @@ function AppRoutes() {
       data-native-view-transition={supportsViewTransitions ? "true" : "false"}
       className="page-shell"
     >
-      <Routes location={location}>
-        <Route path="/" element={<Index />} />
-        <Route path="/produto/:id" element={<ProductDetails />} />
-        <Route path="/pedido" element={<OrderForm />} />
-        <Route path="/pedido/obrigado" element={<OrderSuccess />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/conta" element={<Account />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes location={location}>
+          <Route path="/" element={<Index />} />
+          <Route path="/produto/:id" element={<ProductDetails />} />
+          <Route path="/pedido" element={<OrderForm />} />
+          <Route path="/pedido/obrigado" element={<OrderSuccess />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/conta" element={<Account />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </div>
   );
 }
@@ -46,7 +61,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <CartProvider>
+            <AppRoutes />
+          </CartProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

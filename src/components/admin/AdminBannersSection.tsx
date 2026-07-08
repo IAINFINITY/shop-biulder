@@ -13,7 +13,7 @@ import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminBanner } from "./adminTypes";
 import { CATALOG_BANNERS_TABLE } from "@/lib/catalogBanners";
-import { uploadProductImageFile } from "@/lib/productImageStorage";
+import { deleteStorageImage, uploadProductImageFile } from "@/lib/productImageStorage";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 import { cn } from "@/lib/utils";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
@@ -145,6 +145,11 @@ export function AdminBannersSection() {
   };
 
   const deleteBanner = async (id: string) => {
+    const banner = banners.find((b) => b.id === id);
+    if (banner?.image_url) {
+      await deleteStorageImage(banner.image_url);
+    }
+
     const { error } = await supabase.from(CATALOG_BANNERS_TABLE).delete().eq("id", id);
     if (error) {
       console.error("Erro ao remover banner", error);

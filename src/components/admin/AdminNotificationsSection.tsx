@@ -26,7 +26,7 @@ import { CATALOG_NOTIFICATIONS_TABLE, type CatalogNotification } from "@/lib/cat
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useAdminCustomerProfiles } from "@/hooks/useAdminCustomerProfiles";
 import { useAuth } from "@/hooks/useAuth";
-import { uploadProductImageFile } from "@/lib/productImageStorage";
+import { deleteStorageImage, uploadProductImageFile } from "@/lib/productImageStorage";
 import { cn } from "@/lib/utils";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 
@@ -846,6 +846,11 @@ export function AdminNotificationsSection() {
   };
 
   const deleteNotification = async (id: string) => {
+    const notification = notifications.find((n) => n.id === id);
+    if (notification?.image_url) {
+      await deleteStorageImage(notification.image_url);
+    }
+
     const { error } = await supabase.from(CATALOG_NOTIFICATIONS_TABLE).delete().eq("id", id);
     if (error) {
       console.error("Erro ao remover notificação", error);

@@ -452,14 +452,13 @@ export default function Index() {
                     {Array.from({ length: 8 }).map((_, index) => (
                       <div key={index} className="overflow-hidden rounded-[1.5rem] bg-background/70 ring-1 ring-black/5">
                         <Skeleton className="aspect-[4/3] w-full rounded-none" />
-                        <div className="space-y-3 p-4">
+                        <div className="space-y-4 p-4">
                           <div className="flex gap-2">
                             <Skeleton className="h-6 w-16 rounded-full" />
                             <Skeleton className="h-6 w-20 rounded-full" />
                           </div>
-                          <Skeleton className="h-5 w-3/4 rounded-md" />
-                          <Skeleton className="h-4 w-5/6 rounded-md" />
-                          <Skeleton className="h-4 w-1/3 rounded-md" />
+                          <Skeleton className="h-[3.25rem] w-full rounded-md" />
+                          <Skeleton className="h-[3.5rem] w-full rounded-md" />
                           <Skeleton className="h-10 w-full rounded-2xl" />
                         </div>
                       </div>

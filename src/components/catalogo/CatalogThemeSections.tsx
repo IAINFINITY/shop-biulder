@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ImageIcon, Plus } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatBRL } from "@/lib/formatMoney";
 import { getProductImageUrls } from "@/lib/products";
 import { cn } from "@/lib/utils";
@@ -69,7 +70,7 @@ function ThemeProductCard({
             </span>
           </div>
 
-          <div className="mt-3 flex min-h-[11rem] items-center justify-center rounded-[1.15rem] bg-background/90 p-3 ring-1 ring-black/5">
+          <div className="mt-3 aspect-[4/3] flex items-center justify-center rounded-[1.15rem] bg-background/90 p-3 ring-1 ring-black/5">
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -203,8 +204,58 @@ function ThemeShelf({
 export function CatalogThemeSections({ sections, resolvePrice, onAdd, inCartIds }: CatalogThemeSectionsProps) {
   const visibleSections = sections.filter((section) => section.products.length > 0);
 
+if (visibleSections.length === 0) {
+    const gridClass = "grid auto-cols-[100%] grid-flow-col gap-4 sm:auto-cols-[calc((100%_-_1rem)/2)] lg:auto-cols-[calc((100%_-_2rem)/3)] xl:auto-cols-[calc((100%_-_3rem)/4)] 2xl:auto-cols-[calc((100%_-_4rem)/5)]";
+    const skeletonShelves = [];
+    for (let i = 0; i < 2; i++) {
+      const skeletonCards = [];
+      for (let j = 0; j < 4; j++) {
+        skeletonCards.push(
+          <div key={j} className="overflow-hidden rounded-[1.45rem] bg-background/85 ring-1 ring-black/5">
+            <Skeleton className="aspect-[4/3] w-full rounded-none" />
+            <div className="space-y-3 p-4">
+              <div className="flex gap-2">
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-[2.7rem] w-full rounded-md" />
+              <div className="flex items-end justify-between gap-3 border-t border-black/5 pt-3">
+                <div className="space-y-1">
+                  <Skeleton className="h-3 w-12 rounded-md" />
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                </div>
+                <Skeleton className="h-9 w-28 rounded-full" />
+              </div>
+            </div>
+          </div>
+        );
+      }
+      skeletonShelves.push(
+        <section key={i} className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/5 pb-4">
+            <div className="space-y-1">
+              <Skeleton className="h-4 w-20 rounded-md" />
+              <Skeleton className="h-8 w-48 rounded-md" />
+              <Skeleton className="h-5 w-72 rounded-md" />
+            </div>
+            <Skeleton className="h-9 w-24 rounded-full" />
+          </div>
+          <div className={gridClass}>
+            {skeletonCards}
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <div className="mt-10 space-y-10">
+        {skeletonShelves}
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-10 space-y-10" style={visibleSections.length === 0 ? { minHeight: '280px' } : undefined}>
+    <div className="mt-10 space-y-10">
       {visibleSections.map((section) => (
         <ThemeShelf key={section.id} section={section} resolvePrice={resolvePrice} onAdd={onAdd} inCartIds={inCartIds} />
       ))}

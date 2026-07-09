@@ -109,7 +109,7 @@ export default function OrderSuccess() {
         <div className="absolute right-[-120px] top-20 h-80 w-80 rounded-full bg-accent/15 blur-3xl" />
       </div>
 
-      <PageHeaderShell className="border-b-border/60">
+      <PageHeaderShell compact className="border-b-border/60">
         <div className="flex w-full items-center justify-between gap-4">
           <ClinicPlusLogo className="h-10 sm:h-11" />
           <Link to="/" viewTransition>
@@ -121,7 +121,7 @@ export default function OrderSuccess() {
         </div>
       </PageHeaderShell>
 
-      <main className="relative mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main className="relative mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8 pb-safe">
         <section className="rounded-[1.75rem] border border-border/60 bg-card/95 p-6 shadow-sm sm:p-8">
           <div className="flex flex-col gap-5">
             <div className="max-w-4xl space-y-3">
@@ -135,7 +135,7 @@ export default function OrderSuccess() {
               <div className="space-y-1 text-sm leading-7 text-muted-foreground">
                 <p>Se precisar falar com o consultor, use o WhatsApp:</p>
                 <a
-                  className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
+                  className="inline-flex min-h-[44px] items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
                   href={REPRESENTATIVE_PHONE_WHATSAPP_URL}
                   target="_blank"
                   rel="noreferrer"

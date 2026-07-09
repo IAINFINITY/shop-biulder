@@ -131,7 +131,7 @@ function ConversationCard({
       )}
     >
       <div className="flex items-start gap-3">
-        <Avatar className="h-9 w-9 shrink-0 border border-border/70 bg-background">
+        <Avatar className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 border border-border/70 bg-background">
           <AvatarFallback className="bg-primary/5 text-xs font-semibold text-primary">
             {getInitials(conversation.customer_company || conversation.customer_name)}
           </AvatarFallback>
@@ -163,7 +163,7 @@ function CustomerConversationSummary({ conversation }: { conversation: SupportCo
   return (
     <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-3 shadow-[0_8px_20px_rgba(174,19,21,0.06)]">
       <div className="flex items-start gap-3">
-        <Avatar className="h-9 w-9 shrink-0 border border-primary/10 bg-background">
+        <Avatar className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 border border-primary/10 bg-background">
           <AvatarFallback className="bg-primary/5 text-xs font-semibold text-primary">
             {getInitials(conversation.customer_company || conversation.customer_name)}
           </AvatarFallback>
@@ -432,7 +432,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </div>
                   <Badge
                     variant="outline"
-                    className="flex h-8 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border-border/70 bg-background px-2 text-[10px] font-medium tabular-nums text-muted-foreground"
+                    className="flex h-10 sm:h-8 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border-border/70 bg-background px-2 text-[10px] font-medium tabular-nums text-muted-foreground"
                   >
                     {customerConversationLoading ? "..." : selectedConversation ? "1 conversa" : "0 conversa"}
                   </Badge>
@@ -498,7 +498,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                         )}
                         {isOtherTyping ? (
                           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Avatar className="h-8 w-8 border border-border/70 bg-background">
+                            <Avatar className="h-10 w-10 sm:h-8 sm:w-8 border border-border/70 bg-background">
                               <AvatarFallback className="bg-primary/5 text-[10px] font-semibold text-primary">
                                 C
                               </AvatarFallback>
@@ -562,7 +562,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </div>
                   <Badge
                     variant="outline"
-                    className="flex h-8 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border-border/70 bg-background px-2 text-[10px] font-medium tabular-nums text-muted-foreground"
+                    className="flex h-10 sm:h-8 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border-border/70 bg-background px-2 text-[10px] font-medium tabular-nums text-muted-foreground"
                   >
                     {inboxConversations.length}
                   </Badge>
@@ -618,7 +618,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 rounded-full px-4 text-sm"
+                        className="h-10 sm:h-9 rounded-full px-4 text-sm"
                         onClick={() => setInternalStaffDialogOpen(true)}
                       >
                         Papéis internos
@@ -659,7 +659,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                         )}
                         {isOtherTyping ? (
                           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Avatar className="h-8 w-8 border border-border/70 bg-background">
+                            <Avatar className="h-10 w-10 sm:h-8 sm:w-8 border border-border/70 bg-background">
                               <AvatarFallback className="bg-primary/5 text-[10px] font-semibold text-primary">
                                 {isCustomerMode ? "C" : "U"}
                               </AvatarFallback>

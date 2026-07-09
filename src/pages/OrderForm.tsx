@@ -14,6 +14,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { type CartItem, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
+import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
@@ -468,8 +469,8 @@ export default function OrderForm() {
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       </div>
-      <div className="relative pb-28">
-      <PageHeaderShell>
+      <div className="relative pb-32">
+      <PageHeaderShell compact>
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <Link to="/" viewTransition>
@@ -658,7 +659,7 @@ export default function OrderForm() {
                                 </p>
                                 <p className="text-sm text-muted-foreground">{formatCep(address.cep)}</p>
                               </div>
-                              <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                              <span className="flex h-9 items-center rounded-full px-3 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground ring-1 ring-border/60">
                                 Usar
                               </span>
                             </div>
@@ -828,7 +829,7 @@ export default function OrderForm() {
                         className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm transition-colors hover:border-primary/20"
                       >
                         <div className="flex gap-4">
-                          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/30">
+                          <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/30">
                              {imageUrl ? (
                                <img src={imageUrl} alt={item.product.name} width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full object-contain p-2" />
                             ) : (
@@ -897,6 +898,8 @@ export default function OrderForm() {
       </div>
 
         </div>
+
+      <MobileBottomNav cartItemCount={totalItems} onOpenCart={scrollToSummary} />
       </div>
     );
   }

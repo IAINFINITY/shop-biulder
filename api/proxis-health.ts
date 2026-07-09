@@ -87,8 +87,12 @@ async function checkProxisViaN8n(): Promise<{ connected: boolean; error: string 
       return { connected: false, error: `Proxis HTTP ${result.status}` };
     }
 
-    if (result?.error) {
-      return { connected: false, error: result.error };
+    if (result?.error || result?.errorMessage || result?.message) {
+      return { connected: false, error: result.error || result.errorMessage || result.message };
+    }
+
+    if (result?.body === null && result?.status === 500) {
+      return { connected: false, error: "Proxis via n8n retornou erro" };
     }
 
     return { connected: true, error: null };
@@ -99,6 +103,8 @@ async function checkProxisViaN8n(): Promise<{ connected: boolean; error: string 
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Cache-Control", "no-store, max-age=0");
+
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }

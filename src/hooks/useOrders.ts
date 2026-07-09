@@ -40,7 +40,7 @@ export function useOrders(enabled = true, queryKeySuffix = "default") {
     enabled,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
-    initialData: () => readCachedOrders(queryKeySuffix),
+    placeholderData: () => readCachedOrders(queryKeySuffix),
     queryFn: async (): Promise<Order[]> => {
       const supabase = await loadSupabaseClient();
       const { data, error } = await supabase

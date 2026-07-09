@@ -5,18 +5,20 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "proxis-proxy",
-        "options": {}
+        "options": {
+          "responseMode": "responseNode"
+        }
       },
       "id": "b1c2d3e4-0001-4000-8000-000000000001",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [0, 300],
       "webhookId": "proxis-proxy"
     },
     {
       "parameters": {
-        "jsCode": "const p = $input.first().json;\n\nif (!p.endpoint || !p.method || !p.headers) {\n  throw new Error('Payload inválido: endpoint, method e headers são obrigatórios');\n}\n\nconst baseUrl = 'http://177.38.10.218:8082/datasnap/rest/TSMApi';\nconst url = `${baseUrl}/\"${p.endpoint}\"`;\n\nconst fetchOptions = {\n  method: p.method,\n  headers: p.headers,\n  rejectUnauthorized: false,\n  timeout: 30000,\n};\n\nif (p.body && p.method !== 'GET') {\n  fetchOptions.body = typeof p.body === 'string' ? p.body : JSON.stringify(p.body);\n}\n\ntry {\n  const response = await this.helpers.httpRequest({\n    url,\n    method: p.method,\n    headers: p.headers,\n    body: p.body,\n    json: false,\n    returnFullResponse: true,\n    simple: false,\n    timeout: 30000,\n  });\n\n  let body = response.body;\n  if (typeof body === 'string' && body.trim()) {\n    try { body = JSON.parse(body); } catch {}\n  }\n\n  return [{\n    json: {\n      status: response.statusCode || 200,\n      body: body || null,\n    },\n  }];\n} catch (err) {\n  return [{\n    json: {\n      status: 500,\n      body: null,\n      error: err.message || 'Erro ao conectar no Proxis',\n    },\n  }];\n}"
+        "jsCode": "const raw = $input.first().json;\nconst p = (raw.body && typeof raw.body === 'object' && !Array.isArray(raw.body)) ? raw.body : raw;\n\nif (!p.endpoint || !p.method || !p.headers) {\n  throw new Error('Payload invalido: endpoint, method e headers sao obrigatorios');\n}\n\nconst baseUrl = 'http://177.38.10.218:8082/datasnap/rest/TSMApi';\nconst url = `${baseUrl}/\"${p.endpoint}\"`;\n\ntry {\n  const response = await this.helpers.httpRequest({\n    url,\n    method: p.method,\n    headers: p.headers,\n    body: p.body,\n    json: false,\n    returnFullResponse: true,\n    simple: false,\n    timeout: 30000,\n  });\n\n  let body = response.body;\n  if (typeof body === 'string' && body.trim()) {\n    try { body = JSON.parse(body); } catch {}\n  }\n\n  return [{\n    json: {\n      status: response.statusCode || 200,\n      body: body || null,\n    },\n  }];\n} catch (err) {\n  return [{\n    json: {\n      status: 500,\n      body: null,\n      error: err.message || 'Erro ao conectar no Proxis',\n    },\n  }];\n}"
       },
       "id": "b1c2d3e4-0002-4000-8000-000000000002",
       "name": "Chamar Proxis",
@@ -67,5 +69,5 @@
   "staticData": null,
   "tags": [],
   "active": true,
-  "versionId": "proxis-proxy-v1"
+  "versionId": "proxis-proxy-v3"
 }

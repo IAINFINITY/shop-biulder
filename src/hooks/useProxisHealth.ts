@@ -20,7 +20,13 @@ export function useProxisHealth(): ProxisHealth {
   const check = useCallback(async () => {
     setChecking(true);
     try {
-      const res = await fetch("/api/proxis-health");
+      const res = await fetch(`/api/proxis-health?_t=${Date.now()}`);
+      if (res.status === 304) {
+        if (mountedRef.current) {
+          setLastCheck(new Date());
+        }
+        return;
+      }
       const data = await res.json();
       if (mountedRef.current) {
         setConnected(!!data.connected);

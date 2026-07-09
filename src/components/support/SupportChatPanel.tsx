@@ -392,8 +392,8 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
 
   return (
     <div
-      className="mx-auto flex w-full max-w-[1800px] flex-col gap-6 overflow-hidden"
-      style={{ height: "min(90vh, 64rem)" }}
+      className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 sm:gap-6 overflow-hidden"
+      style={{ height: "min(85vh, 64rem)" }}
     >
       <section className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-4 shrink-0">
         <div className="space-y-2">
@@ -414,10 +414,10 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
         </Badge>
       </section>
 
-      <div className="grid min-h-0 flex-1 gap-5 xl:grid-cols-[18.5rem_minmax(0,1fr)] overflow-hidden">
+      <div className="grid min-h-0 flex-1 gap-3 sm:gap-5 xl:grid-cols-[18.5rem_minmax(0,1fr)] overflow-hidden">
           {isCustomerMode ? (
             <>
-              <div className="flex h-full min-h-0 flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-sm">
+              <div className="flex h-full min-h-0 flex-col space-y-3 sm:space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-sm">
                 <div className="flex min-h-[3.5rem] items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -454,8 +454,8 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                 </div>
               </div>
 
-              <div className="flex h-full min-h-0 flex-col rounded-[2rem] border border-border/70 bg-background p-5 shadow-[0_18px_50px_rgba(16,24,40,0.08)]">
-                <div className="flex items-start justify-between gap-3 border-b border-border/70 pb-4">
+              <div className="flex h-full min-h-0 flex-col rounded-[1.5rem] sm:rounded-[2rem] border border-border/70 bg-background p-3 sm:p-5 shadow-[0_18px_50px_rgba(16,24,40,0.08)]">
+                <div className="flex items-start justify-between gap-3 border-b border-border/70 pb-3 sm:pb-4">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {selectedConversation ? formatSupportConversationTitle(selectedConversation) : "Selecione uma conversa"}
@@ -469,10 +469,10 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </span>
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
+                <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 pt-3 sm:pt-4">
                   {selectedConversation ? (
                     <>
-                      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.94),rgba(255,255,255,1))] p-4">
+                      <div className="flex min-h-0 flex-1 flex-col space-y-2 sm:space-y-3 overflow-y-auto rounded-[1.25rem] sm:rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.94),rgba(255,255,255,1))] p-3 sm:p-4">
                         {messagesLoading ? (
                           <div className="space-y-3">
                             <Skeleton className="h-16 rounded-[1.2rem]" />
@@ -480,7 +480,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                             <Skeleton className="h-16 rounded-[1.2rem]" />
                           </div>
                         ) : messages.length > 0 ? (
-                          <div className="flex w-full flex-col gap-4 px-1 sm:px-2 lg:px-4">
+                          <div className="flex w-full flex-col gap-3 sm:gap-4 px-0 sm:px-2 lg:px-4">
                             {messages.map((message) => (
                               <MessageBubble
                                 key={message.id}
@@ -509,7 +509,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                         ) : null}
                       </div>
 
-                      <div className="space-y-3 border-t border-border/70 pt-3 xl:mt-auto">
+                      <div className="space-y-2 sm:space-y-3 border-t border-border/70 pt-2 sm:pt-3 xl:mt-auto">
                         <Textarea
                           value={draft}
                           onChange={(e) => setDraft(e.target.value)}
@@ -549,7 +549,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
             </>
           ) : (
             <>
-              <div className="flex h-full min-h-0 flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-sm">
+              <div className="flex h-full min-h-0 flex-col space-y-3 sm:space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-sm">
                 <div className="flex min-h-[3.5rem] items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -568,9 +568,9 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </Badge>
                 </div>
 
-                <Input
-                  placeholder="Buscar cliente, empresa ou CNPJ"
-                  className="h-11 rounded-2xl border-border/70 bg-background"
+                  <Input
+                    placeholder="Buscar cliente, empresa ou CNPJ"
+                    className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background"
                   value={inboxSearch}
                   onChange={(e) => setInboxSearch(e.target.value)}
                 />
@@ -600,8 +600,8 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                 </div>
               </div>
 
-              <div className="flex h-full min-h-0 flex-col rounded-[2rem] border border-border/70 bg-background p-5 shadow-[0_18px_50px_rgba(16,24,40,0.08)]">
-                <div className="flex items-start justify-between gap-3 border-b border-border/70 pb-4">
+              <div className="flex h-full min-h-0 flex-col rounded-[1.5rem] sm:rounded-[2rem] border border-border/70 bg-background p-3 sm:p-5 shadow-[0_18px_50px_rgba(16,24,40,0.08)]">
+                <div className="flex items-start justify-between gap-3 border-b border-border/70 pb-3 sm:pb-4">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {selectedConversation ? formatSupportConversationTitle(selectedConversation) : "Selecione uma conversa"}
@@ -630,10 +630,10 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </div>
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col gap-4 pt-4">
+                <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 pt-3 sm:pt-4">
                   {selectedConversation ? (
                     <>
-                      <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.94),rgba(255,255,255,1))] p-4">
+                      <div className="flex min-h-0 flex-1 flex-col space-y-2 sm:space-y-3 overflow-y-auto rounded-[1.25rem] sm:rounded-[1.75rem] border border-border/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.94),rgba(255,255,255,1))] p-3 sm:p-4">
                         {messagesLoading ? (
                           <div className="space-y-3">
                             <Skeleton className="h-16 rounded-[1.2rem]" />
@@ -641,14 +641,20 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                             <Skeleton className="h-16 rounded-[1.2rem]" />
                           </div>
                         ) : messages.length > 0 ? (
-                          <div className="flex w-full flex-col gap-4 px-1 sm:px-2 lg:px-4">
+                          <div className="flex w-full flex-col gap-3 sm:gap-4 px-0 sm:px-2 lg:px-4">
                             {messages.map((message) => (
                               <MessageBubble
                                 key={message.id}
                                 body={message.body}
                                 createdAt={message.created_at}
                                 owner={message.sender_user_id === currentUserId ? "self" : "other"}
-                                senderLabel={message.sender_user_id === currentUserId ? (isCustomerMode ? "Você" : "Equipe") : isCustomerMode ? "Consultor" : "Cliente"}
+                                senderLabel={
+                                  message.sender_user_id === currentUserId
+                                    ? "Você"
+                                    : message.sender_role
+                                      ? internalStaffRoleLabel(message.sender_role)
+                                      : message.sender_user_name || "Cliente"
+                                }
                               />
                             ))}
                           </div>
@@ -670,7 +676,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                         ) : null}
                       </div>
 
-                      <div className="space-y-3 border-t border-border/70 pt-3 xl:mt-auto">
+                      <div className="space-y-2 sm:space-y-3 border-t border-border/70 pt-2 sm:pt-3 xl:mt-auto">
                         <Textarea
                           value={draft}
                           onChange={(e) => setDraft(e.target.value)}

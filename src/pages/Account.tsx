@@ -91,7 +91,7 @@ function AdminAccessNotice({
   onGoAdmin: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_12%,hsl(var(--primary)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_62%,hsl(var(--muted)/0.25)_100%)] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center">
         <div className="w-full rounded-[2rem] border border-border/70 bg-card/95 p-6 shadow-[0_16px_40px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
           <div className="flex items-center gap-3">
@@ -344,14 +344,14 @@ export default function Account() {
   }
 
   const summaryContent = (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Minha conta"
         title="Resumo da conta"
         description="Tenha uma leitura rápida do estado da conta, do acesso e do histórico do cliente."
       />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4">
         <InfoTile
           label="E-mail"
           value={user.email || "—"}
@@ -378,7 +378,7 @@ export default function Account() {
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4">
         <InfoTile
           label="Pedidos"
           value={`${orderViews.length} pedido(s)`}
@@ -409,7 +409,7 @@ export default function Account() {
   );
 
   const companyContent = (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Empresa"
         title="Dados da empresa"
@@ -418,7 +418,7 @@ export default function Account() {
 
       {customerProfile ? (
         <>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
             <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
             <InfoTile label="Empresa" value={customerProfile.company || "—"} icon={Building2} />
             <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
@@ -462,7 +462,7 @@ export default function Account() {
   const addressesContent = <ClientAddressesSection />;
 
   const ordersContent = (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Pedidos"
         title="Meus pedidos"
@@ -510,14 +510,14 @@ export default function Account() {
   );
 
   const securityContent = (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Segurança"
         title="Sessão e acesso"
         description="Veja as informações da sessão atual e use os atalhos para sair com segurança ou voltar ao catálogo."
       />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
         <InfoTile
           label="Usuário"
           value={displayName}
@@ -572,7 +572,7 @@ export default function Account() {
   );
 
   const messagesContent = (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Atendimento"
         title="Mensagens e suporte"
@@ -605,7 +605,7 @@ export default function Account() {
   );
 
   const notificationsContent = (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Comunicação"
         title="Notificações do catálogo"

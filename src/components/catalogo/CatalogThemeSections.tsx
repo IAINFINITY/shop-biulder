@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatBRL } from "@/lib/formatMoney";
 import { getProductImageUrls } from "@/lib/products";
 import { cn } from "@/lib/utils";
+import { ProductDescription } from "@/components/catalogo/ProductDescription";
 
 export type CatalogThemeSection = {
   id: string;
@@ -55,14 +56,13 @@ function ThemeProductCard({
   const price = resolvePrice(product);
 
   return (
-    <article className="flex h-full w-full min-w-0 snap-start flex-col overflow-hidden rounded-[1.45rem] bg-background/85 ring-1 ring-black/5 transition-all duration-200 hover:-translate-y-1 hover:ring-black/10 active:scale-[0.985]">
+    <article className="flex h-full w-full min-w-0 snap-start flex-col overflow-hidden rounded-xl bg-background/80 ring-1 ring-black/[0.03] transition-all duration-200 active:scale-[0.98] sm:rounded-[1.45rem] sm:ring-black/5 sm:hover:-translate-y-1 sm:hover:ring-black/10 sm:hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)]">
       <Link to={`/produto/${product.id}`} viewTransition className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
-        <div className="bg-gradient-to-b from-muted/30 via-background to-background p-3">
-          <div className="flex items-center">
+          <div className="p-2 sm:p-3">
+          <div className="mb-1.5">
             <span
               className={cn(
-                "inline-flex w-fit max-w-full whitespace-nowrap rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] leading-none shadow-none",
-                highlightTone === "destructive" && "mt-0.5",
+                "inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] leading-none",
                 getHighlightBadgeClassName(highlightTone),
               )}
             >
@@ -70,7 +70,7 @@ function ThemeProductCard({
             </span>
           </div>
 
-          <div className="mt-3 aspect-[4/3] flex items-center justify-center rounded-[1.15rem] bg-background/90 p-3 ring-1 ring-black/5">
+          <div className="aspect-[4/3] flex items-center justify-center rounded-lg bg-background/90 p-2 sm:p-3">
             {imageUrl ? (
               <img
                 src={imageUrl}
@@ -79,47 +79,42 @@ function ThemeProductCard({
                 height={900}
                 loading="lazy"
                 decoding="async"
-                className="max-h-[9.8rem] w-full object-contain"
+                className="max-h-[7rem] w-full object-contain"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
+                <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
               </div>
             )}
           </div>
         </div>
-
-        <div className="space-y-3 p-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
-              {product.type}
-            </Badge>
-            <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">
-              {product.family}
-            </Badge>
-          </div>
-
-          <h3 className="line-clamp-2 min-h-[2.7rem] text-sm font-semibold leading-5 text-card-foreground">
-            {product.name}
-          </h3>
-        </div>
       </Link>
 
-      <div className="mt-auto flex min-w-0 items-end justify-between gap-3 border-t border-black/5 px-4 pb-4 pt-3">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Preço</p>
-          <p className="mt-1 text-base font-semibold tabular-nums text-foreground">{formatBRL(price)}</p>
+      <div className="flex flex-1 flex-col justify-between px-3 pb-3 sm:px-5 sm:pb-5">
+        <div>
+          <h3 className="line-clamp-2 min-h-[2rem] text-xs font-semibold leading-4 text-card-foreground sm:text-[0.95rem] sm:font-bold">
+            {product.name}
+          </h3>
+          <ProductDescription
+            html={product.description}
+            plainPreview
+            lineClamp={1}
+            className="mt-0.5 text-[10px] leading-3 text-muted-foreground/70 sm:text-sm sm:leading-5"
+          />
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant={inCart ? "secondary" : "default"}
-          className={cn("h-10 sm:h-9 shrink-0 rounded-full px-3 text-xs transition-all active:scale-90", inCart && "text-foreground")}
-          onClick={() => onAdd(product)}
-        >
-          <Plus className="h-4 w-4" />
-          {inCart ? "No carrinho" : "Adicionar"}
-        </Button>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold tabular-nums text-foreground sm:text-base">{formatBRL(price)}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant={inCart ? "secondary" : "default"}
+            className={cn("h-8 w-full rounded-full text-xs transition-all sm:h-9 sm:text-sm", inCart && "text-foreground")}
+            onClick={() => onAdd(product)}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            {inCart ? "No carrinho" : "Adicionar"}
+          </Button>
+        </div>
       </div>
     </article>
   );
@@ -144,7 +139,7 @@ function ThemeShelf({
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const scroll = useCallback((direction: -1 | 1) => scrollRow(rowRef.current, direction), []);
-  const rowGridClass = "grid auto-cols-[100%] grid-flow-col gap-4 overflow-x-auto overscroll-x-contain px-1.5 pb-2 [scrollbar-width:none] snap-x snap-mandatory scroll-smooth scroll-px-1.5 sm:auto-cols-[calc((100%_-_1rem)/2)] lg:auto-cols-[calc((100%_-_2rem)/3)] xl:auto-cols-[calc((100%_-_3rem)/4)] 2xl:auto-cols-[calc((100%_-_4rem)/5)] [&::-webkit-scrollbar]:hidden";
+  const rowGridClass = "grid auto-cols-[60%] grid-flow-col gap-2.5 overflow-x-auto overscroll-x-contain px-1.5 pb-2 [scrollbar-width:none] snap-x snap-start scroll-smooth scroll-px-1.5 sm:auto-cols-[calc((100%_-_1rem)/2)] lg:auto-cols-[calc((100%_-_2rem)/3)] xl:auto-cols-[calc((100%_-_3rem)/4)] 2xl:auto-cols-[calc((100%_-_4rem)/5)] [&::-webkit-scrollbar]:hidden";
 
   return (
     <section className="space-y-4">

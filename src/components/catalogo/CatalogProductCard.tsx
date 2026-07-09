@@ -58,7 +58,11 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact }: C
           </div>
         )}
 
-        <div className="flex flex-1 flex-col px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+        <div className="flex flex-1 flex-col px-3 pb-3 pt-2 sm:px-5 sm:pb-5 sm:pt-3">
+          {compact ? (
+            <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{product.type}</p>
+          ) : null}
+
           {!compact ? (
             <div className="mb-2 space-y-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Tipo</p>
@@ -79,11 +83,18 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact }: C
             </div>
           ) : null}
 
-          <h3 className={cn("font-semibold leading-tight text-card-foreground", compact ? "line-clamp-1 text-sm" : "line-clamp-2 min-h-[3.25rem] text-base sm:text-[1.05rem]")}>
+          <h3 className={cn("font-semibold leading-tight text-card-foreground", compact ? "line-clamp-2 text-xs sm:text-[0.95rem] sm:font-bold" : "line-clamp-2 min-h-[3.25rem] text-base sm:text-[1.05rem]")}>
             {product.name}
           </h3>
 
-          {!compact ? (
+          {compact ? (
+            <ProductDescription
+              html={product.description}
+              plainPreview
+              lineClamp={1}
+              className="mt-0.5 text-[11px] leading-4 text-muted-foreground/80 sm:text-sm sm:leading-6"
+            />
+          ) : (
             <div className="mt-2 min-h-[3.5rem]">
               <ProductDescription
                 html={product.description}
@@ -92,9 +103,9 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact }: C
                 className="text-sm leading-6 text-muted-foreground"
               />
             </div>
-          ) : null}
+          )}
 
-          <p className={cn("mt-auto font-semibold tabular-nums text-foreground", compact ? "pt-2 text-sm" : "mt-3 mb-1 text-base sm:text-lg")}>
+          <p className={cn("mt-auto font-semibold tabular-nums text-foreground", compact ? "pt-1.5 text-sm sm:text-base" : "mt-3 mb-1 text-base sm:text-lg")}>
             {formatBRL(displayPrice)}
           </p>
         </div>
@@ -105,7 +116,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact }: C
           type="button"
           onClick={() => onAdd(product)}
           variant={inCart ? "secondary" : "default"}
-          className={cn("w-full gap-1.5 transition-all active:scale-95", compact ? "h-8 text-xs" : "h-10 text-xs sm:text-sm")}
+          className={cn("w-full gap-1.5 transition-all active:scale-95", compact ? "h-8 text-xs sm:h-10 sm:text-sm" : "h-10 text-xs sm:text-sm")}
           size="sm"
         >
           <Plus className="h-4 w-4" />

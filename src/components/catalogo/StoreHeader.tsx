@@ -156,51 +156,17 @@ export function StoreHeader({
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
   const desktopPanelId = useId();
-  const mobilePanelId = useId();
 
   return (
-    <PageHeaderShell compact>
+    <PageHeaderShell compact innerClassName="pt-3.5 sm:pt-0 sm:items-center">
       <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
         <div className="flex items-start justify-between gap-2 lg:block lg:max-w-[220px] xl:max-w-[240px]">
-          <Link to="/" viewTransition className="inline-block min-w-0 shrink-0">
+          <Link to="/" viewTransition className="mx-auto inline-block min-w-0 shrink-0 lg:mx-0 lg:pt-0">
             <ClinicPlusLogo />
           </Link>
-          <div className="flex shrink-0 items-center gap-1 lg:hidden">
-            <Link to={accountPath} viewTransition>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                aria-label="Minha conta"
-              >
-                <User className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/admin" viewTransition>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                aria-label="Administração"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
         </div>
 
         <div className="min-w-0 lg:relative lg:min-h-[88px] lg:px-4">
-          <div className="lg:hidden">
-            <SearchPanel
-              search={search}
-              onSearchChange={onSearchChange}
-              searchSuggestions={searchSuggestions}
-              showSuggestions={showSuggestions}
-              panelId={mobilePanelId}
-              floating={false}
-            />
-          </div>
-
           <div className="hidden lg:block">
             <SearchPanel
               search={search}
@@ -234,7 +200,7 @@ export function StoreHeader({
               <Settings className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="flex items-center">{cartSlot}</div>
+          <div className="hidden items-center lg:flex">{cartSlot}</div>
         </div>
       </div>
     </PageHeaderShell>

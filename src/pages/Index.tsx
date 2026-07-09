@@ -361,7 +361,7 @@ export default function Index() {
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] pb-32 sm:pb-[10rem]"
+      className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] pb-32 sm:pb-[10rem]"
     >
       <StoreHeader
         search={search}
@@ -508,7 +508,7 @@ export default function Index() {
         </Button>
       ) : null}
 
-      <MobileBottomNav />
+      <MobileBottomNav cartItemCount={cartUnitCount} onOpenCart={openCart} />
     </div>
   );
 }

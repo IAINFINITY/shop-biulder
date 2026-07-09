@@ -6,7 +6,7 @@ type ProductDescriptionProps = {
   html: string;
   className?: string;
   plainPreview?: boolean;
-  lineClamp?: 2 | 3;
+  lineClamp?: 1 | 2 | 3;
 };
 
 export function ProductDescription({
@@ -33,6 +33,7 @@ export function ProductDescription({
       <p
         className={cn(
           "text-muted-foreground leading-relaxed",
+          lineClamp === 1 && "line-clamp-1",
           lineClamp === 2 && "line-clamp-2",
           lineClamp === 3 && "line-clamp-3",
           className,

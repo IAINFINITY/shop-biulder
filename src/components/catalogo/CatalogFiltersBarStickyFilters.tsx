@@ -260,13 +260,12 @@ export function CatalogFiltersBarV2({
     [typeCounts],
   );
   const sortedFamilies = useMemo(() => getSortedFamilies(categoryFamilies, familyCounts), [categoryFamilies, familyCounts]);
-  const showFiltersSummary = true;
 
   useLayoutEffect(() => {
     if (typeof document === "undefined") return;
 
     const filtersRow = filtersRef.current;
-    if (!filtersRow || !showFiltersSummary) {
+    if (!filtersRow) {
       document.documentElement.style.setProperty(filtersHeightVariable, "0px");
       return;
     }
@@ -283,7 +282,7 @@ export function CatalogFiltersBarV2({
     resizeObserver.observe(filtersRow);
 
     return () => resizeObserver.disconnect();
-  }, [showFiltersSummary]);
+  }, [isLoading]);
 
   const clearFilters = () => {
     onShowAllProducts();
@@ -292,17 +291,15 @@ export function CatalogFiltersBarV2({
 
   return (
     <div className="space-y-4">
-      {showFiltersSummary ? (
+      {isLoading ? (
         <div
           ref={filtersRef}
           className="rounded-[1.6rem] border border-border/70 bg-background/80 px-4 py-4 shadow-sm backdrop-blur sm:px-6"
         >
           <div className="flex flex-wrap items-center gap-2">
-            {isLoading ? (
-              <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
-                Carregando catalogo
-              </Badge>
-            ) : null}
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
+              Carregando catalogo
+            </Badge>
           </div>
         </div>
       ) : null}

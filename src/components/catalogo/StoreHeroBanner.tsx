@@ -58,6 +58,7 @@ export function StoreHeroBanner() {
   const [activeIndex, setActiveIndex] = useState(0);
   const autoplayTimerRef = useRef<number>();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
 
   const slides = useMemo<HeroSlide[]>(() => {
@@ -73,11 +74,18 @@ export function StoreHeroBanner() {
     if (typeof window === "undefined") return;
 
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobileMedia = window.matchMedia("(max-width: 639px)");
     const updatePreference = () => setPrefersReducedMotion(media.matches);
+    const updateMobile = () => setIsMobile(mobileMedia.matches);
 
     updatePreference();
+    updateMobile();
     media.addEventListener("change", updatePreference);
-    return () => media.removeEventListener("change", updatePreference);
+    mobileMedia.addEventListener("change", updateMobile);
+    return () => {
+      media.removeEventListener("change", updatePreference);
+      mobileMedia.removeEventListener("change", updateMobile);
+    };
   }, []);
 
   const onSelect = useCallback(() => {
@@ -86,10 +94,10 @@ export function StoreHeroBanner() {
   }, [api]);
 
   const scheduleAutoplay = useCallback(() => {
-    if (!api || prefersReducedMotion) return;
+    if (!api || prefersReducedMotion || isMobile) return;
     if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
     autoplayTimerRef.current = window.setInterval(() => api.scrollNext(), AUTOPLAY_MS);
-  }, [api, prefersReducedMotion]);
+  }, [api, prefersReducedMotion, isMobile]);
 
   useEffect(() => {
     if (!api) return;
@@ -111,7 +119,7 @@ export function StoreHeroBanner() {
 
   useEffect(() => {
     if (!api) return;
-    if (prefersReducedMotion) {
+    if (prefersReducedMotion || isMobile) {
       if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
       return;
     }
@@ -122,17 +130,17 @@ export function StoreHeroBanner() {
       if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
       api.off("pointerDown", onPointerDown);
     };
-  }, [api, prefersReducedMotion, scheduleAutoplay]);
+  }, [api, prefersReducedMotion, isMobile, scheduleAutoplay]);
 
   return (
     <section
-      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden border-b border-border/40 bg-muted/30"
+      className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden border-b border-border/40"
       aria-label="Destaques promocionais"
       aria-roledescription="carousel"
     >
       <div className="relative w-full overflow-hidden">
         {slides.length === 0 ? (
-          <div className="aspect-[1024/266] w-full bg-muted/30" />
+          <div className="aspect-[3/2] w-full bg-neutral-950 sm:aspect-[1024/266]" />
         ) : (
         <Carousel
           className="h-full w-full"
@@ -142,7 +150,7 @@ export function StoreHeroBanner() {
           <CarouselContent className="!ml-0 h-full">
             {slides.map((slide, index) => (
               <CarouselItem key={`${slide.alt}-${index}`} className="basis-full !pl-0 h-full">
-                <div className="relative aspect-[16/7] w-full bg-muted/30 sm:aspect-[1024/266]">
+                <div className="relative aspect-[3/2] w-full bg-neutral-950 sm:aspect-[1024/266]">
                   <HeroSlideFrame slide={slide} />
                 </div>
               </CarouselItem>

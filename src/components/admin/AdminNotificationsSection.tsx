@@ -251,7 +251,7 @@ function NotificationCard({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-[15px] font-semibold text-foreground">{notification.title}</p>
+              <p className="truncate text-[14px] sm:text-[15px] font-semibold text-foreground">{notification.title}</p>
               <Badge variant={notification.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[11px]">
                 {notification.active ? "Ativa" : "Inativa"}
               </Badge>

@@ -609,7 +609,7 @@ export function AdminProductsSection({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-[15px] font-semibold text-foreground">{p.name}</p>
+                        <p className="truncate text-[14px] sm:text-[15px] font-semibold text-foreground">{p.name}</p>
                         {isEditing ? (
                           <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
                             Em edição

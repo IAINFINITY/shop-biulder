@@ -38,8 +38,8 @@ export function AdminOrdersSection({
   onDelete,
 }: AdminOrdersSectionProps) {
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-3 sm:space-y-4">
         <AdminSectionHeader
           eyebrow="Pedidos"
           title="Operação diária"

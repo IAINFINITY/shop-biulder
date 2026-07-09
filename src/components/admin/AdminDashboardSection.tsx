@@ -43,7 +43,7 @@ export function AdminDashboardSection({
 }: AdminDashboardSectionProps) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 gap-y-4 md:grid-cols-2 xl:grid-cols-6">
         <AdminStatCard
           icon={Package}
           label="Produtos ativos"

@@ -233,7 +233,7 @@ function ClientAccessNotice({
   onLogout: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_12%,hsl(var(--primary)/0.08),transparent_30%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_62%,hsl(var(--muted)/0.25)_100%)] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center">
         <div className="w-full rounded-[2rem] border border-border/70 bg-card/95 p-6 shadow-[0_16px_40px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
           <div className="flex items-center gap-3">

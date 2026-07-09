@@ -57,11 +57,11 @@ function DetailField({
   hint?: string;
 }) {
   return (
-    <div className="flex h-full min-h-[96px] flex-col justify-between rounded-[1.2rem] border border-border/70 bg-muted/20 p-4">
+    <div className="flex h-full min-h-[64px] sm:min-h-[80px] flex-col justify-between rounded-[1.2rem] border border-border/70 bg-muted/20 p-3 sm:p-4">
       <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
-      <div className="mt-2 space-y-1">
-        <p className="text-sm font-medium leading-6 text-foreground">{value}</p>
-        {hint ? <p className="text-xs leading-5 text-muted-foreground">{hint}</p> : null}
+      <div className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1">
+        <p className="text-[13px] sm:text-sm font-medium leading-5 sm:leading-6 text-foreground">{value}</p>
+        {hint ? <p className="text-[11px] leading-4 sm:leading-5 text-muted-foreground">{hint}</p> : null}
       </div>
     </div>
   );
@@ -203,8 +203,8 @@ export function AdminClientsSection({
   }, [editorOpen]);
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <AdminSectionHeader
           eyebrow="Clientes"
           title="Visão consolidada de quem compra com frequência"
@@ -221,7 +221,7 @@ export function AdminClientsSection({
             placeholder="Pesquisar cliente (nome, empresa, telefone, CNPJ)"
             value={clientSearch}
             onChange={(e) => onClientSearchChange(e.target.value)}
-            className="h-11 rounded-2xl border-border/70 bg-background"
+            className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background"
           />
           <div className="flex flex-wrap gap-2">
             <Button
@@ -256,7 +256,7 @@ export function AdminClientsSection({
             Nenhum cliente encontrado ainda.
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredCustomers.map((customer) => {
               const key = getCustomerKey(customer);
               const isUpdating = updatingCustomerKey === key;
@@ -264,7 +264,7 @@ export function AdminClientsSection({
               return (
                 <div
                   key={key}
-                  className="rounded-[1.15rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]"
+                  className="min-w-0 rounded-[1.15rem] border border-border/70 bg-card p-3 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
@@ -297,7 +297,7 @@ export function AdminClientsSection({
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2.5 sm:mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     {customer.customerType ? (
                       <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
                         {CUSTOMER_TYPE_LABELS[customer.customerType]}
@@ -319,7 +319,7 @@ export function AdminClientsSection({
                     ) : null}
                   </div>
 
-                  <div className="mt-3 rounded-[1rem] border border-border/70 bg-muted/25 p-3">
+                  <div className="mt-2.5 sm:mt-3 rounded-[1rem] border border-border/70 bg-muted/25 p-2.5 sm:p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         Tipo de cadastro
@@ -349,7 +349,7 @@ export function AdminClientsSection({
                     </p>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-4">
+                  <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-3 border-t border-border/70 pt-3 sm:pt-4">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Pedidos</p>
                       <p className="mt-1 text-[1rem] font-black tracking-[-0.04em] text-foreground">{customer.orders}</p>
@@ -367,22 +367,22 @@ export function AdminClientsSection({
       </div>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-h-[92vh] w-[min(98vw,1240px)] max-w-[1240px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
+        <DialogContent className="max-h-[92vh] w-[min(98vw,1240px)] max-w-[1240px] overflow-hidden rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70 p-0">
           <div className="flex max-h-[92vh] flex-col overflow-hidden">
-            <DialogHeader className="border-b border-border/70 px-5 py-4">
-              <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+            <DialogHeader className="border-b border-border/70 px-4 py-3 sm:px-5 sm:py-4">
+              <DialogTitle className="text-left text-[1.05rem] sm:text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
                 Dados completos do cliente
               </DialogTitle>
-              <DialogDescription className="text-left text-[13px] text-muted-foreground">
+              <DialogDescription className="text-left text-[12px] sm:text-[13px] text-muted-foreground">
                 Veja os dados de cadastro, endereço, vínculo Proxsys e resumo comercial em um só lugar.
               </DialogDescription>
             </DialogHeader>
 
             {detailsCustomer ? (
               <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.98fr)_minmax(0,1.02fr)] lg:items-start">
-                <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
-                  <div className="space-y-4">
-                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                <div className="min-h-0 overflow-y-auto p-3 sm:p-4">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -403,7 +403,7 @@ export function AdminClientsSection({
                         </Badge>
                       </div>
 
-                      <div className="mt-4 grid auto-rows-fr gap-3 md:grid-cols-2">
+                      <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 md:grid-cols-2">
                         <DetailField label="Usuário" value={detailsCustomer.userId ?? "Cadastro sem login"} />
                         <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
                         <DetailField label="CNPJ" value={detailsCustomer.cnpj || "—"} />
@@ -413,7 +413,7 @@ export function AdminClientsSection({
                       </div>
                     </div>
 
-                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -428,7 +428,7 @@ export function AdminClientsSection({
                         </Badge>
                       </div>
 
-                      <div className="mt-4 grid auto-rows-fr gap-3 md:grid-cols-2">
+                      <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 md:grid-cols-2">
                         <DetailField label="Proxis encontrado" value={selectedDetailsProfile?.proxis_found ? "Sim" : "Não"} />
                         <DetailField label="PES ID" value={selectedDetailsProfile?.proxis_pes_id?.toString() || "—"} />
                         <DetailField label="TPR ID" value={selectedDetailsProfile?.proxis_tpr_id?.toString() || "—"} />
@@ -438,13 +438,13 @@ export function AdminClientsSection({
                   </div>
                 </div>
 
-                <div className="min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:border-l lg:border-t-0">
-                  <div className="space-y-4">
-                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                <div className="min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-3 sm:p-4 lg:border-l lg:border-t-0">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                         Dados completos
                       </p>
-                      <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2">
+                      <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 sm:grid-cols-2">
                         <DetailField label="Nome" value={selectedDetailsProfile?.name || detailsCustomer.name} />
                         <DetailField label="Empresa" value={selectedDetailsProfile?.company || detailsCustomer.company || "—"} />
                         <DetailField label="Telefone" value={selectedDetailsProfile?.phone || detailsCustomer.phone || "—"} />
@@ -463,12 +463,12 @@ export function AdminClientsSection({
                       </div>
                     </div>
 
-                    <div className="rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                         Endereço
                       </p>
                       {selectedDetailsProfile ? (
-                        <div className="mt-4 grid auto-rows-fr gap-3 sm:grid-cols-2">
+                        <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 sm:grid-cols-2">
                           <DetailField label="CEP" value={selectedDetailsProfile.address_cep || "—"} />
                           <DetailField label="Rua" value={selectedDetailsProfile.address_street || "—"} />
                           <DetailField label="Número" value={selectedDetailsProfile.address_number || "—"} />
@@ -499,25 +499,25 @@ export function AdminClientsSection({
           setEditorOpen(nextOpen);
         }}
       >
-        <DialogContent className="max-w-[34rem] rounded-[1.75rem] border-border/70">
+        <DialogContent className="max-w-[34rem] rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70">
           <DialogHeader className="text-left">
             <DialogDescription className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
               Ajuste administrativo
             </DialogDescription>
-            <DialogTitle className="text-[1.45rem] font-black tracking-[-0.04em] text-foreground">
+            <DialogTitle className="text-[1.25rem] sm:text-[1.45rem] font-black tracking-[-0.04em] text-foreground">
               Alterar tipo de cliente
             </DialogTitle>
-            <p className="text-sm leading-6 text-muted-foreground">
+            <p className="text-[13px] sm:text-sm leading-5 sm:leading-6 text-muted-foreground">
               Altere a faixa comercial do cadastro para refletir a tabela correta no catálogo e no admin.
             </p>
           </DialogHeader>
 
           {selectedCustomer ? (
-            <div className="space-y-4 pt-2">
-              <div className="rounded-[1.25rem] border border-border/70 bg-muted/30 p-4">
+            <div className="space-y-3 sm:space-y-4 pt-2">
+              <div className="rounded-[1.25rem] border border-border/70 bg-muted/30 p-3 sm:p-4">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Cliente selecionado</p>
-                <p className="mt-1 text-base font-semibold text-foreground">{selectedCustomer.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-[15px] sm:text-base font-semibold text-foreground">{selectedCustomer.name}</p>
+                <p className="mt-1 text-[12px] sm:text-sm text-muted-foreground">
                   {selectedCustomer.company || "Sem empresa vinculada"} {selectedCustomer.cnpj ? `• ${selectedCustomer.cnpj}` : ""}
                 </p>
               </div>
@@ -525,7 +525,7 @@ export function AdminClientsSection({
               <div className="space-y-2">
                 <Label htmlFor="customer-type-select">Tipo de cliente</Label>
                 <Select value={draftType} onValueChange={(value) => setDraftType(value as CustomerType)}>
-                  <SelectTrigger id="customer-type-select" className="h-11 rounded-2xl">
+                  <SelectTrigger id="customer-type-select" className="h-10 sm:h-11 rounded-2xl">
                     <SelectValue placeholder="Selecione um tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -541,10 +541,10 @@ export function AdminClientsSection({
           ) : null}
 
           <DialogFooter className="gap-2 pt-2 sm:gap-2">
-            <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm" onClick={closeEditor} disabled={saving}>
+            <Button type="button" variant="outline" className="h-10 sm:h-11 rounded-2xl px-5 text-sm" onClick={closeEditor} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.cnpj}>
+            <Button type="button" className="h-10 sm:h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.cnpj}>
               {saving ? "Salvando..." : "Salvar alteração"}
             </Button>
           </DialogFooter>

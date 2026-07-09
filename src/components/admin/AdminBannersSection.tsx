@@ -239,7 +239,7 @@ export function AdminBannersSection() {
                 <div className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold text-foreground">{banner.label}</p>
+                      <p className="truncate text-[14px] sm:text-[15px] font-semibold text-foreground">{banner.label}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Ordem {banner.sort_order}
                         {banner.link_url ? " • com link" : " • sem link"}

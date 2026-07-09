@@ -282,7 +282,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-          <div className="rounded-[1.25rem] border border-border/70 bg-card p-4">
+          <div className="rounded-[1.25rem] border border-border/70 bg-card p-3 sm:p-4">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               <BadgeDollarSign className="h-4 w-4 text-primary" />
               Escopo da tabela
@@ -313,7 +313,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                   Tipo de cliente
                 </p>
                 <Select value={customerType} onValueChange={(value) => setCustomerType(value as CustomerType)}>
-                  <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background">
+                  <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background">
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -346,7 +346,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                       setAppliedTprId(Math.trunc(parsed));
                     }}
                   >
-                    <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background">
+                    <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background">
                       <SelectValue placeholder="Escolha uma tabela conhecida ou digite manualmente" />
                     </SelectTrigger>
                     <SelectContent>
@@ -364,11 +364,11 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                     placeholder="Ex.: 8728"
                     value={tprDraft}
                     onChange={(e) => setTprDraft(e.target.value.replace(/[^\d]/g, ""))}
-                    className="h-11 rounded-2xl border-border/70 bg-background"
+                    className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background"
                   />
                   <Button
                     type="button"
-                    className="h-11 rounded-2xl px-4"
+                    className="h-10 sm:h-11 rounded-2xl px-4"
                     onClick={() => {
                       const parsed = Number(tprDraft);
                       if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -399,22 +399,22 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                 placeholder="Pesquisar produto por código, nome, família ou tipo"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 rounded-2xl border-border/70 bg-background"
+                className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background"
               />
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="h-11 rounded-2xl px-4" onClick={() => setSearch("")}>
+                <Button type="button" variant="outline" className="h-10 sm:h-11 rounded-2xl px-4" onClick={() => setSearch("")}>
                   Limpar
                 </Button>
-                <Button type="button" variant="ghost" className="h-11 rounded-2xl px-4" onClick={reloadScope} disabled={overridesQuery.isFetching}>
+                <Button type="button" variant="ghost" className="h-10 sm:h-11 rounded-2xl px-4" onClick={reloadScope} disabled={overridesQuery.isFetching}>
                   {overridesQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
                   Recarregar
                 </Button>
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-[1rem] border border-dashed border-border/70 bg-background/60 p-3">
+            <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 rounded-[1rem] border border-dashed border-border/70 bg-background/60 p-3">
               <Select value={bulkMode} onValueChange={(value) => setBulkMode(value as "percent" | "fixed")}>
-                <SelectTrigger className="h-10 w-[12rem] rounded-2xl border-border/70 bg-background">
+                <SelectTrigger className="h-10 sm:h-11 w-full sm:w-[12rem] rounded-2xl border-border/70 bg-background">
                   <SelectValue placeholder="Tipo de ajuste" />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,7 +426,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                       placeholder={bulkMode === "percent" ? "Ex.: 5 para +5%" : "Ex.: 1,50 para somar"}
                 value={bulkValue}
                 onChange={(e) => setBulkValue(e.target.value)}
-                className="h-10 w-full rounded-2xl border-border/70 bg-background sm:max-w-[14rem]"
+                className="h-10 w-full rounded-2xl border-border/70 bg-background sm:w-auto sm:flex-1"
               />
               <Button
                 type="button"
@@ -441,7 +441,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
           </div>
         </div>
 
-        <div className="mt-4 rounded-[1.25rem] border border-border/70 bg-primary/5 px-4 py-3 text-[13px] leading-6 text-foreground">
+        <div className="mt-4 rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 sm:px-4 py-3 text-[12px] sm:text-[13px] leading-5 sm:leading-6 text-foreground">
           Escopo atual: <span className="font-semibold">{scopeLabel}</span>. Os preços são salvos por produto e respeitam a tabela ERP quando houver TPR vinculado.
         </div>
 
@@ -475,8 +475,8 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
             const currentPrice = coercePrice(existing?.price ?? product.price);
 
             return (
-              <div key={code} className="rounded-[1.25rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+              <div key={code} className="rounded-[1.25rem] border border-border/70 bg-card p-3 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
@@ -496,7 +496,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                     </p>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-[10rem_10rem_auto] lg:w-[34rem] lg:shrink-0">
+                  <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[10rem_10rem_auto] gap-2 sm:gap-3 lg:w-[34rem] lg:shrink-0">
                     <div>
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
                       <Input

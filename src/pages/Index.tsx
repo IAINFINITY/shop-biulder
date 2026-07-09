@@ -14,7 +14,7 @@ import {
 } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
 import { getProductImageUrls } from "@/lib/products";
-import { descriptionIncludesQuery } from "@/lib/richText";
+import { descriptionIncludesQuery } from "@/lib/richTextPure";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useAuth } from "@/hooks/useAuth";

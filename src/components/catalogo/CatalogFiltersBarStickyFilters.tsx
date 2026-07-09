@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Filter, Menu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -261,7 +261,7 @@ export function CatalogFiltersBarV2({
   );
   const sortedFamilies = useMemo(() => getSortedFamilies(categoryFamilies, familyCounts), [categoryFamilies, familyCounts]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (typeof document === "undefined") return;
 
     const filtersRow = filtersRef.current;
@@ -270,15 +270,26 @@ export function CatalogFiltersBarV2({
       return;
     }
 
-    const updateHeight = () => {
-      document.documentElement.style.setProperty(filtersHeightVariable, `${Math.ceil(filtersRow.offsetHeight)}px`);
+    const updateHeight = (height: number) => {
+      document.documentElement.style.setProperty(filtersHeightVariable, `${Math.ceil(height)}px`);
     };
-
-    updateHeight();
 
     if (typeof ResizeObserver === "undefined") return;
 
-    const resizeObserver = new ResizeObserver(updateHeight);
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+
+      const blockSize =
+        Array.isArray(entry.borderBoxSize) && entry.borderBoxSize.length > 0
+          ? entry.borderBoxSize[0].blockSize
+          : entry.borderBoxSize && "blockSize" in entry.borderBoxSize
+            ? entry.borderBoxSize.blockSize
+            : entry.contentRect.height;
+
+      updateHeight(blockSize);
+    });
+
     resizeObserver.observe(filtersRow);
 
     return () => resizeObserver.disconnect();

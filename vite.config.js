@@ -23,8 +23,10 @@ function inlineCriticalCss() {
       const css = fs.readFileSync(cssPath, "utf-8");
 
       // Move all <script> and <link rel="modulepreload"> to end of <body>
+      // but keep heavy admin-only chunks out of the initial mobile load.
       const scripts = html.match(/<script[^>]*><\/script>/g) || [];
       const preloads = html.match(/<link rel="modulepreload"[^>]*>/g) || [];
+      const retainedPreloads = preloads.filter((tag) => !/\/assets\/(tiptap|pdf)-/i.test(tag));
 
       for (const s of scripts) html = html.replace(s, "");
       for (const p of preloads) html = html.replace(p, "");
@@ -33,7 +35,7 @@ function inlineCriticalCss() {
       html = html.replace(cssMatch[0], `<style>${css}</style>`);
 
       // Append scripts before </body>
-      const allTags = [...preloads, ...scripts].join("\n    ");
+      const allTags = [...retainedPreloads, ...scripts].join("\n    ");
       html = html.replace("</body>", `${allTags}\n  </body>`);
 
       fs.writeFileSync(htmlPath, html, "utf-8");

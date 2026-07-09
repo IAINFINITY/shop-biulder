@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { FontSize, TextStyle, FONT_SIZE_OPTIONS } from "@/lib/richText";
+import { FontSize, TextStyle, FONT_SIZE_OPTIONS } from "@/lib/richTextEditor";
 
 type RichTextEditorProps = {
   value: string;

@@ -38,7 +38,7 @@ import { ORDERS_TABLE } from "@/lib/orders";
 import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/lib/orderExport";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { isRichTextEmpty, sanitizeRichText } from "@/lib/richText";
+import { isRichTextEmpty, sanitizeRichText } from "@/lib/richTextPure";
 import { AdminWorkspaceShell } from "@/components/admin/AdminWorkspaceShell";
 import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection";
 import { AdminBannersSection } from "@/components/admin/AdminBannersSection";

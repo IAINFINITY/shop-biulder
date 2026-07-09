@@ -1,6 +1,6 @@
 ﻿import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { extractDescriptionBlocks, sanitizeRichText, stripHtml } from "@/lib/richText";
+import { extractDescriptionBlocks, sanitizeRichText, stripHtml } from "@/lib/richTextPure";
 
 type ProductDescriptionProps = {
   html: string;

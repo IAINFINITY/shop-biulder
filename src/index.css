@@ -118,6 +118,41 @@
     will-change: auto;
   }
 
+  @media (max-width: 639px) {
+    html {
+      font-size: 15px;
+    }
+
+    input,
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  @media (min-width: 640px) {
+    html {
+      font-size: 16px;
+    }
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0rem);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0rem);
+  }
+
+  .min-h-safe {
+    min-height: calc(100dvh - env(safe-area-inset-bottom, 0rem));
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
   [data-native-view-transition="true"] .page-shell {
     transition: none;
     will-change: auto;

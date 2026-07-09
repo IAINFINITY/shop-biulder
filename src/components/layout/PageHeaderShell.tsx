@@ -2,16 +2,16 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const headerShellClassName = "sticky top-0 z-50 border-b border-border/70 bg-card/95 shadow-sm backdrop-blur";
-const headerInnerClassName = "mx-auto flex min-h-[88px] w-full max-w-[1600px] items-center px-4 sm:px-6 lg:px-8";
 const headerHeightVariable = "--page-header-shell-height";
 
 export type PageHeaderShellProps = {
   children: ReactNode;
   className?: string;
   innerClassName?: string;
+  compact?: boolean;
 };
 
-export function PageHeaderShell({ children, className, innerClassName }: PageHeaderShellProps) {
+export function PageHeaderShell({ children, className, innerClassName, compact }: PageHeaderShellProps) {
   const headerRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
@@ -36,7 +36,15 @@ export function PageHeaderShell({ children, className, innerClassName }: PageHea
 
   return (
     <header ref={headerRef} className={cn(headerShellClassName, className)}>
-      <div className={cn(headerInnerClassName, innerClassName)}>{children}</div>
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-[1600px] items-center px-4 sm:px-6 lg:px-8",
+          compact ? "min-h-[52px] sm:min-h-[88px]" : "min-h-[88px]",
+          innerClassName,
+        )}
+      >
+        {children}
+      </div>
     </header>
   );
 }

@@ -52,6 +52,13 @@ export default defineConfig(() => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      "/api": {
+        target: "https://catalogo-clinicmais.iainfinity.com.br",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [react(), inlineCriticalCss()],
   build: {

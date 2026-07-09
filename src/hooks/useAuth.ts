@@ -318,8 +318,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const supabase = await loadSupabaseClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return error ?? null;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (data?.session?.user) {
+      resolveAuthState(data.session.user);
+      return null;
+    }
+
+    if (error) return error;
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.user) {
+      resolveAuthState(sessionData.session.user);
+      return null;
+    }
+
+    return new Error("Falha ao autenticar. Nenhuma sessão foi criada.");
   };
 
   const signUp = async (email: string, password: string) => {

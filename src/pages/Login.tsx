@@ -112,23 +112,29 @@ export default function Login() {
     e.preventDefault();
     const startedAt = Date.now();
     setSubmitting(true);
-    const error = await signIn(signInEmail.trim(), signInPassword);
-    const elapsed = Date.now() - startedAt;
-    if (elapsed < AUTH_FEEDBACK_MIN_MS) {
-      await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
-    }
-    if (error) {
-      console.error("Erro ao fazer login", error);
-      const msg = error.message.toLowerCase();
-      if (msg.includes("email not confirmed") || msg.includes("confirme") || msg.includes("confirm")) {
-        toast.error("Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.");
-      } else if (msg.includes("invalid login") || msg.includes("invalid credentials") || msg.includes("incorret")) {
-        toast.error("E-mail ou senha incorretos.");
-      } else {
-        toast.error(error.message || "Erro ao fazer login.");
+    try {
+      const error = await signIn(signInEmail.trim(), signInPassword);
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < AUTH_FEEDBACK_MIN_MS) {
+        await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
       }
+      if (error) {
+        console.error("Erro ao fazer login", error);
+        const msg = error.message.toLowerCase();
+        if (msg.includes("email not confirmed") || msg.includes("confirme") || msg.includes("confirm")) {
+          toast.error("Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.");
+        } else if (msg.includes("invalid login") || msg.includes("invalid credentials") || msg.includes("incorret")) {
+          toast.error("E-mail ou senha incorretos.");
+        } else {
+          toast.error(error.message || "Erro ao fazer login.");
+        }
+      }
+    } catch (err) {
+      console.error("Exceção ao fazer login", err);
+      toast.error("Erro de conexão. Verifique sua internet e tente novamente.");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {

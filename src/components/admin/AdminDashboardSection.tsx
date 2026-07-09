@@ -104,30 +104,77 @@ export function AdminDashboardSection({
               Ver todos
             </Button>
           </div>
-          <div className="overflow-x-auto rounded-[1.25rem] border border-border/70">
-            <table className="w-full border-collapse text-sm">
+          <div className="space-y-3 lg:hidden">
+            {recentOrders.map((order) => {
+              const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+              const shortOrderId = order.id.length > 10 ? `#${order.id.slice(0, 8)}…` : `#${order.id}`;
+
+              return (
+                <div
+                  key={order.id}
+                  className="rounded-[1.1rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="truncate font-mono text-[13px] text-foreground" title={`Pedido ${order.id}`}>
+                        {shortOrderId}
+                      </p>
+                      <p className="truncate text-[14px] font-medium text-foreground" title={order.customer_company || order.customer_name}>
+                        {order.customer_company || order.customer_name}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
+                      className="rounded-full px-2.5 py-0.5 text-[11px]"
+                    >
+                      {order.status}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                    <div className="rounded-2xl bg-muted/20 px-3 py-2">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Data</p>
+                      <p className="mt-1 text-foreground">{formatDate(order.created_at)}</p>
+                    </div>
+                    <div className="rounded-2xl bg-muted/20 px-3 py-2 text-right">
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Valor</p>
+                      <p className="mt-1 font-mono text-foreground">{formatBRL(total)}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
+            <table className="w-full table-fixed border-collapse text-sm">
               <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                 <tr>
-                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Cliente</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Data</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">Valor</th>
-                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>
+                  <th className="w-[29%] whitespace-nowrap px-4 py-3 text-left font-semibold">Cliente</th>
+                  <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Data</th>
+                  <th className="w-[13%] whitespace-nowrap px-4 py-3 text-right font-semibold">Valor</th>
+                  <th className="w-[16%] whitespace-nowrap px-4 py-3 text-left font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {recentOrders.map((order) => {
                   const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+                  const shortOrderId = order.id.length > 10 ? `#${order.id.slice(0, 8)}…` : `#${order.id}`;
                   return (
                     <tr key={order.id} className="border-t border-border/60 hover:bg-muted/20">
-                      <td className="whitespace-nowrap px-4 py-3 font-mono text-sm text-foreground">#{order.id}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-foreground">{order.customer_company || order.customer_name}</td>
+                      <td className="truncate px-4 py-3 font-mono text-sm text-foreground" title={`Pedido ${order.id}`}>
+                        {shortOrderId}
+                      </td>
+                      <td className="truncate px-4 py-3 text-foreground" title={order.customer_company || order.customer_name}>
+                        {order.customer_company || order.customer_name}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-foreground">{formatBRL(total)}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
+                      <td className="whitespace-nowrap px-4 py-3 pr-4">
                         <Badge
-                            variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
-                          className="rounded-full px-2.5 py-0.5 text-[11px]"
+                          variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
+                          className="inline-flex min-w-[7.75rem] max-w-full justify-center rounded-full px-3 py-1 text-[10px] leading-none"
                         >
                           {order.status}
                         </Badge>

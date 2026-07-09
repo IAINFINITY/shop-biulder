@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ import {
   type SupportConversation,
   type InternalStaffRole,
 } from "@/lib/supportChat";
+import { Menu, MessagesSquare } from "lucide-react";
 
 type SupportChatPanelProps = {
   mode: "customer" | "admin";
@@ -56,6 +58,21 @@ function formatTime(value: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(date);
+}
+
+function internalStaffRoleLabel(role: InternalStaffRole | null | undefined) {
+  switch (role) {
+    case "consultor":
+      return "Consultor";
+    case "representante":
+      return "Representante";
+    case "admin_atendimento":
+      return "Admin atendimento";
+    case "admin":
+      return "Admin";
+    default:
+      return "Cliente";
+  }
 }
 
 function MessageBubble({
@@ -263,6 +280,9 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
   const { user, isAdmin } = useAuth();
   const currentUserId = user?.id ?? null;
   const currentRole = isAdmin ? "admin" : "customer";
+  const isCustomerMode = mode === "customer";
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileInboxOpen, setMobileInboxOpen] = useState(false);
   const { data: customerConversation, isLoading: customerConversationLoading, refetch: refetchCustomerConversation } =
     useCustomerSupportConversation(currentUserId, mode === "customer" && Boolean(currentUserId));
   const { data: inboxConversations = [], isLoading: inboxLoading } = useSupportInbox(mode === "admin" && isAdmin);
@@ -275,6 +295,17 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
   const typingStateRef = useRef(false);
   const [now, setNow] = useState(() => Date.now());
   const [internalStaffDialogOpen, setInternalStaffDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(max-width: 767px)");
+    const updateMobileState = () => setIsMobile(media.matches);
+
+    updateMobileState();
+    media.addEventListener("change", updateMobileState);
+    return () => media.removeEventListener("change", updateMobileState);
+  }, []);
 
   const filteredInboxConversations = useMemo(() => {
     const term = inboxSearch.trim().toLowerCase();
@@ -385,15 +416,212 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
     }
   };
 
-  const isCustomerMode = mode === "customer";
   const otherTypingAt = isCustomerMode ? selectedConversation?.admin_typing_at : selectedConversation?.customer_typing_at;
   const otherTypingLabel = isCustomerMode ? "Consultor digitando..." : "Cliente digitando...";
   const isOtherTyping = selectedConversation ? isTypingRecently(otherTypingAt, now) : false;
+  const mobileConversationTitle = selectedConversation ? formatSupportConversationTitle(selectedConversation) : "Conversa";
+  const mobileConversationSubtitle = selectedConversation?.subject || (isCustomerMode ? "Fale com seu consultor" : "Selecione uma conversa");
+  const mobileConversationTime = selectedConversation ? formatTime(selectedConversation.last_message_at) : "Sem atividade";
+
+  if (isMobile) {
+    return (
+      <div
+        className="mx-auto flex w-full max-w-[1800px] flex-col gap-3 overflow-hidden px-3"
+        style={{ height: "min(92dvh, 68rem)" }}
+      >
+        <section className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3">
+          <div className="space-y-1.5 min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {isCustomerMode ? "Chat interno" : "Inbox interno"}
+            </p>
+            <h2 className="truncate text-[1.05rem] font-bold leading-tight tracking-[-0.03em] text-foreground">
+              {isCustomerMode ? "Fale com seu consultor" : "Conversas com clientes"}
+            </h2>
+            <p className="max-w-3xl text-[12px] leading-5 text-muted-foreground">
+              {isCustomerMode
+                ? "Canal oficial para tirar dúvidas, receber orientações e acompanhar seu atendimento."
+                : "Cada conversa fica vinculada ao cliente, ao CNPJ e ao contexto do pedido."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isCustomerMode ? (
+              <Sheet open={mobileInboxOpen} onOpenChange={setMobileInboxOpen}>
+                <SheetTrigger asChild>
+                  <Button type="button" variant="outline" className="h-10 rounded-full px-3 text-sm">
+                    <Menu className="h-4 w-4" />
+                    Conversas
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[min(92vw,28rem)] overflow-y-auto p-4 sm:p-6">
+                  <SheetHeader className="text-left">
+                    <SheetTitle>Conversas</SheetTitle>
+                    <SheetDescription>Abra uma conversa para responder no painel principal.</SheetDescription>
+                  </SheetHeader>
+
+                  <div className="mt-4 space-y-3">
+                    <Input
+                      placeholder="Buscar cliente, empresa ou CNPJ"
+                      className="h-10 rounded-2xl border-border/70 bg-background"
+                      value={inboxSearch}
+                      onChange={(e) => setInboxSearch(e.target.value)}
+                    />
+
+                    {inboxLoading ? (
+                      <div className="space-y-3">
+                        <Skeleton className="h-[88px] rounded-[1.25rem]" />
+                        <Skeleton className="h-[88px] rounded-[1.25rem]" />
+                      </div>
+                    ) : filteredInboxConversations.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {filteredInboxConversations.map((conversation) => (
+                          <ConversationCard
+                            key={conversation.id}
+                            conversation={conversation}
+                            active={conversation.id === selectedConversation?.id}
+                            onClick={() => {
+                              setSelectedConversationId(conversation.id);
+                              setMobileInboxOpen(false);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-5 text-sm text-muted-foreground">
+                        Ainda não há conversas abertas. Quando um cliente iniciar contato, elas vão aparecer aqui.
+                      </div>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            ) : null}
+
+            {!isCustomerMode ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-full px-3 text-sm"
+                onClick={() => setInternalStaffDialogOpen(true)}
+              >
+                Papéis
+              </Button>
+            ) : null}
+          </div>
+        </section>
+
+        {selectedConversation ? (
+          <>
+            <div className="flex items-center justify-between gap-3 px-1 pt-1">
+              <Badge variant={selectedConversation.status === "open" ? "default" : "secondary"} className="rounded-full px-3 py-1 text-[11px]">
+                {selectedConversation.status === "open" ? "Aberta" : selectedConversation.status === "closed" ? "Fechada" : "Arquivada"}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground">{mobileConversationTime}</span>
+            </div>
+
+            <div className="grid min-h-0 flex-1 overflow-hidden rounded-[1.25rem] border border-border/70 bg-background shadow-[0_16px_40px_rgba(16,24,40,0.08)]">
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[linear-gradient(180deg,rgba(248,250,252,0.94),rgba(255,255,255,1))] p-3">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {mobileConversationTitle}
+                    </p>
+                    <p className="mt-1 line-clamp-1 text-sm font-medium text-foreground">{mobileConversationSubtitle}</p>
+                  </div>
+                </div>
+
+                {messagesLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-16 rounded-[1.2rem]" />
+                    <Skeleton className="h-16 rounded-[1.2rem]" />
+                    <Skeleton className="h-16 rounded-[1.2rem]" />
+                  </div>
+                ) : messages.length > 0 ? (
+                  <div className="flex w-full flex-col gap-3">
+                    {messages.map((message) => (
+                      <MessageBubble
+                        key={message.id}
+                        body={message.body}
+                        createdAt={message.created_at}
+                        owner={message.sender_user_id === currentUserId ? "self" : "other"}
+                        senderLabel={
+                          message.sender_user_id === currentUserId
+                            ? "Você"
+                            : isCustomerMode
+                              ? "Consultor"
+                              : message.sender_role
+                                ? internalStaffRoleLabel(message.sender_role)
+                                : message.sender_user_name || "Cliente"
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[14rem] items-center justify-center rounded-[1rem] border border-dashed border-border/70 bg-background text-sm text-muted-foreground">
+                    Ainda não há mensagens nesta conversa.
+                  </div>
+                )}
+
+                {isOtherTyping ? (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Avatar className="h-9 w-9 border border-border/70 bg-background">
+                      <AvatarFallback className="bg-primary/5 text-[10px] font-semibold text-primary">
+                        {isCustomerMode ? "C" : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{otherTypingLabel}</span>
+                    <TypingDots />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-2 border-t border-border/70 bg-background p-3">
+                <Textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!sendDisabled) {
+                        void handleSend();
+                      }
+                    }
+                  }}
+                  placeholder={isCustomerMode ? "Escreva sua mensagem para o consultor..." : "Responda ao cliente..."}
+                  className="min-h-[90px] rounded-[1.1rem] border-border/70 bg-background px-4 py-3 text-sm shadow-none"
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] leading-5 text-muted-foreground">
+                    {isCustomerMode
+                      ? "Use este canal para falar com seu representante interno."
+                      : "As mensagens ficam vinculadas ao cliente e ao CNPJ."}
+                  </p>
+                  <Button type="button" className="gap-2 rounded-full px-4" disabled={sendDisabled} onClick={handleSend}>
+                    {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Enviar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-[1.25rem] border border-dashed border-border/70 bg-muted/10 px-6 py-10 text-center">
+            <MessagesSquare className="h-10 w-10 text-primary/70" />
+            <p className="text-sm font-medium text-foreground">Nenhuma conversa selecionada</p>
+            <p className="max-w-md text-sm leading-6 text-muted-foreground">
+              {isCustomerMode
+                ? "Sua conversa será carregada automaticamente quando o perfil estiver pronto."
+                : "Escolha uma conversa na lista para ver o histórico e responder."}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
       className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 sm:gap-6 overflow-hidden"
-      style={{ height: "min(85vh, 64rem)" }}
+      style={{ height: isMobile ? "min(92dvh, 68rem)" : "min(85vh, 64rem)" }}
     >
       <section className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-4 shrink-0">
         <div className="space-y-2">
@@ -417,7 +645,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
       <div className="grid min-h-0 flex-1 gap-3 sm:gap-5 xl:grid-cols-[18.5rem_minmax(0,1fr)] overflow-hidden">
           {isCustomerMode ? (
             <>
-              <div className="flex h-full min-h-0 flex-col space-y-3 sm:space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-sm">
+              <div className="hidden h-full min-h-0 flex-col space-y-3 sm:space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-sm xl:flex">
                 <div className="flex min-h-[3.5rem] items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">

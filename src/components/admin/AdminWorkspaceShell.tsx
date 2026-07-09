@@ -1,9 +1,10 @@
 ﻿import { Link } from "react-router-dom";
 import type { CSSProperties, ReactNode } from "react";
-import { ArrowLeft, BadgeDollarSign, Bell, ChevronLeft, ChevronRight, Image, LayoutDashboard, LogOut, MessageSquareText, Package, ShoppingBag, Users } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, Bell, ChevronLeft, ChevronRight, Image, LayoutDashboard, LogOut, MessageSquareText, Package, ShoppingBag, Users, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { useProxisHealth } from "@/hooks/useProxisHealth";
 import type { AdminSection } from "./adminTypes";
 
 type AdminWorkspaceShellProps = {
@@ -48,6 +49,52 @@ export function AdminWorkspaceShell({
     },
   ];
 
+function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
+  const { connected, checking, checkNow } = useProxisHealth();
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={checkNow}
+        title={connected ? "Proxis conectado" : checking ? "Verificando Proxis..." : "Proxis desconectado"}
+        aria-label={connected ? "Proxis conectado" : "Proxis desconectado"}
+        className="mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-muted/40"
+      >
+        <span className="relative flex h-3 w-3">
+          <span className={cn("absolute inset-0 rounded-full", connected ? "bg-emerald-500" : "bg-red-400", checking && "animate-pulse")} />
+          {connected ? (
+            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
+          ) : null}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="shrink-0 border-t border-border/70 px-3 pb-2 pt-2.5">
+      <button
+        type="button"
+        onClick={checkNow}
+        className="flex w-full items-center gap-2.5 rounded-[1rem] px-2.5 py-2 text-left transition-colors hover:bg-muted/40"
+      >
+        <span className="relative flex h-2.5 w-2.5 shrink-0">
+          <span className={cn("absolute inset-0 rounded-full", connected ? "bg-emerald-500" : "bg-red-400", checking && "animate-pulse")} />
+          {connected ? (
+            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
+          ) : null}
+        </span>
+        <span className="text-[12px] font-medium text-muted-foreground">
+          {connected ? "Proxis conectado" : checking ? "Verificando..." : "Proxis offline"}
+        </span>
+        <span className="ml-auto">
+          {connected ? <Wifi className="h-3.5 w-3.5 text-emerald-500" /> : <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
+        </span>
+      </button>
+    </div>
+  );
+}
+
   const shellStyle = {
     "--admin-sidebar-w": sidebarOpen ? "16rem" : "4.75rem",
   } as CSSProperties;
@@ -73,7 +120,7 @@ export function AdminWorkspaceShell({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex h-screen w-[var(--admin-sidebar-w)] max-lg:w-72 shrink-0 flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-[0_24px_60px_rgba(16,24,40,0.14)] backdrop-blur transition-[width,transform] duration-300 ease-out",
+          "fixed inset-y-0 left-0 z-40 flex h-[100dvh] min-h-0 w-[var(--admin-sidebar-w)] max-lg:w-72 shrink-0 flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-[0_24px_60px_rgba(16,24,40,0.14)] backdrop-blur transition-[width,transform] duration-300 ease-out max-lg:pb-[env(safe-area-inset-bottom)]",
           sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full",
         )}
       >
@@ -99,7 +146,7 @@ export function AdminWorkspaceShell({
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto overscroll-contain px-2 py-2 sm:py-3">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-2 sm:py-3">
           {navGroups.map((group) => (
             <div key={group.label} className="mb-3 sm:mb-4">
               {!collapsed ? (
@@ -150,7 +197,9 @@ export function AdminWorkspaceShell({
           ))}
         </nav>
 
-        <div className="border-t border-border/70 p-2.5 sm:p-3">
+        <MenuProxisStatus collapsed={collapsed} />
+
+        <div className="shrink-0 border-t border-border/70 p-2.5 sm:p-3">
           <div
             className={cn(
               "flex items-center gap-3 rounded-2xl border border-border/70 bg-background/95 px-3 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",

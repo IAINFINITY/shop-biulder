@@ -116,6 +116,20 @@ function clearCachedCustomerProfile(): void {
   }
 }
 
+function translateAuthErrorMessage(message: string): string {
+  const normalized = message.trim().toLowerCase();
+
+  if (!normalized) return "Erro ao autenticar.";
+  if (normalized.includes("invalid login credentials") || normalized.includes("invalid credentials")) {
+    return "E-mail ou senha incorretos.";
+  }
+  if (normalized.includes("email not confirmed") || normalized.includes("email not verified")) {
+    return "Confirme seu e-mail antes de fazer login.";
+  }
+
+  return message;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const bootstrapSnapshot = readAuthBootstrap();
@@ -325,7 +339,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    if (error) return error;
+    if (error) return new Error(translateAuthErrorMessage(error.message || "Erro ao autenticar."));
 
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session?.user) {

@@ -74,7 +74,7 @@ export function CartDrawer({
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="!flex w-full flex-col sm:max-w-md">
+      <SheetContent className="!flex w-full flex-col sm:max-w-md pb-safe">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-primary" />

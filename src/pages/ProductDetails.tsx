@@ -31,6 +31,10 @@ import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
+import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
+import { StickyBottomCTA } from "@/components/mobile/StickyBottomCTA";
+import { TouchCarousel } from "@/components/mobile/TouchCarousel";
+import { CollapsibleCard } from "@/components/mobile/CollapsibleCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
@@ -393,7 +397,23 @@ export default function ProductDetails() {
             </div>
 
             <div className="min-w-0 self-stretch">
-              <div className="relative flex h-full flex-col overflow-visible xl:min-h-[640px]">
+              <div className="xl:hidden">
+                {galleryUrls.length > 0 ? (
+                  <TouchCarousel aspectRatio="aspect-square" showDots>
+                    {galleryUrls.map((url) => (
+                      <div className="flex h-full w-full items-center justify-center bg-background p-2">
+                        <img src={url} alt={product.name} className="h-full w-full object-contain" />
+                      </div>
+                    ))}
+                  </TouchCarousel>
+                ) : (
+                  <div className="flex aspect-square items-center justify-center rounded-2xl border border-border/70 bg-muted/30">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                  </div>
+                )}
+              </div>
+
+              <div className="relative hidden xl:flex h-full flex-col overflow-visible xl:min-h-[640px]">
                 <div className="flex flex-1 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
                   <div
                     ref={imageFrameRef}
@@ -450,26 +470,6 @@ export default function ProductDetails() {
                   ) : null}
                 </div>
               </div>
-
-              {galleryUrls.length > 1 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1 xl:hidden">
-                  {galleryUrls.map((src, index) => (
-                    <button
-                      key={`${src}-${index}`}
-                      type="button"
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border bg-background p-1 ${
-                        index === selectedImageIndex
-                          ? "border-primary ring-2 ring-primary/20"
-                          : "border-border/70"
-                        }`}
-                      aria-label={`Ver imagem ${index + 1}`}
-                    >
-                      <img src={src} alt="" width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full rounded-md object-contain" />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="self-stretch xl:sticky xl:top-5">
@@ -504,7 +504,7 @@ export default function ProductDetails() {
                       <p className="text-3xl font-semibold text-primary tabular-nums">{formatBRL(productPrice)}</p>
                     </div>
 
-                    <Button onClick={handleAdd} className="w-full gap-2 sm:w-auto">
+                    <Button onClick={handleAdd} className="hidden sm:inline-flex w-full gap-2 sm:w-auto">
                       <Plus className="h-4 w-4" /> Adicionar ao carrinho
                     </Button>
                   </div>
@@ -527,7 +527,22 @@ export default function ProductDetails() {
                     ))}
                   </div>
 
-                  <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
+                  <div className="xl:hidden">
+                    <CollapsibleCard header={<span className="font-semibold">Descrição</span>}>
+                      {hasDescription ? (
+                        <ProductDescription
+                          html={product.description}
+                          className="text-sm leading-7 text-foreground/90"
+                        />
+                      ) : (
+                        <p className="text-sm leading-6 text-muted-foreground">
+                          Sem descrição disponível para este produto.
+                        </p>
+                      )}
+                    </CollapsibleCard>
+                  </div>
+
+                  <div className="hidden xl:flex min-h-0 flex-1 flex-col rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
                     <div className="flex items-center gap-3">
                       <CardTitle className="text-lg">Descrição</CardTitle>
                       <span className="hidden text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
@@ -589,6 +604,22 @@ export default function ProductDetails() {
         visible={cart.length > 0}
         onOpenCart={openCart}
       />
+
+      <StickyBottomCTA className="bottom-14">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+              Preço
+            </p>
+            <p className="text-xl font-semibold text-primary tabular-nums">{formatBRL(productPrice)}</p>
+          </div>
+          <Button onClick={handleAdd} className="gap-2 shrink-0" size="lg">
+            <Plus className="h-4 w-4" /> Adicionar
+          </Button>
+        </div>
+      </StickyBottomCTA>
+
+      <MobileBottomNav cartItemCount={cartUnitCount} onOpenCart={openCart} />
     </div>
   );
 }

@@ -102,19 +102,19 @@ export function OrderAdminCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pl-10 sm:pl-11">
-          <Button type="button" variant="outline" size="sm" className="h-8 gap-1 rounded-full px-3 text-[12px]" disabled={isProxisExporting} onClick={onExportProxis}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" disabled={isProxisExporting} onClick={onExportProxis}>
             <FileDown className="h-3.5 w-3.5" />
             {isProxisExporting ? "Gerando..." : "Proxis .txt"}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-8 gap-1 rounded-full px-3 text-[12px]" onClick={onExportXlsx}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={onExportXlsx}>
             <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-8 gap-1 rounded-full px-3 text-[12px]" onClick={onExportPdf}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={onExportPdf}>
             <FileText className="h-3.5 w-3.5" /> PDF
           </Button>
           <ConfirmActionDialog
             trigger={
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-destructive" title="Excluir pedido">
+              <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-8 sm:w-8 rounded-full text-destructive" title="Excluir pedido">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             }

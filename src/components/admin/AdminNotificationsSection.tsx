@@ -285,7 +285,7 @@ function NotificationCard({
         </div>
 
         <div className="mt-auto flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-[12px]" onClick={() => onEdit(notification)}>
+          <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={() => onEdit(notification)}>
             <Pencil className="h-4 w-4" />
             Editar
           </Button>

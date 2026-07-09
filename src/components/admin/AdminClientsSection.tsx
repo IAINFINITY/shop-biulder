@@ -227,7 +227,7 @@ export function AdminClientsSection({
             <Button
               type="button"
               variant={clientFilter === "all" ? "default" : "outline"}
-              className="h-9 rounded-full px-3 text-[13px]"
+              className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
               onClick={() => onClientFilterChange("all")}
             >
               A-Z
@@ -235,7 +235,7 @@ export function AdminClientsSection({
             <Button
               type="button"
               variant={clientFilter === "orders" ? "default" : "outline"}
-              className="h-9 rounded-full px-3 text-[13px]"
+              className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
               onClick={() => onClientFilterChange("orders")}
             >
               Mais pedidos
@@ -243,7 +243,7 @@ export function AdminClientsSection({
             <Button
               type="button"
               variant={clientFilter === "revenue" ? "default" : "outline"}
-              className="h-9 rounded-full px-3 text-[13px]"
+              className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
               onClick={() => onClientFilterChange("revenue")}
             >
               Maior gasto
@@ -281,7 +281,7 @@ export function AdminClientsSection({
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-8 rounded-full px-3 text-[12px]"
+                        className="h-10 sm:h-8 rounded-full px-3 text-[13px] sm:text-[12px]"
                         onClick={() => openDetails(customer)}
                       >
                         Ver dados
@@ -289,7 +289,7 @@ export function AdminClientsSection({
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-8 rounded-full px-3 text-[12px]"
+                        className="h-10 sm:h-8 rounded-full px-3 text-[13px] sm:text-[12px]"
                         onClick={() => openEditor(customer)}
                       >
                         Alterar tipo

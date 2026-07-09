@@ -104,15 +104,15 @@ export function AdminDashboardSection({
               Ver todos
             </Button>
           </div>
-          <div className="overflow-hidden rounded-[1.25rem] border border-border/70">
+          <div className="overflow-x-auto rounded-[1.25rem] border border-border/70">
             <table className="w-full border-collapse text-sm">
               <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold">Pedido</th>
-                  <th className="px-4 py-3 text-left font-semibold">Cliente</th>
-                  <th className="px-4 py-3 text-left font-semibold">Data</th>
-                  <th className="px-4 py-3 text-right font-semibold">Valor</th>
-                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Cliente</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Data</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right font-semibold">Valor</th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -120,11 +120,11 @@ export function AdminDashboardSection({
                   const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
                   return (
                     <tr key={order.id} className="border-t border-border/60 hover:bg-muted/20">
-                      <td className="px-4 py-3 font-mono text-sm text-foreground">#{order.id}</td>
-                      <td className="px-4 py-3 text-foreground">{order.customer_company || order.customer_name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-foreground">{formatBRL(total)}</td>
-                      <td className="px-4 py-3">
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-sm text-foreground">#{order.id}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-foreground">{order.customer_company || order.customer_name}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-foreground">{formatBRL(total)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
                         <Badge
                             variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
                           className="rounded-full px-2.5 py-0.5 text-[11px]"

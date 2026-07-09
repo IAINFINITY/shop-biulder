@@ -292,7 +292,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
               <Button
                 type="button"
                       variant={scopeMode === "customer_type" ? "default" : "ghost"}
-                className="h-9 rounded-full px-3 text-xs"
+                className="h-10 sm:h-9 rounded-full px-3 text-xs"
                 onClick={() => setScopeMode("customer_type")}
               >
                 Por tipo de cliente
@@ -300,7 +300,7 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
               <Button
                 type="button"
                       variant={scopeMode === "proxis_tpr_id" ? "default" : "ghost"}
-                className="h-9 rounded-full px-3 text-xs"
+                className="h-10 sm:h-9 rounded-full px-3 text-xs"
                 onClick={() => setScopeMode("proxis_tpr_id")}
               >
                 Por tabela Proxsys

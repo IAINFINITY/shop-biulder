@@ -353,7 +353,7 @@ export function AdminProductsSection({
                   <ConfirmActionDialog
                     key={type.id}
                     trigger={
-                      <Button type="button" variant="secondary" className="h-9 gap-2 rounded-full px-3 text-[12px]">
+                      <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[13px] sm:text-[12px]">
                         <span className="max-w-[14rem] truncate">{type.name}</span>
                         <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[10px]">
                           {count}
@@ -452,7 +452,7 @@ export function AdminProductsSection({
                       <ConfirmActionDialog
                         key={family.id}
                         trigger={
-                          <Button type="button" variant="secondary" className="h-9 gap-2 rounded-full px-3 text-[12px]">
+                          <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[13px] sm:text-[12px]">
                             <span className="max-w-[14rem] truncate">{family.name}</span>
                             <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[10px]">
                               {count}
@@ -524,7 +524,7 @@ export function AdminProductsSection({
           <Button
             type="button"
             variant={productListFilter === "all" ? "default" : "outline"}
-            className="h-9 rounded-full px-3 text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
             onClick={() => setProductListFilter("all")}
           >
             Todos
@@ -532,7 +532,7 @@ export function AdminProductsSection({
           <Button
             type="button"
             variant={productListFilter === "best_sellers" ? "default" : "outline"}
-            className="h-9 rounded-full px-3 text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
             onClick={() => setProductListFilter("best_sellers")}
           >
             <TrendingUp className="h-4 w-4" />
@@ -541,7 +541,7 @@ export function AdminProductsSection({
           <Button
             type="button"
             variant={productListFilter === "promotions" ? "default" : "outline"}
-            className="h-9 rounded-full px-3 text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
             onClick={() => setProductListFilter("promotions")}
           >
             <Sparkles className="h-4 w-4" />
@@ -641,15 +641,15 @@ export function AdminProductsSection({
                   </div>
 
                   <div className="flex items-center gap-2 sm:shrink-0">
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onToggleActive(p.id, p.active)}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 rounded-full" onClick={() => onToggleActive(p.id, p.active)}>
                       {p.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onStartEdit(p)}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 rounded-full" onClick={() => onStartEdit(p)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <ConfirmActionDialog
                       trigger={
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-destructive">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 rounded-full text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       }
@@ -719,7 +719,7 @@ export function AdminProductsSection({
                       <Button
                         type="button"
                         variant={previewMode === "catalog" ? "default" : "ghost"}
-                        className="h-9 rounded-full px-3 text-xs"
+                        className="h-10 sm:h-9 rounded-full px-3 text-xs"
                         onClick={() => setPreviewMode("catalog")}
                       >
                         Catálogo
@@ -727,7 +727,7 @@ export function AdminProductsSection({
                       <Button
                         type="button"
                         variant={previewMode === "details" ? "default" : "ghost"}
-                        className="h-9 rounded-full px-3 text-xs"
+                        className="h-10 sm:h-9 rounded-full px-3 text-xs"
                         onClick={() => setPreviewMode("details")}
                       >
                         Aberto

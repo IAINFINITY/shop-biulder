@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import type { Order } from "@/lib/orders";
 import { ORDERS_TABLE } from "@/lib/orders";
 
@@ -42,6 +42,7 @@ export function useOrders(enabled = true, queryKeySuffix = "default") {
     refetchOnWindowFocus: false,
     initialData: () => readCachedOrders(queryKeySuffix),
     queryFn: async (): Promise<Order[]> => {
+      const supabase = await loadSupabaseClient();
       const { data, error } = await supabase
         .from(ORDERS_TABLE)
         .select("*")

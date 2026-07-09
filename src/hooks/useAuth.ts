@@ -1,11 +1,11 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 import {
   CUSTOMER_PROFILES_TABLE,
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
+import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 
@@ -129,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
 
   const fetchCustomerProfile = useCallback(async (userId: string, resolutionId?: number) => {
+    const supabase = await loadSupabaseClient();
     const { data, error } = await supabase
       .from(CUSTOMER_PROFILES_TABLE)
       .select("*")
@@ -159,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hydrateSessionDetails = useCallback(async (nextUser: User, resolutionId: number) => {
     setIsResolvingAccess(true);
     try {
+      const supabase = await loadSupabaseClient();
       activeUserIdRef.current = nextUser.id;
       userRef.current = nextUser;
       const roleResult = await supabase.rpc("has_role", {
@@ -237,6 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const initAuth = async () => {
+      const supabase = await loadSupabaseClient();
       try {
         const { data } = await supabase.auth.getSession();
         const currentUser = data.session?.user ?? null;
@@ -248,22 +251,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    let subscription: { unsubscribe: () => void } | null = null;
+    void loadSupabaseClient().then((supabase) => {
       if (!mounted) return;
-      if (!session?.user && activeUserIdRef.current && event !== "SIGNED_OUT") {
-        return;
-      }
-      if (event === "TOKEN_REFRESHED" && session?.user && activeUserIdRef.current === session.user.id) {
-        return;
-      }
-      void resolveAuthState(session?.user ?? null);
+      const result = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!mounted) return;
+        if (!session?.user && activeUserIdRef.current && event !== "SIGNED_OUT") {
+          return;
+        }
+        if (event === "TOKEN_REFRESHED" && session?.user && activeUserIdRef.current === session.user.id) {
+          return;
+        }
+        void resolveAuthState(session?.user ?? null);
+      });
+      subscription = result.data.subscription;
     });
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [resolveAuthState]);
 
@@ -271,6 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return new Error("Usuário não autenticado");
 
     const normalizedType = normalizeCustomerType(customerType);
+    const supabase = await loadSupabaseClient();
     const { error } = await supabase
       .from(CUSTOMER_PROFILES_TABLE)
       .update({ customer_type: normalizedType } as never)
@@ -284,6 +291,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    const supabase = await loadSupabaseClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (!error) {
@@ -303,11 +311,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    const supabase = await loadSupabaseClient();
     const { error } = await supabase.auth.signUp({ email, password });
     return error;
   };
 
   const registerCustomerProfile = async (data: Omit<CustomerRegistrationData, "email" | "password">) => {
+    const supabase = await loadSupabaseClient();
     const { error } = await supabase.rpc("register_customer_profile", {
       p_name: data.name.trim(),
       p_phone: data.phone.trim(),
@@ -323,6 +333,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpCustomer = async (data: CustomerRegistrationData) => {
+    const supabase = await loadSupabaseClient();
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: data.email.trim(),
       password: data.password,
@@ -361,6 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdminRef.current = false;
     clearAuthBootstrap();
     clearCachedCustomerProfile();
+    const supabase = await loadSupabaseClient();
     const { error } = await supabase.auth.signOut();
     return { error };
   };

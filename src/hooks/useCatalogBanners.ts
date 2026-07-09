@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import {
   CATALOG_BANNERS_TABLE,
   normalizeCatalogBannerFromSupabaseRow,
@@ -20,6 +20,7 @@ export function useCatalogBanners(options?: UseCatalogBannersOptions) {
     refetchOnWindowFocus: false,
     retry: 1,
     queryFn: async () => {
+      const supabase = await loadSupabaseClient();
       let query = supabase
         .from(CATALOG_BANNERS_TABLE)
         .select("id,label,image_url,link_url,sort_order,active,created_at,updated_at")
@@ -37,4 +38,3 @@ export function useCatalogBanners(options?: UseCatalogBannersOptions) {
     initialData: [] as CatalogBanner[],
   });
 }
-

@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Settings, ShoppingBag, User, type LucideIcon } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -16,10 +15,8 @@ interface MobileBottomNavProps {
 }
 
 export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavProps) {
-  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const accountPath = user ? "/conta" : "/login";
 
   const items: NavItem[] = [
     {
@@ -38,7 +35,7 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
       id: "account",
       label: "Conta",
       icon: User,
-      onClick: () => navigate(accountPath),
+      onClick: () => navigate("/conta"),
     },
     {
       id: "admin",

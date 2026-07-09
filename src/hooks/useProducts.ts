@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import {
   type Product,
   PRODUCTS_TABLE,
@@ -62,6 +62,7 @@ export function useProducts(options?: UseProductsOptions) {
     retry: 1,
     initialData: () => readCachedProducts(includeInactive),
     queryFn: async () => {
+      const supabase = await loadSupabaseClient();
       const runQuery = (columns: string) => {
         let q = supabase.from(PRODUCTS_TABLE).select(columns).order("name");
         if (!includeInactive) {

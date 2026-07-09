@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 
 export type ProxisCustomerLookupResult = {
   found: boolean;
@@ -40,6 +40,7 @@ export async function lookupProxisCustomerByCnpj(cnpj: string): Promise<ProxisCu
 
 export async function syncCustomerProxisLink(cnpj: string) {
   const lookup = await lookupProxisCustomerByCnpj(cnpj).catch(() => EMPTY_LOOKUP_RESULT);
+  const supabase = await loadSupabaseClient();
   const { error } = await supabase.rpc("sync_customer_proxis_link", {
     p_proxis_pes_id: lookup.pes_id,
     p_proxis_tpr_id: lookup.tpr_id,

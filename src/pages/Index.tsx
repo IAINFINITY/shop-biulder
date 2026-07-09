@@ -17,12 +17,12 @@ import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richTextPure";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
-import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 import { ChevronUp, Loader2 } from "lucide-react";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
+import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
 
 const INITIAL_PRODUCTS_VISIBLE = 12;
 const PRODUCTS_VISIBLE_STEP = 12;
@@ -76,7 +76,8 @@ function saveCatalogViewState(state: CatalogViewState) {
 
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
-  const { customerProfile } = useAuth();
+  const authSnapshot = readAuthBootstrapSnapshot();
+  const customerProfile = readCachedCustomerProfile(authSnapshot?.user.id ?? null);
   const { data: orderHistory = [] } = useOrders(Boolean(customerProfile), "catalog");
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;

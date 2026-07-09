@@ -1,7 +1,6 @@
 ﻿import { type FormEvent, type ReactNode, useId } from "react";
 import { Link } from "react-router-dom";
 import { ImageIcon, Search, Settings, User } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatBRL } from "@/lib/formatMoney";
@@ -151,8 +150,6 @@ export function StoreHeader({
   cartSlot,
   searchSuggestions = [],
 }: StoreHeaderProps) {
-  const { user } = useAuth();
-  const accountPath = user ? "/conta" : "/login";
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
   const desktopPanelId = useId();
@@ -180,7 +177,7 @@ export function StoreHeader({
         </div>
 
         <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
-          <Link to={accountPath} viewTransition className="hidden lg:block">
+          <Link to="/conta" viewTransition className="hidden lg:block">
             <Button
               variant="outline"
               size="icon"

@@ -244,7 +244,7 @@ export default function ProductDetails() {
 
   if (isLoading && !product) {
     return (
-      <div className="min-h-screen bg-background pb-28 flex flex-col">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] pb-28 flex flex-col">
         <PageHeaderShell>
           <div className="flex items-center gap-3">
               <Skeleton className="h-10 w-10 rounded-full" />
@@ -341,7 +341,7 @@ export default function ProductDetails() {
   const hasDescription = Boolean(product.description.trim());
 
   return (
-      <div className="min-h-screen bg-background pb-28 flex flex-col">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] pb-28 flex flex-col">
         <PageHeaderShell>
           <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
           <div className="flex min-w-0 items-center gap-3">
@@ -355,7 +355,7 @@ export default function ProductDetails() {
 
           <div />
 
-          <div className="justify-self-end">
+          <div className="hidden justify-self-end xl:block">
             <CartDrawer
               cart={cart}
               onUpdateQuantity={updateQuantity}
@@ -582,7 +582,7 @@ export default function ProductDetails() {
                 </span>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {relatedProducts.map((related) => (
                   <CatalogProductCard
                     key={related.id}

@@ -1,7 +1,7 @@
 ﻿import { useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
-import { ArrowLeft, Send, ShoppingBag, ImageIcon, User, MapPin, FileText, CreditCard, CheckCircle2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Send, ShoppingBag, ImageIcon, User, MapPin, FileText, CreditCard, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { type CartItem, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
+import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
@@ -75,6 +76,7 @@ export default function OrderForm() {
   );
   const { data: savedAddresses = [], saveAddress, setDefaultAddress } = useCustomerAddresses(user?.id ?? null);
   const { cart, clearCart } = useCart();
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [cnpjTouched, setCnpjTouched] = useState(false);
@@ -116,8 +118,10 @@ export default function OrderForm() {
   );
 
   const scrollToSummary = useCallback(() => {
-    summaryRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  const openCart = useCallback(() => setIsCartOpen(true), []);
 
   useEffect(() => {
     if (!customerProfile) return;
@@ -464,15 +468,13 @@ export default function OrderForm() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[linear-gradient(180deg,hsl(var(--primary)/0.04),hsl(var(--background))_28%,hsl(var(--background)))]">
+    <div className="relative overflow-x-hidden min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] pb-32 sm:pb-[10rem]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       </div>
-      <div className="relative pb-32">
       <PageHeaderShell compact>
-        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3">
               <Link to="/" viewTransition>
                 <Button
                   variant="ghost"
@@ -488,25 +490,10 @@ export default function OrderForm() {
                 </p>
                 <p className="text-sm font-medium text-foreground">Revise sua compra</p>
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full px-3 py-1 tabular-nums">
-                {totalItems} item(ns)
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-full px-4"
-                onClick={scrollToSummary}
-              >
-                Ver resumo
-              </Button>
-            </div>
         </div>
       </PageHeaderShell>
 
-      <div className="container mx-auto max-w-[1400px] px-4 py-6 lg:py-8">
+      <div className="mx-auto max-w-[1600px] px-3 py-6 sm:px-6 lg:px-8 lg:py-8">
         {!user && allowGuestCheckout ? (
           <div className="mb-6 flex items-start gap-3 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -531,27 +518,27 @@ export default function OrderForm() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
-            <section className="relative overflow-hidden rounded-[1.75rem] border border-border/60 bg-card/95 shadow-sm">
+          <div className="space-y-4 sm:space-y-6">
+            <section className="relative overflow-hidden rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 shadow-sm">
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-transparent" />
-              <div className="relative z-10 p-6 sm:p-8 lg:p-10">
+              <div className="relative z-10 p-4 sm:p-6 lg:p-8">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <ShoppingBag className="h-6 w-6 text-primary" />
+                  <div className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   </div>
                   <div className="space-y-0.5">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">
                       Checkout
                     </p>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+                    <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-3xl">
                       Finalizar pedido
                     </h1>
                   </div>
                 </div>
-                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                <p className="mt-3 sm:mt-4 max-w-2xl text-[13px] sm:text-sm leading-relaxed text-muted-foreground sm:text-base">
                   Revise seus dados, confirme o endereço e envie tudo para o atendimento.
                 </p>
-                <div className="mt-6 flex flex-wrap items-center gap-2">
+                <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-2">
                   <Badge variant="secondary" className="rounded-full px-3 py-1">
                     {totalItems} item(ns)
                   </Badge>
@@ -562,11 +549,11 @@ export default function OrderForm() {
               </div>
             </section>
 
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
-              <div className="space-y-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
-                    <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
+              <div className="space-y-4 sm:space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                  <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-sm">
+                    <div className="mb-4 sm:mb-5 flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
                           <User className="h-4 w-4 text-primary" />
@@ -583,7 +570,7 @@ export default function OrderForm() {
                       </Badge>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <CustomerDataFields
                         form={form}
                         onChange={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
@@ -594,8 +581,8 @@ export default function OrderForm() {
                   </section>
 
                   {savedAddresses.length > 0 ? (
-                    <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
-                      <div className="mb-4 flex items-start justify-between gap-4">
+                    <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-sm">
+                      <div className="mb-3 sm:mb-4 flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warm/10">
                             <MapPin className="h-4 w-4 text-warm" />
@@ -612,7 +599,7 @@ export default function OrderForm() {
                         </Badge>
                       </div>
 
-                      <div className="grid gap-3">
+                      <div className="grid gap-2.5 sm:gap-3">
                         {savedAddresses.map((address, index) => {
                           const isActive = selectedAddressId ? selectedAddressId === address.id : index === 0 || address.is_default;
 
@@ -634,7 +621,7 @@ export default function OrderForm() {
                                 ibge: address.ibge,
                               });
                             }}
-                            className={`rounded-2xl border p-4 text-left transition-colors ${
+                            className={`rounded-2xl border p-3 sm:p-4 text-left transition-colors ${
                               isActive
                                 ? "border-primary bg-primary/5"
                                 : "border-border bg-background hover:border-primary/20 hover:bg-muted/20"
@@ -684,8 +671,8 @@ export default function OrderForm() {
                     </section>
                   )}
 
-                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
-                    <div className="mb-5 flex items-center gap-3">
+                  <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-sm">
+                    <div className="mb-4 sm:mb-5 flex items-center gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warm/10">
                         <MapPin className="h-4 w-4 text-warm" />
                       </div>
@@ -704,8 +691,8 @@ export default function OrderForm() {
                     />
                   </section>
 
-                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-start gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/5">
                           <CreditCard className="h-4 w-4 text-primary" />
@@ -729,8 +716,8 @@ export default function OrderForm() {
                     </div>
                   </section>
 
-                  <section className="rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
-                    <div className="mb-4 flex items-start justify-between gap-4">
+                  <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-sm">
+                    <div className="mb-3 sm:mb-4 flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/50">
                           <FileText className="h-4 w-4 text-muted-foreground" />
@@ -755,14 +742,14 @@ export default function OrderForm() {
                     <Textarea
                       value={orderNote}
                       onChange={(e) => setOrderNote(e.target.value.slice(0, ORDER_TEXT_LIMITS.observation))}
-                      placeholder="Ex.: Deixar na portaria, entregar no horário comercial, confirmar complemento antes de enviar."
+                      placeholder="Ex.: Deixar na portaria, entregar no horário comercial..."
                       maxLength={ORDER_TEXT_LIMITS.observation}
-                      className="min-h-32 rounded-2xl border-border/70 bg-background text-sm leading-6"
+                      className="min-h-28 w-full rounded-2xl border-border/70 bg-background text-sm leading-6"
                     />
                   </section>
 
-                  <section className="rounded-2xl border border-primary/20 bg-card p-5 shadow-sm sm:p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <section className="rounded-2xl border border-primary/20 bg-card p-4 sm:p-6 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-start gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
                           <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -798,9 +785,9 @@ export default function OrderForm() {
 
               <div
                 ref={summaryRef}
-                className="rounded-[1.75rem] border border-border/60 bg-card/95 p-5 shadow-sm sm:p-6 lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:self-start"
+                className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:self-start"
               >
-                <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <ShoppingBag className="h-4 w-4 text-primary" />
@@ -817,7 +804,7 @@ export default function OrderForm() {
                   </Badge>
                 </div>
 
-                <div className="min-h-0 space-y-3 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                <div className="min-h-0 space-y-2.5 sm:space-y-3 lg:flex-1 lg:overflow-y-auto lg:pr-1">
                   {cart.map((item) => {
                     const unit = resolveProductPrice(item.product, customerPriceMap);
                     const line = unit * item.quantity;
@@ -826,10 +813,10 @@ export default function OrderForm() {
                     return (
                       <div
                         key={item.product.id}
-                        className="rounded-2xl border border-border/80 bg-background p-4 shadow-sm transition-colors hover:border-primary/20"
+                        className="rounded-2xl border border-border/80 bg-background p-3 sm:p-4 shadow-sm transition-colors hover:border-primary/20"
                       >
-                        <div className="flex gap-4">
-                          <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/30">
+                        <div className="flex gap-3 sm:gap-4">
+                          <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-muted/30">
                              {imageUrl ? (
                                <img src={imageUrl} alt={item.product.name} width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full object-contain p-2" />
                             ) : (
@@ -885,10 +872,10 @@ export default function OrderForm() {
                   })}
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-5 lg:mt-4">
+                <div className="mt-4 sm:mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 lg:mt-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
-                    <span className="text-2xl font-bold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
+                    <span className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
                   </div>
                 </div>
               </div>
@@ -897,9 +884,20 @@ export default function OrderForm() {
         )}
       </div>
 
-        </div>
+      <div className="hidden">
+        <CartDrawer
+          cart={cart}
+          onUpdateQuantity={() => {}}
+          onSetQuantity={() => {}}
+          onRemove={() => {}}
+          onClear={clearCart}
+          open={isCartOpen}
+          onOpenChange={setIsCartOpen}
+          resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
+        />
+      </div>
 
-      <MobileBottomNav cartItemCount={totalItems} onOpenCart={scrollToSummary} />
+      <MobileBottomNav cartItemCount={totalItems} onOpenCart={openCart} />
       </div>
     );
   }

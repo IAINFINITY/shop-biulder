@@ -58,11 +58,11 @@ import {
 } from "@/lib/customerTypeOverrides";
 import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
+import { getOrderLinesGrandTotal, parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
 import type {
   AdminCustomerSummary,
   AdminDashboardOrder,
   AdminOrderRow,
-  AdminOrderSummaryLine,
   AdminProductFormState,
   AdminSection,
 } from "@/components/admin/adminTypes";
@@ -304,15 +304,8 @@ function ClientAccessNotice({
   );
 }
 
-function isOrderLineSummary(value: unknown): value is AdminOrderSummaryLine {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Record<string, unknown>;
-  return typeof candidate.unitPrice === "number" && typeof candidate.quantity === "number";
-}
-
-function summarizeOrderItems(items: unknown): AdminOrderSummaryLine[] {
-  if (!Array.isArray(items)) return [];
-  return items.filter(isOrderLineSummary);
+function summarizeOrderItems(items: unknown, maps: Parameters<typeof parseOrderTableLines>[1]): OrderTableLine[] {
+  return parseOrderTableLines(items, maps);
 }
 
 export default function AdminWorkspace() {
@@ -427,7 +420,10 @@ export default function AdminWorkspace() {
           status: order.status,
           total_items: order.total_items,
           proxis_import_id: order.proxis_import_id,
-          items: summarizeOrderItems(order.items),
+          items: summarizeOrderItems(order.items, orderEnrichment).map((line) => ({
+            unitPrice: line.unitPrice,
+            quantity: line.quantity,
+          })),
         })),
     [orderRows],
   );
@@ -464,7 +460,8 @@ export default function AdminWorkspace() {
     for (const order of orderRows) {
       const key = onlyDigits(order.customer_cnpj) || order.customer_name;
       const current = customers.get(key);
-      const orderTotal = summarizeOrderItems(order.items).reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      const orderLines = summarizeOrderItems(order.items, orderEnrichment);
+      const orderTotal = getOrderLinesGrandTotal(orderLines);
 
       if (!current) {
         customers.set(key, {
@@ -499,7 +496,7 @@ export default function AdminWorkspace() {
     () =>
       orderRows.reduce(
         (sum, order) =>
-          sum + summarizeOrderItems(order.items).reduce((inner, item) => inner + item.unitPrice * item.quantity, 0),
+          sum + getOrderLinesGrandTotal(summarizeOrderItems(order.items, orderEnrichment)),
         0,
       ),
     [orderRows],

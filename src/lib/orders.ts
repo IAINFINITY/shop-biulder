@@ -49,6 +49,7 @@ export interface Order {
 
 export type OrderTableLine = {
   code: string;
+  imageUrl?: string | null;
   name: string;
   type: string;
   family: string;
@@ -134,6 +135,21 @@ function resolveLinePricing(
   return { quantity, unitPrice, subtotal };
 }
 
+function resolveOrderLineImageUrl(raw: Record<string, unknown>, maps?: OrderEnrichmentMaps): string | null {
+  const productId = typeof raw.product_id === "string" ? raw.product_id.trim() : "";
+  const nameKey = normalizeProductNameKey(String(raw.name ?? ""));
+
+  if (productId && maps?.imageByProductId.has(productId)) {
+    return maps.imageByProductId.get(productId)!;
+  }
+
+  if (nameKey && maps?.imageByProductName.has(nameKey)) {
+    return maps.imageByProductName.get(nameKey)!;
+  }
+
+  return null;
+}
+
 export function parseOrderItemRow(
   raw: Record<string, unknown>,
   maps?: OrderEnrichmentMaps,
@@ -145,6 +161,7 @@ export function parseOrderItemRow(
 
   return {
     code: resolveOrderLineCode(raw, maps),
+    imageUrl: resolveOrderLineImageUrl(raw, maps),
     name,
     type,
     family,

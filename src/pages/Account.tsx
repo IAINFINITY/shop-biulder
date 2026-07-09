@@ -31,9 +31,11 @@ import { formatBRL } from "@/lib/formatMoney";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
 import { useOrders } from "@/hooks/useOrders";
+import { useProducts } from "@/hooks/useProducts";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useCatalogNotificationReads } from "@/hooks/useCatalogNotificationReads";
 import type { CatalogNotification } from "@/lib/catalogNotifications";
+import { buildOrderEnrichmentMaps } from "@/lib/products";
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -242,6 +244,7 @@ export default function Account() {
     Boolean(user && customerProfile && !isAdmin),
     user?.id ?? "customer",
   );
+  const { data: products = [] } = useProducts({ includeInactive: true });
   const { data: notifications = [], isLoading: notificationsLoading } = useCatalogNotifications();
   const { data: notificationReads = [], isLoading: notificationReadsLoading, markAsRead } = useCatalogNotificationReads(user?.id ?? null);
   const [section, setSection] = useState<ClientSection>("resumo");
@@ -270,10 +273,11 @@ export default function Account() {
     const profileCnpj = onlyDigits(customerProfile.cnpj);
     return (orders as Order[]).filter((order) => onlyDigits(order.customer_cnpj) === profileCnpj);
   }, [orders, customerProfile]);
+  const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
   const orderViews = useMemo(
     () =>
       customerOrders.map((order) => {
-        const lines = parseOrderTableLines(order.items);
+        const lines = parseOrderTableLines(order.items, orderEnrichment);
         return {
           order,
           lines,
@@ -281,7 +285,7 @@ export default function Account() {
           totalValue: getOrderLinesGrandTotal(lines),
         };
       }),
-    [customerOrders],
+    [customerOrders, orderEnrichment],
   );
   const totalSpent = useMemo(
     () => orderViews.reduce((sum, item) => sum + item.totalValue, 0),

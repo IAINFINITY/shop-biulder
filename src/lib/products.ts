@@ -244,23 +244,33 @@ export type OrderEnrichmentMaps = {
   priceByProductId: Map<string, number>;
   codeByProductName: Map<string, string>;
   priceByProductName: Map<string, number>;
+  imageByProductId: Map<string, string>;
+  imageByProductName: Map<string, string>;
 };
 
 export function buildOrderEnrichmentMaps(
-  products: Pick<Product, "id" | "name" | "product_code" | "price">[],
+  products: Pick<Product, "id" | "name" | "product_code" | "price" | "image_url" | "image_urls">[],
 ): OrderEnrichmentMaps {
   const codeByProductId = new Map<string, string>();
   const priceByProductId = new Map<string, number>();
   const codeByProductName = new Map<string, string>();
   const priceByProductName = new Map<string, number>();
+  const imageByProductId = new Map<string, string>();
+  const imageByProductName = new Map<string, string>();
 
   for (const product of products) {
     const nameKey = normalizeProductNameKey(product.name);
     const code = product.product_code.trim();
     const price = getProductUnitPrice(product);
+    const imageUrl = getProductImageUrls(product)[0] ?? "";
 
     priceByProductId.set(product.id, price);
     if (nameKey) priceByProductName.set(nameKey, price);
+
+    if (imageUrl) {
+      imageByProductId.set(product.id, imageUrl);
+      if (nameKey) imageByProductName.set(nameKey, imageUrl);
+    }
 
     if (code) {
       codeByProductId.set(product.id, code);
@@ -268,7 +278,14 @@ export function buildOrderEnrichmentMaps(
     }
   }
 
-  return { codeByProductId, priceByProductId, codeByProductName, priceByProductName };
+  return {
+    codeByProductId,
+    priceByProductId,
+    codeByProductName,
+    priceByProductName,
+    imageByProductId,
+    imageByProductName,
+  };
 }
 
 export function getCartSubtotal(cart: CartItem[]): number {

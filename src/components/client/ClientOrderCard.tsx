@@ -1,4 +1,5 @@
-﻿import { Badge } from "@/components/ui/badge";
+import { ImageIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { formatBRL } from "@/lib/formatMoney";
 import { cn } from "@/lib/utils";
 import type { Order, OrderTableLine } from "@/lib/orders";
@@ -70,19 +71,32 @@ export function ClientOrderCard({ order, lines, totalItems, totalValue }: Client
         <div className="mt-3 space-y-2">
           {visibleLines.map((line) => (
             <div key={`${line.code}-${line.name}`} className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{line.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {line.quantity} x {formatBRL(line.unitPrice)}
-                </p>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
+                  {line.imageUrl ? (
+                    <img
+                      src={line.imageUrl}
+                      alt={line.name}
+                      className="h-full w-full object-contain p-1"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{line.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {line.quantity} x {formatBRL(line.unitPrice)}
+                  </p>
+                </div>
               </div>
               <p className="text-sm font-medium text-foreground">{formatBRL(line.subtotal)}</p>
             </div>
           ))}
-              {remainingCount > 0 ? (
-            <p className="text-xs text-muted-foreground">+ {remainingCount} item(ns) adicionais</p>
-          ) : null}
-              {visibleLines.length === 0 ? (
+          {remainingCount > 0 ? <p className="text-xs text-muted-foreground">+ {remainingCount} item(ns) adicionais</p> : null}
+          {visibleLines.length === 0 ? (
             <p className="text-sm text-muted-foreground">Itens ainda não sincronizados para visualização.</p>
           ) : null}
         </div>

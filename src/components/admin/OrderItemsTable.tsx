@@ -1,3 +1,4 @@
+import { ImageIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -35,6 +36,7 @@ export function OrderItemsTable({ lines, maxBodyHeight }: Props) {
       <Table>
         <TableHeader className={cn(maxBodyHeight && "sticky top-0 z-10 bg-card")}>
           <TableRow>
+            <TableHead className="w-[72px]">Imagem</TableHead>
             <TableHead className="w-[90px]">Código</TableHead>
             <TableHead>Produto</TableHead>
             <TableHead className="w-[72px] text-right">Qtd</TableHead>
@@ -45,6 +47,21 @@ export function OrderItemsTable({ lines, maxBodyHeight }: Props) {
         <TableBody>
           {lines.map((line, index) => (
             <TableRow key={`${line.code}-${index}`}>
+              <TableCell>
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
+                  {line.imageUrl ? (
+                    <img
+                      src={line.imageUrl}
+                      alt={line.name}
+                      className="h-full w-full object-contain p-1"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="font-mono text-xs">{line.code}</TableCell>
               <TableCell>
                 <p className="font-medium text-foreground">{line.name}</p>

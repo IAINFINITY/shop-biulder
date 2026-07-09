@@ -1,6 +1,4 @@
 import DOMPurify from "dompurify";
-import { Extension } from "@tiptap/core";
-import { TextStyle } from "@tiptap/extension-text-style";
 
 const ALLOWED_TAGS = [
   "p",
@@ -183,6 +181,7 @@ export function descriptionIncludesQuery(description: string, query: string): bo
   return stripHtml(description).toLowerCase().includes(query.toLowerCase());
 }
 
+/*
 export const FontSize = Extension.create({
   name: "fontSize",
   addOptions() {
@@ -228,3 +227,4 @@ export const FONT_SIZE_OPTIONS = [
   { label: "Grande", value: "20px" },
   { label: "Muito grande", value: "24px" },
 ] as const;
+*/

@@ -9,26 +9,13 @@ import {
   parseOrderTableLines,
   type OrderTableLine,
 } from "@/lib/orders";
-import type { OrderEnrichmentMaps } from "@/lib/products";
 import {
   buildProxisImportFileContent,
   proxisImportFileName,
   type ProxisImportOrderInput,
 } from "@/lib/proxisImportExport";
 import { ensureProxisImportId } from "@/lib/proxisImportId";
-
-export type OrderExportInput = {
-  id: string;
-  created_at: string;
-  customer_name: string;
-  customer_company: string;
-  customer_phone: string;
-  customer_cnpj: string;
-  status: string;
-  items: unknown;
-  proxis_import_id: number | null;
-  enrichmentMaps: OrderEnrichmentMaps;
-};
+import type { OrderExportInput } from "@/lib/orderExportTypes";
 
 function orderFileBase(order: OrderExportInput): string {
   const date = new Date(order.created_at).toISOString().slice(0, 10);

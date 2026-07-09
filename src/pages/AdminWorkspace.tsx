@@ -35,7 +35,7 @@ import {
 } from "@/lib/formatMoney";
 import { uploadProductImageFile } from "@/lib/productImageStorage";
 import { ORDERS_TABLE } from "@/lib/orders";
-import { downloadOrderPdf, downloadOrderXlsx, downloadProxisImportTxt } from "@/lib/orderExport";
+import type { OrderExportInput } from "@/lib/orderExportTypes";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richTextPure";
@@ -793,9 +793,10 @@ export default function AdminWorkspace() {
     refreshOrders();
   };
 
-  const exportProxisOrder = async (exportPayload: Parameters<typeof downloadProxisImportTxt>[0]) => {
+  const exportProxisOrder = async (exportPayload: OrderExportInput) => {
     setProxisExportingId(exportPayload.id);
     try {
+      const { downloadProxisImportTxt } = await import("@/lib/orderExport");
       const proxisId = await downloadProxisImportTxt(exportPayload);
       toast.success(`Arquivo Proxis gerado (ID ${proxisId}).`);
       refreshOrders();
@@ -805,6 +806,16 @@ export default function AdminWorkspace() {
     } finally {
       setProxisExportingId(null);
     }
+  };
+
+  const exportOrderXlsx = async (exportPayload: OrderExportInput) => {
+    const { downloadOrderXlsx } = await import("@/lib/orderExport");
+    downloadOrderXlsx(exportPayload);
+  };
+
+  const exportOrderPdf = async (exportPayload: OrderExportInput) => {
+    const { downloadOrderPdf } = await import("@/lib/orderExport");
+    downloadOrderPdf(exportPayload);
   };
 
   const formatDate = (value: string) => new Date(value).toLocaleString("pt-BR");
@@ -897,8 +908,8 @@ export default function AdminWorkspace() {
           formatDate={formatDate}
           proxisExportingId={proxisExportingId}
           onExportProxis={exportProxisOrder}
-          onExportXlsx={downloadOrderXlsx}
-          onExportPdf={downloadOrderPdf}
+          onExportXlsx={exportOrderXlsx}
+          onExportPdf={exportOrderPdf}
           onDelete={deleteOrder}
         />
       )}

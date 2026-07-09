@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
+import type { OrderExportInput } from "@/lib/orderExportTypes";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminOrderRow } from "./adminTypes";
 
@@ -17,9 +18,9 @@ type AdminOrdersSectionProps = {
   orderEnrichment: OrderEnrichmentMaps;
   formatDate: (value: string) => string;
   proxisExportingId: string | null;
-  onExportProxis: (payload: Parameters<typeof import("@/lib/orderExport").downloadProxisImportTxt>[0]) => void;
-  onExportXlsx: (payload: Parameters<typeof import("@/lib/orderExport").downloadOrderXlsx>[0]) => void;
-  onExportPdf: (payload: Parameters<typeof import("@/lib/orderExport").downloadOrderPdf>[0]) => void;
+  onExportProxis: (payload: OrderExportInput) => void | Promise<void>;
+  onExportXlsx: (payload: OrderExportInput) => void | Promise<void>;
+  onExportPdf: (payload: OrderExportInput) => void | Promise<void>;
   onDelete: (id: string) => void;
 };
 

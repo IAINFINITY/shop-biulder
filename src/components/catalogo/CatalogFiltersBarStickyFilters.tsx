@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Filter, Menu } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -155,47 +154,31 @@ function FamilyCollapsibleList({
         const types = familyTypesByFamily.get(family) ?? [];
 
         return (
-          <Collapsible
-            key={family}
-            open={active}
-            onOpenChange={(open) => {
-              if (open) {
-                onFamilyChange(family);
-                onTypeChange(null);
-                return;
-              }
+          <div key={family} className="rounded-[1.4rem] border border-border/70 bg-background/90">
+            <button
+              type="button"
+              aria-expanded={active}
+              className={cn(
+                "flex w-full items-center justify-between gap-3 rounded-[1.4rem] px-4 py-3 text-left transition-colors",
+                active ? "bg-primary/5 text-primary" : "hover:bg-muted/40",
+              )}
+              onClick={() => selectFamily(family)}
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">{family}</p>
+                <p className="text-xs text-muted-foreground">{count} produto(s)</p>
+              </div>
 
-              if (selectedFamily === family) {
-                onFamilyChange(null);
-                onTypeChange(null);
-              }
-            }}
-            className="rounded-[1.4rem] border border-border/70 bg-background/90"
-          >
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  "flex w-full items-center justify-between gap-3 rounded-[1.4rem] px-4 py-3 text-left transition-colors",
-                  active ? "bg-primary/5 text-primary" : "hover:bg-muted/40",
-                )}
-                onClick={() => selectFamily(family)}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{family}</p>
-                  <p className="text-xs text-muted-foreground">{count} produto(s)</p>
-                </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="outline" className="rounded-full border-border/70 bg-background px-2.5 py-0 text-[11px] font-medium">
+                  {types.length} tipo(s)
+                </Badge>
+                <ChevronRight className={cn("h-4 w-4 transition-transform", active && "rotate-90")} />
+              </div>
+            </button>
 
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge variant="outline" className="rounded-full border-border/70 bg-background px-2.5 py-0 text-[11px] font-medium">
-                    {types.length} tipo(s)
-                  </Badge>
-                  <ChevronRight className={cn("h-4 w-4 transition-transform", active && "rotate-90")} />
-                </div>
-              </button>
-            </CollapsibleTrigger>
-
-            <CollapsibleContent className="border-t border-border/70 px-3 pb-3 pt-3">
+            {active ? (
+              <div className="border-t border-border/70 px-3 pb-3 pt-3">
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -230,8 +213,9 @@ function FamilyCollapsibleList({
                   );
                 })}
               </div>
-            </CollapsibleContent>
-          </Collapsible>
+              </div>
+            ) : null}
+          </div>
         );
       })}
     </div>

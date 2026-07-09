@@ -26,7 +26,7 @@ function inlineCriticalCss() {
       // but keep heavy admin-only chunks out of the initial mobile load.
       const scripts = html.match(/<script[^>]*><\/script>/g) || [];
       const preloads = html.match(/<link rel="modulepreload"[^>]*>/g) || [];
-      const retainedPreloads = preloads.filter((tag) => !/\/assets\/(tiptap|pdf)-/i.test(tag));
+      const retainedPreloads = preloads.filter((tag) => !/\/assets\/(tiptap|pdf|xlsx)-/i.test(tag));
 
       for (const s of scripts) html = html.replace(s, "");
       for (const p of preloads) html = html.replace(p, "");
@@ -55,13 +55,24 @@ export default defineConfig(() => ({
   },
   plugins: [react(), inlineCriticalCss()],
   build: {
+    emptyOutDir: true,
+    cssCodeSplit: false,
     cssMinify: "esbuild",
+    modulePreload: false,
     rollupOptions: {
       output: {
-manualChunks(id) {
-          if (id.includes("node_modules/jspdf") || id.includes("node_modules/jspdf-autotable")) return "pdf";
-          if (id.includes("node_modules/xlsx")) return "xlsx";
-          if (id.includes("node_modules/@tiptap")) return "tiptap";
+        manualChunks(id) {
+          const normalizedId = id.replace(/\\/g, "/");
+          if (normalizedId.includes("vite/preload-helper")) return "preload-helper";
+          if (normalizedId.includes("node_modules/react") || normalizedId.includes("node_modules/react-dom") || normalizedId.includes("node_modules/scheduler")) {
+            return "react-vendor";
+          }
+          if (normalizedId.includes("node_modules/@tanstack")) return "query-vendor";
+          if (normalizedId.includes("node_modules/@supabase")) return "supabase-vendor";
+          if (normalizedId.includes("node_modules/lucide-react")) return "icons-vendor";
+          if (normalizedId.includes("node_modules/jspdf") || normalizedId.includes("node_modules/jspdf-autotable")) return "pdf";
+          if (normalizedId.includes("node_modules/xlsx")) return "xlsx";
+          if (normalizedId.includes("node_modules/@tiptap")) return "tiptap";
         },
         chunkFileNames: "assets/[name]-[hash].js",
       },

@@ -39,6 +39,39 @@ async function proxsisRequest(
   endpointName: string,
   options: { extraHeaders: Record<string, string> },
 ): Promise<unknown> {
+  const n8nProxy = (process.env.N8N_WEBHOOK_BASE_URL || "").trim();
+
+  if (n8nProxy) {
+    const proxyUrl = `${n8nProxy.replace(/\/$/, "")}/proxis-proxy`;
+    const allHeaders: Record<string, string> = { ...baseHeaders(), ...(options.extraHeaders || {}) };
+
+    const res = await fetch(proxyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        endpoint: endpointName,
+        method,
+        headers: allHeaders,
+        body: null,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`n8n Proxy error (${res.status}): ${text}`);
+    }
+
+    const result = await res.json();
+
+    if (result?.status && result.status >= 400) {
+      const detail = result.body || result.error || "Unknown error";
+      throw new Error(`Proxsis API error via n8n (${result.status}): ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
+    }
+
+    if (result.body === null || result.body === undefined || result.body === "") return null;
+    return result.body;
+  }
+
   const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/${proxsisEndpoint(endpointName)}`;
   const headers: Record<string, string> = { ...baseHeaders(), ...(options.extraHeaders || {}) };
 

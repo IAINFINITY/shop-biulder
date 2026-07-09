@@ -6,6 +6,7 @@ import { formatBRL } from "@/lib/formatMoney";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
+import { cn } from "@/lib/utils";
 
 const typeIcons: Record<string, LucideIcon> = {
   Chá: Leaf,
@@ -24,9 +25,10 @@ export type CatalogProductCardProps = {
   price: number;
   onAdd: (product: Product) => void;
   inCart: boolean;
+  compact?: boolean;
 };
 
-export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogProductCardProps) {
+export function CatalogProductCard({ product, price, onAdd, inCart, compact }: CatalogProductCardProps) {
   const Icon = typeIcons[product.type] || Leaf;
   const coverUrl = getProductImageUrls(product)[0];
   const displayPrice = Number.isFinite(price ?? Number.NaN) ? (price as number) : getProductUnitPrice(product);
@@ -39,7 +41,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         {coverUrl ? (
-          <div className="aspect-[4/3] overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background p-2 sm:p-3">
+          <div className={cn("overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background p-2 sm:p-3", compact ? "aspect-square" : "aspect-[4/3]")}>
             <img
               src={coverUrl}
               alt={product.name}
@@ -51,44 +53,48 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
             />
           </div>
         ) : (
-          <div className="flex aspect-[4/3] items-center justify-center border-b border-border/70 bg-background p-3">
-            <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+          <div className={cn("flex items-center justify-center border-b border-border/70 bg-background p-3", compact ? "aspect-square" : "aspect-[4/3]")}>
+            <ImageIcon className={cn("text-muted-foreground/30", compact ? "h-8 w-8" : "h-12 w-12")} />
           </div>
         )}
 
         <div className="flex flex-1 flex-col px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
-          <div className="mb-2 space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Tipo</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
-                <Icon className="mr-1 h-3 w-3" />
-                {product.type}
-              </Badge>
-              <Badge variant="secondary" className="shrink-0 text-xs">
-                {product.family}
-              </Badge>
-              {product.is_promotion ? (
-                <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
-                  Promoção
+          {!compact ? (
+            <div className="mb-2 space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Tipo</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
+                  <Icon className="mr-1 h-3 w-3" />
+                  {product.type}
                 </Badge>
-              ) : null}
+                <Badge variant="secondary" className="shrink-0 text-xs">
+                  {product.family}
+                </Badge>
+                {product.is_promotion ? (
+                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+                    Promoção
+                  </Badge>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          <h3 className="line-clamp-2 min-h-[3.25rem] text-base font-semibold leading-tight text-card-foreground sm:text-[1.05rem]">
+          <h3 className={cn("font-semibold leading-tight text-card-foreground", compact ? "line-clamp-1 text-sm" : "line-clamp-2 min-h-[3.25rem] text-base sm:text-[1.05rem]")}>
             {product.name}
           </h3>
 
-          <div className="mt-2 min-h-[3.5rem]">
-            <ProductDescription
-              html={product.description}
-              plainPreview
-              lineClamp={2}
-              className="text-sm leading-6 text-muted-foreground"
-            />
-          </div>
+          {!compact ? (
+            <div className="mt-2 min-h-[3.5rem]">
+              <ProductDescription
+                html={product.description}
+                plainPreview
+                lineClamp={2}
+                className="text-sm leading-6 text-muted-foreground"
+              />
+            </div>
+          ) : null}
 
-          <p className="mt-3 mb-1 text-base font-semibold tabular-nums text-foreground sm:text-lg">
+          <p className={cn("mt-auto font-semibold tabular-nums text-foreground", compact ? "pt-2 text-sm" : "mt-3 mb-1 text-base sm:text-lg")}>
             {formatBRL(displayPrice)}
           </p>
         </div>
@@ -99,7 +105,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart }: CatalogPro
           type="button"
           onClick={() => onAdd(product)}
           variant={inCart ? "secondary" : "default"}
-          className="h-10 w-full gap-1.5 text-xs transition-all active:scale-95 sm:text-sm"
+          className={cn("w-full gap-1.5 transition-all active:scale-95", compact ? "h-8 text-xs" : "h-10 text-xs sm:text-sm")}
           size="sm"
         >
           <Plus className="h-4 w-4" />

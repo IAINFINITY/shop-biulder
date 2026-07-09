@@ -341,8 +341,8 @@ export function CatalogFiltersBarV2({
           setFamiliesOpen(open);
         }}
       >
-        <SheetContent side="right" className="w-full overflow-hidden p-0 sm:max-w-lg">
-          <div className="flex h-full flex-col">
+        <SheetContent side="right" className="flex w-full flex-col overflow-hidden p-0 sm:max-w-lg">
+          <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-6 pt-6">
               <SheetHeader className="pr-8">
                 <SheetTitle>Categorias</SheetTitle>
@@ -382,6 +382,16 @@ export function CatalogFiltersBarV2({
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="sticky bottom-0 shrink-0 border-t border-border/70 bg-card px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+            <Button
+              type="button"
+              className="h-11 w-full gap-2 rounded-full text-sm font-semibold"
+              onClick={() => setFamiliesOpen(false)}
+            >
+              Aplicar filtros
+            </Button>
           </div>
         </SheetContent>
       </Sheet>

@@ -114,7 +114,7 @@ function ThemeProductCard({
           type="button"
           size="sm"
           variant={inCart ? "secondary" : "default"}
-          className={cn("h-9 shrink-0 rounded-full px-3 text-xs transition-all active:scale-90", inCart && "text-foreground")}
+          className={cn("h-10 sm:h-9 shrink-0 rounded-full px-3 text-xs transition-all active:scale-90", inCart && "text-foreground")}
           onClick={() => onAdd(product)}
         >
           <Plus className="h-4 w-4" />
@@ -163,7 +163,7 @@ function ThemeShelf({
             type="button"
             variant="outline"
             size="icon"
-            className="h-9 w-9 rounded-full border-black/5 bg-background/90 shadow-none"
+            className="h-10 w-10 sm:h-9 sm:w-9 rounded-full border-black/5 bg-background/90 shadow-none"
             aria-label={`Ver itens anteriores de ${section.title}`}
             onClick={() => scroll(-1)}
           >
@@ -173,7 +173,7 @@ function ThemeShelf({
             type="button"
             variant="outline"
             size="icon"
-            className="h-9 w-9 rounded-full border-black/5 bg-background/90 shadow-none"
+            className="h-10 w-10 sm:h-9 sm:w-9 rounded-full border-black/5 bg-background/90 shadow-none"
             aria-label={`Ver próximos itens de ${section.title}`}
             onClick={() => scroll(1)}
           >

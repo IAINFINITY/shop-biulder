@@ -22,6 +22,7 @@ import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 import { ChevronUp, Loader2 } from "lucide-react";
+import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 
 const INITIAL_PRODUCTS_VISIBLE = 12;
 const PRODUCTS_VISIBLE_STEP = 12;
@@ -360,7 +361,7 @@ export default function Index() {
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] pb-[10rem]"
+      className="min-h-screen bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.05),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_68%,hsl(var(--muted)/0.16)_100%)] pb-32 sm:pb-[10rem]"
     >
       <StoreHeader
         search={search}
@@ -448,19 +449,10 @@ export default function Index() {
                 </div>
 
                 {isLoading ? (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {Array.from({ length: 8 }).map((_, index) => (
-                      <div key={index} className="overflow-hidden rounded-[1.5rem] bg-background/70 ring-1 ring-black/5">
-                        <Skeleton className="aspect-[4/3] w-full rounded-none" />
-                        <div className="space-y-4 p-4">
-                          <div className="flex gap-2">
-                            <Skeleton className="h-6 w-16 rounded-full" />
-                            <Skeleton className="h-6 w-20 rounded-full" />
-                          </div>
-                          <Skeleton className="h-[3.25rem] w-full rounded-md" />
-                          <Skeleton className="h-[3.5rem] w-full rounded-md" />
-                          <Skeleton className="h-10 w-full rounded-2xl" />
-                        </div>
+                      <div key={index} className="overflow-hidden rounded-2xl sm:rounded-[1.5rem] bg-background/70 ring-1 ring-black/5">
+                        <Skeleton className="aspect-square sm:aspect-[4/3] w-full rounded-none" />
                       </div>
                     ))}
                   </div>
@@ -471,7 +463,7 @@ export default function Index() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {visibleFiltered.map((product) => (
                         <CatalogProductCard
                           key={product.id}
@@ -479,6 +471,7 @@ export default function Index() {
                           price={resolveProductPrice(product, customerPriceMap)}
                           onAdd={addToCart}
                           inCart={cartIds.has(product.id)}
+                          compact
                         />
                       ))}
                     </div>
@@ -514,6 +507,8 @@ export default function Index() {
           <ChevronUp className="h-5 w-5" />
         </Button>
       ) : null}
+
+      <MobileBottomNav />
     </div>
   );
 }

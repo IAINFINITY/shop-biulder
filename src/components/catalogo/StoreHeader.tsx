@@ -159,31 +159,31 @@ export function StoreHeader({
   const mobilePanelId = useId();
 
   return (
-    <PageHeaderShell>
-      <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
-        <div className="flex items-start justify-between gap-3 lg:block lg:max-w-[220px] xl:max-w-[240px]">
+    <PageHeaderShell compact>
+      <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
+        <div className="flex items-start justify-between gap-2 lg:block lg:max-w-[220px] xl:max-w-[240px]">
           <Link to="/" viewTransition className="inline-block min-w-0 shrink-0">
             <ClinicPlusLogo />
           </Link>
-          <div className="flex shrink-0 items-center gap-2 lg:hidden">
+          <div className="flex shrink-0 items-center gap-1 lg:hidden">
             <Link to={accountPath} viewTransition>
               <Button
                 variant="outline"
                 size="icon"
-                className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
                 aria-label="Minha conta"
               >
-                <User className="h-5 w-5" />
+                <User className="h-4 w-4" />
               </Button>
             </Link>
             <Link to="/admin" viewTransition>
               <Button
                 variant="outline"
                 size="icon"
-                className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                className="h-8 w-8 border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
                 aria-label="Administração"
               >
-                <Settings className="h-5 w-5" />
+                <Settings className="h-4 w-4" />
               </Button>
             </Link>
           </div>

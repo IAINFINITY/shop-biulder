@@ -142,7 +142,7 @@ export function StoreHeroBanner() {
           <CarouselContent className="!ml-0 h-full">
             {slides.map((slide, index) => (
               <CarouselItem key={`${slide.alt}-${index}`} className="basis-full !pl-0 h-full">
-                <div className="relative aspect-[1024/266] w-full bg-muted/30">
+                <div className="relative aspect-[16/7] w-full bg-muted/30 sm:aspect-[1024/266]">
                   <HeroSlideFrame slide={slide} />
                 </div>
               </CarouselItem>

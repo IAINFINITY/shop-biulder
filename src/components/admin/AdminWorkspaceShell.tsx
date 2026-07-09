@@ -56,7 +56,7 @@ export function AdminWorkspaceShell({
 
   return (
     <div
-      className="relative h-screen overflow-hidden bg-[radial-gradient(circle_at_18%_12%,color-mix(in_oklch,var(--primary)_9%,transparent),transparent_30%),radial-gradient(circle_at_82%_0%,color-mix(in_oklch,var(--primary)_6%,transparent),transparent_28%),linear-gradient(180deg,#f5f8ff_0%,#f5f8ff_60%,rgba(229,236,248,0.32)_100%)] text-foreground"
+      className="relative min-h-screen bg-[radial-gradient(circle_at_18%_12%,color-mix(in_oklch,var(--primary)_9%,transparent),transparent_30%),radial-gradient(circle_at_82%_0%,color-mix(in_oklch,var(--primary)_6%,transparent),transparent_28%),linear-gradient(180deg,#f5f8ff_0%,#f5f8ff_60%,rgba(229,236,248,0.32)_100%)] text-foreground"
       style={shellStyle}
     >
       <button
@@ -79,7 +79,7 @@ export function AdminWorkspaceShell({
       >
         <div
           className={cn(
-            "flex h-[5rem] items-center border-b border-border/70 px-5",
+            "flex h-14 sm:h-[5rem] shrink-0 items-center border-b border-border/70 px-5",
             collapsed ? "justify-center px-0" : "justify-center px-5",
           )}
         >
@@ -99,15 +99,15 @@ export function AdminWorkspaceShell({
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-3">
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-2 py-2 sm:py-3">
           {navGroups.map((group) => (
-            <div key={group.label} className="mb-4">
+            <div key={group.label} className="mb-3 sm:mb-4">
               {!collapsed ? (
                 <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
                 </p>
               ) : null}
-              <div className={cn("space-y-1.5", collapsed && "space-y-2")}>
+              <div className={cn("space-y-1 sm:space-y-1.5", collapsed && "space-y-2")}>
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const active = section === item.id;
@@ -119,7 +119,7 @@ export function AdminWorkspaceShell({
                       title={item.label}
                       aria-label={item.label}
                       className={cn(
-                        "group flex w-full items-center gap-3 rounded-[1rem] px-3 py-3 text-left transition-colors",
+                        "group flex w-full items-center gap-2.5 sm:gap-3 rounded-[1rem] px-2.5 sm:px-3 py-2.5 sm:py-3 text-left transition-colors",
                         collapsed && "mx-auto h-12 w-12 justify-center gap-0 px-0 py-0",
                         active
                           ? "bg-primary text-primary-foreground shadow-sm"
@@ -128,7 +128,7 @@ export function AdminWorkspaceShell({
                     >
                       <span
                         className={cn(
-                          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
+                          "inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
                           collapsed && "h-10 w-10 rounded-[0.9rem]",
                           active ? "border-white/10 bg-white/15" : "border-border bg-background",
                         )}
@@ -138,8 +138,8 @@ export function AdminWorkspaceShell({
 
                       {!collapsed ? (
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[14px] font-medium leading-5">{item.label}</span>
-                          <span className="block text-[11px] leading-4 opacity-75">{item.description}</span>
+                          <span className="block text-[13px] sm:text-[14px] font-medium leading-5">{item.label}</span>
+                          <span className="block text-[10px] sm:text-[11px] leading-4 opacity-75">{item.description}</span>
                         </span>
                       ) : null}
                     </button>
@@ -150,7 +150,7 @@ export function AdminWorkspaceShell({
           ))}
         </nav>
 
-        <div className="border-t border-border/70 p-3">
+        <div className="border-t border-border/70 p-2.5 sm:p-3">
           <div
             className={cn(
               "flex items-center gap-3 rounded-2xl border border-border/70 bg-background/95 px-3 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
@@ -192,7 +192,7 @@ export function AdminWorkspaceShell({
         </div>
       </aside>
 
-      <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-300 lg:pl-[var(--admin-sidebar-w)]">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col transition-[padding-left] duration-300 lg:pl-[var(--admin-sidebar-w)]">
         <header className="h-14 sm:h-[5rem] shrink-0 border-b border-border/70 bg-card/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
           <div className="flex h-full items-center justify-between gap-3 px-4 py-0 sm:px-6 lg:px-6">
             <div className="flex min-w-0 items-center gap-3">
@@ -207,7 +207,7 @@ export function AdminWorkspaceShell({
                 {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </Button>
 
-              <div className="min-w-0">
+              <div className="min-w-0 hidden sm:block">
                 <h1 className="text-[clamp(0.95rem,1.2vw,1.2rem)] font-black leading-[1.05] tracking-[-0.05em] text-foreground">
                   {title}
                 </h1>
@@ -221,10 +221,11 @@ export function AdminWorkspaceShell({
               <Link to="/" viewTransition>
                 <Button
                   variant="outline"
-                  className="h-9 w-9 sm:w-auto gap-2 rounded-full border-border/70 bg-background px-0 sm:px-3.5 text-[13px] text-foreground hover:bg-muted/40"
+                  className="h-10 w-auto sm:w-auto gap-1 sm:gap-2 rounded-full border-border/70 bg-background text-[13px] text-foreground hover:bg-muted/40 px-3 sm:px-3.5"
                   aria-label="Voltar ao catálogo"
                 >
                   <ArrowLeft className="h-4 w-4" />
+                  <span className="ml-1 text-xs sm:hidden">Catálogo</span>
                   <span className="hidden sm:inline">Voltar ao catálogo</span>
                 </Button>
               </Link>
@@ -232,7 +233,7 @@ export function AdminWorkspaceShell({
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-safe">{children}</main>
+        <main className="flex-1 px-3 py-3 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-safe">{children}</main>
       </div>
     </div>
   );

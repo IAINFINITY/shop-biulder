@@ -1,5 +1,5 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Home, Search, ShoppingBag, User, type LucideIcon } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Home, Settings, ShoppingBag, User, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
@@ -21,32 +21,12 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
   const navigate = useNavigate();
   const accountPath = user ? "/conta" : "/login";
 
-  const scrollToCatalog = () => {
-    const catalogEl = document.getElementById("catalogo-produtos");
-    if (location.pathname === "/" && catalogEl) {
-      catalogEl.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      navigate("/");
-      setTimeout(() => {
-        document.getElementById("catalogo-produtos")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
-  };
-
-  const isActive = (path: string) => location.pathname === path;
-
   const items: NavItem[] = [
     {
       id: "home",
       label: "Início",
       icon: Home,
       onClick: () => (location.pathname === "/" ? window.scrollTo({ top: 0, behavior: "smooth" }) : navigate("/")),
-    },
-    {
-      id: "search",
-      label: "Buscar",
-      icon: Search,
-      onClick: scrollToCatalog,
     },
     {
       id: "cart",
@@ -59,6 +39,12 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
       label: "Conta",
       icon: User,
       onClick: () => navigate(accountPath),
+    },
+    {
+      id: "admin",
+      label: "Admin",
+      icon: Settings,
+      onClick: () => navigate("/admin"),
     },
   ];
 
@@ -75,7 +61,9 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
               ? location.pathname === "/"
               : item.id === "account"
                 ? location.pathname === "/conta" || location.pathname === "/login"
-                : false;
+                : item.id === "admin"
+                  ? location.pathname.startsWith("/admin")
+                  : false;
 
           return (
             <button

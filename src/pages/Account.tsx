@@ -628,7 +628,7 @@ export default function Account() {
         <div className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="flex gap-4 border-b border-border/60 p-4 last:border-b-0">
-              <Skeleton className="aspect-[16/10] w-28 shrink-0 rounded-xl sm:w-36" />
+              <Skeleton className="aspect-[16/10] w-20 sm:w-36 shrink-0 rounded-xl" />
               <div className="min-w-0 flex-1 space-y-2">
                 <Skeleton className="h-3 w-28 rounded-full" />
                 <Skeleton className="h-5 w-2/5 rounded-full" />
@@ -659,7 +659,7 @@ export default function Account() {
                 <CatalogNotificationImageFrame
                   src={item.image_url}
                   alt={item.title}
-                  className="aspect-[16/10] w-28 shrink-0 rounded-xl border border-border/60 sm:w-36"
+                  className="aspect-[16/10] w-20 sm:w-36 shrink-0 rounded-xl border border-border/60"
                   iconClassName="h-7 w-7 text-muted-foreground/35"
                   fit="cover"
                 />

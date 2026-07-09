@@ -55,19 +55,19 @@ function AddressCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-[12px]" onClick={() => onEdit(address)}>
+          <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={() => onEdit(address)}>
             <Pencil className="h-4 w-4" />
             Editar
           </Button>
           {!address.is_default ? (
-            <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-[12px]" onClick={() => onSetDefault(address)}>
+            <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={() => onSetDefault(address)}>
               <Star className="h-4 w-4" />
               Padrão
             </Button>
           ) : null}
           <ConfirmActionDialog
             trigger={
-              <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-[12px] text-destructive">
+              <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px] text-destructive">
                 <Trash2 className="h-4 w-4" />
                 Excluir
               </Button>

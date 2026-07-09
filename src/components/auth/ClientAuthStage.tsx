@@ -39,7 +39,7 @@ const highlightIcons = [ClipboardCheck, ShoppingCart, Clock3, Tag];
 export function ClientAuthStage({ children, className }: ClientAuthStageProps) {
   return (
     <div className={cn("relative h-[100dvh] overflow-hidden bg-background text-foreground", className)}>
-      <PageHeaderShell className="bg-card/95" innerClassName="justify-between gap-4">
+      <PageHeaderShell compact className="bg-card/95" innerClassName="justify-between gap-4">
         <div className="inline-flex min-w-0 items-center">
           <ClinicPlusLogo />
         </div>
@@ -84,7 +84,7 @@ export function ClientAuthStage({ children, className }: ClientAuthStageProps) {
           </div>
         </aside>
 
-        <section className="flex h-full min-h-0 items-start justify-center overflow-y-auto bg-background px-6 pb-8 pt-10 lg:px-10 lg:pt-12 xl:px-[72px]">
+        <section className="flex h-full min-h-0 items-start justify-center overflow-y-auto bg-background px-4 pb-8 pt-6 sm:px-6 sm:pt-10 lg:px-10 lg:pt-12 xl:px-[72px] pb-safe">
           <div className="flex w-full max-w-[560px] flex-col justify-start min-[900px]:py-2 lg:min-h-full">
             {children}
           </div>

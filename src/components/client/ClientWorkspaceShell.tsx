@@ -225,14 +225,14 @@ export function ClientWorkspaceShell({
       </aside>
 
       <div className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden transition-[padding-left] duration-300 lg:pl-[var(--client-sidebar-w)]">
-        <header className="h-[5rem] shrink-0 border-b border-border/70 bg-card/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
+        <header className="h-14 sm:h-[5rem] shrink-0 border-b border-border/70 bg-card/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
           <div className="flex h-full items-center justify-between gap-3 px-4 py-0 sm:px-6 lg:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-9 w-9 shrink-0 rounded-full border-border/70 bg-background text-foreground hover:bg-muted/40"
+                className="h-10 w-10 lg:h-9 lg:w-9 shrink-0 rounded-full border-border/70 bg-background text-foreground hover:bg-muted/40"
                 onClick={onSidebarToggle}
                 aria-label={sidebarOpen ? "Fechar sidebar" : "Abrir sidebar"}
               >
@@ -250,21 +250,21 @@ export function ClientWorkspaceShell({
             </div>
 
             <div className="flex items-center gap-2">
-              <Link to="/" viewTransition className="hidden sm:block">
+              <Link to="/" viewTransition>
                 <Button
                   variant="outline"
-                  className="h-9 gap-2 rounded-full border-border/70 bg-background px-3.5 text-[13px] text-foreground hover:bg-muted/40"
+                  className="h-9 w-9 sm:w-auto gap-2 rounded-full border-border/70 bg-background px-0 sm:px-3.5 text-[13px] text-foreground hover:bg-muted/40"
                   aria-label="Voltar ao catálogo"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Voltar ao catálogo
+                  <span className="hidden sm:inline">Voltar ao catálogo</span>
                 </Button>
               </Link>
             </div>
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-safe">{children}</main>
       </div>
     </div>
   );

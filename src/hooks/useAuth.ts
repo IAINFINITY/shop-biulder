@@ -1,5 +1,6 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
+import { useLocation } from "react-router-dom";
 import {
   CUSTOMER_PROFILES_TABLE,
   type CustomerProfile,
@@ -116,6 +117,7 @@ function clearCachedCustomerProfile(): void {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const bootstrapSnapshot = readAuthBootstrap();
   const [user, setUser] = useState<User | null>(bootstrapSnapshot?.user ?? null);
   const [isAdmin, setIsAdmin] = useState(bootstrapSnapshot?.isAdmin ?? false);
@@ -127,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user?.id ?? null);
   const userRef = useRef<User | null>(bootstrapSnapshot?.user ?? null);
   const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
+  const authInitializedRef = useRef(false);
+  const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
   const fetchCustomerProfile = useCallback(async (userId: string, resolutionId?: number) => {
     const supabase = await loadSupabaseClient();
@@ -237,6 +241,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    const isPublicHome = location.pathname === "/";
+
+    if (isPublicHome) {
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    if (authInitializedRef.current) {
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
+    authInitializedRef.current = true;
 
     const initAuth = async () => {
       const supabase = await loadSupabaseClient();
@@ -249,9 +270,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    initAuth();
+    void initAuth();
 
-    let subscription: { unsubscribe: () => void } | null = null;
     void loadSupabaseClient().then((supabase) => {
       if (!mounted) return;
       const result = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -264,14 +284,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         void resolveAuthState(session?.user ?? null);
       });
-      subscription = result.data.subscription;
+      authSubscriptionRef.current = result.data.subscription;
     });
 
     return () => {
       mounted = false;
-      subscription?.unsubscribe();
     };
-  }, [resolveAuthState]);
+  }, [location.pathname, resolveAuthState]);
+
+  useEffect(() => {
+    return () => {
+      authSubscriptionRef.current?.unsubscribe();
+      authSubscriptionRef.current = null;
+    };
+  }, []);
 
   const updateCustomerType = async (customerType: CustomerType) => {
     if (!user) return new Error("Usuário não autenticado");

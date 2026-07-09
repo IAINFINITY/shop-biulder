@@ -140,7 +140,7 @@ export function StoreHeroBanner() {
     >
       <div className="relative w-full overflow-hidden">
         {slides.length === 0 ? (
-          <div className="aspect-[3/2] w-full bg-neutral-950 sm:aspect-[1024/266]" />
+          <div className="aspect-[3/2] w-full bg-muted sm:aspect-[1024/266]" />
         ) : (
         <Carousel
           className="h-full w-full"
@@ -150,7 +150,7 @@ export function StoreHeroBanner() {
           <CarouselContent className="!ml-0 h-full">
             {slides.map((slide, index) => (
               <CarouselItem key={`${slide.alt}-${index}`} className="basis-full !pl-0 h-full">
-                <div className="relative aspect-[3/2] w-full bg-neutral-950 sm:aspect-[1024/266]">
+                <div className="relative aspect-[3/2] w-full bg-muted sm:aspect-[1024/266]">
                   <HeroSlideFrame slide={slide} />
                 </div>
               </CarouselItem>

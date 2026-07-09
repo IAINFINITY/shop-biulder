@@ -13,8 +13,9 @@ import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
 import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
 import { getSafeReturnToPath } from "@/lib/navigation";
+import { cn } from "@/lib/utils";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
-import { LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { LockKeyhole, Mail, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 const emptyCustomerForm = {
   name: "",
@@ -51,6 +52,10 @@ function AuthField({
   icon: Icon,
   onBlur,
 }: AuthFieldProps) {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === "password";
+  const inputType = isPassword ? (showPassword ? "text" : "password") : type;
+
   return (
     <div className="space-y-2">
       <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
@@ -61,15 +66,26 @@ function AuthField({
         <span className="pointer-events-none absolute left-10 top-1/2 h-7 w-px -translate-y-1/2 bg-border/80" />
         <Input
           id={id}
-          type={type}
+          type={inputType}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur ?? (() => {})}
           placeholder={placeholder}
           required={required}
           autoComplete={autoComplete}
-          className="h-12 rounded-2xl border-border/70 bg-background pl-14 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30"
+          className={cn("h-12 rounded-2xl border-border/70 bg-background pl-14 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30", isPassword && "pr-12")}
         />
+        {isPassword ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -103,7 +119,14 @@ export default function Login() {
     }
     if (error) {
       console.error("Erro ao fazer login", error);
-      toast.error("E-mail ou senha incorretos.");
+      const msg = error.message.toLowerCase();
+      if (msg.includes("email not confirmed") || msg.includes("confirme") || msg.includes("confirm")) {
+        toast.error("Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.");
+      } else if (msg.includes("invalid login") || msg.includes("invalid credentials") || msg.includes("incorret")) {
+        toast.error("E-mail ou senha incorretos.");
+      } else {
+        toast.error(error.message || "Erro ao fazer login.");
+      }
     }
     setSubmitting(false);
   };

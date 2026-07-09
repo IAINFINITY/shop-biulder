@@ -318,22 +318,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const supabase = await loadSupabaseClient();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (!error) {
-      return null;
-    }
-
-    if (data.session?.user) {
-      return null;
-    }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session?.user) {
-      return null;
-    }
-
-    return error;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return error ?? null;
   };
 
   const signUp = async (email: string, password: string) => {

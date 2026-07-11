@@ -29,6 +29,7 @@ export type SupportMessage = {
   body: string;
   created_at: string;
   updated_at: string;
+  sender_user_name?: string | null;
 };
 
 export type InternalStaffRole = "user" | "admin" | "consultor" | "representante" | "admin_atendimento";

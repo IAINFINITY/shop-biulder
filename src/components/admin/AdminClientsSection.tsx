@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +16,14 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/formatMoney";
-import { CUSTOMER_TYPE_LABELS, CUSTOMER_TYPES, type CustomerType } from "@/lib/pricing";
+import { customerTypeLabel } from "@/lib/pricing";
+import { useCustomerTypes } from "@/hooks/useCustomerTypes";
+import { supabase } from "@/integrations/supabase/client";
+import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminCustomerSummary } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
+import { listAdminUsers, getRoleLabel, type AdminUserRecord } from "@/lib/adminUsers";
 
 type AdminClientsSectionProps = {
   customerProfiles: CustomerProfile[];
@@ -29,7 +35,7 @@ type AdminClientsSectionProps = {
   onUpdateCustomerType: (payload: {
     userId: string | null;
     cnpj: string;
-    customerType: CustomerType;
+    customerType: string;
   }) => Promise<Error | null>;
 };
 
@@ -76,13 +82,25 @@ export function AdminClientsSection({
   onClientFilterChange,
   onUpdateCustomerType,
 }: AdminClientsSectionProps) {
+  const { options: customerTypes, addCustomType } = useCustomerTypes();
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsCustomer, setDetailsCustomer] = useState<AdminCustomerSummary | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomerSummary | null>(null);
-  const [draftType, setDraftType] = useState<CustomerType>("cliente");
+  const [draftType, setDraftType] = useState<string>("cliente");
   const [saving, setSaving] = useState(false);
   const [updatingCustomerKey, setUpdatingCustomerKey] = useState<string | null>(null);
+  const [newTypeOpen, setNewTypeOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [syncingProxis, setSyncingProxis] = useState(false);
+
+  const { data: adminUsers = [] } = useQuery({
+    queryKey: ["admin-users"],
+    staleTime: 30_000,
+    queryFn: listAdminUsers,
+  });
+  const [draftRepresentanteId, setDraftRepresentanteId] = useState<string>("");
+  const [representanteSaving, setRepresentanteSaving] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     const term = clientSearch.trim().toLowerCase();
@@ -123,6 +141,25 @@ export function AdminClientsSection({
     return null;
   }, [customerProfilesByKey, detailsCustomer]);
 
+  const detailUserId = detailsCustomer?.userId ?? selectedDetailsProfile?.user_id ?? null;
+
+  const { data: detailAddresses = [] } = useQuery({
+    queryKey: ["admin-customer-addresses", detailUserId],
+    enabled: detailsOpen && Boolean(detailUserId),
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from(CUSTOMER_ADDRESSES_TABLE)
+        .select("id,user_id,label,is_default,cep,street,number,complement,neighborhood,city,state,ibge,created_at,updated_at")
+        .eq("user_id", detailUserId as string)
+        .order("is_default", { ascending: false })
+        .order("updated_at", { ascending: false });
+
+      if (error) throw error;
+      return (data ?? []).map((row) => customerAddressFromRow(row)) as CustomerAddress[];
+    },
+  });
+
   useEffect(() => {
     setDraftType(selectedCustomer?.customerType ?? "cliente");
   }, [selectedCustomer]);
@@ -132,6 +169,12 @@ export function AdminClientsSection({
       setDetailsCustomer(null);
     }
   }, [detailsOpen]);
+
+  useEffect(() => {
+    if (detailsOpen && selectedDetailsProfile) {
+      setDraftRepresentanteId(selectedDetailsProfile.representante_id ?? "");
+    }
+  }, [detailsOpen, selectedDetailsProfile]);
 
   const openEditor = (customer: AdminCustomerSummary) => {
     setSelectedCustomer(customer);
@@ -144,7 +187,7 @@ export function AdminClientsSection({
     setDetailsOpen(true);
   };
 
-  const updateCustomerType = async (customer: AdminCustomerSummary, value: CustomerType) => {
+  const updateCustomerType = async (customer: AdminCustomerSummary, value: string) => {
     if (!customer.cnpj) {
       toast.error("Não foi possível identificar o CNPJ deste cadastro.");
       return;
@@ -300,7 +343,7 @@ export function AdminClientsSection({
                   <div className="mt-2.5 sm:mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     {customer.customerType ? (
                       <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
-                        {CUSTOMER_TYPE_LABELS[customer.customerType]}
+                        {customerTypeLabel(customer.customerType)}
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px] text-muted-foreground">
@@ -330,16 +373,16 @@ export function AdminClientsSection({
                     </div>
                     <Select
                       value={customer.customerType ?? "cliente"}
-                      onValueChange={(value) => updateCustomerType(customer, value as CustomerType)}
+                      onValueChange={(value) => updateCustomerType(customer, value)}
                       disabled={!customer.cnpj || isUpdating}
                     >
                       <SelectTrigger className="h-10 rounded-2xl bg-background">
                         <SelectValue placeholder="Selecione um tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CUSTOMER_TYPES.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {CUSTOMER_TYPE_LABELS[type]}
+                        {customerTypes.map((type) => (
+                          <SelectItem key={type.name} value={type.name}>
+                            {type.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -367,124 +410,224 @@ export function AdminClientsSection({
       </div>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-h-[92vh] w-[min(98vw,1240px)] max-w-[1240px] overflow-hidden rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70 p-0">
+        <DialogContent className="max-h-[92vh] w-[min(98vw,640px)] max-w-[640px] overflow-hidden rounded-[1.5rem] border-border/70 p-0">
           <div className="flex max-h-[92vh] flex-col overflow-hidden">
             <DialogHeader className="border-b border-border/70 px-4 py-3 sm:px-5 sm:py-4">
               <DialogTitle className="text-left text-[1.05rem] sm:text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
-                Dados completos do cliente
+                Dados do cliente
               </DialogTitle>
               <DialogDescription className="text-left text-[12px] sm:text-[13px] text-muted-foreground">
-                Veja os dados de cadastro, endereço, vínculo Proxsys e resumo comercial em um só lugar.
+                Cadastro, endereço e vínculo com o Proxsys.
               </DialogDescription>
             </DialogHeader>
 
             {detailsCustomer ? (
-              <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.98fr)_minmax(0,1.02fr)] lg:items-start">
-                <div className="min-h-0 overflow-y-auto p-3 sm:p-4">
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                            Cadastro selecionado
-                          </p>
-                          <h3 className="mt-2 text-[1.2rem] font-black tracking-[-0.04em] text-foreground">
-                            {detailsCustomer.name}
-                          </h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {detailsCustomer.company || "Sem empresa vinculada"}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary"
+              <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-[1.15rem] font-black tracking-[-0.04em] text-foreground">{detailsCustomer.name}</h3>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{detailsCustomer.company || "Sem empresa vinculada"}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary"
+                      >
+                        {detailsCustomer.customerType ? customerTypeLabel(detailsCustomer.customerType) : "Sem tipo"}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                      <DetailField label="CNPJ" value={detailsCustomer.cnpj || "—"} />
+                      <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
+                      <DetailField label="Pedidos" value={String(detailsCustomer.orders)} />
+                      <DetailField label="Total gasto" value={formatBRL(detailsCustomer.total)} />
+                    </div>
+
+                    {selectedDetailsProfile ? (
+                      <div className="mt-2.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                          Perfil completo
+                        </Badge>
+                        <span>Cadastrado em {formatDateTime(selectedDetailsProfile.created_at)}</span>
+                      </div>
+                    ) : (
+                      <p className="mt-2.5 text-[11px] text-muted-foreground">
+                        Cliente agregado por CNPJ — sem conta no front.
+                      </p>
+                    )}
+                  </div>
+
+                  {detailAddresses.length > 0 ? (
+                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        Endereço{detailAddresses.length > 1 ? "s" : ""}
+                      </p>
+                      <div className="mt-3 space-y-3">
+                        {detailAddresses.map((addr) => (
+                          <div key={addr.id} className="rounded-[1rem] border border-border/70 bg-muted/20 p-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-medium text-foreground">{addr.label}</span>
+                              {addr.is_default ? (
+                                <Badge variant="secondary" className="rounded-full px-2 py-0 text-[10px]">Padrão</Badge>
+                              ) : null}
+                            </div>
+                            <p className="mt-1.5 text-[13px] leading-5 text-foreground">
+                              {[addr.street, addr.number].filter(Boolean).join(", ") || "—"}
+                              {addr.complement ? `, ${addr.complement}` : ""}
+                            </p>
+                            <p className="text-[12px] leading-5 text-muted-foreground">
+                              {[addr.neighborhood, addr.city, addr.state].filter(Boolean).join(" · ")}
+                              {addr.cep ? ` — CEP ${addr.cep}` : ""}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : selectedDetailsProfile ? (
+                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Endereço (perfil)</p>
+                      <p className="mt-3 text-[14px] leading-6 text-foreground">
+                        {[
+                          selectedDetailsProfile.address_street,
+                          selectedDetailsProfile.address_number,
+                        ].filter(Boolean).join(", ") || "—"}
+                        {selectedDetailsProfile.address_complement ? `, ${selectedDetailsProfile.address_complement}` : ""}
+                      </p>
+                      <p className="text-[13px] leading-6 text-muted-foreground">
+                        {[
+                          selectedDetailsProfile.address_neighborhood,
+                          selectedDetailsProfile.address_city,
+                          selectedDetailsProfile.address_state,
+                        ].filter(Boolean).join(" · ")}
+                        {selectedDetailsProfile.address_cep ? ` — CEP ${selectedDetailsProfile.address_cep}` : ""}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {selectedDetailsProfile ? (
+                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        Representante
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <Select
+                          value={draftRepresentanteId}
+                          onValueChange={setDraftRepresentanteId}
                         >
-                          {detailsCustomer.customerType ? CUSTOMER_TYPE_LABELS[detailsCustomer.customerType] : "Sem tipo"}
-                        </Badge>
-                      </div>
-
-                      <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 md:grid-cols-2">
-                        <DetailField label="Usuário" value={detailsCustomer.userId ?? "Cadastro sem login"} />
-                        <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
-                        <DetailField label="CNPJ" value={detailsCustomer.cnpj || "—"} />
-                        <DetailField label="Pedidos" value={String(detailsCustomer.orders)} />
-                        <DetailField label="Total gasto" value={formatBRL(detailsCustomer.total)} />
-                        <DetailField label="Origem" value={detailsCustomer.userId ? "Conta do front" : "Agregado por CNPJ"} />
+                          <SelectTrigger className="h-10 rounded-2xl flex-1">
+                            <SelectValue placeholder="Selecionar representante" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Sem representante</SelectItem>
+                            {adminUsers.filter((u) => u.is_active).map((u) => (
+                              <SelectItem key={u.user_id} value={u.user_id}>
+                                {u.display_name || u.email} · {getRoleLabel(u.role)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-10 rounded-2xl px-4 text-sm shrink-0"
+                          disabled={representanteSaving || draftRepresentanteId === (selectedDetailsProfile.representante_id ?? "")}
+                          onClick={async () => {
+                            setRepresentanteSaving(true);
+                            try {
+                              const { error } = await supabase.rpc("set_customer_representante", {
+                                p_customer_user_id: selectedDetailsProfile.user_id,
+                                p_representante_id: draftRepresentanteId || null,
+                              });
+                              if (error) throw error;
+                              toast.success("Representante atualizado.");
+                            } catch {
+                              toast.error("Erro ao atualizar representante.");
+                            } finally {
+                              setRepresentanteSaving(false);
+                            }
+                          }}
+                        >
+                          {representanteSaving ? "Salvando..." : "Salvar"}
+                        </Button>
                       </div>
                     </div>
+                  ) : null}
 
-                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                            Atualização
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-foreground">
-                            {selectedDetailsProfile ? formatDateTime(selectedDetailsProfile.updated_at) : "—"}
-                          </p>
-                        </div>
-                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
-                          {selectedDetailsProfile ? "Perfil cadastrado" : "Perfil parcial"}
-                        </Badge>
+                  {selectedDetailsProfile ? (
+                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Vínculo Proxsys</p>
+                        {selectedDetailsProfile.proxis_found ? (
+                          <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+                            <DetailField label="PES ID" value={String(selectedDetailsProfile.proxis_pes_id ?? "—")} />
+                            <DetailField label="TPR ID" value={String(selectedDetailsProfile.proxis_tpr_id ?? "—")} />
+                            <DetailField label="Sincronizado" value={formatDateTime(selectedDetailsProfile.proxis_synced_at)} />
+                          </div>
+                        ) : (
+                          <div className="mt-3 space-y-3">
+                            <p className="text-[13px] leading-6 text-muted-foreground">
+                              Este cliente ainda não está vinculado ao Proxsys.
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-9 rounded-full px-3 text-[12px]"
+                              disabled={syncingProxis}
+                              onClick={async () => {
+                                const cnpj = selectedDetailsProfile.cnpj || detailsCustomer.cnpj;
+                                if (!cnpj) { toast.error("CNPJ não encontrado."); return; }
+                                setSyncingProxis(true);
+                                try {
+                                  const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
+                                  await syncCustomerProxisLink(cnpj, detailUserId);
+                                  toast.success("Vínculo Proxsys atualizado.");
+                                  setDetailsOpen(false);
+                                } catch {
+                                  toast.error("Erro ao sincronizar com Proxsys.");
+                                } finally {
+                                  setSyncingProxis(false);
+                                }
+                              }}
+                            >
+                              {syncingProxis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                              Sincronizar agora
+                            </Button>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 md:grid-cols-2">
-                        <DetailField label="Proxis encontrado" value={selectedDetailsProfile?.proxis_found ? "Sim" : "Não"} />
-                        <DetailField label="PES ID" value={selectedDetailsProfile?.proxis_pes_id?.toString() || "—"} />
-                        <DetailField label="TPR ID" value={selectedDetailsProfile?.proxis_tpr_id?.toString() || "—"} />
-                        <DetailField label="Sincronizado em" value={formatDateTime(selectedDetailsProfile?.proxis_synced_at)} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-3 sm:p-4 lg:border-l lg:border-t-0">
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                        Dados completos
+                  ) : detailsCustomer.cnpj ? (
+                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Vínculo Proxsys</p>
+                      <p className="mt-3 text-[13px] leading-6 text-muted-foreground">
+                        Cliente sem perfil completo. Use o botão abaixo para verificar o vínculo pelo CNPJ.
                       </p>
-                      <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 sm:grid-cols-2">
-                        <DetailField label="Nome" value={selectedDetailsProfile?.name || detailsCustomer.name} />
-                        <DetailField label="Empresa" value={selectedDetailsProfile?.company || detailsCustomer.company || "—"} />
-                        <DetailField label="Telefone" value={selectedDetailsProfile?.phone || detailsCustomer.phone || "—"} />
-                        <DetailField label="CNPJ" value={selectedDetailsProfile?.cnpj || detailsCustomer.cnpj || "—"} />
-                        <DetailField
-                          label="Tipo de cliente"
-                          value={
-                            selectedDetailsProfile?.customer_type
-                              ? CUSTOMER_TYPE_LABELS[selectedDetailsProfile.customer_type]
-                              : detailsCustomer.customerType
-                                ? CUSTOMER_TYPE_LABELS[detailsCustomer.customerType]
-                                : "—"
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 h-9 rounded-full px-3 text-[12px]"
+                        disabled={syncingProxis}
+                        onClick={async () => {
+                          setSyncingProxis(true);
+                          try {
+                            const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
+                            await syncCustomerProxisLink(detailsCustomer.cnpj!, detailUserId);
+                            toast.success("Vínculo Proxsys atualizado.");
+                            setDetailsOpen(false);
+                          } catch {
+                            toast.error("Erro ao sincronizar com Proxsys.");
+                          } finally {
+                            setSyncingProxis(false);
                           }
-                        />
-                        <DetailField label="Último acesso" value={formatDateTime(selectedDetailsProfile?.created_at)} />
-                      </div>
+                        }}
+                      >
+                        {syncingProxis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Sincronizar agora
+                      </Button>
                     </div>
-
-                    <div className="rounded-[1.25rem] sm:rounded-[1.5rem] border border-border/70 bg-background p-3 sm:p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                        Endereço
-                      </p>
-                      {selectedDetailsProfile ? (
-                        <div className="mt-3 sm:mt-4 grid auto-rows-fr gap-2.5 sm:gap-3 sm:grid-cols-2">
-                          <DetailField label="CEP" value={selectedDetailsProfile.address_cep || "—"} />
-                          <DetailField label="Rua" value={selectedDetailsProfile.address_street || "—"} />
-                          <DetailField label="Número" value={selectedDetailsProfile.address_number || "—"} />
-                          <DetailField label="Complemento" value={selectedDetailsProfile.address_complement || "—"} />
-                          <DetailField label="Bairro" value={selectedDetailsProfile.address_neighborhood || "—"} />
-                          <DetailField label="Cidade" value={selectedDetailsProfile.address_city || "—"} />
-                          <DetailField label="Estado" value={selectedDetailsProfile.address_state || "—"} />
-                          <DetailField label="IBGE" value={selectedDetailsProfile.address_ibge || "—"} />
-                        </div>
-                      ) : (
-                        <div className="mt-4 rounded-[1.2rem] border border-dashed border-border/70 px-4 py-5 text-sm text-muted-foreground">
-                          Este cliente ainda não tem perfil cadastral completo salvo no sistema.
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -524,18 +667,33 @@ export function AdminClientsSection({
 
               <div className="space-y-2">
                 <Label htmlFor="customer-type-select">Tipo de cliente</Label>
-                <Select value={draftType} onValueChange={(value) => setDraftType(value as CustomerType)}>
-                  <SelectTrigger id="customer-type-select" className="h-10 sm:h-11 rounded-2xl">
-                    <SelectValue placeholder="Selecione um tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {CUSTOMER_TYPE_LABELS[type]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={draftType} onValueChange={(value) => setDraftType(value)}>
+                    <SelectTrigger id="customer-type-select" className="h-10 sm:h-11 rounded-2xl flex-1">
+                      <SelectValue placeholder="Selecione um tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerTypes.map((type) => (
+                        <SelectItem key={type.name} value={type.name}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 sm:h-11 w-10 sm:w-11 rounded-2xl shrink-0"
+                    onClick={() => {
+                      setNewTypeName("");
+                      setNewTypeOpen(true);
+                    }}
+                    title="Adicionar novo tipo"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -546,6 +704,61 @@ export function AdminClientsSection({
             </Button>
             <Button type="button" className="h-10 sm:h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.cnpj}>
               {saving ? "Salvando..." : "Salvar alteração"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newTypeOpen} onOpenChange={setNewTypeOpen}>
+        <DialogContent className="max-w-[26rem] rounded-[1.5rem] border-border/70">
+          <DialogHeader>
+            <DialogTitle className="text-[1.05rem] font-black tracking-[-0.04em]">Novo tipo de cliente</DialogTitle>
+            <DialogDescription className="text-[13px] leading-6 text-muted-foreground">
+              Crie um novo tipo que ficará disponível para todos os clientes e tabelas de preço.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-type-name">Nome do tipo</Label>
+              <Input
+                id="new-type-name"
+                value={newTypeName}
+                onChange={(e) => setNewTypeName(e.target.value)}
+                placeholder="Ex.: Atacadista"
+                className="h-11 rounded-2xl border-border/70 bg-background"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newTypeName.trim()) {
+                    addCustomType(newTypeName);
+                    setDraftType(newTypeName.trim().toLowerCase());
+                    setNewTypeName("");
+                    setNewTypeOpen(false);
+                  }
+                }}
+              />
+              {newTypeName.trim() ? (
+                <p className="text-[12px] text-muted-foreground">
+                  Será salvo como: <span className="font-semibold text-foreground">{newTypeName.trim().toLowerCase()}</span>
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" className="mt-0 rounded-2xl px-4 text-sm" onClick={() => { setNewTypeOpen(false); setNewTypeName(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="mt-0 rounded-2xl px-4 text-sm"
+              disabled={!newTypeName.trim()}
+              onClick={() => {
+                addCustomType(newTypeName);
+                setDraftType(newTypeName.trim().toLowerCase());
+                setNewTypeName("");
+                setNewTypeOpen(false);
+              }}
+            >
+              Criar tipo
             </Button>
           </DialogFooter>
         </DialogContent>

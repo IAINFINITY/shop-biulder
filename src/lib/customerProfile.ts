@@ -1,4 +1,3 @@
-import type { CustomerType } from "@/lib/pricing";
 import type { AddressFormData } from "@/lib/address";
 
 export const CUSTOMER_PROFILES_TABLE = "customer_profiles";
@@ -9,7 +8,8 @@ export interface CustomerProfile {
   phone: string;
   company: string;
   cnpj: string;
-  customer_type: CustomerType;
+  customer_type: string;
+  representante_id: string | null;
   proxis_pes_id: number | null;
   proxis_tpr_id: number | null;
   proxis_found: boolean | null;
@@ -31,7 +31,7 @@ export type CustomerFormCore = {
   phone: string;
   company: string;
   cnpj: string;
-  customer_type?: CustomerType;
+  customer_type?: string;
 };
 
 export interface CustomerRegistrationData extends CustomerFormCore {

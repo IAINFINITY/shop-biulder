@@ -60,7 +60,42 @@ export function useSupportMessages(conversationId: string | null, enabled = true
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return (data ?? []) as SupportMessage[];
+      const messages = (data ?? []) as SupportMessage[];
+
+      const senderIds = [...new Set(messages.map((m) => m.sender_user_id))];
+      if (senderIds.length === 0) return messages;
+
+      const names = new Map<string, string>();
+
+      const { data: adminUsers } = await supabase
+        .from("admin_users")
+        .select("user_id, display_name")
+        .in("user_id", senderIds);
+
+      if (adminUsers) {
+        for (const u of adminUsers) {
+          if (u.display_name) names.set(u.user_id, u.display_name);
+        }
+      }
+
+      const customerIds = senderIds.filter((id) => !names.has(id));
+      if (customerIds.length > 0) {
+        const { data: customers } = await supabase
+          .from("customer_profiles")
+          .select("user_id, name")
+          .in("user_id", customerIds);
+
+        if (customers) {
+          for (const c of customers) {
+            names.set(c.user_id, c.name);
+          }
+        }
+      }
+
+      return messages.map((m) => ({
+        ...m,
+        sender_user_name: names.get(m.sender_user_id) ?? null,
+      }));
     },
   });
 }

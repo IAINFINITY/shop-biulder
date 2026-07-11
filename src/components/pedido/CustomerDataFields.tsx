@@ -6,9 +6,9 @@ import type { CnpjValidationStatus } from "@/hooks/useCnpjValidation";
 import {
   CUSTOMER_TYPE_LABELS,
   CUSTOMER_TYPES,
+  customerTypeLabel,
   DEFAULT_CUSTOMER_TYPE,
   normalizeCustomerType,
-  type CustomerType,
 } from "@/lib/pricing";
 
 export type CustomerFormData = {
@@ -16,7 +16,7 @@ export type CustomerFormData = {
   phone: string;
   company: string;
   cnpj: string;
-  customer_type: CustomerType;
+  customer_type: string;
 };
 
 type CustomerDataFieldsProps = {
@@ -100,7 +100,7 @@ export function CustomerDataFields({
             <SelectContent>
               {CUSTOMER_TYPES.map((type) => (
                 <SelectItem key={type} value={type}>
-                  {CUSTOMER_TYPE_LABELS[type]}
+                  {customerTypeLabel(type)}
                 </SelectItem>
               ))}
             </SelectContent>

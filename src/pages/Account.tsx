@@ -3,10 +3,15 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
   CalendarClock,
+  Eye,
+  EyeOff,
+  Loader2,
   LogOut,
   Mail,
   MapPinned,
+  Pencil,
   Phone,
+  Save,
   ShieldCheck,
   ShoppingBag,
   UserRound,
@@ -26,7 +31,7 @@ import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import type { ClientSection } from "@/components/client/clientTypes";
 import { formatCnpjDisplay, formatPhone, onlyDigits } from "@/lib/brazilianIds";
 import { formatCep } from "@/lib/address";
-import { CUSTOMER_TYPE_LABELS, normalizeCustomerType } from "@/lib/pricing";
+import { customerTypeLabel, normalizeCustomerType } from "@/lib/pricing";
 import { formatBRL } from "@/lib/formatMoney";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
@@ -37,7 +42,12 @@ import { useCatalogNotificationReads } from "@/hooks/useCatalogNotificationReads
 import type { CatalogNotification } from "@/lib/catalogNotifications";
 import { buildOrderEnrichmentMaps } from "@/lib/products";
 
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_TEL,
@@ -83,6 +93,20 @@ function formatCompactDateTime(value: string | null | undefined) {
   }).format(date);
 
   return { datePart, timePart };
+}
+
+function passwordStrength(password: string): { label: string; score: number; checks: { label: string; ok: boolean }[] } {
+  const checks = [
+    { label: "Mínimo 8 caracteres", ok: password.length >= 8 },
+    { label: "Máximo 64 caracteres", ok: password.length <= 64 },
+    { label: "Letra maiúscula", ok: /[A-Z]/.test(password) },
+    { label: "Letra minúscula", ok: /[a-z]/.test(password) },
+    { label: "Número", ok: /\d/.test(password) },
+    { label: "Caractere especial", ok: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+  ];
+  const okCount = checks.filter((c) => c.ok).length;
+  const labels = ["Fraca", "Fraca", "Regular", "Média", "Boa", "Forte", "Forte"];
+  return { label: labels[Math.min(okCount, 6)], score: okCount, checks };
 }
 
 function AdminAccessNotice({
@@ -239,7 +263,7 @@ function CustomerNotificationPreview({ notification }: { notification: CustomerC
 export default function Account() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut } = useAuth();
+  const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut, refreshCustomerProfile } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useOrders(
     Boolean(user && customerProfile && !isAdmin),
     user?.id ?? "customer",
@@ -250,6 +274,22 @@ export default function Account() {
   const [section, setSection] = useState<ClientSection>("resumo");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
+
+  // Profile editing
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editCompany, setEditCompany] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Password change
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     const sectionParam = searchParams.get("section");
@@ -266,7 +306,7 @@ export default function Account() {
 
   const displayName = customerProfile?.company?.trim() || customerProfile?.name?.trim() || user?.email || "Cliente";
   const displayCustomerType = customerProfile
-    ? CUSTOMER_TYPE_LABELS[normalizeCustomerType(customerProfile.customer_type)]
+    ? customerTypeLabel(normalizeCustomerType(customerProfile.customer_type))
     : "Cadastro em processamento";
   const customerOrders = useMemo(() => {
     if (!customerProfile) return [] as Order[];
@@ -417,47 +457,110 @@ export default function Account() {
       <ClientSectionHeader
         eyebrow="Empresa"
         title="Dados da empresa"
-        description="Revise os dados cadastrais associados à sua conta. Tudo fica concentrado para consulta rápida."
+        description="Revise e edite os dados cadastrais associados a sua conta."
+        actions={
+          customerProfile ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditName(customerProfile.name);
+                setEditPhone(customerProfile.phone);
+                setEditCompany(customerProfile.company);
+                setEditingProfile(!editingProfile);
+              }}
+              className="h-8 rounded-full px-4 text-[12px]"
+            >
+              {editingProfile ? <Save className="mr-1.5 h-3.5 w-3.5" /> : <Pencil className="mr-1.5 h-3.5 w-3.5" />}
+              {editingProfile ? "Cancelar" : "Editar"}
+            </Button>
+          ) : undefined
+        }
       />
 
       {customerProfile ? (
-        <>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
-            <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
-            <InfoTile label="Empresa" value={customerProfile.company || "—"} icon={Building2} />
-            <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
-            <InfoTile label="CNPJ" value={formatCnpjDisplay(customerProfile.cnpj)} icon={Building2} />
-          </div>
-
-          <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
-            <div className="flex items-center gap-2">
-              <MapPinned className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Endereço</h2>
+        editingProfile ? (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSavingProfile(true);
+              try {
+                const { error } = await supabase.rpc("update_own_customer_profile", {
+                  p_name: editName.trim(),
+                  p_phone: editPhone.trim(),
+                  p_company: editCompany.trim(),
+                });
+                if (error) throw error;
+                toast.success("Perfil atualizado");
+                setEditingProfile(false);
+                if (user) await refreshCustomerProfile(user.id);
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Erro ao atualizar perfil");
+              } finally {
+                setSavingProfile(false);
+              }
+            }}
+            className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6 space-y-4"
+          >
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nome</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Telefone</Label>
+              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Empresa</Label>
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[13px]" readOnly />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[13px]">
+                {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
+              <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
+              <InfoTile label="Empresa" value={customerProfile.company || "—"} icon={Building2} />
+              <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
+              <InfoTile label="CNPJ" value={formatCnpjDisplay(customerProfile.cnpj)} icon={Building2} />
             </div>
 
-            {customerProfile.address_cep ? (
-              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <InfoTile label="CEP" value={formatCep(customerProfile.address_cep)} icon={MapPinned} />
-                <InfoTile label="Rua" value={customerProfile.address_street || "—"} icon={Building2} />
-                <InfoTile label="Número" value={customerProfile.address_number || "—"} icon={Building2} />
-                <InfoTile label="Complemento" value={customerProfile.address_complement || "—"} icon={Building2} />
-                <InfoTile label="Bairro" value={customerProfile.address_neighborhood || "—"} icon={Building2} />
-                <InfoTile label="Cidade/UF" value={`${customerProfile.address_city || "—"}/${customerProfile.address_state || "—"}`} icon={Building2} />
+            <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
+              <div className="flex items-center gap-2">
+                <MapPinned className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-foreground">Endereco</h2>
               </div>
-            ) : (
-              <div className="mt-5">
-                <EmptyPanel
-                  title="Endereço não cadastrado"
-                  description="Quando os dados de endereço forem salvos no perfil, eles aparecem aqui para consulta do cliente."
-                />
-              </div>
-            )}
-          </div>
-        </>
+
+              {customerProfile.address_cep ? (
+                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <InfoTile label="CEP" value={formatCep(customerProfile.address_cep)} icon={MapPinned} />
+                  <InfoTile label="Rua" value={customerProfile.address_street || "—"} icon={Building2} />
+                  <InfoTile label="Numero" value={customerProfile.address_number || "—"} icon={Building2} />
+                  <InfoTile label="Complemento" value={customerProfile.address_complement || "—"} icon={Building2} />
+                  <InfoTile label="Bairro" value={customerProfile.address_neighborhood || "—"} icon={Building2} />
+                  <InfoTile label="Cidade/UF" value={`${customerProfile.address_city || "—"}/${customerProfile.address_state || "—"}`} icon={Building2} />
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <EmptyPanel
+                    title="Endereco nao cadastrado"
+                    description="Quando os dados de endereco forem salvos no perfil, eles aparecem aqui para consulta do cliente."
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )
       ) : (
         <EmptyPanel
           title="Nenhum perfil de empresa encontrado"
-          description="Se você acabou de criar a conta, aguarde a finalização do cadastro ou entre novamente após confirmar o acesso."
+          description="Se voce acabou de criar a conta, aguarde a finalizacao do cadastro ou entre novamente apos confirmar o acesso."
         />
       )}
     </div>
@@ -517,8 +620,8 @@ export default function Account() {
     <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
         eyebrow="Segurança"
-        title="Sessão e acesso"
-        description="Veja as informações da sessão atual e use os atalhos para sair com segurança ou voltar ao catálogo."
+        title="Sessão, acesso e senha"
+        description="Gerencie sua sessão e altere sua senha de acesso."
       />
 
       <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -531,46 +634,155 @@ export default function Account() {
         <InfoTile
           label="E-mail"
           value={user.email || "—"}
-          hint="Login usado nesta sessão."
+          hint="Login usado nesta sessao."
           icon={Mail}
         />
         <InfoTile
           label="Acesso"
           value="Cliente B2B"
-          hint="Área exclusiva do cliente."
+          hint="Area exclusiva do cliente."
           icon={ShieldCheck}
         />
       </div>
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!currentPassword) { toast.error("Informe a senha atual"); return; }
+          if (newPassword.length < 8) { toast.error("Nova senha deve ter no mínimo 8 caracteres"); return; }
+          if (newPassword.length > 64) { toast.error("Nova senha deve ter no máximo 64 caracteres"); return; }
+          if (!/[A-Z]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos uma letra maiúscula"); return; }
+          if (!/[a-z]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos uma letra minúscula"); return; }
+          if (!/\d/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos um número"); return; }
+          if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos um caractere especial"); return; }
+          if (newPassword !== confirmPassword) { toast.error("Senhas não conferem"); return; }
+          setSavingPassword(true);
+          try {
+            const { error: signInErr } = await supabase.auth.signInWithPassword({
+              email: user!.email!,
+              password: currentPassword,
+            });
+            if (signInErr) { toast.error("Senha atual incorreta"); setSavingPassword(false); return; }
+            const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+            if (updateErr) throw updateErr;
+            toast.success("Senha alterada com sucesso");
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmPassword("");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erro ao alterar senha");
+          } finally {
+            setSavingPassword(false);
+          }
+        }}
+        className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6 space-y-4"
+      >
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          <p className="text-sm font-semibold text-foreground">Ações rápidas</p>
+          <p className="text-sm font-semibold text-foreground">Alterar senha</p>
         </div>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Link to="/" viewTransition className="flex-1">
-            <Button variant="outline" className="h-11 w-full rounded-2xl border-border/70 bg-background px-5 text-sm">
-              Ir ao catálogo
-            </Button>
-          </Link>
-          <ConfirmActionDialog
-            trigger={
-              <Button type="button" className="h-11 flex-1 rounded-2xl px-5 text-sm">
-                <LogOut className="h-4 w-4" />
-                Sair da conta
-              </Button>
-            }
-            title="Sair da conta"
-            description="Deseja encerrar sua sessão de cliente"
-            confirmLabel="Sair"
-            destructive
-            onConfirm={async () => {
-              await signOut();
-              navigate("/login", { replace: true, viewTransition: true });
-            }}
-          />
+
+        <div className="space-y-2">
+          <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Senha atual</Label>
+          <div className="relative">
+            <Input
+              type={showCurrentPassword ? "text" : "password"}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Sua senha atual"
+              maxLength={64}
+              className="h-10 rounded-2xl pr-10 text-[13px]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
-      </div>
+
+        <div className="space-y-2">
+          <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nova senha</Label>
+          <div className="relative">
+            <Input
+              type={showNewPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+              maxLength={64}
+              className="h-10 rounded-2xl pr-10 text-[13px]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {newPassword.length > 0 && (
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-300",
+                      passwordStrength(newPassword).score <= 1 ? "w-1/6 bg-red-400" :
+                      passwordStrength(newPassword).score <= 2 ? "w-1/3 bg-orange-400" :
+                      passwordStrength(newPassword).score <= 3 ? "w-1/2 bg-yellow-400" :
+                      passwordStrength(newPassword).score <= 4 ? "w-2/3 bg-yellow-400" :
+                      passwordStrength(newPassword).score <= 5 ? "w-5/6 bg-emerald-400" :
+                      "w-full bg-emerald-400",
+                    )}
+                  />
+                </div>
+                <span className="text-[11px] font-medium text-muted-foreground">{passwordStrength(newPassword).label}</span>
+                <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {passwordStrength(newPassword).checks.map((c) => (
+                  <span key={c.label} className={cn("text-[11px]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}>
+                    {c.ok ? "✓" : "○"} {c.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Confirmar nova senha</Label>
+          <div className="relative">
+            <Input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Repita a nova senha"
+              maxLength={64}
+              className="h-10 rounded-2xl pr-10 text-[13px]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={savingPassword} className="h-9 rounded-full px-5 text-[13px]">
+            {savingPassword ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+            Alterar senha
+          </Button>
+        </div>
+      </form>
 
     </div>
   );

@@ -8,11 +8,12 @@ import {
 } from "@/lib/customerProfile";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
-import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
+import { normalizeCustomerType } from "@/lib/pricing";
 
 type AuthContextValue = {
   user: User | null;
   isAdmin: boolean;
+  isSuperadmin: boolean;
   isCustomer: boolean;
   customerProfile: CustomerProfile | null;
   loading: boolean;
@@ -24,7 +25,7 @@ type AuthContextValue = {
     data: Omit<CustomerRegistrationData, "email" | "password">,
   ) => Promise<Error | null>;
   signOut: () => Promise<{ error: Error | null }>;
-  updateCustomerType: (customerType: CustomerType) => Promise<Error | null>;
+  updateCustomerType: (customerType: string) => Promise<Error | null>;
   refreshCustomerProfile: (userId: string) => Promise<void>;
 };
 
@@ -135,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const bootstrapSnapshot = readAuthBootstrap();
   const [user, setUser] = useState<User | null>(bootstrapSnapshot?.user ?? null);
   const [isAdmin, setIsAdmin] = useState(bootstrapSnapshot?.isAdmin ?? false);
+  const [isSuperadmin, setIsSuperadmin] = useState(false);
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(
     bootstrapSnapshot?.user ? readCachedCustomerProfile(bootstrapSnapshot.user.id) : null,
   );
@@ -143,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user?.id ?? null);
   const userRef = useRef<User | null>(bootstrapSnapshot?.user ?? null);
   const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
+  const isSuperadminRef = useRef(false);
   const authInitializedRef = useRef(false);
   const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
@@ -192,6 +195,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdminRef.current = nextIsAdmin;
       userRef.current = nextUser;
       setIsAdmin(nextIsAdmin);
+
+      // Check superadmin
+      if (nextIsAdmin) {
+        const superResult = await supabase.rpc("has_role", {
+          _user_id: nextUser.id,
+          _role: "superadmin",
+        });
+        const nextSuperadmin = !superResult.error && !!superResult.data;
+        isSuperadminRef.current = nextSuperadmin;
+        setIsSuperadmin(nextSuperadmin);
+      } else {
+        isSuperadminRef.current = false;
+        setIsSuperadmin(false);
+      }
+
       writeAuthBootstrap({
         user: nextUser,
         isAdmin: nextIsAdmin,
@@ -201,8 +219,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       if (resolutionId !== authResolutionCounter) return;
       isAdminRef.current = false;
+      isSuperadminRef.current = false;
       userRef.current = nextUser;
       setIsAdmin(false);
+      setIsSuperadmin(false);
       writeAuthBootstrap({
         user: nextUser,
         isAdmin: false,
@@ -221,8 +241,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activeUserIdRef.current = null;
       userRef.current = null;
       isAdminRef.current = false;
+      isSuperadminRef.current = false;
       setUser(null);
       setIsAdmin(false);
+      setIsSuperadmin(false);
       setCustomerProfile(null);
       setIsResolvingAccess(false);
       clearAuthBootstrap();
@@ -245,7 +267,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setUser(nextUser);
     isAdminRef.current = false;
+    isSuperadminRef.current = false;
     setIsAdmin(false);
+    setIsSuperadmin(false);
     setCustomerProfile(readCachedCustomerProfile(nextUser.id));
     await hydrateSessionDetails(nextUser, resolutionId);
     if (resolutionId === authResolutionCounter) {
@@ -313,7 +337,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const updateCustomerType = async (customerType: CustomerType) => {
+  const updateCustomerType = async (customerType: string) => {
     if (!user) return new Error("Usuário não autenticado");
 
     const normalizedType = normalizeCustomerType(customerType);
@@ -405,11 +429,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     authResolutionCounter += 1;
     setUser(null);
     setIsAdmin(false);
+    setIsSuperadmin(false);
     setCustomerProfile(null);
     setIsResolvingAccess(false);
     activeUserIdRef.current = null;
     userRef.current = null;
     isAdminRef.current = false;
+    isSuperadminRef.current = false;
     clearAuthBootstrap();
     clearCachedCustomerProfile();
     const supabase = await loadSupabaseClient();
@@ -420,6 +446,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextValue = {
     user,
     isAdmin,
+    isSuperadmin,
     isCustomer: !!customerProfile,
     customerProfile,
     loading,

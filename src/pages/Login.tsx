@@ -37,6 +37,7 @@ type AuthFieldProps = {
   autoComplete: string;
   required: boolean;
   icon: LucideIcon;
+  maxLength?: number;
   onBlur?: () => void;
 };
 
@@ -50,6 +51,7 @@ function AuthField({
   autoComplete,
   required = false,
   icon: Icon,
+  maxLength,
   onBlur,
 }: AuthFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -73,6 +75,7 @@ function AuthField({
           placeholder={placeholder}
           required={required}
           autoComplete={autoComplete}
+          maxLength={maxLength}
           className={cn("h-12 rounded-2xl border-border/70 bg-background pl-14 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30", isPassword && "pr-12")}
         />
         {isPassword ? (
@@ -148,8 +151,33 @@ export default function Login() {
       return;
     }
 
-    if (signUpPassword.length < 6) {
-      toast.error("A senha deve ter pelo menos 6 caracteres.");
+    if (signUpPassword.length < 8) {
+      toast.error("A senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
+    if (signUpPassword.length > 64) {
+      toast.error("A senha deve ter no máximo 64 caracteres.");
+      return;
+    }
+
+    if (!/[A-Z]/.test(signUpPassword)) {
+      toast.error("A senha deve conter pelo menos uma letra maiúscula.");
+      return;
+    }
+
+    if (!/[a-z]/.test(signUpPassword)) {
+      toast.error("A senha deve conter pelo menos uma letra minúscula.");
+      return;
+    }
+
+    if (!/\d/.test(signUpPassword)) {
+      toast.error("A senha deve conter pelo menos um número.");
+      return;
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(signUpPassword)) {
+      toast.error("A senha deve conter pelo menos um caractere especial.");
       return;
     }
 
@@ -316,12 +344,13 @@ export default function Login() {
                   <AuthField
                     id="signup-password"
                     label="Senha"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     value={signUpPassword}
                     onChange={setSignUpPassword}
                     type="password"
                     autoComplete="new-password"
                     required
+                    maxLength={64}
                     icon={LockKeyhole}
                   />
 
@@ -334,6 +363,7 @@ export default function Login() {
                     type="password"
                     autoComplete="new-password"
                     required
+                    maxLength={64}
                     icon={LockKeyhole}
                   />
                 </div>

@@ -43,18 +43,28 @@ export function ClientWorkspaceShell({
 }: ClientWorkspaceShellProps) {
   const navGroups = [
     {
-      label: "Minha conta",
+      label: "Visão geral",
       items: [
         { id: "resumo" as const, label: "Resumo", icon: LayoutGrid, description: "Visão geral" },
+      ],
+    },
+    {
+      label: "Cadastro",
+      items: [
         { id: "empresa" as const, label: "Empresa", icon: Building2, description: "Dados cadastrados" },
         { id: "enderecos" as const, label: "Endereços", icon: MapPinned, description: "Locais de entrega" },
       ],
     },
     {
-      label: "Acesso e histórico",
+      label: "Atividades",
       items: [
         { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Acompanhamento" },
         { id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" },
+      ],
+    },
+    {
+      label: "Atendimento",
+      items: [
         { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Falar com consultor" },
         { id: "seguranca" as const, label: "Segurança", icon: ShieldCheck, description: "Sessão ativa" },
       ],

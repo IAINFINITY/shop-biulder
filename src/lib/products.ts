@@ -173,7 +173,7 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     is_promotion: input.is_promotion,
     price: input.price,
     image_url: urls[0] ?? null,
-    product_code: input.product_code.trim() || null,
+    product_code: (input.product_code ?? "").trim() || null,
     visible_to: visibleTo,
   };
   return {
@@ -223,7 +223,7 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
 }
 
 export function getProductCode(product: Pick<Product, "product_code" | "id">): string {
-  const code = product.product_code.trim();
+  const code = (product.product_code ?? "").trim();
   if (code) return code;
   return product.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
@@ -233,7 +233,7 @@ export function buildProductCodeLookup(
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const product of products) {
-    const code = product.product_code.trim();
+    const code = (product.product_code ?? "").trim();
     if (code) map.set(product.id, code);
   }
   return map;
@@ -277,7 +277,7 @@ export function buildOrderEnrichmentMaps(
 
   for (const product of products) {
     const nameKey = normalizeProductNameKey(product.name);
-    const code = product.product_code.trim();
+    const code = (product.product_code ?? "").trim();
     const price = getProductUnitPrice(product);
     const imageUrl = getProductImageUrls(product)[0] ?? "";
 

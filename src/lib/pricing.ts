@@ -1,37 +1,38 @@
 import type { CartItem, Product } from "@/lib/products";
 import { getProductUnitPrice } from "@/lib/products";
 
-export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor"] as const;
-export type CustomerType = (typeof CUSTOMER_TYPES)[number];
+export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor"];
 
-export const DEFAULT_CUSTOMER_TYPE: CustomerType = "cliente";
+export const DEFAULT_CUSTOMER_TYPE = "cliente";
 
-export const CUSTOMER_TYPE_LABELS: Record<CustomerType, string> = {
+export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
   cliente: "Cliente",
   lojista: "Lojista",
   distribuidor: "Distribuidor",
 };
 
+export function customerTypeLabel(value: string): string {
+  if (CUSTOMER_TYPE_LABELS[value]) return CUSTOMER_TYPE_LABELS[value];
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
 export const CUSTOMER_PRICE_OVERRIDES_TABLE = "customer_price_overrides";
 
 export type CustomerPriceOverride = {
-  customer_type: CustomerType;
+  customer_type: string;
   proxis_tpr_id: number | null;
   product_code: string;
   price: number;
   active: boolean;
 };
 
-function isCustomerType(value: unknown): value is CustomerType {
-  return typeof value === "string" && (CUSTOMER_TYPES as readonly string[]).includes(value);
-}
-
-export function normalizeCustomerType(value: unknown): CustomerType {
-  return isCustomerType(value) ? value : DEFAULT_CUSTOMER_TYPE;
+export function normalizeCustomerType(value: unknown): string {
+  if (typeof value === "string" && value.trim()) return value.trim().toLowerCase();
+  return DEFAULT_CUSTOMER_TYPE;
 }
 
 export function getCustomerTypeLabel(value: unknown): string {
-  return CUSTOMER_TYPE_LABELS[normalizeCustomerType(value)];
+  return customerTypeLabel(normalizeCustomerType(value));
 }
 
 function normalizeProductCode(value: string | null | undefined): string {

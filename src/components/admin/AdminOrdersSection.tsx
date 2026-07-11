@@ -1,8 +1,12 @@
-﻿import { Badge } from "@/components/ui/badge";
+﻿import { useMemo, useState } from "react";
+import { ShoppingBag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
+import { formatBRL } from "@/lib/formatMoney";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminOrderRow } from "./adminTypes";
@@ -22,7 +26,25 @@ type AdminOrdersSectionProps = {
   onExportXlsx: (payload: OrderExportInput) => void | Promise<void>;
   onExportPdf: (payload: OrderExportInput) => void | Promise<void>;
   onDelete: (id: string) => void;
+  onStatusChange?: (orderId: string, status: string) => void;
 };
+
+function statusFilterKey(status: string) {
+  const s = status.toLowerCase();
+  if (s.includes("cancel")) return "cancelado";
+  if (s.includes("entreg") || s.includes("conclu")) return "concluido";
+  if (s.includes("separ") || s.includes("process") || s.includes("prepar") || s.includes("novo")) return "em_andamento";
+  return "outros";
+}
+
+const STATUS_FILTERS = [
+  { id: "all", label: "Todos" },
+  { id: "em_andamento", label: "Em andamento" },
+  { id: "concluido", label: "Concluídos" },
+  { id: "cancelado", label: "Cancelados" },
+] as const;
+
+type StatusFilterId = (typeof STATUS_FILTERS)[number]["id"];
 
 export function AdminOrdersSection({
   ordersLoading,
@@ -37,7 +59,33 @@ export function AdminOrdersSection({
   onExportXlsx,
   onExportPdf,
   onDelete,
+  onStatusChange,
 }: AdminOrdersSectionProps) {
+  const [statusFilter, setStatusFilter] = useState<StatusFilterId>("all");
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilterId, number> = { all: filteredOrders.length, em_andamento: 0, concluido: 0, cancelado: 0 };
+    for (const order of filteredOrders) {
+      const key = statusFilterKey(order.status);
+      if (key in counts) counts[key as StatusFilterId] += 1;
+    }
+    return counts;
+  }, [filteredOrders]);
+
+  const visibleOrders = useMemo(() => {
+    if (statusFilter === "all") return filteredOrders;
+    return filteredOrders.filter((order) => statusFilterKey(order.status) === statusFilter);
+  }, [filteredOrders, statusFilter]);
+
+  const summaryTotal = useMemo(() => {
+    let total = 0;
+    for (const order of visibleOrders) {
+      const lines = parseOrderTableLines(order.items, orderEnrichment);
+      total += getOrderLinesGrandTotal(lines);
+    }
+    return Math.round(total * 100) / 100;
+  }, [visibleOrders, orderEnrichment]);
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="space-y-3 sm:space-y-4">
@@ -48,7 +96,7 @@ export function AdminOrdersSection({
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
-                {filteredOrders.length} pedido(s)
+                {visibleOrders.length} pedido(s)
               </Badge>
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
                 {pendingOrdersCount} em andamento
@@ -63,6 +111,30 @@ export function AdminOrdersSection({
           className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
         />
       </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {STATUS_FILTERS.map((filter) => (
+          <Button
+            key={filter.id}
+            type="button"
+            variant={statusFilter === filter.id ? "default" : "outline"}
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
+            onClick={() => setStatusFilter(filter.id)}
+          >
+            {filter.label}
+            <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[10px] leading-none">
+              {statusCounts[filter.id]}
+            </Badge>
+          </Button>
+        ))}
+      </div>
+
+      {visibleOrders.length > 0 && (
+        <div className="rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 sm:px-4 py-3 text-[12px] sm:text-[13px] leading-5 sm:leading-6 text-foreground">
+          <span className="font-semibold">{visibleOrders.length} pedido(s)</span> no filtro atual · Total:{" "}
+          <span className="font-semibold">{formatBRL(summaryTotal)}</span>
+        </div>
+      )}
 
       {ordersLoading ? (
         <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 bg-background p-4">
@@ -81,13 +153,23 @@ export function AdminOrdersSection({
             </div>
           ))}
         </div>
-      ) : filteredOrders.length === 0 ? (
-        <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
-          Nenhum pedido encontrado com esse filtro.
+      ) : visibleOrders.length === 0 ? (
+        <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-12 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-border/70 bg-muted/20">
+            <ShoppingBag className="h-7 w-7 text-muted-foreground/40" />
+          </div>
+          <p className="mt-4 text-[15px] font-semibold text-foreground">Nenhum pedido encontrado</p>
+          <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
+            {statusFilter !== "all"
+              ? "Nenhum pedido com esse status no filtro atual. Tente outro status ou ajuste a busca."
+              : orderSearch.trim()
+                ? "Nenhum pedido encontrado com esse termo. Tente outro termo de busca."
+                : "Ainda não há pedidos registrados no sistema."}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => {
+          {visibleOrders.map((order) => {
             const lines = parseOrderTableLines(order.items, orderEnrichment);
             const orderTotal = getOrderLinesGrandTotal(lines);
             const orderQty = getOrderLinesQuantityTotal(lines);
@@ -132,6 +214,7 @@ export function AdminOrdersSection({
                 onExportXlsx={() => onExportXlsx(exportPayload)}
                 onExportPdf={() => onExportPdf(exportPayload)}
                 onDelete={() => onDelete(order.id)}
+                onStatusChange={onStatusChange}
               />
             );
           })}

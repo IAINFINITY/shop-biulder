@@ -1,24 +1,37 @@
-import { useEffect, useMemo, useState } from "react";
-import { BadgeDollarSign, Loader2, RotateCcw, Save, Search, WandSparkles, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { BadgeDollarSign, ImageIcon, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, Undo2, WandSparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatBRL, coercePrice, parsePriceInput, priceToAdminInput } from "@/lib/formatMoney";
 import { supabase } from "@/integrations/supabase/client";
-import { CUSTOMER_PRICE_OVERRIDES_TABLE, CUSTOMER_TYPES, CUSTOMER_TYPE_LABELS, type CustomerType } from "@/lib/pricing";
+import { getProductImageUrls } from "@/lib/products";
+import { CUSTOMER_PRICE_OVERRIDES_TABLE, customerTypeLabel } from "@/lib/pricing";
+import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { cn } from "@/lib/utils";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminProduct } from "./adminTypes";
 
 type PricingScopeMode = "customer_type" | "proxis_tpr_id";
+type PricingFilterMode = "all" | "with_override" | "without_override";
 
 type PriceOverrideRow = {
   id: string;
-  customer_type: CustomerType;
+  customer_type: string;
   proxis_tpr_id: number | null;
   product_code: string;
   price: number;
@@ -28,6 +41,7 @@ type PriceOverrideRow = {
 type AdminPricingSectionProps = {
   products: AdminProduct[];
   onRefreshPricing: () => void;
+  onGoToProduct?: (productCode: string) => void;
 };
 
 const KNOWN_PROXIS_TABLES = [
@@ -40,11 +54,11 @@ function normalizeProductCode(value: string | null | undefined): string {
   return typeof value === "string" ? value.trim().toUpperCase() : "";
 }
 
-function resolveRowKey(scopeMode: PricingScopeMode, customerType: CustomerType, proxisTprId: number | null, productCode: string) {
+function resolveRowKey(scopeMode: PricingScopeMode, customerType: string, proxisTprId: number | null, productCode: string) {
   return `${scopeMode}:${scopeMode === "customer_type" ? customerType : proxisTprId ?? "null"}:${productCode}`;
 }
 
-async function loadExistingOverride(scopeMode: PricingScopeMode, customerType: CustomerType, proxisTprId: number | null, productCode: string) {
+async function loadExistingOverride(scopeMode: PricingScopeMode, customerType: string, proxisTprId: number | null, productCode: string) {
   let query = supabase
     .from(CUSTOMER_PRICE_OVERRIDES_TABLE)
     .select("id")
@@ -61,25 +75,29 @@ async function loadExistingOverride(scopeMode: PricingScopeMode, customerType: C
   return data ?? null;
 }
 
-export function AdminPricingSection({ products, onRefreshPricing }: AdminPricingSectionProps) {
+export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct }: AdminPricingSectionProps) {
+  const { options: customerTypes, addCustomType } = useCustomerTypes();
   const [scopeMode, setScopeMode] = useState<PricingScopeMode>("customer_type");
-  const [customerType, setCustomerType] = useState<CustomerType>("cliente");
+  const [customerType, setCustomerType] = useState<string>("cliente");
   const [tprDraft, setTprDraft] = useState("");
   const [appliedTprId, setAppliedTprId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [priceFilter, setPriceFilter] = useState<PricingFilterMode>("all");
   const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
   const [draftActive, setDraftActive] = useState<Record<string, boolean>>({});
   const [savingKeys, setSavingKeys] = useState<Record<string, boolean>>({});
   const [bulkMode, setBulkMode] = useState<"percent" | "fixed">("percent");
   const [bulkValue, setBulkValue] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [newTypeOpen, setNewTypeOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
 
   const activeTprId = scopeMode === "proxis_tpr_id" ? appliedTprId : null;
   const scopeReady = scopeMode === "customer_type" || activeTprId !== null;
   const selectedKnownTable = KNOWN_PROXIS_TABLES.find((table) => table.id === Number(tprDraft));
   const scopeLabel =
     scopeMode === "customer_type"
-      ? CUSTOMER_TYPE_LABELS[customerType]
+      ? customerTypeLabel(customerType)
       : activeTprId !== null
         ? (() => {
             const match = KNOWN_PROXIS_TABLES.find((table) => table.id === activeTprId);
@@ -94,15 +112,6 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
         .filter((product) => product.normalizedCode),
     [products],
   );
-
-  const filteredProducts = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return productsWithCode;
-    return productsWithCode.filter((product) => {
-      const fields = [product.normalizedCode, product.name, product.family, product.type];
-      return fields.some((value) => value.toLowerCase().includes(term));
-    });
-  }, [productsWithCode, search]);
 
   const overridesQuery = useQuery({
     queryKey: ["admin-price-overrides", scopeMode, customerType, activeTprId],
@@ -134,31 +143,30 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
     return map;
   }, [overridesQuery.data]);
 
-  useEffect(() => {
-    if (!scopeReady) {
-      setDraftPrices({});
-      setDraftActive({});
-      return;
+  const searchedProducts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return productsWithCode;
+    return productsWithCode.filter((product) => {
+      const fields = [product.normalizedCode, product.name, product.family, product.type];
+      return fields.some((value) => value.toLowerCase().includes(term));
+    });
+  }, [productsWithCode, search]);
+
+  const filteredProducts = useMemo(() => {
+    switch (priceFilter) {
+      case "with_override":
+        return searchedProducts.filter((product) => overrideMap.has(product.normalizedCode));
+      case "without_override":
+        return searchedProducts.filter((product) => !overrideMap.has(product.normalizedCode));
+      default:
+        return searchedProducts;
     }
-
-    const nextPrices: Record<string, string> = {};
-    const nextActive: Record<string, boolean> = {};
-
-    for (const product of productsWithCode) {
-      const existing = overrideMap.get(product.normalizedCode);
-      const basePrice = coercePrice(product.price);
-      nextPrices[product.normalizedCode] = priceToAdminInput(existing ? coercePrice(existing.price) : basePrice);
-      nextActive[product.normalizedCode] = existing ? existing.active : true;
-    }
-
-    setDraftPrices(nextPrices);
-    setDraftActive(nextActive);
-  }, [overrideMap, productsWithCode, scopeReady, scopeMode, customerType, activeTprId]);
+  }, [searchedProducts, priceFilter, overrideMap]);
 
   const loadedCount = overridesQuery.data?.length ?? 0;
   const activeCount = overridesQuery.data?.filter((row) => row.active).length ?? 0;
 
-  const persistRow = async (productCode: string, nextPrice: number, nextActive: boolean) => {
+  const persistRow = async (productCode: string, nextPrice?: number, nextActive?: boolean) => {
     const normalizedCode = normalizeProductCode(productCode);
     if (!normalizedCode) return;
 
@@ -222,6 +230,11 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
     onRefreshPricing();
   };
 
+  const handleResetRow = (productCode: string, basePrice: number) => {
+    const code = normalizeProductCode(productCode);
+    setDraftPrices((current) => ({ ...current, [code]: priceToAdminInput(basePrice) }));
+  };
+
   const applyBulkAdjustment = async () => {
     const value = parsePriceInput(bulkValue);
     if (!Number.isFinite(value) || value === 0) {
@@ -262,6 +275,13 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
     await overridesQuery.refetch();
     onRefreshPricing();
   };
+
+  const bulkLabel = bulkMode === "percent" ? `${bulkValue}%` : `R$ ${bulkValue}`;
+  const filterTabs: Array<{ id: PricingFilterMode; label: string; count: number }> = [
+    { id: "all", label: "Todos", count: searchedProducts.length },
+    { id: "with_override", label: "Com override", count: searchedProducts.filter((p) => overrideMap.has(p.normalizedCode)).length },
+    { id: "without_override", label: "Sem override", count: searchedProducts.filter((p) => !overrideMap.has(p.normalizedCode)).length },
+  ];
 
   return (
     <div className="space-y-6">
@@ -312,18 +332,33 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Tipo de cliente
                 </p>
-                <Select value={customerType} onValueChange={(value) => setCustomerType(value as CustomerType)}>
-                  <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background">
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {CUSTOMER_TYPE_LABELS[type]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select value={customerType} onValueChange={(value) => setCustomerType(value)}>
+                    <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background flex-1">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerTypes.map((type) => (
+                        <SelectItem key={type.name} value={type.name}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-10 sm:h-11 w-10 sm:w-11 rounded-2xl shrink-0"
+                    onClick={() => {
+                      setNewTypeName("");
+                      setNewTypeOpen(true);
+                    }}
+                    title="Adicionar novo tipo de cliente"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="mt-4 space-y-2">
@@ -428,15 +463,29 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
                 onChange={(e) => setBulkValue(e.target.value)}
                 className="h-10 w-full rounded-2xl border-border/70 bg-background sm:w-auto sm:flex-1"
               />
-              <Button
-                type="button"
-                className="h-10 rounded-2xl px-4"
-                onClick={applyBulkAdjustment}
-                disabled={bulkSaving || !scopeReady}
-              >
-                {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-                Aplicar aos visíveis
-              </Button>
+              <ConfirmActionDialog
+                trigger={
+                  <Button
+                    type="button"
+                    className="h-10 rounded-2xl px-4"
+                    disabled={!scopeReady}
+                  >
+                    {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                    Aplicar aos visíveis
+                  </Button>
+                }
+                title="Aplicar ajuste em massa"
+                description={
+                  <span>
+                    Deseja aplicar <strong>{bulkLabel}</strong> em{" "}
+                    <strong>{filteredProducts.length} produto(s)</strong> visíveis?
+                    <br />
+                    Essa ação salva cada preço individualmente.
+                  </span>
+                }
+                confirmLabel="Aplicar"
+                onConfirm={applyBulkAdjustment}
+              />
             </div>
           </div>
         </div>
@@ -462,97 +511,251 @@ export function AdminPricingSection({ products, onRefreshPricing }: AdminPricing
             </div>
           ))}
         </div>
-      ) : filteredProducts.length === 0 ? (
-        <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
-          Nenhum produto encontrado com esse filtro.
-        </div>
       ) : (
-        <div className="space-y-3">
-          {filteredProducts.map((product) => {
-            const code = product.normalizedCode;
-            const existing = overrideMap.get(code);
-            const key = resolveRowKey(scopeMode, customerType, activeTprId, code);
-            const currentPrice = coercePrice(existing?.price ?? product.price);
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {filterTabs.map((tab) => (
+              <Button
+                key={tab.id}
+                type="button"
+                variant={priceFilter === tab.id ? "default" : "outline"}
+                className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
+                onClick={() => setPriceFilter(tab.id)}
+              >
+                {tab.label}
+                <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[10px] leading-none">
+                  {tab.count}
+                </Badge>
+              </Button>
+            ))}
+          </div>
 
-            return (
-              <div key={code} className="rounded-[1.25rem] border border-border/70 bg-card p-3 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
-                        {code}
-                      </Badge>
-                      <Badge variant={draftActive[code] ? "secondary" : "destructive"} className="rounded-full px-2.5 py-0.5 text-[11px]">
-                        {draftActive[code] ? "Ativo" : "Inativo"}
-                      </Badge>
-                      <span className="text-[12px] text-muted-foreground">
-                        {product.type} · {product.family}
-                      </span>
+          <div className="min-h-[12rem]">
+          {filteredProducts.length === 0 ? (
+            <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
+              {priceFilter === "with_override"
+                ? "Nenhum produto com override salvo neste escopo."
+                : priceFilter === "without_override"
+                  ? "Todos os produtos já possuem override neste escopo."
+                  : "Nenhum produto encontrado com esse filtro."}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredProducts.map((product) => {
+                const code = product.normalizedCode;
+                const existing = overrideMap.get(code);
+                const key = resolveRowKey(scopeMode, customerType, activeTprId, code);
+                const basePrice = coercePrice(product.price);
+                const draftPrice = parsePriceInput(draftPrices[code] ?? "");
+                const delta = draftPrice - basePrice;
+                const hasDelta = draftPrice > 0 && Math.abs(delta) >= 0.01;
+                const showDeltaPercent = hasDelta && basePrice > 0;
+                const thumb = getProductImageUrls(product)[0];
+
+                return (
+                  <div
+                    key={code}
+                    className={cn(
+                      "rounded-[1.25rem] border bg-card p-3 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-colors",
+                      existing
+                        ? "border-primary/25 bg-primary/[0.02]"
+                        : "border-border/70",
+                    )}
+                  >
+                    <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center">
+                      <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-border bg-background">
+                          {thumb ? (
+                            <img src={thumb} alt={product.name} className="h-full w-full object-contain p-1.5" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
+                              {code}
+                            </Badge>
+                            <Badge variant={draftActive[code] ? "secondary" : "destructive"} className="rounded-full px-2.5 py-0.5 text-[11px]">
+                              {draftActive[code] ? "Ativo" : "Inativo"}
+                            </Badge>
+                            {existing ? (
+                              <Badge className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] text-primary">
+                                Override salvo
+                              </Badge>
+                            ) : null}
+                            <span className="text-[12px] text-muted-foreground">
+                              {product.type} · {product.family}
+                            </span>
+                          </div>
+                          <p className="mt-2 truncate text-[15px] font-semibold text-foreground">{product.name}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
+                            <span>
+                              Base do catálogo: <span className="font-semibold text-foreground">{formatBRL(basePrice)}</span>
+                            </span>
+                            {hasDelta ? (
+                              <span className={cn("font-medium tabular-nums", delta > 0 ? "text-emerald-600" : "text-red-500")}>
+                                {delta > 0 ? "+" : ""}{formatBRL(delta)}
+                                {showDeltaPercent ? ` (${delta > 0 ? "+" : ""}${((delta / basePrice) * 100).toFixed(0)}%)` : null}
+                              </span>
+                            ) : existing ? (
+                              <span className="text-muted-foreground">Sem alteração</span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[10rem_auto_auto_auto] gap-2 sm:gap-3 lg:w-[38rem] lg:shrink-0">
+                        <div>
+                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
+                          <Input
+                            value={draftPrices[code] ?? priceToAdminInput(basePrice)}
+                            onChange={(e) =>
+                              setDraftPrices((current) => ({
+                                ...current,
+                                [code]: e.target.value,
+                              }))
+                            }
+                            inputMode="decimal"
+                            className={cn(
+                              "h-11 rounded-2xl border-border/70 bg-background font-mono text-[13px]",
+                              hasDelta && "border-primary/30",
+                            )}
+                          />
+                        </div>
+
+                        <div>
+                          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              "h-11 w-full rounded-2xl px-3 text-[13px]",
+                              draftActive[code] ? "border-primary/20 bg-primary/5 text-primary" : "border-destructive/20 bg-destructive/5 text-destructive",
+                            )}
+                            onClick={() => setDraftActive((current) => ({ ...current, [code]: !(current[code] ?? true) }))}
+                          >
+                            {draftActive[code] ? "Desativar" : "Ativar"}
+                          </Button>
+                        </div>
+
+                        <div className="flex items-end gap-2">
+                          {hasDelta ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-11 w-11 rounded-2xl text-muted-foreground hover:text-foreground"
+                              onClick={() => handleResetRow(code, basePrice)}
+                              title="Resetar ao preço base"
+                            >
+                              <Undo2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                          <Button
+                            type="button"
+                            className="h-11 rounded-2xl px-4"
+                            onClick={() => handleSaveRow(code)}
+                            disabled={Boolean(savingKeys[key])}
+                          >
+                            {savingKeys[key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Salvar
+                          </Button>
+                          <ConfirmActionDialog
+                            trigger={
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="h-11 rounded-2xl px-3 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            }
+                            title="Remover preço"
+                            description={`Deseja remover o preço customizado de "${product.name}" (${code}) neste escopo? O produto voltará ao preço base do catálogo.`}
+                            confirmLabel="Remover"
+                            destructive
+                            onConfirm={() => handleDeleteRow(code)}
+                          />
+                          {onGoToProduct ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-11 w-11 rounded-2xl text-muted-foreground hover:text-foreground"
+                              onClick={() => onGoToProduct(code)}
+                              title="Editar produto no catálogo"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-2 truncate text-[15px] font-semibold text-foreground">{product.name}</p>
-                    <p className="mt-1 text-[12px] text-muted-foreground">
-                      Base do catálogo: <span className="font-semibold text-foreground">{formatBRL(coercePrice(product.price))}</span>
-                      {existing ? " | override já carregado neste escopo." : " | sem override salvo neste escopo."}
-                    </p>
                   </div>
-
-                  <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[10rem_10rem_auto] gap-2 sm:gap-3 lg:w-[34rem] lg:shrink-0">
-                    <div>
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
-                      <Input
-                        value={draftPrices[code] ?? priceToAdminInput(currentPrice)}
-                        onChange={(e) =>
-                          setDraftPrices((current) => ({
-                            ...current,
-                            [code]: e.target.value,
-                          }))
-                        }
-                        inputMode="decimal"
-                        className="h-11 rounded-2xl border-border/70 bg-background font-mono text-[13px]"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className={cn(
-                          "h-11 w-full rounded-2xl px-3 text-[13px]",
-                          draftActive[code] ? "border-primary/20 bg-primary/5 text-primary" : "border-destructive/20 bg-destructive/5 text-destructive",
-                        )}
-                        onClick={() => setDraftActive((current) => ({ ...current, [code]: !(current[code] ?? true) }))}
-                      >
-                        {draftActive[code] ? "Desativar" : "Ativar"}
-                      </Button>
-                    </div>
-
-                    <div className="flex items-end gap-2">
-                      <Button
-                        type="button"
-                        className="h-11 rounded-2xl px-4"
-                        onClick={() => handleSaveRow(code)}
-                        disabled={Boolean(savingKeys[key])}
-                      >
-                        {savingKeys[key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        Salvar
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-11 rounded-2xl px-3 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                        onClick={() => handleDeleteRow(code)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
+          </div>
         </div>
       )}
+
+      <Dialog open={newTypeOpen} onOpenChange={setNewTypeOpen}>
+        <DialogContent className="max-w-[26rem] rounded-[1.5rem] border-border/70">
+          <DialogHeader>
+            <DialogTitle className="text-[1.05rem] font-black tracking-[-0.04em]">Novo tipo de cliente</DialogTitle>
+            <DialogDescription className="text-[13px] leading-6 text-muted-foreground">
+              Crie um novo tipo que ficará disponível para tabelas de preço e classificação de clientes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="pricing-new-type-name">Nome do tipo</Label>
+              <Input
+                id="pricing-new-type-name"
+                value={newTypeName}
+                onChange={(e) => setNewTypeName(e.target.value)}
+                placeholder="Ex.: Atacadista"
+                className="h-11 rounded-2xl border-border/70 bg-background"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newTypeName.trim()) {
+                    addCustomType(newTypeName);
+                    setCustomerType(newTypeName.trim().toLowerCase());
+                    setNewTypeName("");
+                    setNewTypeOpen(false);
+                  }
+                }}
+              />
+              {newTypeName.trim() ? (
+                <p className="text-[12px] text-muted-foreground">
+                  Será salvo como: <span className="font-semibold text-foreground">{newTypeName.trim().toLowerCase()}</span>
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button type="button" variant="outline" className="mt-0 rounded-2xl px-4 text-sm" onClick={() => { setNewTypeOpen(false); setNewTypeName(""); }}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="mt-0 rounded-2xl px-4 text-sm"
+              disabled={!newTypeName.trim()}
+              onClick={() => {
+                addCustomType(newTypeName);
+                setCustomerType(newTypeName.trim().toLowerCase());
+                setNewTypeName("");
+                setNewTypeOpen(false);
+              }}
+            >
+              Criar tipo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

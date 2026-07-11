@@ -47,6 +47,8 @@ import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
 import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
+import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
+import { AdminSettingsSection } from "@/components/admin/AdminSettingsSection";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
@@ -56,7 +58,7 @@ import {
   type CustomerTypeOverride,
   normalizeCustomerCnpj,
 } from "@/lib/customerTypeOverrides";
-import { normalizeCustomerType, type CustomerType } from "@/lib/pricing";
+import { normalizeCustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { getOrderLinesGrandTotal, parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
 import type {
@@ -309,7 +311,7 @@ function summarizeOrderItems(items: unknown, maps: Parameters<typeof parseOrderT
 }
 
 export default function AdminWorkspace() {
-  const { user, isAdmin, loading, isResolvingAccess, signIn, signOut } = useAuth();
+  const { user, isAdmin, isSuperadmin, loading, isResolvingAccess, signIn, signOut } = useAuth();
   const navigate = useNavigate();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
@@ -529,6 +531,8 @@ export default function AdminWorkspace() {
     pedidos: "Pedidos",
     clientes: "Clientes",
     mensagens: "Mensagens",
+    usuarios: "Usuários",
+    configuracoes: "Configurações",
   };
   const typeOptions = adminTypes.length
     ? adminTypes.map((t) => t.name)
@@ -577,7 +581,7 @@ export default function AdminWorkspace() {
   }: {
     userId: string | null;
     cnpj: string;
-    customerType: CustomerType;
+    customerType: string;
   }) => {
     const normalizedType = normalizeCustomerType(customerType);
     const normalizedCnpj = normalizeCustomerCnpj(cnpj);
@@ -805,6 +809,17 @@ export default function AdminWorkspace() {
     refreshOrders();
   };
 
+  const updateOrderStatus = async (id: string, status: string) => {
+    const { error } = await supabase.from(ORDERS_TABLE).update({ status }).eq("id", id);
+    if (error) {
+      console.error("Erro ao atualizar status do pedido", error);
+      toast.error("Erro ao atualizar status.");
+      return;
+    }
+    toast.success("Status atualizado.");
+    refreshOrders();
+  };
+
   const exportProxisOrder = async (exportPayload: OrderExportInput) => {
     setProxisExportingId(exportPayload.id);
     try {
@@ -842,6 +857,7 @@ export default function AdminWorkspace() {
       userLabel={user.email || "Administrador"}
       sidebarOpen={sidebarOpen}
       onSidebarToggle={() => setSidebarOpen((value) => !value)}
+      isSuperadmin={isSuperadmin}
     >
       {section === "banners" && <AdminBannersSection />}
       {section === "notificacoes" && <AdminNotificationsSection />}
@@ -906,7 +922,14 @@ export default function AdminWorkspace() {
       )}
 
       {section === "precos" && (
-        <AdminPricingSection products={products} onRefreshPricing={refreshPricing} />
+        <AdminPricingSection
+          products={products}
+          onRefreshPricing={refreshPricing}
+          onGoToProduct={(productCode) => {
+            setProductSearch(productCode.trim().toUpperCase());
+            setSection("produtos");
+          }}
+        />
       )}
 
       {section === "pedidos" && (
@@ -923,6 +946,7 @@ export default function AdminWorkspace() {
           onExportXlsx={exportOrderXlsx}
           onExportPdf={exportOrderPdf}
           onDelete={deleteOrder}
+          onStatusChange={updateOrderStatus}
         />
       )}
 
@@ -939,6 +963,8 @@ export default function AdminWorkspace() {
       )}
 
       {section === "mensagens" && chatContent}
+      {section === "usuarios" && <AdminUsersSection />}
+      {section === "configuracoes" && <AdminSettingsSection />}
     </AdminWorkspaceShell>
   );
 }

@@ -1,6 +1,5 @@
 import type { Product } from "@/lib/products";
 import type { Json } from "@/integrations/supabase/types";
-import type { CustomerType } from "@/lib/pricing";
 
 export type AdminSection =
   | "dashboard"
@@ -10,7 +9,9 @@ export type AdminSection =
   | "precos"
   | "pedidos"
   | "clientes"
-  | "mensagens";
+  | "mensagens"
+  | "usuarios"
+  | "configuracoes";
 
 export type AdminOrderSummaryLine = {
   unitPrice: number;
@@ -64,7 +65,7 @@ export type AdminCustomerSummary = {
   company: string | null | undefined;
   phone: string | null | undefined;
   cnpj: string | null | undefined;
-  customerType: CustomerType | null;
+  customerType: string | null;
   total: number;
   orders: number;
 };

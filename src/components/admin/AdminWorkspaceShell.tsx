@@ -1,6 +1,6 @@
 ﻿import { Link } from "react-router-dom";
 import type { CSSProperties, ReactNode } from "react";
-import { ArrowLeft, BadgeDollarSign, Bell, ChevronLeft, ChevronRight, Image, LayoutDashboard, LogOut, MessageSquareText, Package, ShoppingBag, Users, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, Bell, ChevronLeft, ChevronRight, Image, LayoutDashboard, LogOut, MessageSquareText, Package, Settings, Shield, ShoppingBag, Users, Wifi, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -15,39 +15,9 @@ type AdminWorkspaceShellProps = {
   userLabel: string;
   sidebarOpen: boolean;
   onSidebarToggle: () => void;
+  isSuperadmin?: boolean;
   children: ReactNode;
 };
-
-export function AdminWorkspaceShell({
-  section,
-  title,
-  onSectionChange,
-  onLogout,
-  userLabel,
-  sidebarOpen,
-  onSidebarToggle,
-  children,
-}: AdminWorkspaceShellProps) {
-  const navGroups = [
-    {
-      label: "Visão geral",
-      items: [
-        { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, description: "Resumo geral" },
-        { id: "banners" as const, label: "Banners", icon: Image, description: "Hero do catálogo" },
-        { id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" },
-        { id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" },
-        { id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" },
-        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" },
-      ],
-    },
-    {
-      label: "Consultas",
-      items: [
-        { id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" },
-        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" },
-      ],
-    },
-  ];
 
 function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
   const { connected, checking, checkNow } = useProxisHealth();
@@ -95,16 +65,56 @@ function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-  const shellStyle = {
-    "--admin-sidebar-w": sidebarOpen ? "16rem" : "4.75rem",
-  } as CSSProperties;
+export function AdminWorkspaceShell({
+  section,
+  title,
+  onSectionChange,
+  onLogout,
+  userLabel,
+  sidebarOpen,
+  onSidebarToggle,
+  isSuperadmin = false,
+  children,
+}: AdminWorkspaceShellProps) {
+  const navGroups = [
+    {
+      label: "Visão geral",
+      items: [
+        { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, description: "Resumo geral" },
+        { id: "banners" as const, label: "Banners", icon: Image, description: "Hero do catálogo" },
+        { id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" },
+        { id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" },
+        { id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" },
+        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" },
+      ],
+    },
+    {
+      label: "Consultas",
+      items: [
+        { id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" },
+        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" },
+      ],
+    },
+    ...(isSuperadmin ? [{
+      label: "Administração",
+      items: [
+        { id: "usuarios" as const, label: "Usuários", icon: Shield, description: "Contas e permissões" },
+      ],
+    }] : []),
+    {
+      label: "Sistema",
+      items: [
+        { id: "configuracoes" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" },
+      ],
+    },
+  ];
 
   const collapsed = !sidebarOpen;
 
   return (
     <div
       className="relative min-h-screen bg-[radial-gradient(circle_at_18%_12%,color-mix(in_oklch,var(--primary)_9%,transparent),transparent_30%),radial-gradient(circle_at_82%_0%,color-mix(in_oklch,var(--primary)_6%,transparent),transparent_28%),linear-gradient(180deg,#f5f8ff_0%,#f5f8ff_60%,rgba(229,236,248,0.32)_100%)] text-foreground"
-      style={shellStyle}
+      style={{ "--admin-sidebar-w": sidebarOpen ? "16rem" : "4.75rem" } as CSSProperties}
     >
       <button
         type="button"

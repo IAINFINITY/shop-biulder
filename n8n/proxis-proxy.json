@@ -5,9 +5,8 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "proxis-proxy",
-        "options": {
-          "responseMode": "responseNode"
-        }
+        "responseMode": "responseNode",
+        "options": {}
       },
       "id": "b1c2d3e4-0001-4000-8000-000000000001",
       "name": "Webhook",
@@ -69,5 +68,5 @@
   "staticData": null,
   "tags": [],
   "active": true,
-  "versionId": "proxis-proxy-v3"
+  "versionId": "proxis-proxy-v4"
 }

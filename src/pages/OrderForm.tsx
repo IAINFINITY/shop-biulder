@@ -353,6 +353,13 @@ export default function OrderForm() {
       }
 
       try {
+        const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
+        await syncCustomerProxisLink(form.cnpj.trim()).catch(() => null);
+      } catch {
+        // Silencioso — o vínculo Proxsys é atualizado em background.
+      }
+
+      try {
         const bitrixRes = await fetch("/api/bitrix-deal", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

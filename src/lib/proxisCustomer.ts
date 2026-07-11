@@ -38,14 +38,18 @@ export async function lookupProxisCustomerByCnpj(cnpj: string): Promise<ProxisCu
   };
 }
 
-export async function syncCustomerProxisLink(cnpj: string) {
+export async function syncCustomerProxisLink(cnpj: string, userId?: string | null) {
   const lookup = await lookupProxisCustomerByCnpj(cnpj).catch(() => EMPTY_LOOKUP_RESULT);
   const supabase = await loadSupabaseClient();
-  const { error } = await supabase.rpc("sync_customer_proxis_link", {
+  const rpcParams: Record<string, unknown> = {
     p_proxis_pes_id: lookup.pes_id,
     p_proxis_tpr_id: lookup.tpr_id,
     p_proxis_found: lookup.found,
-  });
+  };
+  if (userId) {
+    rpcParams.p_user_id = userId;
+  }
+  const { error } = await supabase.rpc("sync_customer_proxis_link", rpcParams);
 
   if (error) throw error;
   return lookup;

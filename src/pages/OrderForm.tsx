@@ -93,7 +93,7 @@ export default function OrderForm() {
   const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const summaryRef = useRef<HTMLDivElement>(null);
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
-  const { assertCnpjReady } = cnpjValidation;
+  const { assertDocReady } = cnpjValidation;
   const submitLockRef = useRef(false);
   const selectedSavedAddress = useMemo(
     () => (selectedAddressId ? savedAddresses.find((address) => address.id === selectedAddressId) ?? null : null),
@@ -270,10 +270,10 @@ export default function OrderForm() {
       return;
     }
 
-    const cnpjMessage = assertCnpjReady();
-    if (cnpjMessage) {
-      if (cnpjMessage === "Validando CNPJ...") toast.info(cnpjMessage);
-      else toast.error(cnpjMessage);
+    const docMessage = assertDocReady();
+    if (docMessage) {
+      if (docMessage === "Validando documento...") toast.info(docMessage);
+      else toast.error(docMessage);
       return;
     }
 

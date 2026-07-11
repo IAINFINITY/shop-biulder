@@ -1,7 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatCnpj, formatPhone } from "@/lib/brazilianIds";
+import { formatDocumentId, formatPhone } from "@/lib/brazilianIds";
 import type { CnpjValidationStatus } from "@/hooks/useCnpjValidation";
 import {
   CUSTOMER_TYPE_LABELS,
@@ -24,11 +24,12 @@ type CustomerDataFieldsProps = {
   onChange: (patch: Partial<CustomerFormData>) => void;
   onCnpjBlur: () => void;
   cnpjValidation: {
-    shouldShowCnpjError: boolean;
-    isCnpjIncomplete: boolean;
-    isCnpjInvalid: boolean;
-    isCnpjError: boolean;
-    isCnpjChecking: boolean;
+    shouldShowError: boolean;
+    isDocIncomplete: boolean;
+    isDocInvalid: boolean;
+    isDocError: boolean;
+    isDocChecking: boolean;
+    docType: "cpf" | "cnpj" | null;
     status: CnpjValidationStatus;
   };
   idPrefix?: string;
@@ -44,8 +45,9 @@ export function CustomerDataFields({
   showCustomerType = false,
 }: CustomerDataFieldsProps) {
   const id = (field: string) => (idPrefix ? `${idPrefix}-${field}` : field);
-  const show = cnpjValidation.shouldShowCnpjError ?? false;
+  const show = cnpjValidation.shouldShowError ?? false;
   const customerType = normalizeCustomerType(form.customer_type ?? DEFAULT_CUSTOMER_TYPE);
+  const docLabel = cnpjValidation.docType === "cnpj" ? "CNPJ" : "CPF";
 
   return (
     <>
@@ -112,44 +114,44 @@ export function CustomerDataFields({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor={id("cnpj")}>CNPJ</Label>
+        <Label htmlFor={id("cnpj")}>CPF / CNPJ</Label>
         <Input
           id={id("cnpj")}
           value={form.cnpj}
-          onChange={(e) => onChange({ cnpj: formatCnpj(e.target.value) })}
+          onChange={(e) => onChange({ cnpj: formatDocumentId(e.target.value) })}
           onBlur={onCnpjBlur}
-          placeholder="00.000.000/0000-00"
+          placeholder="000.000.000-00 ou 00.000.000/0000-00"
           inputMode="numeric"
           maxLength={18}
           aria-invalid={
             show &&
-            (cnpjValidation.isCnpjIncomplete ||
-              cnpjValidation.isCnpjInvalid ||
-              cnpjValidation.isCnpjError)
+            (cnpjValidation.isDocIncomplete ||
+              cnpjValidation.isDocInvalid ||
+              cnpjValidation.isDocError)
           }
           className={
             show &&
-            (cnpjValidation.isCnpjIncomplete ||
-              cnpjValidation.isCnpjInvalid ||
-              cnpjValidation.isCnpjError) ? "border-destructive focus-visible:ring-destructive"
+            (cnpjValidation.isDocIncomplete ||
+              cnpjValidation.isDocInvalid ||
+              cnpjValidation.isDocError) ? "border-destructive focus-visible:ring-destructive"
               : undefined
           }
           required
         />
 
-        {show && cnpjValidation.isCnpjIncomplete && (
-          <p className="text-xs text-destructive">CNPJ incompleto. Preencha 14 dígitos.</p>
+        {show && cnpjValidation.isDocIncomplete && (
+          <p className="text-xs text-destructive">{docLabel} incompleto. Preencha {cnpjValidation.docType === "cnpj" ? "14" : "11"} dígitos.</p>
         )}
-        {show && cnpjValidation.isCnpjInvalid && (
-          <p className="text-xs text-destructive">CNPJ inválido. Verifique o número informado.</p>
+        {show && cnpjValidation.isDocInvalid && (
+          <p className="text-xs text-destructive">{docLabel} inválido. Verifique o número informado.</p>
         )}
-        {show && cnpjValidation.isCnpjError && (
+        {show && cnpjValidation.isDocError && (
           <p className="text-xs text-destructive">
-            Não foi possível validar o CNPJ agora. Tente novamente.
+            Não foi possível validar o documento agora. Tente novamente.
           </p>
         )}
-        {show && cnpjValidation.isCnpjChecking && (
-          <p className="text-xs text-muted-foreground">Validando CNPJ...</p>
+        {show && cnpjValidation.isDocChecking && (
+          <p className="text-xs text-muted-foreground">Validando documento...</p>
         )}
       </div>
     </>

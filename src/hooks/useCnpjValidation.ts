@@ -1,27 +1,44 @@
 import { useEffect, useState } from "react";
-import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
+import { isValidCnpj, isValidCpf, onlyDigits } from "@/lib/brazilianIds";
 
 export type CnpjValidationStatus = "idle" | "checking" | "valid" | "invalid" | "error";
+
+export type DocumentType = "cpf" | "cnpj" | null;
+
+function detectDocumentType(digits: string): DocumentType {
+  if (digits.length <= 11) return "cpf";
+  if (digits.length === 14) return "cnpj";
+  return null;
+}
 
 export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
   const [status, setStatus] = useState<CnpjValidationStatus>("idle");
 
-  const cnpjDigits = onlyDigits(cnpj);
-  const isCnpjIncomplete = cnpjDigits.length > 0 && cnpjDigits.length < 14;
-  const isCnpjComplete = cnpjDigits.length === 14;
-  const shouldShowCnpjError = cnpjTouched || isCnpjComplete;
-  const isCnpjInvalid = isCnpjComplete && status === "invalid";
-  const isCnpjError = isCnpjComplete && status === "error";
-  const isCnpjChecking = isCnpjComplete && status === "checking";
+  const digits = onlyDigits(cnpj);
+  const docType = detectDocumentType(digits);
+  const isDocIncomplete = digits.length > 0 && ((docType === "cpf" && digits.length < 11) || (docType === "cnpj" && digits.length < 14) || (!docType && digits.length < 11));
+  const isDocComplete = (docType === "cpf" && digits.length === 11) || (docType === "cnpj" && digits.length === 14);
+  const shouldShowError = cnpjTouched || isDocComplete;
+  const isDocInvalid = isDocComplete && status === "invalid";
+  const isDocError = isDocComplete && status === "error";
+  const isDocChecking = isDocComplete && status === "checking";
+
+  const requiredLength = docType === "cnpj" ? 14 : 11;
 
   useEffect(() => {
-    if (!isCnpjComplete) {
+    if (!isDocComplete) {
       setStatus("idle");
       return;
     }
 
-    if (!isValidCnpj(cnpjDigits)) {
+    const isValid = docType === "cpf" ? isValidCpf(digits) : isValidCnpj(digits);
+    if (!isValid) {
       setStatus("invalid");
+      return;
+    }
+
+    if (docType === "cpf") {
+      setStatus("valid");
       return;
     }
 
@@ -29,7 +46,7 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
     const timeout = setTimeout(async () => {
       try {
         setStatus("checking");
-        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`, {
+        const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
           signal: controller.signal,
         });
 
@@ -54,26 +71,32 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [cnpjDigits, isCnpjComplete]);
+  }, [digits, isDocComplete, docType]);
 
-  const assertCnpjReady = (): string | null => {
-    if (cnpjDigits.length !== 14) return "CNPJ incompleto. Preencha 14 dígitos.";
-    if (!isValidCnpj(cnpjDigits)) return "CNPJ inválido. Verifique o número informado.";
-    if (status === "checking") return "Validando CNPJ...";
-    if (status === "invalid") return "CNPJ inválido. Verifique o número informado.";
-    if (status === "error") return "Não foi possível validar o CNPJ agora. Tente novamente.";
+  const assertDocReady = (): string | null => {
+    if (digits.length < requiredLength || (!docType && digits.length > 0)) {
+      return docType === "cnpj"
+        ? "CNPJ incompleto. Preencha 14 dígitos."
+        : "CPF incompleto. Preencha 11 dígitos.";
+    }
+    if (docType === "cnpj" && !isValidCnpj(digits)) return "CNPJ inválido. Verifique o número informado.";
+    if (docType === "cpf" && !isValidCpf(digits)) return "CPF inválido. Verifique o número informado.";
+    if (status === "checking") return "Validando documento...";
+    if (status === "invalid") return `${docType === "cnpj" ? "CNPJ" : "CPF"} inválido. Verifique o número informado.`;
+    if (status === "error") return "Não foi possível validar o documento agora. Tente novamente.";
     return null;
   };
 
   return {
-    cnpjDigits,
+    cnpjDigits: digits,
+    docType,
     status,
-    isCnpjIncomplete,
-    isCnpjComplete,
-    shouldShowCnpjError,
-    isCnpjInvalid,
-    isCnpjError,
-    isCnpjChecking,
-    assertCnpjReady,
+    isDocIncomplete,
+    isDocComplete,
+    shouldShowError,
+    isDocInvalid,
+    isDocError,
+    isDocChecking,
+    assertDocReady,
   };
 }

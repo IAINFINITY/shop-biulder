@@ -144,10 +144,10 @@ export default function Login() {
     e.preventDefault();
     setCnpjTouched(true);
 
-    const cnpjMessage = cnpjValidation.assertCnpjReady();
-    if (cnpjMessage) {
-      if (cnpjMessage === "Validando CNPJ...") toast.info(cnpjMessage);
-      else toast.error(cnpjMessage);
+    const docMessage = cnpjValidation.assertDocReady();
+    if (docMessage) {
+      if (docMessage === "Validando documento...") toast.info(docMessage);
+      else toast.error(docMessage);
       return;
     }
 

@@ -184,9 +184,15 @@ export default function Index() {
       }
       if (selectedType && p.type !== selectedType) return false;
       if (selectedFamily && p.family !== selectedFamily) return false;
+      if (p.visible_to && p.visible_to.length > 0 && customerType && !p.visible_to.includes(customerType)) {
+        return false;
+      }
+      if (p.visible_to && p.visible_to.length > 0 && !customerType) {
+        return false;
+      }
       return true;
     });
-  }, [products, search, selectedType, selectedFamily]);
+  }, [products, search, selectedType, selectedFamily, customerType]);
 
   const orderPopularity = useMemo(() => {
     const quantityCounts = new Map<string, number>();
@@ -382,7 +388,7 @@ export default function Index() {
         }
       />
 
-      <StoreHeroBanner />
+      <StoreHeroBanner customerType={customerType} />
 
       <div
         ref={catalogRef}

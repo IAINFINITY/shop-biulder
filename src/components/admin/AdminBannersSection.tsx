@@ -1,10 +1,11 @@
 ﻿import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ImageIcon, Link as LinkIcon, Pencil, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { ImageIcon, Link as LinkIcon, Pencil, Plus, RefreshCw, Trash2, Upload, Users } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +18,7 @@ import { deleteStorageImage, uploadProductImageFile } from "@/lib/productImageSt
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 import { cn } from "@/lib/utils";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
+import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 
 type BannerFormState = {
   id?: string;
@@ -25,6 +27,7 @@ type BannerFormState = {
   linkUrl: string;
   sortOrder: string;
   active: boolean;
+  visible_to: string[];
 };
 
 const DEFAULT_SORT_STEP = 10;
@@ -43,6 +46,7 @@ function normalizeLinkUrl(value: string) {
 export function AdminBannersSection() {
   const queryClient = useQueryClient();
   const { data: banners = [], isLoading } = useCatalogBanners({ activeOnly: false });
+  const { options: customerTypeOptions } = useCustomerTypes();
   const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -65,6 +69,7 @@ export function AdminBannersSection() {
       linkUrl: "",
       sortOrder: getNextSortOrder(sortedBanners),
       active: true,
+      visible_to: [],
     });
     setEditorOpen(true);
   };
@@ -77,6 +82,7 @@ export function AdminBannersSection() {
       linkUrl: banner.link_url ?? "",
       sortOrder: String(banner.sort_order),
       active: banner.active,
+      visible_to: banner.visible_to ?? [],
     });
     setEditorOpen(true);
   };
@@ -118,12 +124,14 @@ export function AdminBannersSection() {
     }
 
     const sortOrder = Number.isFinite(Number(draft.sortOrder)) ? Math.trunc(Number(draft.sortOrder)) : 0;
+    const visibleTo = draft.visible_to.length > 0 ? draft.visible_to.map((t) => t.trim().toLowerCase()) : null;
     const payload = {
       label,
       image_url: imageUrl,
       link_url: normalizeLinkUrl(draft.linkUrl),
       sort_order: sortOrder,
       active: draft.active,
+      visible_to: visibleTo,
     };
 
     setSaving(true);
@@ -420,6 +428,46 @@ export function AdminBannersSection() {
                             setDraft((current) => (current ? { ...current, active: checked } : current))
                           }
                         />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                            Visível para
+                          </p>
+                          <p className="text-sm text-foreground">Selecione quais tipos de cliente podem ver este banner. Se nenhum for marcado, fica visível para todos.</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-4">
+                        {customerTypeOptions.map((type) => {
+                          const checked = draft.visible_to.includes(type.name);
+                          return (
+                            <label key={type.name} className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(checkedState) => {
+                                  const isChecked = checkedState === true;
+                                  setDraft((current) =>
+                                    current
+                                      ? {
+                                          ...current,
+                                          visible_to: isChecked
+                                            ? [...current.visible_to, type.name]
+                                            : current.visible_to.filter((t) => t !== type.name),
+                                        }
+                                      : current,
+                                  );
+                                }}
+                                className="h-4 w-4 border-primary data-[state=checked]:bg-primary"
+                              />
+                              {type.label}
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

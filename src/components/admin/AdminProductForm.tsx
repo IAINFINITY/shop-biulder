@@ -1,6 +1,7 @@
 ﻿import { type ChangeEvent, type RefObject } from "react";
-import { Save, X } from "lucide-react";
+import { Save, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +12,7 @@ import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarou
 import { ADMIN_TEXT_LIMITS, countRichTextCharacters } from "@/lib/adminTextLimits";
 import { normalizePriceInputDraft } from "@/lib/formatMoney";
 import { cn } from "@/lib/utils";
+import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import type { AdminProductFormState } from "./adminTypes";
 
 type ProductTypeOption = string;
@@ -42,6 +44,7 @@ export function AdminProductForm({
   onSave,
   onCancel,
 }: AdminProductFormProps) {
+  const { options: customerTypeOptions } = useCustomerTypes();
   const saveLabel = editing.id ? "Salvar alterações" : "Adicionar produto";
 
   return (
@@ -207,6 +210,42 @@ export function AdminProductForm({
               className="scale-95 origin-center"
             />
           </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Visível para
+            </p>
+            <p className="text-sm text-foreground">Selecione quais tipos de cliente podem ver este produto no catálogo. Se nenhum for marcado, fica visível para todos.</p>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          {customerTypeOptions.map((type) => {
+            const checked = editing.visible_to.includes(type.name);
+            return (
+              <label key={type.name} className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(checkedState) => {
+                    const isChecked = checkedState === true;
+                    onChange({
+                      ...editing,
+                      visible_to: isChecked
+                        ? [...editing.visible_to, type.name]
+                        : editing.visible_to.filter((t) => t !== type.name),
+                    });
+                  }}
+                  className="h-4 w-4 border-primary data-[state=checked]:bg-primary"
+                />
+                {type.label}
+              </label>
+            );
+          })}
         </div>
       </div>
 

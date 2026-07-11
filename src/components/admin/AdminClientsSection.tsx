@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/formatMoney";
 import { customerTypeLabel } from "@/lib/pricing";
+import { formatCnpjDisplay } from "@/lib/brazilianIds";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
@@ -102,21 +103,43 @@ export function AdminClientsSection({
   const [draftRepresentanteId, setDraftRepresentanteId] = useState<string>("");
   const [representanteSaving, setRepresentanteSaving] = useState(false);
 
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = { unknown: 0 };
+    for (const c of customerSummaries) {
+      const t = c.customerType ?? "unknown";
+      counts[t] = (counts[t] ?? 0) + 1;
+    }
+    return counts;
+  }, [customerSummaries]);
+
   const filteredCustomers = useMemo(() => {
     const term = clientSearch.trim().toLowerCase();
-    const searched = customerSummaries.filter((customer) => {
-      if (!term) return true;
-      return [customer.name, customer.company ?? "", customer.phone ?? "", customer.cnpj ?? ""].some((value) =>
-        value.toLowerCase().includes(term),
-      );
-    });
 
-    return [...searched].sort((a, b) => {
+    let filtered = customerSummaries;
+
+    if (term) {
+      filtered = filtered.filter((customer) =>
+        [customer.name, customer.company ?? "", customer.phone ?? "", customer.cnpj ?? ""].some((value) =>
+          value.toLowerCase().includes(term),
+        ),
+      );
+    }
+
+    if (typeFilter !== null) {
+      filtered = filtered.filter((customer) => {
+        if (typeFilter === "unknown") return !customer.customerType;
+        return customer.customerType === typeFilter;
+      });
+    }
+
+    return [...filtered].sort((a, b) => {
       if (clientFilter === "orders") return b.orders - a.orders || b.total - a.total;
       if (clientFilter === "revenue") return b.total - a.total || b.orders - a.orders;
       return a.name.localeCompare(b.name, "pt-BR");
     });
-  }, [clientFilter, clientSearch, customerSummaries]);
+  }, [clientFilter, clientSearch, customerSummaries, typeFilter]);
 
   const customerProfilesByKey = useMemo(() => {
     const map = new Map<string, CustomerProfile>();
@@ -259,6 +282,17 @@ export function AdminClientsSection({
           }
         />
 
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {customerTypes.map((type) => (
+            <Badge key={type.name} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+              {type.label}: {typeCounts[type.name] ?? 0}
+            </Badge>
+          ))}
+          <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px] text-muted-foreground">
+            Sem tipo: {typeCounts["unknown"] ?? 0}
+          </Badge>
+        </div>
+
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <Input
             placeholder="Pesquisar cliente (nome, empresa, telefone, CNPJ)"
@@ -292,6 +326,36 @@ export function AdminClientsSection({
               Maior gasto
             </Button>
           </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={typeFilter === null ? "default" : "outline"}
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+            onClick={() => setTypeFilter(null)}
+          >
+            Todos
+          </Button>
+          {customerTypes.map((type) => (
+            <Button
+              key={type.name}
+              type="button"
+              variant={typeFilter === type.name ? "default" : "outline"}
+              className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+              onClick={() => setTypeFilter(typeFilter === type.name ? null : type.name)}
+            >
+              {type.label}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant={typeFilter === "unknown" ? "default" : "outline"}
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+            onClick={() => setTypeFilter(typeFilter === "unknown" ? null : "unknown")}
+          >
+            Sem tipo
+          </Button>
         </div>
 
         {filteredCustomers.length === 0 ? (
@@ -357,7 +421,7 @@ export function AdminClientsSection({
                     ) : null}
                     {customer.cnpj ? (
                       <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
-                        {customer.cnpj}
+                        {formatCnpjDisplay(customer.cnpj)}
                       </Badge>
                     ) : null}
                   </div>
@@ -439,7 +503,7 @@ export function AdminClientsSection({
                     </div>
 
                     <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-                      <DetailField label="CNPJ" value={detailsCustomer.cnpj || "—"} />
+                      <DetailField label="CNPJ" value={formatCnpjDisplay(detailsCustomer.cnpj ?? "") || "—"} />
                       <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
                       <DetailField label="Pedidos" value={String(detailsCustomer.orders)} />
                       <DetailField label="Total gasto" value={formatBRL(detailsCustomer.total)} />
@@ -661,7 +725,7 @@ export function AdminClientsSection({
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Cliente selecionado</p>
                 <p className="mt-1 text-[15px] sm:text-base font-semibold text-foreground">{selectedCustomer.name}</p>
                 <p className="mt-1 text-[12px] sm:text-sm text-muted-foreground">
-                  {selectedCustomer.company || "Sem empresa vinculada"} {selectedCustomer.cnpj ? `• ${selectedCustomer.cnpj}` : ""}
+                  {selectedCustomer.company || "Sem empresa vinculada"} {selectedCustomer.cnpj ? `• ${formatCnpjDisplay(selectedCustomer.cnpj)}` : ""}
                 </p>
               </div>
 

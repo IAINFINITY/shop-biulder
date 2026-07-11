@@ -53,7 +53,11 @@ function HeroSlideFrame({ slide }: { slide: HeroSlide }) {
   );
 }
 
-export function StoreHeroBanner() {
+type StoreHeroBannerProps = {
+  customerType?: string | null;
+};
+
+export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [activeIndex, setActiveIndex] = useState(0);
   const autoplayTimerRef = useRef<number>();
@@ -62,13 +66,19 @@ export function StoreHeroBanner() {
   const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
 
   const slides = useMemo<HeroSlide[]>(() => {
-    return banners.map((banner) => ({
-      src: banner.image_url,
-      alt: banner.label,
-      label: banner.label,
-      linkUrl: banner.link_url,
-    }));
-  }, [banners]);
+    return banners
+      .filter((banner) => {
+        if (!banner.visible_to || banner.visible_to.length === 0) return true;
+        if (!customerType) return false;
+        return banner.visible_to.includes(customerType);
+      })
+      .map((banner) => ({
+        src: banner.image_url,
+        alt: banner.label,
+        label: banner.label,
+        linkUrl: banner.link_url,
+      }));
+  }, [banners, customerType]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

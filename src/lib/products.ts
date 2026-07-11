@@ -15,6 +15,7 @@ export interface Product {
   is_promotion: boolean;
   price: number | null;
   product_code: string | null;
+  visible_to: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,22 +77,22 @@ const PRODUCT_SELECT_BASE_NO_PROMOTION =
   "id,name,description,type,family,image_url,active,price,created_at,updated_at" as const;
 
 export const PRODUCT_SELECT_COLUMNS =
-  `${PRODUCT_SELECT_BASE},image_urls,product_code` as const;
+  `${PRODUCT_SELECT_BASE},image_urls,product_code,visible_to` as const;
 
 export const PRODUCT_SELECT_COLUMNS_NO_PROMOTION =
-  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls,product_code` as const;
+  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls,product_code,visible_to` as const;
 
 export const PRODUCT_SELECT_COLUMNS_NO_GALLERY =
-  `${PRODUCT_SELECT_BASE},product_code` as const;
+  `${PRODUCT_SELECT_BASE},product_code,visible_to` as const;
 
 export const PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION =
-  `${PRODUCT_SELECT_BASE_NO_PROMOTION},product_code` as const;
+  `${PRODUCT_SELECT_BASE_NO_PROMOTION},product_code,visible_to` as const;
 
 export const PRODUCT_SELECT_COLUMNS_NO_CODE =
-  `${PRODUCT_SELECT_BASE},image_urls` as const;
+  `${PRODUCT_SELECT_BASE},image_urls,visible_to` as const;
 
 export const PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION =
-  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls` as const;
+  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls,visible_to` as const;
 
 export const PRODUCT_SELECT_COLUMNS_LEGACY = PRODUCT_SELECT_BASE;
 export const PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION = PRODUCT_SELECT_BASE_NO_PROMOTION;
@@ -110,6 +111,10 @@ export function isMissingProductCodeColumnError(message: string): boolean {
 
 export function isMissingPromotionColumnError(message: string): boolean {
   return isMissingColumnError(message, "is_promotion");
+}
+
+export function isMissingVisibleToColumnError(message: string): boolean {
+  return isMissingColumnError(message, "visible_to");
 }
 
 export function omitProductCode<T extends { product_code: string | null }>(
@@ -136,6 +141,7 @@ export type ProductDbPayloadInput = {
   is_promotion: boolean;
   price: number;
   product_code: string;
+  visible_to: string[] | null;
 };
 
 type ProductDbRow = {
@@ -148,6 +154,7 @@ type ProductDbRow = {
   is_promotion: boolean;
   price: number;
   product_code: string | null;
+  visible_to: string[] | null;
 };
 
 export function buildProductDbPayload(input: ProductDbPayloadInput): {
@@ -155,7 +162,9 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
   legacyOnly: ProductDbRow;
 } {
   const urls = input.image_urls.filter((u) => u.trim() !== "");
-  const base: ProductDbRow = {
+  const visibleTo = input.visible_to && input.visible_to.length > 0 ? input.visible_to : null;
+
+  const base: ProductDbRow & { visible_to: string[] | null } = {
     name: input.name,
     description: input.description,
     type: input.type,
@@ -165,6 +174,7 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     price: input.price,
     image_url: urls[0] ?? null,
     product_code: input.product_code.trim() || null,
+    visible_to: visibleTo,
   };
   return {
     withGallery: { ...base, image_urls: urls },
@@ -188,6 +198,12 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
       ? record.product_code.trim()
       : null;
 
+  const visibleToRaw = record.visible_to;
+  const visibleTo =
+    Array.isArray(visibleToRaw) && visibleToRaw.length > 0
+      ? visibleToRaw.filter((t): t is string => typeof t === "string" && t.trim() !== "").map((t) => t.trim().toLowerCase())
+      : null;
+
   return {
     id: typeof record.id === "string" ? record.id : "",
     name: typeof record.name === "string" ? record.name : "",
@@ -200,6 +216,7 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     is_promotion: Boolean(record.is_promotion),
     price: coercePrice(record.price),
     product_code: productCode,
+    visible_to: visibleTo,
     created_at: typeof record.created_at === "string" ? record.created_at : "",
     updated_at: typeof record.updated_at === "string" ? record.updated_at : "",
   };

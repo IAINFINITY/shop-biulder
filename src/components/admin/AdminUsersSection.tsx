@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
@@ -13,6 +13,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,6 +65,7 @@ export function AdminUsersSection() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -79,15 +81,28 @@ export function AdminUsersSection() {
     enabled: !!user,
   });
 
-  const filteredUsers = users.filter((u) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      u.email.toLowerCase().includes(q) ||
-      u.display_name.toLowerCase().includes(q) ||
-      getRoleLabel(u.role).toLowerCase().includes(q)
-    );
-  });
+  const roleCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const u of users) {
+      counts[u.role] = (counts[u.role] ?? 0) + 1;
+    }
+    return counts;
+  }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !u.email.toLowerCase().includes(q) &&
+          !u.display_name.toLowerCase().includes(q) &&
+          !getRoleLabel(u.role).toLowerCase().includes(q)
+        ) return false;
+      }
+      if (roleFilter !== null && u.role !== roleFilter) return false;
+      return true;
+    });
+  }, [search, roleFilter, users]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -137,6 +152,17 @@ export function AdminUsersSection() {
         }
       />
 
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {ADMIN_ROLES.map((r) => (
+          <Badge key={r.value} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+            {r.label}: {roleCounts[r.value] ?? 0}
+          </Badge>
+        ))}
+        <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px] text-muted-foreground">
+          Superadmin: {roleCounts["superadmin"] ?? 0}
+        </Badge>
+      </div>
+
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -146,6 +172,35 @@ export function AdminUsersSection() {
             onChange={(e) => setSearch(e.target.value)}
             className="h-11 rounded-2xl border-border/70 bg-background pl-9 text-[13px]"
           />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={roleFilter === null ? "default" : "outline"}
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+            onClick={() => setRoleFilter(null)}
+          >
+            Todos
+          </Button>
+          {ADMIN_ROLES.map((r) => (
+            <Button
+              key={r.value}
+              type="button"
+              variant={roleFilter === r.value ? "default" : "outline"}
+              className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+              onClick={() => setRoleFilter(roleFilter === r.value ? null : r.value)}
+            >
+              {r.label}
+            </Button>
+          ))}
+          <Button
+            type="button"
+            variant={roleFilter === "superadmin" ? "default" : "outline"}
+            className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+            onClick={() => setRoleFilter(roleFilter === "superadmin" ? null : "superadmin")}
+          >
+            Superadmin
+          </Button>
         </div>
       </div>
 

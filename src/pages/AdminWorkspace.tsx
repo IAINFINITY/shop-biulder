@@ -491,7 +491,10 @@ export default function AdminWorkspace() {
   const activeProductsCount = useMemo(() => products.filter((p) => p.active).length, [products]);
   const inactiveProductsCount = useMemo(() => products.filter((p) => !p.active).length, [products]);
   const pendingOrdersCount = useMemo(
-    () => orderRows.filter((o) => o.status === "Separando" || o.status === "Processando").length,
+    () => orderRows.filter((o) => {
+      const s = o.status.toLowerCase();
+      return s.includes("novo") || s.includes("separ") || s.includes("process") || s.includes("prepar");
+    }).length,
     [orderRows],
   );
   const totalRevenue = useMemo(
@@ -629,6 +632,7 @@ export default function AdminWorkspace() {
       is_promotion: false,
       priceInput: "",
       productCode: "",
+      visible_to: [],
     });
     setIsNew(true);
   };
@@ -645,6 +649,7 @@ export default function AdminWorkspace() {
       is_promotion: p.is_promotion,
       priceInput: priceToAdminInput(coercePrice(p.price)),
       productCode: p.product_code ?? "",
+      visible_to: p.visible_to ?? [],
     });
     setIsNew(false);
   };
@@ -701,6 +706,7 @@ export default function AdminWorkspace() {
       is_promotion: editing.is_promotion,
       price: normalizedPrice,
       product_code: editing.productCode,
+      visible_to: editing.visible_to.length > 0 ? editing.visible_to.map((t) => t.trim().toLowerCase()) : null,
     });
 
     const persist = async (body: typeof withGallery | typeof legacyOnly) => {

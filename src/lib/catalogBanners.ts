@@ -7,6 +7,7 @@ export type CatalogBanner = {
   link_url: string | null;
   sort_order: number;
   active: boolean;
+  visible_to: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -24,6 +25,12 @@ function normalizeOptionalText(value: unknown): string | null {
 export function normalizeCatalogBannerFromSupabaseRow(row: unknown): CatalogBanner {
   const record = isRecord(row) ? row : {};
 
+  const visibleToRaw = record.visible_to;
+  const visibleTo =
+    Array.isArray(visibleToRaw) && visibleToRaw.length > 0
+      ? visibleToRaw.filter((t): t is string => typeof t === "string" && t.trim() !== "").map((t) => t.trim().toLowerCase())
+      : null;
+
   return {
     id: typeof record.id === "string" ? record.id : "",
     label: typeof record.label === "string" ? record.label : "Banner",
@@ -31,6 +38,7 @@ export function normalizeCatalogBannerFromSupabaseRow(row: unknown): CatalogBann
     link_url: normalizeOptionalText(record.link_url),
     sort_order: Number.isFinite(Number(record.sort_order)) ? Math.trunc(Number(record.sort_order)) : 0,
     active: Boolean(record.active),
+    visible_to: visibleTo,
     created_at: typeof record.created_at === "string" ? record.created_at : "",
     updated_at: typeof record.updated_at === "string" ? record.updated_at : "",
   };

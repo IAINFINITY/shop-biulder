@@ -15,6 +15,7 @@ import {
   isMissingImageUrlsColumnError,
   isMissingProductCodeColumnError,
   isMissingPromotionColumnError,
+  isMissingVisibleToColumnError,
 } from "@/lib/products";
 
 export type UseProductsOptions = {
@@ -95,7 +96,8 @@ export function useProducts(options?: UseProductsOptions) {
         const missingColumn =
           isMissingImageUrlsColumnError(result.error.message) ||
           isMissingProductCodeColumnError(result.error.message) ||
-          isMissingPromotionColumnError(result.error.message);
+          isMissingPromotionColumnError(result.error.message) ||
+          isMissingVisibleToColumnError(result.error.message);
         if (!missingColumn) throw result.error;
       }
 

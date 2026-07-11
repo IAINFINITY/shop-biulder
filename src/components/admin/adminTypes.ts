@@ -57,6 +57,7 @@ export type AdminProductFormState = {
   is_promotion: boolean;
   priceInput: string;
   productCode: string;
+  visible_to: string[];
 };
 
 export type AdminCustomerSummary = {
@@ -96,6 +97,7 @@ export type AdminBanner = {
   link_url: string | null;
   sort_order: number;
   active: boolean;
+  visible_to: string[] | null;
   created_at: string;
   updated_at: string;
 };

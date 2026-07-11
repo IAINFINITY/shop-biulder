@@ -89,8 +89,8 @@ export function AdminDashboardSection({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-          <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex flex-col rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)] h-full">
+          <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
               <p className="text-sm text-foreground">Acompanhe a operação sem sair da visão geral</p>
@@ -98,7 +98,7 @@ export function AdminDashboardSection({
             <Button
               type="button"
               variant="ghost"
-              className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary"
+              className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary shrink-0"
               onClick={onGoToOrders}
             >
               Ver todos
@@ -146,8 +146,8 @@ export function AdminDashboardSection({
             })}
           </div>
 
-          <div className="hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
-            <table className="w-full table-fixed border-collapse text-sm">
+          <div className="flex-1 hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
+            <table className="w-full table-fixed border-collapse text-sm h-full">
               <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                 <tr>
                   <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>

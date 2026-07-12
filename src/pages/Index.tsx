@@ -21,7 +21,6 @@ import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 import { ChevronUp, Loader2 } from "lucide-react";
-import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
 
 const INITIAL_PRODUCTS_VISIBLE = 12;
@@ -515,7 +514,6 @@ export default function Index() {
         </Button>
       ) : null}
 
-      <MobileBottomNav cartItemCount={cartUnitCount} onOpenCart={openCart} />
     </div>
   );
 }

@@ -1,11 +1,12 @@
 ﻿import { type FormEvent, type ReactNode, useId } from "react";
 import { Link } from "react-router-dom";
-import { ImageIcon, Search, Settings, User } from "lucide-react";
+import { ImageIcon, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
+import { cn } from "@/lib/utils";
 
 export type StoreHeaderSearchSuggestion = {
   id: string;
@@ -30,6 +31,7 @@ type SearchPanelProps = {
   showSuggestions: boolean;
   panelId: string;
   floating: boolean;
+  compact?: boolean;
 };
 
 function SearchPanel({
@@ -39,6 +41,7 @@ function SearchPanel({
   showSuggestions,
   panelId,
   floating,
+  compact = false,
 }: SearchPanelProps) {
   const onSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -50,7 +53,7 @@ function SearchPanel({
 
   const cardClassName = floating
     ? "pointer-events-auto overflow-hidden rounded-[32px] bg-background/95 ring-1 ring-black/5 shadow-[0_18px_50px_rgba(0,0,0,0.10)]"
-    : "overflow-hidden rounded-[32px] bg-background/80 ring-1 ring-black/5";
+    : "overflow-hidden rounded-[24px] bg-background/95 ring-1 ring-black/5 shadow-sm";
 
   return (
     <div className={wrapperClassName}>
@@ -61,7 +64,10 @@ function SearchPanel({
             placeholder="O que você procura?..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-12 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-14 sm:pl-5 sm:pr-16"
+            className={cn(
+              "h-12 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:pl-5 sm:pr-16",
+              compact ? "sm:h-12" : "sm:h-14",
+            )}
             aria-label="Buscar produtos"
             aria-controls={showSuggestions ? panelId : undefined}
             role="combobox"
@@ -71,7 +77,10 @@ function SearchPanel({
           <Button
             type="submit"
             size="icon"
-            className="absolute right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 sm:right-2 sm:h-10 sm:w-10"
+            className={cn(
+              "absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+              compact ? "h-8 w-8 sm:right-1.5" : "h-9 w-9 sm:right-2 sm:h-10 sm:w-10",
+            )}
             aria-label="Buscar"
           >
             <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
@@ -152,54 +161,83 @@ export function StoreHeader({
 }: StoreHeaderProps) {
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
+  const mobilePanelId = useId();
   const desktopPanelId = useId();
 
   return (
-    <PageHeaderShell compact innerClassName="pt-3.5 sm:pt-0 sm:items-center">
-      <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
-        <div className="flex items-start justify-between gap-2 lg:block lg:max-w-[220px] xl:max-w-[240px]">
-          <Link to="/" viewTransition className="mx-auto inline-block min-w-0 shrink-0 lg:mx-0 lg:pt-0">
-            <ClinicPlusLogo />
+    <>
+      <PageHeaderShell
+        compact
+        className="border-b border-border/70 bg-card/95 shadow-sm backdrop-blur lg:hidden"
+        innerClassName="flex-col items-stretch gap-3 py-3 sm:gap-4 sm:py-4"
+      >
+        <div className="flex w-full items-center gap-3">
+          <Link to="/" viewTransition className="min-w-0 shrink-0">
+            <ClinicPlusLogo className="h-8 w-auto sm:h-9" alt="Clinic+ Suplemento e Nutrição" />
           </Link>
-        </div>
 
-        <div className="min-w-0 lg:relative lg:min-h-[88px] lg:px-4">
-          <div className="hidden lg:block">
-            <SearchPanel
-              search={search}
-              onSearchChange={onSearchChange}
-              searchSuggestions={searchSuggestions}
-              showSuggestions={showSuggestions}
-              panelId={desktopPanelId}
-              floating
-            />
+          <div className="ml-auto flex items-center gap-2">
+            <Link to="/conta" viewTransition>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10 rounded-full border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                aria-label="Minha conta"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="flex items-center">{cartSlot}</div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
-          <Link to="/conta" viewTransition className="hidden lg:block">
-            <Button
-              variant="outline"
-              size="icon"
-              className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-              aria-label="Minha conta"
-            >
-              <User className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link to="/admin" viewTransition className="hidden lg:block">
-            <Button
-              variant="outline"
-              size="icon"
-              className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-              aria-label="Administração"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div className="hidden items-center lg:flex">{cartSlot}</div>
+        <SearchPanel
+          search={search}
+          onSearchChange={onSearchChange}
+          searchSuggestions={searchSuggestions}
+          showSuggestions={showSuggestions}
+          panelId={mobilePanelId}
+          floating={false}
+          compact
+        />
+      </PageHeaderShell>
+
+      <PageHeaderShell compact innerClassName="pt-3.5 sm:pt-0 sm:items-center hidden lg:flex">
+        <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
+          <div className="flex items-start justify-between gap-2 lg:block lg:max-w-[220px] xl:max-w-[240px]">
+            <Link to="/" viewTransition className="mx-auto inline-block min-w-0 shrink-0 lg:mx-0 lg:pt-0">
+              <ClinicPlusLogo />
+            </Link>
+          </div>
+
+          <div className="min-w-0 lg:relative lg:min-h-[88px] lg:px-4">
+            <div className="hidden lg:block">
+              <SearchPanel
+                search={search}
+                onSearchChange={onSearchChange}
+                searchSuggestions={searchSuggestions}
+                showSuggestions={showSuggestions}
+                panelId={desktopPanelId}
+                floating
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
+            <Link to="/conta" viewTransition className="hidden lg:block">
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                aria-label="Minha conta"
+              >
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div className="hidden items-center lg:flex">{cartSlot}</div>
+          </div>
         </div>
-      </div>
-    </PageHeaderShell>
+      </PageHeaderShell>
+    </>
   );
 }

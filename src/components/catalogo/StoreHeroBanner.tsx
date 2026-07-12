@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 const AUTOPLAY_MS = 5500;
 
 const slideImageClass = "absolute inset-0 block h-full w-full object-cover object-center";
+const heroFrameClass = "relative aspect-[4/1] w-full overflow-hidden bg-muted";
 
 type HeroSlide = {
   src: string;
@@ -35,7 +36,6 @@ function HeroSlideFrame({ slide }: { slide: HeroSlide }) {
       width={1400}
       height={350}
       loading="eager"
-      fetchPriority="high"
       decoding="async"
     />
   );
@@ -148,56 +148,52 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
       aria-label="Destaques promocionais"
       aria-roledescription="carousel"
     >
-      <div className="relative w-full overflow-hidden">
+      <div className="mx-auto w-full max-w-[1600px] px-3 py-2 sm:px-6 lg:px-8">
         {slides.length === 0 ? (
-          <div className="aspect-[2.25/1] w-full bg-muted sm:aspect-[1024/266]" />
+          <div className={heroFrameClass} />
         ) : (
-        <Carousel
-          className="h-full w-full"
-          opts={{ loop: true, align: "center", duration: 35 }}
-          setApi={setApi}
-        >
-          <CarouselContent className="!ml-0 h-full">
-            {slides.map((slide, index) => (
-              <CarouselItem key={`${slide.alt}-${index}`} className="basis-full !pl-0 h-full">
-                <div className="relative aspect-[2.25/1] w-full bg-muted sm:aspect-[1024/266]">
-                  <HeroSlideFrame slide={slide} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
+          <Carousel className="h-full w-full" opts={{ loop: true, align: "center", duration: 35 }} setApi={setApi}>
+            <CarouselContent className="!ml-0 h-full">
+              {slides.map((slide, index) => (
+                <CarouselItem key={`${slide.alt}-${index}`} className="h-full basis-full !pl-0">
+                  <div className={heroFrameClass}>
+                    <HeroSlideFrame slide={slide} />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
 
-          <CarouselPrevious
-            className="left-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:left-4 sm:h-9 sm:w-9"
-            aria-label="Banner anterior"
-            onPointerDown={scheduleAutoplay}
-          />
-          <CarouselNext
-            className="right-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:right-4 sm:h-9 sm:w-9"
-            aria-label="Próximo banner"
-            onPointerDown={scheduleAutoplay}
-          />
+            <CarouselPrevious
+              className="left-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:left-4 sm:h-9 sm:w-9"
+              aria-label="Banner anterior"
+              onPointerDown={scheduleAutoplay}
+            />
+            <CarouselNext
+              className="right-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:right-4 sm:h-9 sm:w-9"
+              aria-label="Próximo banner"
+              onPointerDown={scheduleAutoplay}
+            />
 
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2" role="tablist" aria-label="Slides do banner">
-            {slides.map((slide, index) => (
-              <button
-                key={`${slide.alt}-${index}`}
-                type="button"
-                role="tab"
-                aria-selected={activeIndex === index}
-                aria-label={`Ir para slide ${index + 1}`}
-                onClick={() => {
-                  api.scrollTo(index);
-                  scheduleAutoplay();
-                }}
-                className={cn(
-                  "h-2 rounded-full transition-all duration-300",
-                  activeIndex === index ? "w-6 bg-primary" : "w-2 bg-foreground/30 hover:bg-foreground/50",
-                )}
-              />
-            ))}
-          </div>
-        </Carousel>
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2" role="tablist" aria-label="Slides do banner">
+              {slides.map((slide, index) => (
+                <button
+                  key={`${slide.alt}-${index}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeIndex === index}
+                  aria-label={`Ir para slide ${index + 1}`}
+                  onClick={() => {
+                    api.scrollTo(index);
+                    scheduleAutoplay();
+                  }}
+                  className={cn(
+                    "h-2 rounded-full transition-all duration-300",
+                    activeIndex === index ? "w-6 bg-primary" : "w-2 bg-foreground/30 hover:bg-foreground/50",
+                  )}
+                />
+              ))}
+            </div>
+          </Carousel>
         )}
       </div>
     </section>

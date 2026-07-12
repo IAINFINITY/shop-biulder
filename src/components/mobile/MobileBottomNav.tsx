@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Settings, ShoppingBag, User, type LucideIcon } from "lucide-react";
+import { Home, ShoppingBag, User, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -37,12 +37,6 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
       icon: User,
       onClick: () => navigate("/conta"),
     },
-    {
-      id: "admin",
-      label: "Admin",
-      icon: Settings,
-      onClick: () => navigate("/admin"),
-    },
   ];
 
   return (
@@ -58,9 +52,7 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
               ? location.pathname === "/"
               : item.id === "account"
                 ? location.pathname === "/conta" || location.pathname === "/login"
-                : item.id === "admin"
-                  ? location.pathname.startsWith("/admin")
-                  : false;
+                : false;
 
           return (
             <button

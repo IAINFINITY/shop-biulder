@@ -10,8 +10,8 @@ import {
   LogOut,
   MessageSquareText,
   MapPinned,
-  ShieldCheck,
   ShoppingBag,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -66,7 +66,12 @@ export function ClientWorkspaceShell({
       label: "Atendimento",
       items: [
         { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Falar com consultor" },
-        { id: "seguranca" as const, label: "Segurança", icon: ShieldCheck, description: "Sessão ativa" },
+      ],
+    },
+    {
+      label: "Sistema",
+      items: [
+        { id: "seguranca" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" },
       ],
     },
   ];

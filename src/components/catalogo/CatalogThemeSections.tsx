@@ -142,7 +142,7 @@ function ThemeShelf({
   const rowGridClass = "grid auto-cols-[60%] grid-flow-col gap-2.5 overflow-x-auto overscroll-x-contain px-1.5 pb-2 [scrollbar-width:none] snap-x snap-start scroll-smooth scroll-px-1.5 sm:auto-cols-[calc((100%_-_1rem)/2)] lg:auto-cols-[calc((100%_-_2rem)/3)] xl:auto-cols-[calc((100%_-_3rem)/4)] 2xl:auto-cols-[calc((100%_-_4rem)/5)] [&::-webkit-scrollbar]:hidden";
 
   return (
-    <section className="space-y-4">
+    <section id={section.id} className="space-y-4 scroll-mt-[calc(var(--page-header-shell-height,88px)+1rem)]">
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/5 pb-4">
         <div className="space-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">{section.eyebrow}</p>
@@ -227,7 +227,7 @@ if (visibleSections.length === 0) {
         );
       }
       skeletonShelves.push(
-        <section key={i} className="space-y-4">
+        <section key={i} className="space-y-4 scroll-mt-[calc(var(--page-header-shell-height,88px)+1rem)]">
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/5 pb-4">
             <div className="space-y-1">
               <Skeleton className="h-4 w-20 rounded-md" />

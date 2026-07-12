@@ -255,7 +255,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!forceRefresh && activeUserIdRef.current === nextUser.id && userRef.current?.id === nextUser.id) {
       userRef.current = nextUser;
-      setUser((currentUser) => currentUser ?? nextUser);
+      setUser(nextUser);
       setIsResolvingAccess(false);
       setLoading(false);
       return;

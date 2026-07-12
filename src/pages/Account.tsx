@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
   CalendarClock,
@@ -59,7 +59,7 @@ const sectionTitle: Record<ClientSection, string> = {
   empresa: "Dados da empresa",
   enderecos: "Meus endereços",
   pedidos: "Meus pedidos",
-  seguranca: "Segurança e acesso",
+  seguranca: "Configurações",
   mensagens: "Mensagens",
   notificacoes: "Notificações",
 };
@@ -111,10 +111,10 @@ function passwordStrength(password: string): { label: string; score: number; che
 
 function AdminAccessNotice({
   onLogout,
-  onGoAdmin,
+  onGoCustomerArea,
 }: {
   onLogout: () => void;
-  onGoAdmin: () => void;
+  onGoCustomerArea: () => void;
 }) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] px-4 py-6 sm:px-6 lg:px-8">
@@ -140,8 +140,8 @@ function AdminAccessNotice({
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoAdmin}>
-              Ir para o painel administrativo
+            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoCustomerArea}>
+              Ir para a área de cliente
             </Button>
             <ConfirmActionDialog
               trigger={
@@ -281,6 +281,8 @@ export default function Account() {
   const [editPhone, setEditPhone] = useState("");
   const [editCompany, setEditCompany] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [accountName, setAccountName] = useState("");
+  const [savingAccountName, setSavingAccountName] = useState(false);
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState("");
@@ -297,6 +299,10 @@ export default function Account() {
       setSection(sectionParam);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    setAccountName(customerProfile?.name?.trim() || user?.user_metadata?.name?.trim() || "");
+  }, [customerProfile?.name, user?.id, user?.user_metadata?.name]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -376,15 +382,7 @@ export default function Account() {
   }
 
   if (isAdmin) {
-    return (
-      <AdminAccessNotice
-        onGoAdmin={() => navigate("/admin", { replace: true, viewTransition: true })}
-        onLogout={async () => {
-          await signOut();
-          navigate("/login", { replace: true, viewTransition: true });
-        }}
-      />
-    );
+    return <Navigate to="/admin" replace />;
   }
 
   const summaryContent = (
@@ -619,31 +617,94 @@ export default function Account() {
   const securityContent = (
     <div className="space-y-4 sm:space-y-6">
       <ClientSectionHeader
-        eyebrow="Segurança"
-        title="Sessão, acesso e senha"
+        eyebrow="Configurações"
+        title="Senha e perfil"
         description="Gerencie sua sessão e altere sua senha de acesso."
       />
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <InfoTile
-          label="Usuário"
-          value={displayName}
-          hint="Conta vinculada ao acesso atual."
-          icon={UserRound}
-        />
-        <InfoTile
-          label="E-mail"
-          value={user.email || "—"}
-          hint="Login usado nesta sessao."
-          icon={Mail}
-        />
-        <InfoTile
-          label="Acesso"
-          value="Cliente B2B"
-          hint="Area exclusiva do cliente."
-          icon={ShieldCheck}
-        />
-      </div>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const nextName = accountName.trim();
+          if (!user?.id) {
+            toast.error("Usuário não autenticado");
+            return;
+          }
+          if (!nextName) {
+            toast.error("Informe um nome para salvar");
+            return;
+          }
+
+          setSavingAccountName(true);
+          try {
+            const { error: authError } = await supabase.auth.updateUser({
+              data: { name: nextName },
+            });
+            if (authError) throw authError;
+
+            const { error: profileError } = await supabase.rpc("update_own_customer_profile", {
+              p_name: nextName,
+            });
+            if (profileError) throw profileError;
+
+            setAccountName(nextName);
+            await refreshCustomerProfile(user.id);
+            toast.success("Dados da conta atualizados");
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erro ao atualizar o nome");
+          } finally {
+            setSavingAccountName(false);
+          }
+        }}
+        className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6 space-y-4"
+      >
+        <div className="flex items-center gap-2">
+          <UserRound className="h-5 w-5 text-primary" />
+          <p className="text-sm font-semibold text-foreground">Dados da conta</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <InfoTile
+            label="Usuário"
+            value={displayName}
+            hint="Conta vinculada ao acesso atual."
+            icon={UserRound}
+          />
+          <InfoTile
+            label="E-mail"
+            value={user.email || "—"}
+            hint="Login usado nesta sessao."
+            icon={Mail}
+          />
+          <InfoTile
+            label="Acesso"
+            value="Cliente B2B"
+            hint="Area exclusiva do cliente."
+            icon={ShieldCheck}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.6fr)_auto] sm:items-end">
+          <div className="space-y-2">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Nome
+            </Label>
+            <Input
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              placeholder="Seu nome"
+              className="h-10 rounded-2xl text-[13px]"
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={savingAccountName} className="h-10 rounded-full px-5 text-[13px]">
+              {savingAccountName ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+              Salvar nome
+            </Button>
+          </div>
+        </div>
+      </form>
 
       <form
         onSubmit={async (e) => {

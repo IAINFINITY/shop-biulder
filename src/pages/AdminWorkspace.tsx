@@ -61,6 +61,9 @@ import {
 import { normalizeCustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { getOrderLinesGrandTotal, parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
+import { useCatalogBanners } from "@/hooks/useCatalogBanners";
+import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
+import { useSupportInbox } from "@/hooks/useSupportChat";
 import type {
   AdminCustomerSummary,
   AdminDashboardOrder,
@@ -315,6 +318,9 @@ export default function AdminWorkspace() {
   const navigate = useNavigate();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
+  const { data: notifications = [] } = useCatalogNotifications({ activeOnly: false });
+  const { data: banners = [] } = useCatalogBanners({ activeOnly: false });
+  const { data: inboxConversations = [] } = useSupportInbox(Boolean(user && isAdmin));
   const { data: adminTypes = [] } = useAdminProductTypes();
   const { data: customerProfiles = [] } = useQuery({
     queryKey: ["admin-customer-profiles"],
@@ -364,6 +370,21 @@ export default function AdminWorkspace() {
     () => buildCustomerTypeOverrideMap(customerTypeOverrides),
     [customerTypeOverrides],
   );
+  const newUsersCount = useMemo(() => {
+    const now = Date.now();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+
+    return customerProfiles.filter((profile) => {
+      const createdAt = new Date(profile.created_at).getTime();
+      return Number.isFinite(createdAt) && now - createdAt <= sevenDaysMs;
+    }).length;
+  }, [customerProfiles]);
+  const openConversationsCount = useMemo(
+    () => inboxConversations.filter((conversation) => conversation.status === "open").length,
+    [inboxConversations],
+  );
+  const sentNotificationsCount = notifications.length;
+  const createdBannersCount = banners.length;
   const orderRows = orders as unknown as AdminOrderRow[];
   const productSalesById = useMemo(() => {
     const counts = new Map<string, number>();
@@ -542,6 +563,7 @@ export default function AdminWorkspace() {
     : derivedTypes.length
       ? derivedTypes
       : getProductTypes();
+  const displayUserLabel = user.user_metadata?.name?.trim() || user.email || "Administrador";
 
   if ((!user && loading) || (!user && isResolvingAccess)) {
     return (
@@ -860,7 +882,7 @@ export default function AdminWorkspace() {
       title={sectionTitle[section]}
       onSectionChange={setSection}
       onLogout={signOut}
-      userLabel={user.email || "Administrador"}
+      userLabel={displayUserLabel}
       sidebarOpen={sidebarOpen}
       onSidebarToggle={() => setSidebarOpen((value) => !value)}
       isSuperadmin={isSuperadmin}
@@ -873,8 +895,16 @@ export default function AdminWorkspace() {
           products={products}
           recentOrders={recentOrders}
           customerSummaries={customerSummaries}
+          notifications={notifications}
+          banners={banners}
+          customerProfiles={customerProfiles}
+          orderRows={orderRows}
           activeProductsCount={activeProductsCount}
           inactiveProductsCount={inactiveProductsCount}
+          newUsersCount={newUsersCount}
+          openConversationsCount={openConversationsCount}
+          sentNotificationsCount={sentNotificationsCount}
+          createdBannersCount={createdBannersCount}
           pendingOrdersCount={pendingOrdersCount}
           totalRevenue={totalRevenue}
           averageOrderValue={averageOrderValue}

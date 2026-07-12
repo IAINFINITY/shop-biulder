@@ -31,6 +31,7 @@ type BannerFormState = {
 };
 
 const DEFAULT_SORT_STEP = 10;
+const BANNER_PREVIEW_FRAME_CLASS = "aspect-[4/1] w-full overflow-hidden";
 
 function getNextSortOrder(banners: AdminBanner[]): string {
   if (banners.length === 0) return "0";
@@ -234,7 +235,7 @@ export function AdminBannersSection() {
                   !banner.active && "opacity-70",
                 )}
               >
-                <div className="aspect-[1024/266] bg-muted/20">
+                <div className={banner.image_url ? BANNER_PREVIEW_FRAME_CLASS : cn(BANNER_PREVIEW_FRAME_CLASS, "bg-muted/20")}>
                   {banner.image_url ? (
                     <img src={banner.image_url} alt={banner.label} className="h-full w-full object-cover" />
                   ) : (
@@ -487,9 +488,11 @@ export function AdminBannersSection() {
 
                   <div className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-background shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                     {draft?.imageUrl ? (
-                      <img src={draft.imageUrl} alt={draft.label || "Banner"} className="aspect-[1024/266] w-full object-cover" />
+                      <div className={draft?.imageUrl ? BANNER_PREVIEW_FRAME_CLASS : cn(BANNER_PREVIEW_FRAME_CLASS, "bg-muted/20")}>
+                        <img src={draft.imageUrl} alt={draft.label || "Banner"} className="h-full w-full object-cover" />
+                      </div>
                     ) : (
-                      <div className="flex aspect-[1024/266] items-center justify-center bg-muted/20">
+                      <div className={cn(BANNER_PREVIEW_FRAME_CLASS, "flex items-center justify-center bg-muted/20")}>
                         <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
                       </div>
                     )}

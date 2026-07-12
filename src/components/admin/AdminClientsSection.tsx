@@ -83,6 +83,7 @@ export function AdminClientsSection({
   onClientFilterChange,
   onUpdateCustomerType,
 }: AdminClientsSectionProps) {
+  const NO_REPRESENTATIVE_VALUE = "__none__";
   const { options: customerTypes, addCustomType } = useCustomerTypes();
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -195,7 +196,7 @@ export function AdminClientsSection({
 
   useEffect(() => {
     if (detailsOpen && selectedDetailsProfile) {
-      setDraftRepresentanteId(selectedDetailsProfile.representante_id ?? "");
+      setDraftRepresentanteId(selectedDetailsProfile.representante_id ?? NO_REPRESENTATIVE_VALUE);
     }
   }, [detailsOpen, selectedDetailsProfile]);
 
@@ -578,13 +579,13 @@ export function AdminClientsSection({
                       <div className="mt-3 flex gap-2">
                         <Select
                           value={draftRepresentanteId}
-                          onValueChange={setDraftRepresentanteId}
+                          onValueChange={(value) => setDraftRepresentanteId(value)}
                         >
                           <SelectTrigger className="h-10 rounded-2xl flex-1">
                             <SelectValue placeholder="Selecionar representante" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Sem representante</SelectItem>
+                            <SelectItem value={NO_REPRESENTATIVE_VALUE}>Sem representante</SelectItem>
                             {adminUsers.filter((u) => u.is_active).map((u) => (
                               <SelectItem key={u.user_id} value={u.user_id}>
                                 {u.display_name || u.email} · {getRoleLabel(u.role)}
@@ -596,13 +597,19 @@ export function AdminClientsSection({
                           type="button"
                           size="sm"
                           className="h-10 rounded-2xl px-4 text-sm shrink-0"
-                          disabled={representanteSaving || draftRepresentanteId === (selectedDetailsProfile.representante_id ?? "")}
+                          disabled={
+                            representanteSaving ||
+                            draftRepresentanteId === (selectedDetailsProfile.representante_id ?? NO_REPRESENTATIVE_VALUE)
+                          }
                           onClick={async () => {
                             setRepresentanteSaving(true);
                             try {
                               const { error } = await supabase.rpc("set_customer_representante", {
                                 p_customer_user_id: selectedDetailsProfile.user_id,
-                                p_representante_id: draftRepresentanteId || null,
+                                p_representante_id:
+                                  draftRepresentanteId === NO_REPRESENTATIVE_VALUE
+                                    ? null
+                                    : draftRepresentanteId || null,
                               });
                               if (error) throw error;
                               toast.success("Representante atualizado.");

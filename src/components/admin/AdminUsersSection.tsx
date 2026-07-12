@@ -152,18 +152,7 @@ export function AdminUsersSection() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        {ADMIN_ROLES.map((r) => (
-          <Badge key={r.value} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
-            {r.label}: {roleCounts[r.value] ?? 0}
-          </Badge>
-        ))}
-        <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px] text-muted-foreground">
-          Superadmin: {roleCounts["superadmin"] ?? 0}
-        </Badge>
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <div className="sticky top-0 z-10 -mx-4 space-y-3 border-b border-border/60 bg-background/95 px-4 py-3 backdrop-blur sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -173,13 +162,19 @@ export function AdminUsersSection() {
             className="h-11 rounded-2xl border-border/70 bg-background pl-9 text-[13px]"
           />
         </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {ADMIN_ROLES.map((r) => (
+            <Badge key={r.value} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+              {r.label}: {roleCounts[r.value] ?? 0}
+            </Badge>
+          ))}
+          <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px] text-muted-foreground">
+            Superadmin: {roleCounts["superadmin"] ?? 0}
+          </Badge>
+        </div>
+
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant={roleFilter === null ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
-            onClick={() => setRoleFilter(null)}
-          >
+          <Button type="button" variant={roleFilter === null ? "default" : "outline"} className="h-10 rounded-full px-3 text-[13px]" onClick={() => setRoleFilter(null)}>
             Todos
           </Button>
           {ADMIN_ROLES.map((r) => (
@@ -187,7 +182,7 @@ export function AdminUsersSection() {
               key={r.value}
               type="button"
               variant={roleFilter === r.value ? "default" : "outline"}
-              className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+              className="h-10 rounded-full px-3 text-[13px]"
               onClick={() => setRoleFilter(roleFilter === r.value ? null : r.value)}
             >
               {r.label}
@@ -196,7 +191,7 @@ export function AdminUsersSection() {
           <Button
             type="button"
             variant={roleFilter === "superadmin" ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[13px]"
+            className="h-10 rounded-full px-3 text-[13px]"
             onClick={() => setRoleFilter(roleFilter === "superadmin" ? null : "superadmin")}
           >
             Superadmin
@@ -216,7 +211,123 @@ export function AdminUsersSection() {
           </p>
         </div>
       ) : (
-        <div className="hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
+        <>
+          <div className="space-y-3 lg:hidden">
+            {filteredUsers.map((u) => (
+              <div key={`${u.user_id}-${u.role}`} className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-bold text-primary">
+                        {(u.display_name || u.email).slice(0, 1).toUpperCase()}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {u.display_name || u.email.split("@")[0]}
+                        </p>
+                        <p className="truncate text-[12px] text-muted-foreground">{u.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {u.is_active ? (
+                    <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-600">
+                      Ativo
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-2.5 py-1 text-[11px] text-red-500">
+                      Inativo
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Papel</p>
+                    {u.role === "superadmin" ? (
+                      <span className={cn("inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-[13px] font-semibold", getRoleVariant(u.role))}>
+                        {getRoleLabel(u.role)}
+                      </span>
+                    ) : (
+                      <Select
+                        value={u.role}
+                        onValueChange={async (val) => {
+                          try {
+                            await updateAdminRole(u.user_id, val);
+                            toast.success("Papel atualizado");
+                            queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Erro ao alterar papel");
+                          }
+                        }}
+                      >
+                        <SelectTrigger className={cn("h-11 w-full rounded-2xl border bg-background px-4 text-[13px]", getRoleVariant(u.role))}>
+                          <SelectValue>{getRoleLabel(u.role)}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-border/70 text-[13px]">
+                          {ADMIN_ROLES.filter((r) => r.value !== u.role).map((r) => (
+                            <SelectItem key={r.value} value={r.value} className="rounded-lg">
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Criado em</p>
+                    <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-sm text-foreground">
+                      {new Date(u.created_at).toLocaleDateString("pt-BR")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    ID: <span className="font-mono text-foreground">{u.user_id.slice(0, 8)}...</span>
+                  </p>
+                  {u.role !== "superadmin" && (
+                    <ConfirmActionDialog
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "h-10 rounded-full px-4 text-[13px]",
+                            u.is_active
+                              ? "border-destructive/20 text-destructive hover:bg-destructive/10"
+                              : "border-emerald-200 text-emerald-600 hover:bg-emerald-50",
+                          )}
+                        >
+                          {u.is_active ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                          {u.is_active ? "Desativar" : "Ativar"}
+                        </Button>
+                      }
+                      title={u.is_active ? "Desativar usuário" : "Ativar usuário"}
+                      description={
+                        u.is_active
+                          ? `O usuário "${u.display_name || u.email}" perderá acesso ao painel.`
+                          : `O usuário "${u.display_name || u.email}" recuperará acesso ao painel.`
+                      }
+                      confirmLabel={u.is_active ? "Desativar" : "Ativar"}
+                      destructive={u.is_active}
+                      onConfirm={async () => {
+                        try {
+                          await toggleAdminActive(u.user_id, !u.is_active);
+                          toast.success(u.is_active ? "Usuário desativado" : "Usuário ativado");
+                          queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Erro ao alterar status");
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
           <table className="w-full table-fixed border-collapse text-sm">
             <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               <tr>
@@ -338,6 +449,7 @@ export function AdminUsersSection() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { setNewEmail(""); setNewPassword(""); setNewDisplayName(""); setNewRole("admin"); setShowPassword(false); }}}>

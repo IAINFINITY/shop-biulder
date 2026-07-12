@@ -606,7 +606,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[10rem_auto_auto_auto] gap-2 sm:gap-3 lg:w-[38rem] lg:shrink-0">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[10rem_auto_auto_auto] lg:w-[38rem] lg:shrink-0">
                         <div>
                           <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
                           <Input
@@ -640,7 +640,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                           </Button>
                         </div>
 
-                        <div className="flex items-end gap-2">
+                        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-1">
                           {hasDelta ? (
                             <Button
                               type="button"

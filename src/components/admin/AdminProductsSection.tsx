@@ -96,6 +96,7 @@ export function AdminProductsSection({
   onCancel,
 }: AdminProductsSectionProps) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("catalog");
+  const [editorPanel, setEditorPanel] = useState<"form" | "preview">("form");
   const [productListFilter, setProductListFilter] = useState<"all" | "promotions" | "best_sellers">("all");
   const [newFamily, setNewFamily] = useState("");
   const [newFamilyTypeId, setNewFamilyTypeId] = useState("");
@@ -177,6 +178,12 @@ export function AdminProductsSection({
   useEffect(() => {
     setPreviewMode("catalog");
   }, [editingKey]);
+
+  useEffect(() => {
+    if (editing) {
+      setEditorPanel("form");
+    }
+  }, [editing, editingKey]);
 
   useEffect(() => {
     if (newFamilyTypeId) return;
@@ -684,8 +691,27 @@ export function AdminProductsSection({
               </DialogDescription>
             </DialogHeader>
 
+            <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3 lg:hidden">
+              <Button
+                type="button"
+                variant={editorPanel === "form" ? "default" : "ghost"}
+                className="h-10 flex-1 rounded-full px-3 text-xs"
+                onClick={() => setEditorPanel("form")}
+              >
+                Formulário
+              </Button>
+              <Button
+                type="button"
+                variant={editorPanel === "preview" ? "default" : "ghost"}
+                className="h-10 flex-1 rounded-full px-3 text-xs"
+                onClick={() => setEditorPanel("preview")}
+              >
+                Pré-visualização
+              </Button>
+            </div>
+
             <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+              <div className={cn("min-h-0 overflow-y-auto p-4 sm:p-5", editorPanel !== "form" && "hidden lg:block")}>
                 {editing ? (
                   <AdminProductForm
                     editing={editing}
@@ -703,7 +729,7 @@ export function AdminProductsSection({
                 ) : null}
               </div>
 
-              <div className="min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:border-l lg:border-t-0">
+              <div className={cn("min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:border-l lg:border-t-0", editorPanel !== "preview" && "hidden lg:block")}>
                 <div className="flex h-full min-h-[320px] flex-col">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, memo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,22 @@ import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
+import { CategoryTopNav } from "@/components/catalogo/CategoryTopNav";
 import {
   CatalogFiltersBarV2,
-  CatalogFiltersSidebar,
   type CatalogSortMode,
 } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
+import { QuickView } from "@/components/catalogo/QuickView";
+import { cn } from "@/lib/utils";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richTextPure";
 import { useProducts } from "@/hooks/useProducts";
@@ -20,11 +30,21 @@ import { useOrders } from "@/hooks/useOrders";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
-import { ChevronUp, Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowUpDown, ChevronUp } from "lucide-react";
 import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
+import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
+import { useWishlist } from "@/hooks/useWishlist";
+import type { Product } from "@/lib/products";
 
-const INITIAL_PRODUCTS_VISIBLE = 12;
-const PRODUCTS_VISIBLE_STEP = 12;
+const INITIAL_PRODUCTS_VISIBLE = 20;
+const PRODUCTS_VISIBLE_STEP = 10;
 const CATALOG_VIEW_STORAGE_KEY = "clinicplus_catalog_view";
 
 type CatalogViewState = {
@@ -73,6 +93,39 @@ function saveCatalogViewState(state: CatalogViewState) {
   }
 }
 
+const SORT_LABELS: Record<CatalogSortMode, string> = {
+  relevance: "Relevância",
+  best_sellers: "Mais vendidos",
+  price_asc: "Menor preço",
+  price_desc: "Maior preço",
+  name_asc: "Nome A-Z",
+};
+
+const SortModeControl = memo(function SortModeControl({
+  value,
+  onChange,
+}: {
+  value: CatalogSortMode;
+  onChange: (mode: CatalogSortMode) => void;
+}) {
+  const handleChange = useCallback((v: string) => onChange(v as CatalogSortMode), [onChange]);
+  return (
+    <Select value={value} onValueChange={handleChange}>
+      <SelectTrigger className="h-8 gap-1.5 rounded-full border-border/60 bg-background px-3 text-xs font-medium shadow-none hover:bg-muted/40 [&>svg]:h-3.5 [&>svg]:w-3.5">
+        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent align="end" className="rounded-xl border-border/60">
+        {(Object.entries(SORT_LABELS) as [CatalogSortMode, string][]).map(([mode, label]) => (
+          <SelectItem key={mode} value={mode} className="rounded-lg text-sm">
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+});
+
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
   const authSnapshot = readAuthBootstrapSnapshot();
@@ -85,7 +138,10 @@ export default function Index() {
     customerTprId,
   );
   const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart } = useCart();
+  const { ids: recentlyViewedIds } = useRecentlyViewed();
+  const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
   const [search, setSearch] = useState(() => readCatalogViewState()?.search ?? "");
   const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
   const [selectedFamily, setSelectedFamily] = useState<string | null>(
@@ -96,7 +152,6 @@ export default function Index() {
     () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
   );
   const catalogRef = useRef<HTMLDivElement>(null);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
@@ -249,27 +304,6 @@ export default function Index() {
 
   const visibleFiltered = useMemo(() => sortedFiltered.slice(0, visibleProducts), [sortedFiltered, visibleProducts]);
 
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!sentinel || typeof IntersectionObserver === "undefined") return;
-    if (isLoading || visibleProducts >= sortedFiltered.length) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        setVisibleProducts((current) => Math.min(current + PRODUCTS_VISIBLE_STEP, sortedFiltered.length));
-      },
-      {
-        root: null,
-        rootMargin: "360px 0px",
-        threshold: 0.05,
-      },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [sortedFiltered.length, isLoading, visibleProducts]);
-
   const searchSuggestions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return [];
@@ -316,6 +350,16 @@ export default function Index() {
     catalogRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  const recentlyViewedProducts = useMemo(
+    () => products.filter((p) => recentlyViewedIds.includes(p.id)).slice(0, 10),
+    [products, recentlyViewedIds],
+  );
+
+  const wishlistProducts = useMemo(
+    () => products.filter((p) => wishlistIds.includes(p.id)).slice(0, 10),
+    [products, wishlistIds],
+  );
+
   const catalogThemeSections = useMemo(() => {
     if (filtered.length === 0) return [];
 
@@ -338,36 +382,41 @@ export default function Index() {
       return rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
     });
 
-    const promoDescription = "Seleção em destaque para você encontrar ofertas e produtos prioritários com mais rapidez.";
-    const soldDescription = orderHistory.length > 0
-      ? "Os produtos mais recorrentes no seu histórico, organizados para consulta rápida."
-      : "Produtos mais procurados para ajudar você a descobrir o catálogo com facilidade.";
+    const typeNames = [...new Set(baseProducts.map((p) => p.type))].sort(
+      (a, b) => a.localeCompare(b, "pt-BR"),
+    );
+    const typeSections = !selectedType
+      ? typeNames.map((type) => ({
+          id: `tipo-${type}`,
+          title: type.charAt(0).toUpperCase() + type.slice(1),
+          products: baseProducts
+            .filter((p) => p.type === type)
+            .slice(0, 8),
+        }))
+      : [];
 
     return [
       {
         id: "promocoes",
-        eyebrow: "Oferta inteligente",
         title: "Promoções",
-        description: promoDescription,
         highlightLabel: "Promoção",
         highlightTone: "destructive" as const,
         products: promotedProducts.slice(0, 8),
       },
       {
         id: "mais-vendidos",
-        eyebrow: orderHistory.length > 0 ? "Seu histórico" : "Destaques",
         title: "Mais vendidos",
-        description: soldDescription,
         highlightLabel: "Mais vendido",
         highlightTone: "success" as const,
         products: withPopularSignal.slice(0, 8),
       },
+      ...typeSections,
     ];
-  }, [customerPriceMap, familyCounts, filtered, orderHistory.length, orderPopularity]);
+  }, [customerPriceMap, familyCounts, filtered, orderHistory.length, orderPopularity, selectedType]);
 
   return (
     <div
-      className="min-h-screen bg-[radial-gradient(circle_at_18%_8%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_30%),radial-gradient(circle_at_82%_18%,color-mix(in_oklch,var(--primary)_5%,transparent),transparent_28%),radial-gradient(circle_at_55%_42%,color-mix(in_oklch,var(--primary)_3%,transparent),transparent_25%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--background))_50%,hsl(var(--muted)/0.10)_100%)] pb-32 sm:pb-[10rem]"
+      className="min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]"
     >
       <StoreHeader
         search={search}
@@ -387,12 +436,24 @@ export default function Index() {
         }
       />
 
+      <CategoryTopNav
+        families={categoryFamilies}
+        familyTypesByFamily={familyTypesByFamily}
+        typeCounts={typeCounts}
+        familyCounts={familyCounts}
+        selectedFamily={selectedFamily}
+        selectedType={selectedType}
+        onFamilyChange={setSelectedFamily}
+        onTypeChange={setSelectedType}
+        totalProducts={filtered.length}
+      />
+
       <StoreHeroBanner customerType={customerType} />
 
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className="mx-auto max-w-[1600px] px-3 py-6 sm:px-6 lg:px-8 scroll-mt-[calc(var(--page-header-shell-height,88px)+var(--catalog-filters-bar-height,132px)+1.5rem)]"
+        className="mx-auto max-w-[1600px] px-3 py-6 sm:px-6 lg:px-8"
       >
         <div className="space-y-8">
           <CatalogFiltersBarV2
@@ -413,84 +474,102 @@ export default function Index() {
             onSortChange={setSortMode}
           />
 
-          <div className="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
-            <CatalogFiltersSidebar
-              categoryFamilies={categoryFamilies}
-              familyTypesByFamily={familyTypesByFamily}
-              typeCounts={typeCounts}
-              familyCounts={familyCounts}
-              selectedType={selectedType}
-              selectedFamily={selectedFamily}
-              onTypeChange={setSelectedType}
-              onFamilyChange={setSelectedFamily}
-              onShowAllProducts={showAllProducts}
-              sortMode={sortMode}
-              onSortChange={setSortMode}
+          <div className="space-y-8">
+            <CatalogThemeSections
+              sections={catalogThemeSections}
+              resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+              onAdd={addToCart}
+              inCartIds={cartIds}
             />
 
-            <div className="min-w-0 space-y-10">
-              <CatalogThemeSections
-                sections={catalogThemeSections}
-                resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
-                onAdd={addToCart}
-                inCartIds={cartIds}
-              />
-
-              <section className="space-y-4 pt-2">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                      Catálogo completo
-                    </p>
-                    <h2 className="text-xl font-black tracking-[-0.04em] text-foreground sm:text-2xl">
-                      Navegue pelos demais produtos
-                    </h2>
-                    <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                      A vitrine principal continua abaixo, organizada pela busca e pelos filtros ativos.
-                    </p>
-                  </div>
-                  <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
+            <section className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+                  {selectedFamily || selectedType
+                    ? `Resultados para "${selectedFamily || selectedType}"`
+                    : "Catálogo completo"}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <SortModeControl value={sortMode} onChange={setSortMode} />
+                  <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium whitespace-nowrap">
                     {filtered.length} item(ns)
                   </Badge>
                 </div>
+              </div>
 
-                {isLoading ? (
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {Array.from({ length: 8 }).map((_, index) => (
-                      <div key={index} className="overflow-hidden rounded-2xl sm:rounded-[1.5rem] bg-background/70 ring-1 ring-black/5">
-                        <Skeleton className="aspect-square sm:aspect-[4/3] w-full rounded-none" />
-                      </div>
+              {isLoading ? (
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+                  {Array.from({ length: 10 }).map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
+                      <Skeleton className="aspect-square w-full rounded-none" />
+                    </div>
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
+                  <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
+                  <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+                    {visibleFiltered.map((product) => (
+                      <CatalogProductCard
+                        key={product.id}
+                        product={product}
+                        price={resolveProductPrice(product, customerPriceMap)}
+                        onAdd={addToCart}
+                        inCart={cartIds.has(product.id)}
+                        compact
+                        isWishlisted={wishlistIds.includes(product.id)}
+                        onToggleWishlist={() => toggleWishlist(product.id)}
+                      />
                     ))}
                   </div>
-                ) : filtered.length === 0 ? (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-[1.75rem] bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
-                    <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
-                    <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {visibleFiltered.map((product) => (
-                        <CatalogProductCard
-                          key={product.id}
-                          product={product}
-                          price={resolveProductPrice(product, customerPriceMap)}
-                          onAdd={addToCart}
-                          inCart={cartIds.has(product.id)}
-                          compact
-                        />
-                      ))}
+                  {visibleProducts < filtered.length ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        className="h-11 rounded-full border-border/60 px-8 text-sm font-medium shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5"
+                        onClick={() =>
+                          setVisibleProducts((current) =>
+                            Math.min(current + PRODUCTS_VISIBLE_STEP, sortedFiltered.length),
+                          )
+                        }
+                      >
+                        Carregar mais produtos
+                      </Button>
                     </div>
-                    {visibleProducts < filtered.length ? (
-                      <div ref={loadMoreRef} className="flex items-center justify-center gap-3 py-8 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Carregando mais produtos...
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </section>
-            </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+
+            {wishlistProducts.length > 0 && (
+              <ProductCarouselSection
+                title="Meus favoritos"
+                products={wishlistProducts}
+                resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+                onAdd={addToCart}
+                inCartIds={cartIds}
+                wishlistIds={wishlistIds}
+                toggleWishlist={toggleWishlist}
+              />
+            )}
+
+            {recentlyViewedProducts.length > 0 && (
+              <ProductCarouselSection
+                title="Vistos recentemente"
+                products={recentlyViewedProducts}
+                resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+                onAdd={addToCart}
+                inCartIds={cartIds}
+                wishlistIds={wishlistIds}
+                toggleWishlist={toggleWishlist}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -514,6 +593,114 @@ export default function Index() {
         </Button>
       ) : null}
 
+      <QuickView
+        product={quickViewProduct ? (products.find((p) => p.id === quickViewProduct) ?? null) : null}
+        open={quickViewProduct !== null}
+        onOpenChange={(open) => { if (!open) setQuickViewProduct(null); }}
+        price={quickViewProduct ? resolveProductPrice(products.find((p) => p.id === quickViewProduct)!, customerPriceMap) : 0}
+        onAdd={addToCart}
+        inCart={quickViewProduct ? cartIds.has(quickViewProduct) : false}
+        isWishlisted={quickViewProduct ? wishlistIds.includes(quickViewProduct) : false}
+        onToggleWishlist={() => { if (quickViewProduct) toggleWishlist(quickViewProduct); }}
+      />
+
     </div>
+  );
+}
+
+function ProductCarouselSection({
+  title,
+  products,
+  resolvePrice,
+  onAdd,
+  inCartIds,
+  wishlistIds,
+  toggleWishlist,
+}: {
+  title: string;
+  products: Product[];
+  resolvePrice: (product: Product) => number;
+  onAdd: (product: Product) => void;
+  inCartIds: Set<string>;
+  wishlistIds: string[];
+  toggleWishlist: (id: string) => void;
+}) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!api) return;
+    setActiveIndex(api.selectedScrollSnap());
+  }, [api]);
+
+  useEffect(() => {
+    if (!api) return;
+    onSelect();
+    api.on("select", onSelect);
+    api.on("reInit", onSelect);
+    return () => {
+      api.off("select", onSelect);
+      api.off("reInit", onSelect);
+    };
+  }, [api, onSelect]);
+
+  const totalSnaps = api ? api.scrollSnapList().length : 1;
+
+  return (
+    <section>
+      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground sm:text-xl">{title}</h2>
+      <div className="group relative">
+        <Carousel opts={{ align: "start", dragFree: false }} setApi={setApi}>
+          <div className="mb-3 flex items-center justify-end gap-1.5">
+            {totalSnaps > 1 && (
+              <span className="text-xs tabular-nums text-muted-foreground">
+                Página {activeIndex + 1}/{totalSnaps}
+              </span>
+            )}
+            <CarouselPrevious
+              className="relative inset-auto h-8 w-8 translate-y-0 rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm hover:border-primary/30 hover:text-primary sm:h-9 sm:w-9"
+              aria-label="Anterior"
+            />
+            <CarouselNext
+              className="relative inset-auto h-8 w-8 translate-y-0 rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm hover:border-primary/30 hover:text-primary sm:h-9 sm:w-9"
+              aria-label="Próximo"
+            />
+          </div>
+          <CarouselContent className="-ml-2 sm:-ml-3">
+            {products.map((product) => (
+              <CarouselItem key={product.id} className="basis-1/2 pl-2 sm:pl-3 md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6">
+                <CatalogProductCard
+                  product={product}
+                  price={resolvePrice(product)}
+                  onAdd={onAdd}
+                  inCart={inCartIds.has(product.id)}
+                  compact
+                  isWishlisted={wishlistIds.includes(product.id)}
+                  onToggleWishlist={() => toggleWishlist(product.id)}
+                />
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
+        {totalSnaps > 1 && (
+          <div className="mt-4 flex items-center justify-center gap-2" role="tablist" aria-label={`Slides de ${title}`}>
+            {Array.from({ length: totalSnaps }).map((_, index) => (
+              <button
+                key={`dot-${index}`}
+                type="button"
+                role="tab"
+                aria-selected={activeIndex === index}
+                aria-label={`Ir para slide ${index + 1}`}
+                onClick={() => api?.scrollTo(index)}
+                className={cn(
+                  "h-2 rounded-full transition-all duration-300",
+                  activeIndex === index ? "w-6 bg-primary" : "w-2 bg-foreground/20 hover:bg-foreground/40",
+                )}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

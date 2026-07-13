@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
+import { StoreFooter } from "@/components/layout/StoreFooter";
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Admin = lazy(() => import("./pages/AdminWorkspace.tsx"));
 const ProductDetails = lazy(() => import("./pages/ProductDetails.tsx"));
@@ -32,11 +33,15 @@ const supportsViewTransitions =
 
 function AppRoutes() {
   const location = useLocation();
+  const isAccountRoute = location.pathname.startsWith("/conta");
+  const isOrderRoute = location.pathname.startsWith("/pedido");
+  const hideFooter = location.pathname.startsWith("/admin") || isAccountRoute || isOrderRoute;
 
   return (
+    <div className="flex min-h-screen flex-col">
 <main
       data-native-view-transition={supportsViewTransitions ? "true" : "false"}
-      className="page-shell"
+      className="flex-1 page-shell"
     >
       <Suspense fallback={<RouteLoader />}>
         <Routes location={location}>
@@ -51,6 +56,8 @@ function AppRoutes() {
         </Routes>
 </Suspense>
     </main>
+      {!hideFooter ? <StoreFooter /> : null}
+    </div>
   );
 }
 

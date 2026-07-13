@@ -64,11 +64,11 @@ function SortModeControl({
   onChange: (mode: CatalogSortMode) => void;
 }) {
   return (
-    <div className="rounded-[1.4rem] border border-border/70 bg-background/90 p-4">
+    <div className="rounded-xl border border-border/70 bg-background/90 p-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Ordenar por</p>
       <div className="mt-3">
         <Select value={value} onValueChange={(next) => onChange(next as CatalogSortMode)}>
-          <SelectTrigger className="h-10 rounded-2xl border-border/70 bg-background">
+          <SelectTrigger className="h-10 rounded-lg border-border/70 bg-background">
             <SelectValue placeholder="Selecione a ordenação" />
           </SelectTrigger>
           <SelectContent>
@@ -97,7 +97,7 @@ function ActiveFilterSummary({
   if (!activeLabel || !activeKind) return null;
 
   return (
-    <div className="rounded-[1.4rem] border border-primary/15 bg-primary/5 p-4">
+    <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Filtro atual</p>
       <div className="mt-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -154,12 +154,12 @@ function FamilyCollapsibleList({
         const types = familyTypesByFamily.get(family) ?? [];
 
         return (
-          <div key={family} className="rounded-[1.4rem] border border-border/70 bg-background/90">
+          <div key={family} className="rounded-xl border border-border/70 bg-background/90">
             <button
               type="button"
               aria-expanded={active}
               className={cn(
-                "flex w-full items-center justify-between gap-3 rounded-[1.4rem] px-4 py-3 text-left transition-colors",
+                "flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-colors",
                 active ? "bg-primary/5 text-primary" : "hover:bg-muted/40",
               )}
               onClick={() => selectFamily(family)}
@@ -289,7 +289,7 @@ export function CatalogFiltersBarV2({
       {isLoading ? (
         <div
           ref={filtersRef}
-          className="rounded-[1.6rem] border border-border/70 bg-background/80 px-4 py-4 shadow-sm backdrop-blur sm:px-6"
+          className="rounded-xl border border-border/70 bg-background/80 px-4 py-4 shadow-sm backdrop-blur sm:px-6"
         >
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
@@ -411,7 +411,7 @@ export function CatalogFiltersSidebar({
 
   return (
     <aside className="hidden lg:block lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:self-start">
-      <div className="flex h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-background/80 p-4 shadow-sm backdrop-blur">
+      <div className="flex h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] flex-col overflow-hidden rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm backdrop-blur">
         <div className="flex shrink-0 flex-col gap-3">
           <SortModeControl value={sortMode} onChange={onSortChange} />
           <ActiveFilterSummary selectedType={selectedType} selectedFamily={selectedFamily} onClear={onShowAllProducts} />

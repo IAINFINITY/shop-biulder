@@ -51,7 +51,7 @@ export function PageHeaderShell({ children, className, innerClassName, compact }
     <header ref={headerRef} className={cn(headerShellClassName, className)}>
       <div
         className={cn(
-          "mx-auto flex w-full max-w-[1600px] items-center px-4 sm:px-6 lg:px-8",
+          "mx-auto flex w-full items-center px-4 sm:px-6 lg:px-8",
           compact ? "min-h-[52px] sm:min-h-[88px]" : "min-h-[88px]",
           innerClassName,
         )}

@@ -84,7 +84,7 @@ export function ClientWorkspaceShell({
 
   return (
     <div
-      className="relative min-h-screen bg-[radial-gradient(circle_at_18%_12%,color-mix(in_oklch,var(--primary)_9%,transparent),transparent_30%),radial-gradient(circle_at_82%_0%,color-mix(in_oklch,var(--primary)_6%,transparent),transparent_28%),linear-gradient(180deg,#f5f8ff_0%,#f5f8ff_60%,rgba(229,236,248,0.32)_100%)] text-foreground"
+      className="relative min-h-screen bg-muted/40 text-foreground"
       style={shellStyle}
     >
       <button

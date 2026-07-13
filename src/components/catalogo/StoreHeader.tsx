@@ -24,6 +24,7 @@ export type StoreHeaderProps = {
   onSearchChange: (value: string) => void;
   cartSlot: ReactNode;
   searchSuggestions?: StoreHeaderSearchSuggestion[];
+  filterNav?: ReactNode;
 };
 
 type SearchPanelProps = {
@@ -160,6 +161,7 @@ export function StoreHeader({
   onSearchChange,
   cartSlot,
   searchSuggestions = [],
+  filterNav,
 }: StoreHeaderProps) {
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
@@ -168,16 +170,23 @@ export function StoreHeader({
   const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
 
   return (
-    <>
+    <div className="sticky top-0 z-50">
       <PageHeaderShell
         compact
-        className="border-b border-border/70 bg-card/95 shadow-sm backdrop-blur lg:hidden"
+        className="!relative border-b border-border/70 bg-card/95 shadow-sm backdrop-blur lg:hidden"
         innerClassName="flex-col items-stretch gap-3 py-3 sm:gap-4 sm:py-4"
       >
         <div className="flex w-full items-center gap-3">
           <Link to="/" viewTransition className="min-w-0 shrink-0">
             <ClinicPlusLogo className="h-8 w-auto sm:h-9" alt="Clinic+ Suplemento e Nutrição" />
           </Link>
+
+          <div className="min-w-0 shrink">
+            <CepLocationButton
+              currentCep={deliveryCep}
+              onCepResolved={saveDeliveryCep}
+            />
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <Link to="/conta" viewTransition>
@@ -205,7 +214,7 @@ export function StoreHeader({
         />
       </PageHeaderShell>
 
-      <PageHeaderShell compact innerClassName="pt-3.5 sm:pt-0 sm:items-center hidden lg:flex">
+      <PageHeaderShell compact className="!relative hidden lg:flex" innerClassName="pt-3.5 sm:pt-0 sm:items-center">
         <div className="flex w-full items-center gap-4 xl:gap-6">
           {/* Logo + CEP */}
           <div className="flex items-center gap-4 shrink-0">
@@ -251,6 +260,7 @@ export function StoreHeader({
           </div>
         </div>
       </PageHeaderShell>
-    </>
+      {filterNav}
+    </div>
   );
 }

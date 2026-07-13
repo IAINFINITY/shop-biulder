@@ -8,10 +8,7 @@ import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { CategoryTopNav } from "@/components/catalogo/CategoryTopNav";
-import {
-  CatalogFiltersBarV2,
-  type CatalogSortMode,
-} from "@/components/catalogo/CatalogFiltersBarStickyFilters";
+import { type CatalogSortMode } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
 import { QuickView } from "@/components/catalogo/QuickView";
 import { cn } from "@/lib/utils";
@@ -434,18 +431,19 @@ export default function Index() {
             resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
           />
         }
-      />
-
-      <CategoryTopNav
-        families={categoryFamilies}
-        familyTypesByFamily={familyTypesByFamily}
-        typeCounts={typeCounts}
-        familyCounts={familyCounts}
-        selectedFamily={selectedFamily}
-        selectedType={selectedType}
-        onFamilyChange={setSelectedFamily}
-        onTypeChange={setSelectedType}
-        totalProducts={filtered.length}
+        filterNav={
+          <CategoryTopNav
+            families={categoryFamilies}
+            familyTypesByFamily={familyTypesByFamily}
+            typeCounts={typeCounts}
+            familyCounts={familyCounts}
+            selectedFamily={selectedFamily}
+            selectedType={selectedType}
+            onFamilyChange={setSelectedFamily}
+            onTypeChange={setSelectedType}
+            totalProducts={filtered.length}
+          />
+        }
       />
 
       <StoreHeroBanner customerType={customerType} />
@@ -453,34 +451,15 @@ export default function Index() {
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className="mx-auto max-w-[1600px] px-3 py-6 sm:px-6 lg:px-8"
+        className="mx-auto max-w-[1600px] px-3 pt-2 sm:px-6 sm:pt-4 lg:px-8"
       >
-        <div className="space-y-8">
-          <CatalogFiltersBarV2
-            categoryFamilies={categoryFamilies}
-            familyTypesByFamily={familyTypesByFamily}
-            typeCounts={typeCounts}
-            familyCounts={familyCounts}
-            resultCount={filtered.length}
-            isLoading={isLoading}
-            hasSearch={search.trim().length > 0}
-            searchQuery={search.trim()}
-            selectedType={selectedType}
-            selectedFamily={selectedFamily}
-            onTypeChange={setSelectedType}
-            onFamilyChange={setSelectedFamily}
-            onShowAllProducts={showAllProducts}
-            sortMode={sortMode}
-            onSortChange={setSortMode}
+        <div className="space-y-6">
+          <CatalogThemeSections
+            sections={catalogThemeSections}
+            resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+            onAdd={addToCart}
+            inCartIds={cartIds}
           />
-
-          <div className="space-y-8">
-            <CatalogThemeSections
-              sections={catalogThemeSections}
-              resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
-              onAdd={addToCart}
-              inCartIds={cartIds}
-            />
 
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
@@ -570,7 +549,6 @@ export default function Index() {
                 toggleWishlist={toggleWishlist}
               />
             )}
-          </div>
         </div>
       </div>
 

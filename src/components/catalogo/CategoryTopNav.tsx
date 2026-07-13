@@ -73,7 +73,7 @@ export function CategoryTopNav({
   const hasSubtypes = activeFamilyTypes.length > 1;
 
   return (
-    <div className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="border-b border-border/40 bg-card/95 backdrop-blur">
       <div className="px-4 sm:px-6 lg:px-8">
         {/* Family row */}
         <div className="group relative flex items-center py-3">

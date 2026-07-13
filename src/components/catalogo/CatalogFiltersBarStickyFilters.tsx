@@ -285,7 +285,8 @@ export function CatalogFiltersBarV2({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="sticky left-1/2 top-[calc(var(--page-header-shell-height,88px)-1px)] z-40 w-screen max-w-[100vw] -translate-x-1/2 overflow-x-clip border-b border-border/40 bg-muted/40">
+      <div className="mx-auto w-full max-w-[1600px] space-y-3 px-3 py-3 sm:px-6 lg:px-8">
       {isLoading ? (
         <div
           ref={filtersRef}
@@ -326,6 +327,77 @@ export function CatalogFiltersBarV2({
           </Badge>
         </Button>
       </div>
+
+      {!isLoading && (
+        <div
+          ref={filtersRef}
+          className="hidden lg:flex items-center gap-2.5 rounded-xl border border-border/70 bg-background/80 px-4 py-2.5 shadow-sm backdrop-blur"
+        >
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-medium"
+            onClick={() => setFamiliesOpen(true)}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Categorias
+          </Button>
+
+          {selectedFamily && (
+            <Badge
+              variant="secondary"
+              className="h-7 gap-1 rounded-full border-primary/20 bg-primary/5 px-2.5 text-xs font-medium text-primary"
+            >
+              {selectedFamily}
+              <button
+                type="button"
+                onClick={() => { onFamilyChange(null); }}
+                className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-primary/50 hover:bg-primary/10 hover:text-primary"
+                aria-label={`Remover filtro ${selectedFamily}`}
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+
+          {selectedType && (
+            <Badge
+              variant="secondary"
+              className="h-7 gap-1 rounded-full border-primary/20 bg-primary/5 px-2.5 text-xs font-medium text-primary"
+            >
+              {selectedType}
+              <button
+                type="button"
+                onClick={() => { onTypeChange(null); }}
+                className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-primary/50 hover:bg-primary/10 hover:text-primary"
+                aria-label={`Remover filtro ${selectedType}`}
+              >
+                ×
+              </button>
+            </Badge>
+          )}
+
+          {(selectedFamily || selectedType) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 shrink-0 rounded-full px-2.5 text-[11px] text-muted-foreground hover:text-foreground"
+              onClick={clearFilters}
+            >
+              Limpar
+            </Button>
+          )}
+
+          <div className="ml-auto">
+            <Badge variant="outline" className="rounded-full border-border/60 bg-background/80 px-2.5 py-0 h-6 text-[11px] font-medium tabular-nums text-muted-foreground">
+              {selectedFamily || selectedType
+                ? `${resultCount} de ${totalProducts}`
+                : `${totalProducts} produtos`}
+            </Badge>
+          </div>
+        </div>
+      )}
 
       <Sheet
         open={familiesOpen}
@@ -387,6 +459,7 @@ export function CatalogFiltersBarV2({
           </div>
         </SheetContent>
       </Sheet>
+      </div>
     </div>
   );
 }

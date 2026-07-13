@@ -60,8 +60,6 @@ type StoreHeroBannerProps = {
 export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [activeIndex, setActiveIndex] = useState(0);
-  const autoplayTimerRef = useRef<number>();
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
 
   const slides = useMemo<HeroSlide[]>(() => {
@@ -79,48 +77,13 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
       }));
   }, [banners, customerType]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updatePreference = () => setPrefersReducedMotion(media.matches);
-
-    updatePreference();
-    media.addEventListener("change", updatePreference);
-    return () => {
-      media.removeEventListener("change", updatePreference);
-    };
-  }, []);
+  const apiRef = useRef(api);
+  apiRef.current = api;
 
   const onSelect = useCallback(() => {
     if (!api) return;
     setActiveIndex(api.selectedScrollSnap());
   }, [api]);
-
-  const stopAutoplay = useCallback(() => {
-    if (autoplayTimerRef.current) {
-      window.clearTimeout(autoplayTimerRef.current);
-      autoplayTimerRef.current = undefined;
-    }
-  }, []);
-
-  const goToNextSlide = useCallback(() => {
-    if (!api || slides.length <= 1) return;
-
-    const currentIndex = api.selectedScrollSnap();
-    const nextIndex = (currentIndex + 1) % slides.length;
-    api.scrollTo(nextIndex);
-  }, [api, slides.length]);
-
-  const scheduleAutoplay = useCallback(() => {
-    if (!api || prefersReducedMotion || slides.length <= 1) return;
-
-    stopAutoplay();
-    autoplayTimerRef.current = window.setTimeout(() => {
-      goToNextSlide();
-      scheduleAutoplay();
-    }, AUTOPLAY_MS);
-  }, [api, goToNextSlide, prefersReducedMotion, slides.length, stopAutoplay]);
 
   useEffect(() => {
     if (!api) return;
@@ -141,15 +104,25 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   }, [api, slides.length]);
 
   useEffect(() => {
-    if (!api) return;
-    scheduleAutoplay();
-    const onPointerDown = () => scheduleAutoplay();
-    api.on("pointerDown", onPointerDown);
+    if (!api || slides.length <= 1) {
+      return;
+    }
+
+    const id = setInterval(() => {
+      const embla = apiRef.current;
+      if (!embla) return;
+      if (embla.canScrollNext()) {
+        embla.scrollNext();
+      } else {
+        embla.scrollTo(0);
+      }
+    }, AUTOPLAY_MS);
+
     return () => {
-      stopAutoplay();
-      api.off("pointerDown", onPointerDown);
+      console.log("[banner] clearing autoplay interval");
+      clearInterval(id);
     };
-  }, [api, prefersReducedMotion, scheduleAutoplay, stopAutoplay]);
+  }, [api, slides.length]);
 
   return (
     <section
@@ -157,11 +130,15 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
       aria-label="Destaques promocionais"
       aria-roledescription="carousel"
     >
-      <div className="mx-auto w-full max-w-[1600px] px-3 py-2 sm:px-6 lg:px-8">
+      <div className="w-full py-2">
         {slides.length === 0 ? (
           <div className={heroFrameClass} />
         ) : (
-          <Carousel className="h-full w-full" opts={{ loop: true, align: "center", duration: 35 }} setApi={setApi}>
+          <Carousel
+            className="h-full w-full"
+            opts={{ loop: true, align: "center", duration: 35 }}
+            setApi={setApi}
+          >
             <CarouselContent className="!ml-0 h-full">
               {slides.map((slide, index) => (
                 <CarouselItem key={`${slide.alt}-${index}`} className="h-full basis-full !pl-0">
@@ -175,12 +152,10 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
             <CarouselPrevious
               className="left-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:left-4 sm:h-9 sm:w-9"
               aria-label="Banner anterior"
-              onPointerDown={scheduleAutoplay}
             />
             <CarouselNext
               className="right-3 top-1/2 h-8 w-8 -translate-y-1/2 border-0 bg-background/90 shadow-md hover:bg-background sm:right-4 sm:h-9 sm:w-9"
               aria-label="Próximo banner"
-              onPointerDown={scheduleAutoplay}
             />
 
             <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2" role="tablist" aria-label="Slides do banner">
@@ -193,7 +168,6 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
                   aria-label={`Ir para slide ${index + 1}`}
                   onClick={() => {
                     api.scrollTo(index);
-                    scheduleAutoplay();
                   }}
                   className={cn(
                     "h-2 rounded-full transition-all duration-300",

@@ -19,8 +19,7 @@ export function useCatalogBanners(options?: UseCatalogBannersOptions) {
 
   return useQuery({
     queryKey: ["catalog-banners", activeOnly ? "active" : "all"],
-    staleTime: 5 * 60 * 1000,
-    refetchOnMount: "always",
+    staleTime: 0,
     refetchOnWindowFocus: false,
     retry: 1,
     queryFn: async () => {

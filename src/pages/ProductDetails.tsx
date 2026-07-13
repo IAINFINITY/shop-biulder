@@ -32,7 +32,6 @@ import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
-import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { StickyBottomCTA } from "@/components/mobile/StickyBottomCTA";
 import { TouchCarousel } from "@/components/mobile/TouchCarousel";
 import { useAuth } from "@/hooks/useAuth";
@@ -456,15 +455,34 @@ export default function ProductDetails() {
             </div>
 
             <div className="min-w-0 self-stretch">
-              <div className="xl:hidden">
+               <div className="xl:hidden">
                 {galleryUrls.length > 0 ? (
-                  <TouchCarousel aspectRatio="aspect-square" showDots>
-                    {galleryUrls.map((url, i) => (
-                      <div key={i} className="flex h-full w-full items-center justify-center bg-background p-2">
-                        <img src={url} alt={product.name} className="h-full w-full object-contain" />
+                  <>
+                    <TouchCarousel aspectRatio="aspect-square" showDots>
+                      {galleryUrls.map((url, i) => (
+                        <div key={i} className="flex h-full w-full items-center justify-center bg-background p-2">
+                          <img src={url} alt={product.name} className="h-full w-full object-contain" />
+                        </div>
+                      ))}
+                    </TouchCarousel>
+                    {galleryUrls.length > 1 && (
+                      <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none] pb-1">
+                        {galleryUrls.map((url, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setSelectedImageIndex(i)}
+                            className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border bg-background p-0.5 transition-all ${
+                              i === selectedImageIndex ? "border-primary ring-2 ring-primary/20" : "border-border/70"
+                            }`}
+                            aria-label={`Ver imagem ${i + 1}`}
+                          >
+                            <img src={url} alt="" width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full rounded-md object-contain" />
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                  </TouchCarousel>
+                    )}
+                  </>
                 ) : (
                   <div className="flex aspect-square items-center justify-center rounded-2xl border border-border/70 bg-muted/30">
                     <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
@@ -964,7 +982,7 @@ export default function ProductDetails() {
                   className="flex gap-3 overflow-x-auto overscroll-x-contain [scrollbar-width:none] snap-x snap-mandatory scroll-smooth pb-2"
                 >
                   {relatedProducts.map((related) => (
-                    <div key={related.id} className="w-[calc(20%-0.6rem)] shrink-0 snap-start">
+                    <div key={related.id} className="w-[55%] shrink-0 snap-start sm:w-[38%] md:w-[28%] lg:w-[calc(20%-0.6rem)]">
                       <CatalogProductCard
                         product={related}
                         price={resolveProductPrice(related, customerPriceMap)}
@@ -990,7 +1008,7 @@ export default function ProductDetails() {
         onOpenCart={openCart}
       />
 
-      <StickyBottomCTA className="bottom-14">
+      <StickyBottomCTA>
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div className="space-y-0.5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
@@ -1041,8 +1059,6 @@ export default function ProductDetails() {
           </div>
         </div>
       </StickyBottomCTA>
-
-      <MobileBottomNav cartItemCount={cartUnitCount} onOpenCart={openCart} />
     </div>
   );
 }

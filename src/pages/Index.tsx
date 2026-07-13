@@ -338,7 +338,7 @@ export default function Index() {
       return rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
     });
 
-    const promoDescription = "Produtos marcados pelo time como promoção para aparecer primeiro na vitrine.";
+    const promoDescription = "Seleção em destaque para você encontrar ofertas e produtos prioritários com mais rapidez.";
     const soldDescription = orderHistory.length > 0
       ? "Os produtos mais recorrentes no seu histórico, organizados para consulta rápida."
       : "Produtos mais procurados para ajudar você a descobrir o catálogo com facilidade.";

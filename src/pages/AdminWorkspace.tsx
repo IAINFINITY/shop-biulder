@@ -563,7 +563,7 @@ export default function AdminWorkspace() {
     : derivedTypes.length
       ? derivedTypes
       : getProductTypes();
-  const displayUserLabel = user.user_metadata?.name?.trim() || user.email || "Administrador";
+  const displayUserLabel = user?.user_metadata?.name?.trim() || user?.email || "Administrador";
 
   if ((!user && loading) || (!user && isResolvingAccess)) {
     return (

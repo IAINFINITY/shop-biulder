@@ -62,7 +62,6 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const autoplayTimerRef = useRef<number>();
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
 
   const slides = useMemo<HeroSlide[]>(() => {
@@ -84,17 +83,12 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
     if (typeof window === "undefined") return;
 
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const mobileMedia = window.matchMedia("(max-width: 639px)");
     const updatePreference = () => setPrefersReducedMotion(media.matches);
-    const updateMobile = () => setIsMobile(mobileMedia.matches);
 
     updatePreference();
-    updateMobile();
     media.addEventListener("change", updatePreference);
-    mobileMedia.addEventListener("change", updateMobile);
     return () => {
       media.removeEventListener("change", updatePreference);
-      mobileMedia.removeEventListener("change", updateMobile);
     };
   }, []);
 
@@ -103,11 +97,30 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
     setActiveIndex(api.selectedScrollSnap());
   }, [api]);
 
+  const stopAutoplay = useCallback(() => {
+    if (autoplayTimerRef.current) {
+      window.clearTimeout(autoplayTimerRef.current);
+      autoplayTimerRef.current = undefined;
+    }
+  }, []);
+
+  const goToNextSlide = useCallback(() => {
+    if (!api || slides.length <= 1) return;
+
+    const currentIndex = api.selectedScrollSnap();
+    const nextIndex = (currentIndex + 1) % slides.length;
+    api.scrollTo(nextIndex);
+  }, [api, slides.length]);
+
   const scheduleAutoplay = useCallback(() => {
-    if (!api || prefersReducedMotion || isMobile) return;
-    if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
-    autoplayTimerRef.current = window.setInterval(() => api.scrollNext(), AUTOPLAY_MS);
-  }, [api, prefersReducedMotion, isMobile]);
+    if (!api || prefersReducedMotion || slides.length <= 1) return;
+
+    stopAutoplay();
+    autoplayTimerRef.current = window.setTimeout(() => {
+      goToNextSlide();
+      scheduleAutoplay();
+    }, AUTOPLAY_MS);
+  }, [api, goToNextSlide, prefersReducedMotion, slides.length, stopAutoplay]);
 
   useEffect(() => {
     if (!api) return;
@@ -129,18 +142,14 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
 
   useEffect(() => {
     if (!api) return;
-    if (prefersReducedMotion || isMobile) {
-      if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
-      return;
-    }
     scheduleAutoplay();
     const onPointerDown = () => scheduleAutoplay();
     api.on("pointerDown", onPointerDown);
     return () => {
-      if (autoplayTimerRef.current) window.clearInterval(autoplayTimerRef.current);
+      stopAutoplay();
       api.off("pointerDown", onPointerDown);
     };
-  }, [api, prefersReducedMotion, isMobile, scheduleAutoplay]);
+  }, [api, prefersReducedMotion, scheduleAutoplay, stopAutoplay]);
 
   return (
     <section

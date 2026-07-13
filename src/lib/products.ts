@@ -18,6 +18,8 @@ export interface Product {
   visible_to: string[] | null;
   created_at: string;
   updated_at: string;
+  average_rating: number;
+  review_count: number;
 }
 
 export function getProductUnitPrice(product: Pick<Product, "price">): number {
@@ -72,9 +74,9 @@ export function getProductImageUrls(product: Pick<Product, "image_url" | "image_
 }
 
 const PRODUCT_SELECT_BASE =
-  "id,name,description,type,family,image_url,active,is_promotion,price,created_at,updated_at" as const;
+  "id,name,description,type,family,image_url,active,is_promotion,price,average_rating,review_count,created_at,updated_at" as const;
 const PRODUCT_SELECT_BASE_NO_PROMOTION =
-  "id,name,description,type,family,image_url,active,price,created_at,updated_at" as const;
+  "id,name,description,type,family,image_url,active,price,average_rating,review_count,created_at,updated_at" as const;
 
 export const PRODUCT_SELECT_COLUMNS =
   `${PRODUCT_SELECT_BASE},image_urls,product_code,visible_to` as const;
@@ -217,6 +219,8 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     price: coercePrice(record.price),
     product_code: productCode,
     visible_to: visibleTo,
+    average_rating: typeof record.average_rating === "number" ? record.average_rating : 0,
+    review_count: typeof record.review_count === "number" ? record.review_count : 0,
     created_at: typeof record.created_at === "string" ? record.created_at : "",
     updated_at: typeof record.updated_at === "string" ? record.updated_at : "",
   };

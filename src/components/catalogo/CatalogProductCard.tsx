@@ -1,4 +1,4 @@
-﻿import { type LucideIcon, Plus, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
+﻿import { type LucideIcon, Plus, Heart, Eye, Star, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@/lib/products";
 import { getProductImageUrls, getProductUnitPrice } from "@/lib/products";
@@ -26,22 +26,52 @@ export type CatalogProductCardProps = {
   onAdd: (product: Product) => void;
   inCart: boolean;
   compact?: boolean;
+  isWishlisted?: boolean;
+  onToggleWishlist?: () => void;
+  onQuickView?: () => void;
 };
 
-export function CatalogProductCard({ product, price, onAdd, inCart, compact }: CatalogProductCardProps) {
+export function CatalogProductCard({ product, price, onAdd, inCart, compact, isWishlisted, onToggleWishlist, onQuickView }: CatalogProductCardProps) {
   const Icon = typeIcons[product.type] || Leaf;
   const coverUrl = getProductImageUrls(product)[0];
   const displayPrice = Number.isFinite(price ?? Number.NaN) ? (price as number) : getProductUnitPrice(product);
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.65rem] bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)] active:scale-[0.985]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)] active:scale-[0.985]">
       <Link
         to={`/produto/${product.id}`}
         viewTransition
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         {coverUrl ? (
-          <div className={cn("overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background p-2 sm:p-3", compact ? "aspect-square" : "aspect-[4/3]")}>
+          <div className={cn("relative overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background p-2 sm:p-3", compact ? "aspect-square" : "aspect-[4/3]")}>
+            <div className="absolute right-1.5 top-1.5 z-10 flex gap-1">
+              {onQuickView && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView(); }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-muted-foreground shadow-sm transition-all hover:scale-110 hover:text-primary sm:h-8 sm:w-8"
+                  aria-label="Prévia do produto"
+                >
+                  <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
+              )}
+              {onToggleWishlist && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleWishlist(); }}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-all hover:scale-110 sm:h-8 sm:w-8",
+                    isWishlisted
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background/80 text-muted-foreground hover:text-primary",
+                  )}
+                  aria-label={isWishlisted ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                >
+                  <Heart className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", isWishlisted && "fill-current")} />
+                </button>
+              )}
+            </div>
             <img
               src={coverUrl}
               alt={product.name}
@@ -86,6 +116,28 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact }: C
           <h3 className={cn("font-semibold leading-tight text-card-foreground", compact ? "line-clamp-2 text-xs sm:text-[0.95rem] sm:font-bold" : "line-clamp-2 min-h-[3.25rem] text-base sm:text-[1.05rem]")}>
             {product.name}
           </h3>
+
+          {product.review_count > 0 && (
+            <div className="mt-1 flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5">
+                {[1,2,3,4,5].map((s) => (
+                  <Star
+                    key={s}
+                    className={cn(
+                      "h-3 w-3",
+                      s <= Math.round(product.average_rating)
+                        ? "fill-amber-400 text-amber-400"
+                        : "fill-muted text-muted",
+                    )}
+                  />
+                ))}
+              </div>
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {product.average_rating.toFixed(1)}
+                {!compact && <span className="ml-0.5">({product.review_count})</span>}
+              </span>
+            </div>
+          )}
 
           {compact ? (
             <ProductDescription

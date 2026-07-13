@@ -93,9 +93,9 @@ export function CartDrawer({
           <>
             <div className="flex-1 space-y-3 overflow-y-auto py-4">
               {cart.map((item) => (
-                <div key={item.product.id} className="space-y-3 rounded-2xl border border-border bg-card p-3.5">
+                <div key={item.product.id} className="space-y-3 rounded-xl border border-border bg-card p-3.5">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-background">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
                       {getCartImage(item) ? (
                         <img
                           src={getCartImage(item) ?? ""}
@@ -195,7 +195,7 @@ export function CartDrawer({
             </div>
 
             <div className="space-y-3 border-t border-border pt-4">
-              <CatalogOrderNotice variant="compact" className="rounded-2xl border-border/60 bg-muted/40" />
+              <CatalogOrderNotice variant="compact" className="rounded-xl border-border/60 bg-muted/40" />
               <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
                 <span className="text-sm font-medium text-muted-foreground">Subtotal</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">{formatBRL(subtotal)}</span>

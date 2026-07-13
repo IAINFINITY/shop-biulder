@@ -8,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomerDataFields } from "@/components/pedido/CustomerDataFields";
 import { useAuth } from "@/hooks/useAuth";
-import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
 import { toast } from "sonner";
 import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
@@ -107,6 +106,7 @@ export default function Login() {
   const [cnpjTouched, setCnpjTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [authTab, setAuthTab] = useState<"entrar" | "cadastro">("entrar");
+  const [slideDir, setSlideDir] = useState<"right" | "left">("right");
   const returnTo = getSafeReturnToPath(searchParams.get("returnTo"));
 
   const cnpjValidation = useCnpjValidation(customerForm.cnpj, cnpjTouched);
@@ -216,11 +216,11 @@ export default function Login() {
 
   if (loading || isResolvingAccess) {
     return (
-      <AuthStatusScreen
-        eyebrow="Acesso cliente"
-        title="Abrindo sua conta"
-        description="Estamos validando sua sessão para carregar o acesso certo sem trocar de área no meio do caminho."
-      />
+      <ClientAuthStage>
+        <div className="flex items-center justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </ClientAuthStage>
     );
   }
 
@@ -250,7 +250,10 @@ export default function Login() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6 sm:px-8">
-          <Tabs value={authTab} onValueChange={(value) => setAuthTab(value as "entrar" | "cadastro")} className="flex min-h-0 w-full flex-1 flex-col">
+          <Tabs value={authTab} onValueChange={(value) => {
+            setSlideDir(value === "cadastro" ? "right" : "left");
+            setAuthTab(value as "entrar" | "cadastro");
+          }} className="flex min-h-0 w-full flex-1 flex-col">
             <TabsList className="grid h-12 w-full grid-cols-2 items-stretch rounded-full border border-border/70 bg-muted/60 p-1">
               <TabsTrigger
                 value="entrar"
@@ -269,7 +272,11 @@ export default function Login() {
             <TabsContent value="entrar" className="mt-0 flex-1 min-h-0">
               <form
                 onSubmit={handleSignIn}
-                className="mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
+                className={cn(
+                  "mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]",
+                  "animate-in fade-in duration-300",
+                  slideDir === "left" ? "slide-in-from-left-5" : "slide-in-from-right-5",
+                )}
               >
                 <AuthField
                   id="signin-email"
@@ -319,7 +326,11 @@ export default function Login() {
             <TabsContent value="cadastro" className="mt-0 flex-1 min-h-0">
               <form
                 onSubmit={handleSignUp}
-                className="mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
+                className={cn(
+                  "mt-5 flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]",
+                  "animate-in fade-in duration-300",
+                  slideDir === "right" ? "slide-in-from-right-5" : "slide-in-from-left-5",
+                )}
               >
                 <CustomerDataFields
                   form={customerForm}

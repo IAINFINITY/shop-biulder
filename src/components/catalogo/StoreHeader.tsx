@@ -1,4 +1,4 @@
-﻿import { type FormEvent, type ReactNode, useId } from "react";
+﻿import { type FormEvent, type ReactNode, useId, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ImageIcon, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 import { cn } from "@/lib/utils";
+import { CepLocationButton } from "@/components/catalogo/CepLocationButton";
+import { useDeliveryCep } from "@/hooks/useDeliveryCep";
 
 export type StoreHeaderSearchSuggestion = {
   id: string;
@@ -52,8 +54,8 @@ function SearchPanel({
     : "relative w-full max-w-2xl lg:w-[min(100%,46rem)] lg:max-w-none xl:w-[48rem]";
 
   const cardClassName = floating
-    ? "pointer-events-auto overflow-hidden rounded-[32px] bg-background/95 ring-1 ring-black/5 shadow-[0_18px_50px_rgba(0,0,0,0.10)]"
-    : "overflow-hidden rounded-[24px] bg-background/95 ring-1 ring-black/5 shadow-sm";
+    ? "pointer-events-auto overflow-hidden rounded-2xl bg-background/95 ring-1 ring-black/5 shadow-[0_18px_50px_rgba(0,0,0,0.10)]"
+    : "overflow-hidden rounded-xl bg-background/95 ring-1 ring-black/5 shadow-sm";
 
   return (
     <div className={wrapperClassName}>
@@ -163,6 +165,7 @@ export function StoreHeader({
   const showSuggestions = trimmedSearch.length > 0;
   const mobilePanelId = useId();
   const desktopPanelId = useId();
+  const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
 
   return (
     <>
@@ -203,15 +206,24 @@ export function StoreHeader({
       </PageHeaderShell>
 
       <PageHeaderShell compact innerClassName="pt-3.5 sm:pt-0 sm:items-center hidden lg:flex">
-        <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6 xl:gap-10">
-          <div className="flex items-start justify-between gap-2 lg:block lg:max-w-[220px] xl:max-w-[240px]">
-            <Link to="/" viewTransition className="mx-auto inline-block min-w-0 shrink-0 lg:mx-0 lg:pt-0">
+        <div className="flex w-full items-center gap-4 xl:gap-6">
+          {/* Logo + CEP */}
+          <div className="flex items-center gap-4 shrink-0">
+            <Link to="/" viewTransition className="inline-block shrink-0">
               <ClinicPlusLogo />
             </Link>
+            <div className="hidden h-8 w-px bg-border/50 xl:block" />
+            <div className="hidden xl:block">
+              <CepLocationButton
+                currentCep={deliveryCep}
+                onCepResolved={saveDeliveryCep}
+              />
+            </div>
           </div>
 
-          <div className="min-w-0 lg:relative lg:min-h-[88px] lg:px-4">
-            <div className="hidden lg:block">
+          {/* Search — flex-1, centered */}
+          <div className="relative flex min-w-0 flex-1 items-center justify-center lg:min-h-[88px]">
+            <div className="hidden w-full lg:block">
               <SearchPanel
                 search={search}
                 onSearchChange={onSearchChange}
@@ -223,7 +235,8 @@ export function StoreHeader({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 sm:gap-4 lg:min-w-[7.5rem] lg:justify-end xl:min-w-[8.5rem]">
+          {/* User + Cart */}
+          <div className="flex items-center justify-end gap-3 sm:gap-4 shrink-0">
             <Link to="/conta" viewTransition className="hidden lg:block">
               <Button
                 variant="outline"

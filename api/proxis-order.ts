@@ -386,6 +386,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Missing required fields: customer_cnpj, customer_name, items" });
   }
 
+  const customerCnpjDigits = onlyDigits(body.customer_cnpj);
+  if (customerCnpjDigits.length !== 14) {
+    return res.status(400).json({
+      error: "CNPJ obrigatório para finalizar o pedido",
+      detail: "O fluxo B2B só aceita compras com CNPJ cadastrado.",
+    });
+  }
+
   try {
     console.log("[proxis-order] Buscando cliente por CNPJ:", body.customer_cnpj);
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);

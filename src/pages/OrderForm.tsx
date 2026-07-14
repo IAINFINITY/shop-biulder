@@ -1,6 +1,6 @@
 ﻿import { useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Send, ShoppingBag, ImageIcon, User, MapPin, FileText, CreditCard, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,7 @@ import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
 import { profileAddressToForm } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
+import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 import { ORDER_TEXT_LIMITS } from "@/lib/orderTextLimits";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
@@ -93,8 +94,15 @@ export default function OrderForm() {
   const [addressForm, setAddressForm] = useState(emptyAddressForm);
   const summaryRef = useRef<HTMLDivElement>(null);
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
-  const { assertDocReady } = cnpjValidation;
   const submitLockRef = useRef(false);
+  const checkoutCnpjDigits = useMemo(() => onlyDigits(form.cnpj), [form.cnpj]);
+  const checkoutHasValidCnpj = useMemo(
+    () => checkoutCnpjDigits.length === 14 && isValidCnpj(checkoutCnpjDigits),
+    [checkoutCnpjDigits],
+  );
+  const checkoutCnpjHint = checkoutHasValidCnpj
+    ? null
+    : "Para finalizar a compra, o cadastro precisa ter um CNPJ válido. CPF não libera pedido B2B.";
   const selectedSavedAddress = useMemo(
     () => (selectedAddressId ? savedAddresses.find((address) => address.id === selectedAddressId) ?? null : null),
     [savedAddresses, selectedAddressId],
@@ -270,10 +278,8 @@ export default function OrderForm() {
       return;
     }
 
-    const docMessage = assertDocReady();
-    if (docMessage) {
-      if (docMessage === "Validando documento...") toast.info(docMessage);
-      else toast.error(docMessage);
+    if (!checkoutHasValidCnpj) {
+      toast.error("Para finalizar a compra, informe um CNPJ válido na sua conta ou no checkout.");
       return;
     }
 
@@ -585,6 +591,24 @@ export default function OrderForm() {
                         cnpjValidation={cnpjValidation}
                       />
                     </div>
+                    {!checkoutHasValidCnpj ? (
+                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-950">
+                        <div className="flex items-start gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                            <CreditCard className="h-4 w-4" />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="font-semibold">CNPJ obrigatório para finalizar a compra</p>
+                            <p className="text-amber-900/80">
+                              {checkoutCnpjHint}
+                            </p>
+                            <Button asChild variant="outline" className="rounded-full border-amber-300 bg-white text-amber-950 hover:bg-amber-100">
+                              <Link to="/conta?section=empresa">Ir para meus dados</Link>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </section>
 
                   {savedAddresses.length > 0 ? (
@@ -775,7 +799,7 @@ export default function OrderForm() {
                         type="submit"
                         className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 sm:w-auto"
                         size="lg"
-                        disabled={submitting}
+                        disabled={submitting || !checkoutHasValidCnpj}
                       >
                         <Send className="h-4 w-4" />
                         {submitting ? "Enviando..." : "Enviar pedido"}

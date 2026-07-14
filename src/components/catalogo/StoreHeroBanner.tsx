@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 const AUTOPLAY_MS = 5500;
 
 const slideImageClass = "absolute inset-0 block h-full w-full object-cover object-center";
-const heroFrameClass = "relative aspect-[16/9] sm:aspect-[3/1] lg:aspect-[4/1] w-full overflow-hidden bg-muted";
+const heroFrameClass = "relative aspect-[3/2] sm:aspect-[2/1] lg:aspect-[4/1] w-full overflow-hidden bg-muted";
 
 type HeroSlide = {
   src: string;
@@ -130,7 +130,7 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
       aria-label="Destaques promocionais"
       aria-roledescription="carousel"
     >
-      <div className="w-full py-2">
+      <div className="w-full">
         {slides.length === 0 ? (
           <div className={heroFrameClass} />
         ) : (

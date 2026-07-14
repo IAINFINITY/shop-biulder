@@ -451,7 +451,7 @@ export default function Index() {
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className="mx-auto max-w-[1600px] px-3 pt-2 sm:px-6 sm:pt-4 lg:px-8"
+        className="mx-auto max-w-[1600px] px-3 pt-1 sm:px-6 sm:pt-3 lg:px-8"
       >
         <div className="space-y-6">
           <CatalogThemeSections

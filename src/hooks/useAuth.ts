@@ -9,6 +9,8 @@ import {
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType } from "@/lib/pricing";
+import { onlyDigits } from "@/lib/brazilianIds";
+import { translateAuthErrorMessage as translateAuthErrorMessageShared } from "@/lib/authErrors";
 
 type AuthContextValue = {
   user: User | null;
@@ -123,6 +125,14 @@ function translateAuthErrorMessage(message: string): string {
   if (!normalized) return "Erro ao autenticar.";
   if (normalized.includes("invalid login credentials") || normalized.includes("invalid credentials")) {
     return "E-mail ou senha incorretos.";
+  }
+  if (
+    normalized.includes("user already registered") ||
+    normalized.includes("already registered") ||
+    normalized.includes("email already exists") ||
+    normalized.includes("email exists")
+  ) {
+    return "Este e-mail já está cadastrado. Entre com sua senha ou recupere o acesso.";
   }
   if (normalized.includes("email not confirmed") || normalized.includes("email not verified")) {
     return "Confirme seu e-mail antes de fazer login.";
@@ -363,7 +373,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    if (error) return new Error(translateAuthErrorMessage(error.message || "Erro ao autenticar."));
+    if (error) return new Error(translateAuthErrorMessageShared(error.message || "Erro ao autenticar."));
 
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session?.user) {
@@ -389,8 +399,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       p_cnpj: data.cnpj.trim(),
       p_customer_type: normalizeCustomerType(data.customer_type),
     });
+    const documentDigits = onlyDigits(data.cnpj.trim());
     if (!error && user) {
-      await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
+      if (documentDigits.length === 14) {
+        await syncCustomerProxisLink(documentDigits).catch(() => null);
+      }
       await fetchCustomerProfile(user.id);
     }
     return error;
@@ -401,8 +414,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: data.email.trim(),
       password: data.password,
+      options: {
+        data: {
+          name: data.name.trim(),
+          phone: data.phone.trim(),
+          company: data.company.trim(),
+          cnpj: data.cnpj.trim(),
+          customer_type: normalizeCustomerType(data.customer_type),
+        },
+      },
     });
-    if (signUpError) return { error: signUpError, needsEmailConfirmation: false };
+    if (signUpError) {
+      return {
+        error: new Error(translateAuthErrorMessageShared(signUpError.message || "Erro ao criar conta.")),
+        needsEmailConfirmation: false,
+      };
+    }
 
     const sessionUser = signUpData.user;
     const needsEmailConfirmation = !signUpData.session;
@@ -417,7 +444,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
       if (sessionUser) {
-        await syncCustomerProxisLink(data.cnpj.trim()).catch(() => null);
+        const documentDigits = onlyDigits(data.cnpj.trim());
+        if (documentDigits.length === 14) {
+          await syncCustomerProxisLink(documentDigits).catch(() => null);
+        }
         await fetchCustomerProfile(sessionUser.id);
       }
     }

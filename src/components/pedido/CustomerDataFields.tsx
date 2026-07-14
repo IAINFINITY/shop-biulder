@@ -107,12 +107,29 @@ export function CustomerDataFields({
         <Input
           id={id("phone")}
           value={form.phone}
-          onChange={(e) => onChange({ phone: formatPhone(e.target.value) })}
+          onChange={(e) => onChange({ phone: formatPhone(onlyDigits(e.target.value)) })}
           placeholder="(00) 00000-0000"
           inputMode="numeric"
+          type="tel"
           maxLength={15}
           required
           autoComplete="tel"
+          onKeyDown={(e) => {
+            const allowedKeys = [
+              "Backspace",
+              "Delete",
+              "Tab",
+              "ArrowLeft",
+              "ArrowRight",
+              "Home",
+              "End",
+              "Enter",
+            ];
+            if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+            if (!/^\d$/.test(e.key)) {
+              e.preventDefault();
+            }
+          }}
         />
       </div>
 

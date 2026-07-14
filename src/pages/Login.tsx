@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
 import { getSafeReturnToPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
+import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
+import { isRegisteredEmailAuthMessage, translateAuthErrorMessage } from "@/lib/authErrors";
 import { LockKeyhole, Mail, ShieldCheck, Eye, EyeOff } from "lucide-react";
 
 const emptyCustomerForm = {
@@ -25,6 +27,8 @@ const emptyCustomerForm = {
 };
 
 const AUTH_FEEDBACK_MIN_MS = 700;
+
+type EmailAvailabilityState = "idle" | "checking" | "available" | "registered" | "error";
 
 type AuthFieldProps = {
   id: string;
@@ -107,9 +111,52 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [authTab, setAuthTab] = useState<"entrar" | "cadastro">("entrar");
   const [slideDir, setSlideDir] = useState<"right" | "left">("right");
+  const [signupEmailStatus, setSignupEmailStatus] = useState<EmailAvailabilityState>("idle");
   const returnTo = getSafeReturnToPath(searchParams.get("returnTo"));
 
   const cnpjValidation = useCnpjValidation(customerForm.cnpj, cnpjTouched);
+
+  useEffect(() => {
+    if (authTab !== "cadastro") {
+      setSignupEmailStatus("idle");
+      return;
+    }
+
+    const email = signUpEmail.trim();
+    if (!email) {
+      setSignupEmailStatus("idle");
+      return;
+    }
+
+    const isEmailLike = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!isEmailLike) {
+      setSignupEmailStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setSignupEmailStatus("checking");
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const supabase = await loadSupabaseClient();
+        const { data, error } = await supabase.rpc("check_auth_email_exists", { p_email: email });
+        if (cancelled) return;
+        if (error) {
+          setSignupEmailStatus("error");
+          return;
+        }
+        setSignupEmailStatus(data ? "registered" : "available");
+      } catch {
+        if (!cancelled) setSignupEmailStatus("error");
+      }
+    }, 450);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [authTab, signUpEmail]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,14 +170,11 @@ export default function Login() {
       }
       if (error) {
         console.error("Erro ao fazer login", error);
-        const msg = error.message.toLowerCase();
-        if (msg.includes("email not confirmed") || msg.includes("confirme") || msg.includes("confirm")) {
-          toast.error("Confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada.");
-        } else if (msg.includes("invalid login") || msg.includes("invalid credentials") || msg.includes("incorret")) {
-          toast.error("E-mail ou senha incorretos.");
-        } else {
-          toast.error(error.message || "Erro ao fazer login.");
-        }
+        toast.error(
+          translateAuthErrorMessage(error.message || "Erro ao fazer login.", {
+            duplicateEmailText: "Este e-mail já está cadastrado. Entre com sua senha ou recupere o acesso.",
+          }),
+        );
       }
     } catch (err) {
       console.error("Exceção ao fazer login", err);
@@ -157,22 +201,22 @@ export default function Login() {
     }
 
     if (signUpPassword.length > 64) {
-      toast.error("A senha deve ter no máximo 64 caracteres.");
+      toast.error("A senha deve ter no mÃ¡ximo 64 caracteres.");
       return;
     }
 
     if (!/[A-Z]/.test(signUpPassword)) {
-      toast.error("A senha deve conter pelo menos uma letra maiúscula.");
+      toast.error("A senha deve conter pelo menos uma letra maiÃºscula.");
       return;
     }
 
     if (!/[a-z]/.test(signUpPassword)) {
-      toast.error("A senha deve conter pelo menos uma letra minúscula.");
+      toast.error("A senha deve conter pelo menos uma letra minÃºscula.");
       return;
     }
 
     if (!/\d/.test(signUpPassword)) {
-      toast.error("A senha deve conter pelo menos um número.");
+      toast.error("A senha deve conter pelo menos um nÃºmero.");
       return;
     }
 
@@ -182,7 +226,7 @@ export default function Login() {
     }
 
     if (signUpPassword !== signUpPasswordConfirm) {
-      toast.error("As senhas não coincidem.");
+      toast.error("As senhas nÃ£o coincidem.");
       return;
     }
 
@@ -194,13 +238,18 @@ export default function Login() {
     });
 
     if (error) {
-      const message = error.message.toLowerCase() ?? "";
-      if (message.includes("customer_profiles_cnpj_unique") || message.includes("duplicate")) {
-        toast.error("Este CNPJ ja possui cadastro.");
-      } else {
-        console.error("Erro ao criar conta", error);
-        toast.error("Erro ao criar conta");
+      const friendlyMessage = translateAuthErrorMessage(error.message || "Erro ao criar conta.", {
+        duplicateEmailText: "Este e-mail já está cadastrado. Entre com sua senha ou recupere o acesso.",
+      });
+
+      if (isRegisteredEmailAuthMessage(error.message || "")) {
+        setAuthTab("entrar");
+        setSlideDir("left");
+        setSignInEmail(signUpEmail.trim());
       }
+
+      console.error("Erro ao criar conta", error);
+      toast.error(friendlyMessage);
       setSubmitting(false);
       return;
     }
@@ -318,7 +367,7 @@ export default function Login() {
 
                 <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Ambiente seguro - seus dados estão protegidos
+                  Ambiente seguro - seus dados estÃ£o protegidos
                 </div>
               </form>
             </TabsContent>
@@ -351,11 +400,31 @@ export default function Login() {
                   icon={Mail}
                 />
 
+                {authTab === "cadastro" && signupEmailStatus === "checking" ? (
+                  <p className="text-xs text-muted-foreground">Verificando se este e-mail já está cadastrado...</p>
+                ) : null}
+
+                {authTab === "cadastro" && signupEmailStatus === "available" ? (
+                  <p className="text-xs text-emerald-600">E-mail disponível para cadastro.</p>
+                ) : null}
+
+                {authTab === "cadastro" && signupEmailStatus === "registered" ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                    Este e-mail já está cadastrado. Você pode entrar com a conta existente ou recuperar o acesso.
+                  </div>
+                ) : null}
+
+                {authTab === "cadastro" && signupEmailStatus === "error" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Não foi possível checar este e-mail agora. Você ainda pode continuar o cadastro.
+                  </p>
+                ) : null}
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <AuthField
                     id="signup-password"
                     label="Senha"
-                    placeholder="Mínimo 8 caracteres"
+                    placeholder="MÃ­nimo 8 caracteres"
                     value={signUpPassword}
                     onChange={setSignUpPassword}
                     type="password"
@@ -392,6 +461,10 @@ export default function Login() {
     </ClientAuthStage>
   );
 }
+
+
+
+
 
 
 

@@ -29,9 +29,9 @@ import { CatalogNotificationImageFrame } from "@/components/shared/CatalogNotifi
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import type { ClientSection } from "@/components/client/clientTypes";
-import { formatCnpjDisplay, formatPhone, onlyDigits } from "@/lib/brazilianIds";
+import { formatDocumentId, formatPhone, isValidCnpj, isValidCpf, onlyDigits } from "@/lib/brazilianIds";
 import { formatCep } from "@/lib/address";
-import { customerTypeLabel, normalizeCustomerType } from "@/lib/pricing";
+import { customerTypeLabel, DEFAULT_CUSTOMER_TYPE, normalizeCustomerType } from "@/lib/pricing";
 import { formatBRL } from "@/lib/formatMoney";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
@@ -48,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_TEL,
@@ -263,7 +264,7 @@ function CustomerNotificationPreview({ notification }: { notification: CustomerC
 export default function Account() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut, refreshCustomerProfile } = useAuth();
+  const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut, refreshCustomerProfile, registerCustomerProfile } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useOrders(
     Boolean(user && customerProfile && !isAdmin),
     user?.id ?? "customer",
@@ -280,6 +281,7 @@ export default function Account() {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editCompany, setEditCompany] = useState("");
+  const [editCnpj, setEditCnpj] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [savingAccountName, setSavingAccountName] = useState(false);
@@ -303,6 +305,23 @@ export default function Account() {
   useEffect(() => {
     setAccountName(customerProfile?.name?.trim() || user?.user_metadata?.name?.trim() || "");
   }, [customerProfile?.name, user?.id, user?.user_metadata?.name]);
+
+  useEffect(() => {
+    setEditName(customerProfile?.name?.trim() || user?.user_metadata?.name?.trim() || "");
+    setEditPhone(customerProfile?.phone?.trim() || user?.user_metadata?.phone?.trim() || "");
+    setEditCompany(customerProfile?.company?.trim() || user?.user_metadata?.company?.trim() || "");
+    setEditCnpj(customerProfile?.cnpj?.trim() || user?.user_metadata?.cnpj?.trim() || "");
+  }, [
+    customerProfile?.cnpj,
+    customerProfile?.company,
+    customerProfile?.name,
+    customerProfile?.phone,
+    user?.id,
+    user?.user_metadata?.cnpj,
+    user?.user_metadata?.company,
+    user?.user_metadata?.name,
+    user?.user_metadata?.phone,
+  ]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -466,6 +485,7 @@ export default function Account() {
                 setEditName(customerProfile.name);
                 setEditPhone(customerProfile.phone);
                 setEditCompany(customerProfile.company);
+                setEditCnpj(customerProfile.cnpj);
                 setEditingProfile(!editingProfile);
               }}
               className="h-8 rounded-full px-4 text-[12px]"
@@ -484,12 +504,23 @@ export default function Account() {
               e.preventDefault();
               setSavingProfile(true);
               try {
+                const documentDigits = onlyDigits(editCnpj);
+                const isDocumentValid = isValidCpf(documentDigits) || isValidCnpj(documentDigits);
+                if (!isDocumentValid) {
+                  toast.error("Informe um CPF ou CNPJ válido.");
+                  setSavingProfile(false);
+                  return;
+                }
+
                 const { error } = await supabase.rpc("update_own_customer_profile", {
-                  p_name: editName.trim(),
                   p_phone: editPhone.trim(),
                   p_company: editCompany.trim(),
+                  p_cnpj: documentDigits,
                 });
                 if (error) throw error;
+                if (documentDigits.length === 14) {
+                  await syncCustomerProxisLink(documentDigits).catch(() => null);
+                }
                 toast.success("Perfil atualizado");
                 setEditingProfile(false);
                 if (user) await refreshCustomerProfile(user.id);
@@ -502,17 +533,50 @@ export default function Account() {
             className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6 space-y-4"
           >
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nome</Label>
-              <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
-            </div>
-            <div className="space-y-2">
               <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Telefone</Label>
-              <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
+                className="h-10 rounded-2xl text-[13px]"
+                inputMode="numeric"
+                type="tel"
+                placeholder="(00) 00000-0000"
+                onKeyDown={(e) => {
+                  const allowedKeys = [
+                    "Backspace",
+                    "Delete",
+                    "Tab",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "Home",
+                    "End",
+                    "Enter",
+                  ];
+                  if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                  if (!/^\d$/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+              />
             </div>
             <div className="space-y-2">
               <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Empresa</Label>
-              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[13px]" readOnly />
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
             </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Documento</Label>
+              <Input
+                value={formatDocumentId(editCnpj)}
+                onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
+                className="h-10 rounded-2xl text-[13px]"
+                inputMode="numeric"
+                maxLength={18}
+                placeholder="00.000.000/0000-00"
+              />
+            </div>
+            <p className="text-[11px] leading-5 text-muted-foreground">
+              O nome da conta pode ser alterado na seção de configurações. Aqui ficam os dados comerciais do cadastro.
+            </p>
             <div className="flex justify-end">
               <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[13px]">
                 {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
@@ -526,7 +590,7 @@ export default function Account() {
               <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
               <InfoTile label="Empresa" value={customerProfile.company || "—"} icon={Building2} />
               <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
-              <InfoTile label="CNPJ" value={formatCnpjDisplay(customerProfile.cnpj)} icon={Building2} />
+              <InfoTile label="Documento" value={formatDocumentId(customerProfile.cnpj)} icon={Building2} />
             </div>
 
             <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
@@ -556,10 +620,105 @@ export default function Account() {
           </>
         )
       ) : (
-        <EmptyPanel
-          title="Nenhum perfil de empresa encontrado"
-          description="Se voce acabou de criar a conta, aguarde a finalizacao do cadastro ou entre novamente apos confirmar o acesso."
-        />
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setSavingProfile(true);
+            try {
+              const documentDigits = onlyDigits(editCnpj);
+              const isDocumentValid = isValidCpf(documentDigits) || isValidCnpj(documentDigits);
+              if (!isDocumentValid) {
+                toast.error("Informe um CPF ou CNPJ válido.");
+                setSavingProfile(false);
+                return;
+              }
+
+              const error = await registerCustomerProfile({
+                name:
+                  accountName.trim() ||
+                  user?.user_metadata?.name?.trim() ||
+                  user?.email?.split("@")[0]?.trim() ||
+                  "",
+                phone: editPhone.trim(),
+                company: editCompany.trim(),
+                cnpj: documentDigits,
+                customer_type: DEFAULT_CUSTOMER_TYPE,
+              });
+
+              if (error) throw error;
+
+              toast.success("Cadastro concluído");
+              if (user) await refreshCustomerProfile(user.id);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Erro ao concluir cadastro");
+            } finally {
+              setSavingProfile(false);
+            }
+          }}
+          className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6 space-y-4"
+        >
+          <div className="flex items-center gap-2">
+            <UserRound className="h-5 w-5 text-primary" />
+            <p className="text-sm font-semibold text-foreground">Complete seu cadastro</p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Telefone</Label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
+                className="h-10 rounded-2xl text-[13px]"
+                inputMode="numeric"
+                type="tel"
+                placeholder="(00) 00000-0000"
+                onKeyDown={(e) => {
+                  const allowedKeys = [
+                    "Backspace",
+                    "Delete",
+                    "Tab",
+                    "ArrowLeft",
+                    "ArrowRight",
+                    "Home",
+                    "End",
+                    "Enter",
+                  ];
+                  if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+                  if (!/^\d$/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Empresa</Label>
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Documento</Label>
+              <Input
+                value={formatDocumentId(editCnpj)}
+                onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
+                className="h-10 rounded-2xl text-[13px]"
+                inputMode="numeric"
+                maxLength={18}
+                placeholder="00.000.000/0000-00"
+              />
+            </div>
+          </div>
+
+          <p className="text-[11px] leading-5 text-muted-foreground">
+            Depois de salvar, você poderá editar os endereços na aba própria e acompanhar pedidos vinculados ao mesmo documento.
+            O nome da conta é ajustado em <strong>Dados da conta</strong>.
+          </p>
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[13px]">
+              {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+              Salvar cadastro
+            </Button>
+          </div>
+        </form>
       )}
     </div>
   );

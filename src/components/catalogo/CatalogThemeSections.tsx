@@ -169,6 +169,25 @@ function ThemeShelf({
   }, [api]);
 
   useEffect(() => {
+    if (!api || section.products.length <= 1) return;
+    const raf = requestAnimationFrame(() => {
+      api.reInit();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [api, section.products]);
+
+  useEffect(() => {
+    if (!api) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        requestAnimationFrame(() => api.reInit());
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [api]);
+
+  useEffect(() => {
     if (!api) return;
     onSelect();
     api.on("select", onSelect);

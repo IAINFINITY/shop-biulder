@@ -27,7 +27,7 @@ function isInternalLink(value: string): boolean {
   return value.startsWith("/");
 }
 
-function HeroSlideFrame({ slide }: { slide: HeroSlide }) {
+function HeroSlideFrame({ slide, onLoad }: { slide: HeroSlide; onLoad?: () => void }) {
   const content = (
     <img
       src={slide.src}
@@ -37,6 +37,7 @@ function HeroSlideFrame({ slide }: { slide: HeroSlide }) {
       height={350}
       loading="eager"
       decoding="async"
+      onLoad={onLoad}
     />
   );
 
@@ -80,6 +81,38 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   const apiRef = useRef(api);
   apiRef.current = api;
 
+  const loadedOnceRef = useRef(false);
+
+  const reInitEmbla = useCallback(() => {
+    const embla = apiRef.current;
+    if (!embla) return;
+    requestAnimationFrame(() => embla.reInit());
+  }, []);
+
+  const handleImageLoad = useCallback(() => {
+    if (loadedOnceRef.current) return;
+    loadedOnceRef.current = true;
+    reInitEmbla();
+  }, [reInitEmbla]);
+
+  useEffect(() => {
+    loadedOnceRef.current = false;
+    if (!api || slides.length <= 1) return;
+    const raf = requestAnimationFrame(() => api.reInit());
+    return () => cancelAnimationFrame(raf);
+  }, [api, slides]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadedOnceRef.current = false;
+        reInitEmbla();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [reInitEmbla]);
+
   const onSelect = useCallback(() => {
     if (!api) return;
     setActiveIndex(api.selectedScrollSnap());
@@ -97,13 +130,6 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   }, [api, onSelect]);
 
   useEffect(() => {
-    setActiveIndex(0);
-    if (api) {
-      api.scrollTo(0, true);
-    }
-  }, [api, slides.length]);
-
-  useEffect(() => {
     if (!api || slides.length <= 1) {
       return;
     }
@@ -118,10 +144,7 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
       }
     }, AUTOPLAY_MS);
 
-    return () => {
-      console.log("[banner] clearing autoplay interval");
-      clearInterval(id);
-    };
+    return () => clearInterval(id);
   }, [api, slides.length]);
 
   return (
@@ -143,7 +166,7 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
               {slides.map((slide, index) => (
                 <CarouselItem key={`${slide.alt}-${index}`} className="h-full basis-full !pl-0">
                   <div className={heroFrameClass}>
-                    <HeroSlideFrame slide={slide} />
+                    <HeroSlideFrame slide={slide} onLoad={handleImageLoad} />
                   </div>
                 </CarouselItem>
               ))}

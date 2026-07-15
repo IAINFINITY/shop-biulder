@@ -612,6 +612,25 @@ function ProductCarouselSection({
   }, [api]);
 
   useEffect(() => {
+    if (!api || products.length === 0) return;
+    const raf = requestAnimationFrame(() => {
+      api.reInit();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [api, products]);
+
+  useEffect(() => {
+    if (!api) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        requestAnimationFrame(() => api.reInit());
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [api]);
+
+  useEffect(() => {
     if (!api) return;
     onSelect();
     api.on("select", onSelect);

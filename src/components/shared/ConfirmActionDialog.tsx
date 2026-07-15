@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -10,6 +9,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ConfirmActionDialogProps = {
@@ -18,6 +19,7 @@ type ConfirmActionDialogProps = {
   description: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
+  processingLabel?: string;
   destructive?: boolean;
   onConfirm: () => void | Promise<void>;
 };
@@ -28,6 +30,7 @@ export function ConfirmActionDialog({
   description,
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
+  processingLabel,
   destructive = false,
   onConfirm,
 }: ConfirmActionDialogProps) {
@@ -40,12 +43,13 @@ export function ConfirmActionDialog({
     }
   }, [open]);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (e: React.MouseEvent) => {
+    e.preventDefault();
     try {
       setPending(true);
       await onConfirm();
       setOpen(false);
-    } finally {
+    } catch {
       setPending(false);
     }
   };
@@ -65,17 +69,18 @@ export function ConfirmActionDialog({
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:gap-2">
           <AlertDialogCancel className="mt-0 rounded-2xl px-4 text-sm">{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction
+          <Button
             onClick={handleConfirm}
+            disabled={pending}
             className={cn(
               "mt-0 rounded-2xl px-4 text-sm",
               destructive ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 : "bg-primary text-primary-foreground hover:bg-primary/90",
             )}
-            disabled={pending}
           >
-            {pending ? "Processando..." : confirmLabel}
-          </AlertDialogAction>
+            {pending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            {pending ? (processingLabel ?? "Processando...") : confirmLabel}
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

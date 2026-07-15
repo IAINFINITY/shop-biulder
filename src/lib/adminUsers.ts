@@ -88,6 +88,25 @@ export async function toggleAdminActive(userId: string, isActive: boolean): Prom
   if (error) throw error;
 }
 
+export async function deleteAdminUser(userId: string): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Nao autenticado");
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-admin-user`;
+  const res = await fetch(functionUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ userId }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? "Erro ao excluir usuario");
+}
+
 export function canManageRole(currentRole: string, targetRole: string): boolean {
   if (currentRole !== "superadmin") return false;
   if (targetRole === "superadmin") return false;

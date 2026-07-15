@@ -42,6 +42,7 @@ import {
   createAdminUser,
   updateAdminRole,
   toggleAdminActive,
+  deleteAdminUser,
   type AdminUserCreatePayload,
   type AdminUserRecord,
 } from "@/lib/adminUsers";
@@ -90,18 +91,24 @@ export function AdminUsersSection() {
   }, [users]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (
-          !u.email.toLowerCase().includes(q) &&
-          !u.display_name.toLowerCase().includes(q) &&
-          !getRoleLabel(u.role).toLowerCase().includes(q)
-        ) return false;
-      }
-      if (roleFilter !== null && u.role !== roleFilter) return false;
-      return true;
-    });
+    return users
+      .filter((u) => {
+        if (search) {
+          const q = search.toLowerCase();
+          if (
+            !u.email.toLowerCase().includes(q) &&
+            !u.display_name.toLowerCase().includes(q) &&
+            !getRoleLabel(u.role).toLowerCase().includes(q)
+          ) return false;
+        }
+        if (roleFilter !== null && u.role !== roleFilter) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.role === "superadmin" && b.role !== "superadmin") return -1;
+        if (a.role !== "superadmin" && b.role === "superadmin") return 1;
+        return 0;
+      });
   }, [search, roleFilter, users]);
 
   async function handleCreate(e: React.FormEvent) {
@@ -286,20 +293,22 @@ export function AdminUsersSection() {
                   <p className="text-[11px] text-muted-foreground">
                     ID: <span className="font-mono text-foreground">{u.user_id.slice(0, 8)}...</span>
                   </p>
+                  <div className="flex items-center gap-2">
                   {u.role !== "superadmin" && (
-                    <ConfirmActionDialog
-                      trigger={
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className={cn(
-                            "h-10 rounded-full px-4 text-[13px]",
-                            u.is_active
-                              ? "border-destructive/20 text-destructive hover:bg-destructive/10"
-                              : "border-emerald-200 text-emerald-600 hover:bg-emerald-50",
-                          )}
-                        >
-                          {u.is_active ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                    <>
+                      <ConfirmActionDialog
+                        trigger={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              "h-10 rounded-full px-4 text-[13px]",
+                              u.is_active
+                                ? "border-destructive/20 text-destructive hover:bg-destructive/10"
+                                : "border-emerald-200 text-emerald-600 hover:bg-emerald-50",
+                            )}
+                          >
+{u.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                           {u.is_active ? "Desativar" : "Ativar"}
                         </Button>
                       }
@@ -309,19 +318,48 @@ export function AdminUsersSection() {
                           ? `O usuário "${u.display_name || u.email}" perderá acesso ao painel.`
                           : `O usuário "${u.display_name || u.email}" recuperará acesso ao painel.`
                       }
-                      confirmLabel={u.is_active ? "Desativar" : "Ativar"}
-                      destructive={u.is_active}
-                      onConfirm={async () => {
-                        try {
-                          await toggleAdminActive(u.user_id, !u.is_active);
-                          toast.success(u.is_active ? "Usuário desativado" : "Usuário ativado");
-                          queryClient.invalidateQueries({ queryKey: ["admin_users"] });
-                        } catch (err) {
-                          toast.error(err instanceof Error ? err.message : "Erro ao alterar status");
+                        confirmLabel={u.is_active ? "Desativar" : "Ativar"}
+                        processingLabel={u.is_active ? "Desativando..." : "Ativando..."}
+                        destructive={u.is_active}
+                        onConfirm={async () => {
+                          try {
+                            await toggleAdminActive(u.user_id, !u.is_active);
+                            toast.success(u.is_active ? "Usuário desativado" : "Usuário ativado");
+                            queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Erro ao alterar status");
+                          }
+                        }}
+                      />
+                      <ConfirmActionDialog
+                        trigger={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 rounded-full border-destructive/40 px-4 text-[13px] text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </Button>
                         }
-                      }}
-                    />
+                        title="Excluir usuário"
+                        description={`Tem certeza que deseja excluir permanentemente o usuário "${u.display_name || u.email}"? Esta ação não pode ser desfeita.`}
+                        confirmLabel="Excluir"
+                        processingLabel="Apagando..."
+                        destructive
+                        onConfirm={async () => {
+                          try {
+                            await deleteAdminUser(u.user_id);
+                            toast.success("Usuário excluído permanentemente");
+                            queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Erro ao excluir usuário");
+                          }
+                        }}
+                      />
+                    </>
                   )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -407,7 +445,9 @@ export function AdminUsersSection() {
                     {new Date(u.created_at).toLocaleDateString("pt-BR")}
                   </td>
                   <td className="px-5 py-3.5 text-right">
+                    <div className="flex items-center justify-end gap-1">
                     {u.role !== "superadmin" && (
+                      <>
                       <ConfirmActionDialog
                         trigger={
                           <Button
@@ -421,7 +461,7 @@ export function AdminUsersSection() {
                                 : "text-emerald-600 hover:bg-emerald-50",
                             )}
                           >
-                            {u.is_active ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                            {u.is_active ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                           </Button>
                         }
                         title={u.is_active ? "Desativar usuário" : "Ativar usuário"}
@@ -431,6 +471,7 @@ export function AdminUsersSection() {
                             : `O usuário "${u.display_name || u.email}" recuperará acesso ao painel.`
                         }
                         confirmLabel={u.is_active ? "Desativar" : "Ativar"}
+                        processingLabel={u.is_active ? "Desativando..." : "Ativando..."}
                         destructive={u.is_active}
                         onConfirm={async () => {
                           try {
@@ -442,7 +483,35 @@ export function AdminUsersSection() {
                           }
                         }}
                       />
+                      <ConfirmActionDialog
+                        trigger={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 sm:h-9 sm:w-9 rounded-full text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        }
+                        title="Excluir usuário"
+                        description={`Tem certeza que deseja excluir permanentemente o usuário "${u.display_name || u.email}"? Esta ação não pode ser desfeita.`}
+                        confirmLabel="Excluir"
+                        processingLabel="Apagando..."
+                        destructive
+                        onConfirm={async () => {
+                          try {
+                            await deleteAdminUser(u.user_id);
+                            toast.success("Usuário excluído permanentemente");
+                            queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Erro ao excluir usuário");
+                          }
+                        }}
+                      />
+                      </>
                     )}
+                    </div>
                   </td>
                 </tr>
               ))}

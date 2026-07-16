@@ -74,7 +74,7 @@ function summarizeOrderItems(items: unknown, maps: Parameters<typeof parseOrderT
 }
 
 export default function AdminWorkspace() {
-  const { user, isAdmin, isSuperadmin, loading, isResolvingAccess } = useAuth();
+  const { user, isAdmin, isSuperadmin, loading, isResolvingAccess, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
   const { data: notifications = [] } = useCatalogNotifications({ activeOnly: false });

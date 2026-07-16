@@ -79,7 +79,7 @@ export default function OrderForm() {
   const { data: savedAddresses = [], saveAddress, setDefaultAddress } = useCustomerAddresses(user?.id ?? null);
   const { cart: baseCart, clearCart } = useCart();
   const buyNowItem = (location.state as { buyNow?: CartItem } | null | undefined)?.buyNow ?? null;
-  const cart = buyNowItem ? [buyNowItem] : baseCart;
+  const cart = useMemo(() => (buyNowItem ? [buyNowItem] : baseCart), [baseCart, buyNowItem]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);

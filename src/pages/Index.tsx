@@ -203,7 +203,7 @@ export default function Index() {
     if (debouncedSearch.trim().length > 0) {
       addToSearchHistory(debouncedSearch.trim());
     }
-  }, [debouncedSearch]);
+  }, [addToSearchHistory, debouncedSearch]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -440,7 +440,7 @@ export default function Index() {
       },
       ...typeSections,
     ];
-  }, [customerPriceMap, familyCounts, filtered, orderHistory.length, orderPopularity, selectedType]);
+  }, [customerPriceMap, familyCounts, filtered, orderHistory, orderPopularity, selectedType]);
 
   return (
     <div

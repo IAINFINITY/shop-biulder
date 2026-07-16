@@ -41,6 +41,7 @@ import { AdminWorkspaceShell } from "@/components/admin/AdminWorkspaceShell";
 import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection";
 import { AdminBannersSection } from "@/components/admin/AdminBannersSection";
 import { AdminNotificationsSection } from "@/components/admin/AdminNotificationsSection";
+import { AdminEmployeesSection } from "@/components/admin/AdminEmployeesSection";
 import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
 import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
@@ -754,6 +755,7 @@ export default function AdminWorkspace() {
 
       {section === "mensagens" && chatContent}
       {section === "usuarios" && <AdminUsersSection />}
+      {section === "funcionarios" && <AdminEmployeesSection />}
       {section === "configuracoes" && <AdminSettingsSection />}
     </AdminWorkspaceShell>
   );

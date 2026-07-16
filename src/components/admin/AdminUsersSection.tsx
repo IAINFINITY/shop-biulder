@@ -71,9 +71,11 @@ export function AdminUsersSection() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newRole, setNewRole] = useState<AdminUserRecord["role"]>("admin");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
@@ -114,6 +116,7 @@ export function AdminUsersSection() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!newEmail || !newPassword) { toast.error("Preencha e-mail e senha"); return; }
+    if (newPassword !== newPasswordConfirm) { toast.error("As senhas não conferem"); return; }
     if (newPassword.length < 8) { toast.error("A senha deve ter no mínimo 8 caracteres"); return; }
     if (newPassword.length > 64) { toast.error("A senha deve ter no máximo 64 caracteres"); return; }
     if (!/[A-Z]/.test(newPassword)) { toast.error("A senha deve conter pelo menos uma letra maiúscula"); return; }
@@ -130,7 +133,13 @@ export function AdminUsersSection() {
       });
       toast.success("Usuário criado com sucesso");
       setCreateOpen(false);
-      setNewEmail(""); setNewPassword(""); setNewDisplayName(""); setNewRole("admin"); setShowPassword(false);
+      setNewEmail("");
+      setNewPassword("");
+      setNewPasswordConfirm("");
+      setNewDisplayName("");
+      setNewRole("admin");
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar usuário");
@@ -521,8 +530,22 @@ export function AdminUsersSection() {
         </>
       )}
 
-      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { setNewEmail(""); setNewPassword(""); setNewDisplayName(""); setNewRole("admin"); setShowPassword(false); }}}>
-        <DialogContent className="max-w-[28rem] rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70">
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setNewEmail("");
+            setNewPassword("");
+            setNewPasswordConfirm("");
+            setNewDisplayName("");
+            setNewRole("admin");
+            setShowPassword(false);
+            setShowConfirmPassword(false);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[58rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
               <UserPlus className="h-5 w-5" />
@@ -530,112 +553,150 @@ export function AdminUsersSection() {
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Nome de exibição
-              </Label>
-              <Input
-                value={newDisplayName}
-                onChange={(e) => setNewDisplayName(e.target.value)}
-                placeholder="João Silva"
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                E-mail
-              </Label>
-              <Input
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="admin@exemplo.com"
-                required
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Senha
-              </Label>
-              <div className="relative">
+          <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Nome de exibição
+                </Label>
                 <Input
-                  type={showPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
-                  maxLength={64}
-                  required
-                  className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                  value={newDisplayName}
+                  onChange={(e) => setNewDisplayName(e.target.value)}
+                  placeholder="João Silva"
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-              {newPassword.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all duration-300",
-                          strength.score <= 1 ? "w-1/6 bg-red-400" :
-                          strength.score <= 2 ? "w-1/3 bg-orange-400" :
-                          strength.score <= 3 ? "w-1/2 bg-yellow-400" :
-                          strength.score <= 4 ? "w-2/3 bg-yellow-400" :
-                          strength.score <= 5 ? "w-5/6 bg-emerald-400" :
-                          "w-full bg-emerald-400",
-                        )}
-                      />
-                    </div>
-                    <span className="text-[11px] font-medium text-muted-foreground">{strength.label}</span>
-                    <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {strength.checks.map((c) => (
-                      <span
-                        key={c.label}
-                        className={cn("text-[11px]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}
-                      >
-                        {c.ok ? "✓" : "○"} {c.label}
-                      </span>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  E-mail
+                </Label>
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="admin@exemplo.com"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Papel
+                </Label>
+                <Select value={newRole} onValueChange={(val) => setNewRole(val as AdminUserRecord["role"])}>
+                  <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[13px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-border/70 text-[13px]">
+                    {ADMIN_ROLES.map((r) => (
+                      <SelectItem key={r.value} value={r.value} className="rounded-lg">
+                        {r.label}
+                      </SelectItem>
                     ))}
-                  </div>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Senha
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    maxLength={64}
+                    required
+                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-              )}
+                {newPassword.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-300",
+                            strength.score <= 1 ? "w-1/6 bg-red-400" :
+                            strength.score <= 2 ? "w-1/3 bg-orange-400" :
+                            strength.score <= 3 ? "w-1/2 bg-yellow-400" :
+                            strength.score <= 4 ? "w-2/3 bg-yellow-400" :
+                            strength.score <= 5 ? "w-5/6 bg-emerald-400" :
+                            "w-full bg-emerald-400",
+                          )}
+                        />
+                      </div>
+                      <span className="text-[11px] font-medium text-muted-foreground">{strength.label}</span>
+                      <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {strength.checks.map((c) => (
+                        <span
+                          key={c.label}
+                          className={cn("text-[11px]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}
+                        >
+                          {c.ok ? "✓" : "○"} {c.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Confirmar senha
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={newPasswordConfirm}
+                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                    placeholder="Repita a senha"
+                    maxLength={64}
+                    required
+                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Papel
-              </Label>
-              <Select value={newRole} onValueChange={(val) => setNewRole(val as AdminUserRecord["role"])}>
-                <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[13px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-border/70 text-[13px]">
-                  {ADMIN_ROLES.map((r) => (
-                    <SelectItem key={r.value} value={r.value} className="rounded-lg">
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter className="gap-2 border-t border-border/70 pt-4 sm:gap-2">
+            <DialogFooter className="md:col-span-2 gap-2 border-t border-border/70 pt-4 sm:gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => { setCreateOpen(false); setNewEmail(""); setNewPassword(""); setNewDisplayName(""); setNewRole("admin"); setShowPassword(false); }}
+                onClick={() => {
+                  setCreateOpen(false);
+                  setNewEmail("");
+                  setNewPassword("");
+                  setNewPasswordConfirm("");
+                  setNewDisplayName("");
+                  setNewRole("admin");
+                  setShowPassword(false);
+                  setShowConfirmPassword(false);
+                }}
                 className="h-11 rounded-2xl px-5 text-sm"
               >
                 Cancelar

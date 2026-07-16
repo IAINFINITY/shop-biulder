@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Eye,
+  EyeOff,
   Loader2,
   Plus,
   Search,
@@ -45,6 +47,9 @@ export function AdminEmployeesSection() {
   const [newEmail, setNewEmail] = useState("");
   const [newCpf, setNewCpf] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const { data: employees = [], isLoading } = useQuery({
@@ -69,6 +74,10 @@ export function AdminEmployeesSection() {
       toast.error("Preencha todos os campos");
       return;
     }
+    if (newPassword !== newPasswordConfirm) {
+      toast.error("As senhas não conferem");
+      return;
+    }
     const cpfDigits = onlyDigits(newCpf);
     if (cpfDigits.length !== 11) {
       toast.error("CPF inválido. Preencha 11 dígitos.");
@@ -76,6 +85,26 @@ export function AdminEmployeesSection() {
     }
     if (newPassword.length < 8) {
       toast.error("A senha deve ter no mínimo 8 caracteres");
+      return;
+    }
+    if (newPassword.length > 64) {
+      toast.error("A senha deve ter no máximo 64 caracteres");
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      toast.error("A senha deve conter pelo menos uma letra maiúscula");
+      return;
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      toast.error("A senha deve conter pelo menos uma letra minúscula");
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      toast.error("A senha deve conter pelo menos um número");
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      toast.error("A senha deve conter pelo menos um caractere especial");
       return;
     }
     setCreating(true);
@@ -92,7 +121,14 @@ export function AdminEmployeesSection() {
 
       toast.success("Funcionário criado com sucesso");
       setCreateOpen(false);
-      setNewName(""); setNewPhone(""); setNewEmail(""); setNewCpf(""); setNewPassword("");
+      setNewName("");
+      setNewPhone("");
+      setNewEmail("");
+      setNewCpf("");
+      setNewPassword("");
+      setNewPasswordConfirm("");
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       queryClient.invalidateQueries({ queryKey: ["employee_users"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar funcionário");
@@ -226,96 +262,160 @@ export function AdminEmployeesSection() {
         </div>
       )}
 
-      <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) { setNewName(""); setNewPhone(""); setNewEmail(""); setNewCpf(""); setNewPassword(""); }}}>
-        <DialogContent className="max-w-[28rem] rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70">
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setNewName("");
+            setNewPhone("");
+            setNewEmail("");
+            setNewCpf("");
+            setNewPassword("");
+            setNewPasswordConfirm("");
+            setShowPassword(false);
+            setShowConfirmPassword(false);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[56rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
               <UserPlus className="h-5 w-5" />
-            Novo funcionário
+              Novo funcionário
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Nome
-              </Label>
-              <Input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Nome completo"
-                required
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
+          <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Nome
+                </Label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Nome completo"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Telefone
+                </Label>
+                <Input
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  CPF
+                </Label>
+                <Input
+                  value={newCpf}
+                  onChange={(e) => setNewCpf(formatDocumentId(e.target.value))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  maxLength={14}
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Telefone
-              </Label>
-              <Input
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-                placeholder="(00) 00000-0000"
-                required
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  E-mail
+                </Label>
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="funcionario@email.com"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Senha
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    maxLength={64}
+                    required
+                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Confirmar senha
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={newPasswordConfirm}
+                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                    placeholder="Repita a senha"
+                    maxLength={64}
+                    required
+                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                CPF
-              </Label>
-              <Input
-                value={newCpf}
-                onChange={(e) => setNewCpf(formatDocumentId(e.target.value))}
-                placeholder="000.000.000-00"
-                inputMode="numeric"
-                maxLength={14}
-                required
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
+            <div className="md:col-span-2 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
+              O funcionário será vinculado automaticamente à Clinic+ (CNPJ {formatDocumentId(CLINIC_MASTER_CNPJ)})
+              e poderá fazer pedidos com as tabelas de preço da empresa.
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                E-mail
-              </Label>
-              <Input
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="funcionario@email.com"
-                required
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Senha
-              </Label>
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                maxLength={64}
-                required
-                className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
-              />
-            </div>
-
-            <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
-               O funcionário será vinculado automaticamente à Clinic+ (CNPJ {formatDocumentId(CLINIC_MASTER_CNPJ)})
-               e poderá fazer pedidos com as tabelas de preço da empresa.
-            </div>
-
-            <DialogFooter className="gap-2 border-t border-border/70 pt-4 sm:gap-2">
+            <DialogFooter className="md:col-span-2 gap-2 border-t border-border/70 pt-4 sm:gap-2">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => { setCreateOpen(false); setNewName(""); setNewPhone(""); setNewEmail(""); setNewCpf(""); setNewPassword(""); }}
+                onClick={() => {
+                  setCreateOpen(false);
+                  setNewName("");
+                  setNewPhone("");
+                  setNewEmail("");
+                  setNewCpf("");
+                  setNewPassword("");
+                  setNewPasswordConfirm("");
+                  setShowPassword(false);
+                  setShowConfirmPassword(false);
+                }}
                 className="h-11 rounded-2xl px-5 text-sm"
               >
                 Cancelar

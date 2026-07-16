@@ -43,6 +43,12 @@ export interface CustomerRegistrationData extends CustomerFormCore {
   password: string;
 }
 
+export type DeleteCustomerRecordPayload = {
+  userId?: string | null;
+  cnpj?: string | null;
+  name?: string | null;
+};
+
 export function profileAddressToForm(profile: CustomerProfile): AddressFormData {
   return {
     cep: profile.address_cep,
@@ -56,7 +62,7 @@ export function profileAddressToForm(profile: CustomerProfile): AddressFormData 
   };
 }
 
-export async function deleteCustomerUser(userId: string): Promise<void> {
+export async function deleteCustomerRecord(payload: DeleteCustomerRecordPayload): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Nao autenticado");
@@ -68,11 +74,15 @@ export async function deleteCustomerUser(userId: string): Promise<void> {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify(payload),
   });
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? "Erro ao excluir cliente");
+}
+
+export async function deleteCustomerUser(userId: string): Promise<void> {
+  return deleteCustomerRecord({ userId });
 }
 
 export function addressFormToProfileColumns(address: AddressFormData) {

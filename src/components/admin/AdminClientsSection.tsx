@@ -26,7 +26,7 @@ import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import type { AdminCustomerSummary } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
-import { deleteCustomerUser } from "@/lib/customerProfile";
+import { deleteCustomerRecord } from "@/lib/customerProfile";
 import { listAdminUsers, getRoleLabel, type AdminUserRecord } from "@/lib/adminUsers";
 
 type AdminClientsSectionProps = {
@@ -103,6 +103,7 @@ export function AdminClientsSection({
   const [editObservation, setEditObservation] = useState("");
   const [editType, setEditType] = useState("cliente");
   const [editSaving, setEditSaving] = useState(false);
+  const canDeleteCustomer = Boolean(editCustomer?.userId || editCustomer?.cnpj);
 
   const { data: adminUsers = [] } = useQuery({
     queryKey: ["admin-users"],
@@ -122,6 +123,17 @@ export function AdminClientsSection({
     }
     return counts;
   }, [customerSummaries]);
+
+  const customerProfilesByKey = useMemo(() => {
+    const map = new Map<string, CustomerProfile>();
+    for (const profile of customerProfiles) {
+      const userKey = profile.user_id?.trim();
+      const cnpjKey = profile.cnpj?.replace(/\D/g, "");
+      if (userKey) map.set(userKey, profile);
+      if (cnpjKey) map.set(cnpjKey, profile);
+    }
+    return map;
+  }, [customerProfiles]);
 
   const filteredCustomers = useMemo(() => {
     const term = clientSearch.trim().toLowerCase();
@@ -150,18 +162,7 @@ export function AdminClientsSection({
       if (clientFilter === "revenue") return b.total - a.total || b.orders - a.orders;
       return a.name.localeCompare(b.name, "pt-BR");
     });
-  }, [clientFilter, clientSearch, customerSummaries, typeFilter]);
-
-  const customerProfilesByKey = useMemo(() => {
-    const map = new Map<string, CustomerProfile>();
-    for (const profile of customerProfiles) {
-      const userKey = profile.user_id?.trim();
-      const cnpjKey = profile.cnpj?.replace(/\D/g, "");
-      if (userKey) map.set(userKey, profile);
-      if (cnpjKey) map.set(cnpjKey, profile);
-    }
-    return map;
-  }, [customerProfiles]);
+  }, [clientFilter, clientSearch, customerProfilesByKey, customerSummaries, typeFilter]);
 
   const selectedDetailsProfile = useMemo(() => {
     if (!detailsCustomer) return null;
@@ -770,7 +771,7 @@ export function AdminClientsSection({
                 {editSaving ? "Salvando..." : "Salvar alterações"}
               </Button>
             </div>
-            {editCustomer?.userId ? (
+            {canDeleteCustomer ? (
               <ConfirmActionDialog
                 trigger={
                   <Button
@@ -779,21 +780,29 @@ export function AdminClientsSection({
                     className="h-10 rounded-2xl border-destructive/40 px-4 text-[13px] text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="mr-1.5 h-4 w-4" />
-                    Excluir conta
+                    {editCustomer?.userId ? "Excluir conta" : "Excluir cliente"}
                   </Button>
                 }
                 title="Excluir cliente"
-                description={`Tem certeza que deseja excluir permanentemente a conta de "${editCustomer?.name}"? Esta ação não pode ser desfeita.`}
+                description={
+                  editCustomer?.userId
+                    ? `Tem certeza que deseja excluir permanentemente a conta de "${editCustomer?.name}"? Esta ação não pode ser desfeita.`
+                    : `Este é um cliente legado sem conta de acesso. A exclusão removerá o resumo do cliente e os pedidos associados ao CNPJ informado.`
+                }
                 confirmLabel="Excluir"
                 processingLabel="Apagando..."
                 destructive
                 onConfirm={async () => {
-                  if (!editCustomer?.userId) return;
-                  await deleteCustomerUser(editCustomer.userId);
+                  await deleteCustomerRecord({
+                    userId: editCustomer?.userId,
+                    cnpj: editCustomer?.cnpj,
+                    name: editCustomer?.name,
+                  });
                   toast.success("Cliente excluído permanentemente");
                   setEditOpen(false);
                   queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] });
                   queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+                  queryClient.invalidateQueries({ queryKey: ["orders"] });
                 }}
               />
             ) : null}

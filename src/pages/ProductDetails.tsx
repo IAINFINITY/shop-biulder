@@ -7,9 +7,9 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { type LucideIcon, ArrowLeft, Plus, Minus, Heart, Leaf, Pill, FlaskConical, ImageIcon, ShieldCheck, Truck, RotateCcw, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { type LucideIcon, ArrowLeft, Plus, Minus, Heart, GitCompare, Leaf, Pill, FlaskConical, ImageIcon, ShieldCheck, Truck, RotateCcw, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -25,6 +25,8 @@ import {
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StockBadge } from "@/components/catalogo/StockBadge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
@@ -45,6 +47,7 @@ import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { useProducts } from "@/hooks/useProducts";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
+import { useComparison } from "@/hooks/useComparison";
 import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
 import { toast } from "sonner";
 
@@ -108,8 +111,10 @@ export default function ProductDetails() {
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
+  const navigate = useNavigate();
   const { add: addToRecentlyViewed } = useRecentlyViewed();
   const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
+  const { ids: compareIds, toggle: toggleCompare } = useComparison();
   const [reviewPage, setReviewPage] = useState(1);
   const { data: reviewData = { reviews: [], totalCount: 0, totalPages: 1 }, addReview, updateReview, deleteReview } = useProductReviews(id, reviewPage);
   const { reviews, totalCount: reviewTotalCount, totalPages: reviewTotalPages } = reviewData;
@@ -550,8 +555,8 @@ export default function ProductDetails() {
             </div>
 
             <div className="self-stretch xl:sticky xl:top-5">
-              <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm xl:min-h-[640px]">
-                <CardHeader className="space-y-4 p-4 sm:p-5">
+              <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm">
+                <CardHeader className="space-y-3 p-4 sm:p-5">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className={`${typeTheme.className} text-xs font-medium`}>
                       <Icon className="mr-1 h-3 w-3" />
@@ -562,8 +567,8 @@ export default function ProductDetails() {
                     </Badge>
                   </div>
 
-                  <div className="space-y-3">
-                    <CardTitle className="text-[1.75rem] leading-tight tracking-tight sm:text-[2rem]">
+                  <div className="space-y-2">
+                    <CardTitle className="text-[1.5rem] leading-tight tracking-tight sm:text-[1.75rem]">
                       {product.name}
                     </CardTitle>
                     {product.is_promotion && (
@@ -573,68 +578,108 @@ export default function ProductDetails() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="space-y-0.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                        Preço
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <p className="text-3xl font-semibold text-foreground tabular-nums">{formatBRL(productPrice)}</p>
-                      </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                      Preço
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-2xl font-semibold text-foreground tabular-nums">{formatBRL(productPrice)}</p>
+                      <StockBadge stock={product.stock} />
                     </div>
+                  </div>
 
-                    <div className="hidden sm:flex items-center gap-2">
+                  <div className="hidden sm:flex sm:flex-col sm:gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => toggleWishlist(product.id)}
                         className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-full border transition-colors",
+                          "flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
                           wishlistIds.includes(product.id)
                             ? "border-primary/30 bg-primary/5 text-primary"
                             : "border-border/60 bg-background text-muted-foreground hover:text-primary hover:border-primary/30",
                         )}
                         aria-label={wishlistIds.includes(product.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                       >
-                        <Heart className={cn("h-4 w-4", wishlistIds.includes(product.id) && "fill-current")} />
+                        <Heart className={cn("h-3.5 w-3.5", wishlistIds.includes(product.id) && "fill-current")} />
                       </button>
-                      <div className="flex items-center rounded-full border border-border/60 bg-background shadow-sm">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => toggleCompare(product.id)}
+                          className={cn(
+                            "flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
+                            compareIds.includes(product.id)
+                              ? "border-primary/30 bg-primary/5 text-primary"
+                              : "border-border/60 bg-background text-muted-foreground hover:text-primary hover:border-primary/30",
+                          )}
+                          aria-label={compareIds.includes(product.id) ? "Remover da comparação" : "Adicionar à comparação"}
+                        >
+                          <GitCompare className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {compareIds.includes(product.id) ? "Remover da comparação" : "Adicionar à comparação"}
+                      </TooltipContent>
+                    </Tooltip>
+                      <div className="ml-auto flex items-center rounded-full border border-border/60 bg-background shadow-sm">
                         <button
                           type="button"
                           onClick={decQuantity}
                           disabled={quantity <= 1}
-                          className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                          className="flex h-8 w-8 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
                         >
-                          <Minus className="h-3.5 w-3.5" />
+                          <Minus className="h-3 w-3" />
                         </button>
-                        <span className="flex h-9 min-w-[2.5rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">
+                        <span className="flex h-8 min-w-[2rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">
                           {quantity}
                         </span>
                         <button
                           type="button"
                           onClick={incQuantity}
                           disabled={quantity >= 99}
-                          className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                          className="flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-3 w-3" />
                         </button>
                       </div>
-                      <Button onClick={handleAdd} className="gap-2">
-                        <Plus className="h-4 w-4" /> Adicionar ao carrinho
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button onClick={handleAdd} className="gap-1.5 flex-1 h-10 text-sm">
+                        <Plus className="h-4 w-4" /> Adicionar
                       </Button>
+                      <Button
+                        variant="outline"
+                        className="gap-1.5 flex-1 h-10 text-sm"
+                          onClick={() => {
+                            navigate("/pedido", {
+                              state: {
+                                buyNow: {
+                                  product,
+                                  quantity,
+                                },
+                              },
+                            });
+                          }}
+                        >
+                          Comprar agora
+                        </Button>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="h-4 w-4" />
+                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Pagamento seguro</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Truck className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                      <Truck className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Entrega rápida</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <RotateCcw className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                      <RotateCcw className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Garantia</span>
                     </div>
                   </div>
@@ -642,7 +687,7 @@ export default function ProductDetails() {
 
                 <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
                   <div className="space-y-2">
-                    <h3 className="text-base font-bold text-foreground">Sobre este item</h3>
+                    <h3 className="text-sm font-bold text-foreground">Sobre este item</h3>
                     <ul className="space-y-1.5">
                       {[
                         { label: "Tipo", value: product.type },

@@ -1,6 +1,6 @@
-﻿import { type FormEvent, type ReactNode, useId, useCallback } from "react";
+﻿import { type FormEvent, type ReactNode, useId, useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { ImageIcon, Search, User } from "lucide-react";
+import { ImageIcon, Search, User, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatBRL } from "@/lib/formatMoney";
@@ -25,6 +25,9 @@ export type StoreHeaderProps = {
   cartSlot: ReactNode;
   searchSuggestions?: StoreHeaderSearchSuggestion[];
   filterNav?: ReactNode;
+  searchHistory?: string[];
+  onSearchHistoryClear?: () => void;
+  onSearchHistoryRemove?: (term: string) => void;
 };
 
 type SearchPanelProps = {
@@ -35,6 +38,10 @@ type SearchPanelProps = {
   panelId: string;
   floating: boolean;
   compact?: boolean;
+  variant: "mobile" | "desktop";
+  searchHistory?: string[];
+  onSearchHistoryClear?: () => void;
+  onSearchHistoryRemove?: (term: string) => void;
 };
 
 function SearchPanel({
@@ -45,7 +52,14 @@ function SearchPanel({
   panelId,
   floating,
   compact = false,
+  variant,
+  searchHistory = [],
+  onSearchHistoryClear,
+  onSearchHistoryRemove,
 }: SearchPanelProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const showHistory = isFocused && search.trim().length === 0 && searchHistory.length > 0;
+
   const onSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
   };
@@ -63,10 +77,13 @@ function SearchPanel({
       <div className={cardClassName}>
         <form onSubmit={onSearchSubmit} className="relative">
           <Input
+            data-catalog-search={variant}
             type="search"
             placeholder="O que você procura?..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setTimeout(() => setIsFocused(false), 200)}
             className={cn(
               "h-12 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:pl-5 sm:pr-16",
               compact ? "sm:h-12" : "sm:h-14",
@@ -89,6 +106,51 @@ function SearchPanel({
             <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
           </Button>
         </form>
+
+        {showHistory ? (
+          <div id={panelId} className="border-t border-border/70 bg-card" role="listbox" aria-label="Buscas recentes">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Buscas recentes
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-full px-3 text-xs"
+                onClick={onSearchHistoryClear}
+              >
+                Limpar
+              </Button>
+            </div>
+            <div className="max-h-60 overflow-y-auto p-2">
+              {searchHistory.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
+                  onClick={() => onSearchChange(term)}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/60">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">{term}</span>
+                  <button
+                    type="button"
+                    className="rounded-full p-1 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSearchHistoryRemove?.(term);
+                    }}
+                    aria-label={`Remover "${term}" do histórico`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {showSuggestions ? (
           <div id={panelId} className="border-t border-border/70 bg-card" role="listbox" aria-label="Sugestões de produtos">
@@ -162,6 +224,9 @@ export function StoreHeader({
   cartSlot,
   searchSuggestions = [],
   filterNav,
+  searchHistory,
+  onSearchHistoryClear,
+  onSearchHistoryRemove,
 }: StoreHeaderProps) {
   const trimmedSearch = search.trim();
   const showSuggestions = trimmedSearch.length > 0;
@@ -211,6 +276,10 @@ export function StoreHeader({
           panelId={mobilePanelId}
           floating={false}
           compact
+          variant="mobile"
+          searchHistory={searchHistory}
+          onSearchHistoryClear={onSearchHistoryClear}
+          onSearchHistoryRemove={onSearchHistoryRemove}
         />
       </PageHeaderShell>
 
@@ -240,6 +309,10 @@ export function StoreHeader({
                 showSuggestions={showSuggestions}
                 panelId={desktopPanelId}
                 floating
+                variant="desktop"
+                searchHistory={searchHistory}
+                onSearchHistoryClear={onSearchHistoryClear}
+                onSearchHistoryRemove={onSearchHistoryRemove}
               />
             </div>
           </div>

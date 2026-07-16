@@ -38,6 +38,11 @@ import { ArrowUpDown, ChevronUp } from "lucide-react";
 import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useSearchHistory } from "@/hooks/useSearchHistory";
+import { useComparison } from "@/hooks/useComparison";
+import { CompareBar } from "@/components/catalogo/CompareBar";
+import { CompareModal } from "@/components/catalogo/CompareModal";
 import type { Product } from "@/lib/products";
 
 const INITIAL_PRODUCTS_VISIBLE = 20;
@@ -140,6 +145,10 @@ export default function Index() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
   const [search, setSearch] = useState(() => readCatalogViewState()?.search ?? "");
+  const debouncedSearch = useDebounce(search, 250);
+  const { history: searchHistory, add: addToSearchHistory, remove: removeFromSearchHistory, clear: clearSearchHistory } = useSearchHistory();
+  const { ids: compareIds, toggle: toggleCompare, remove: removeCompare, clear: clearCompare, max: compareMax } = useComparison();
+  const [compareOpen, setCompareOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
   const [selectedFamily, setSelectedFamily] = useState<string | null>(
     () => readCatalogViewState()?.selectedFamily ?? null,
@@ -190,6 +199,27 @@ export default function Index() {
     };
   }, [search, selectedType, selectedFamily, visibleProducts, sortMode]);
 
+  useEffect(() => {
+    if (debouncedSearch.trim().length > 0) {
+      addToSearchHistory(debouncedSearch.trim());
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        const selector = window.matchMedia("(min-width: 1024px)").matches
+          ? 'input[data-catalog-search="desktop"]'
+          : 'input[data-catalog-search="mobile"]';
+        (document.querySelector(selector) as HTMLInputElement | null)?.focus();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
   const familyTypesByFamily = useMemo(() => {
     const grouped = new Map<string, Map<string, number>>();
@@ -225,11 +255,12 @@ export default function Index() {
   }, [products]);
 
   const filtered = useMemo(() => {
+    const query = debouncedSearch;
     return products.filter((p) => {
       if (
-        search &&
-        !p.name.toLowerCase().includes(search.toLowerCase()) &&
-        !descriptionIncludesQuery(p.description, search)
+        query &&
+        !p.name.toLowerCase().includes(query.toLowerCase()) &&
+        !descriptionIncludesQuery(p.description, query)
       ) {
         return false;
       }
@@ -243,7 +274,7 @@ export default function Index() {
       }
       return true;
     });
-  }, [products, search, selectedType, selectedFamily, customerType]);
+  }, [products, debouncedSearch, selectedType, selectedFamily, customerType]);
 
   const orderPopularity = useMemo(() => {
     const quantityCounts = new Map<string, number>();
@@ -302,7 +333,7 @@ export default function Index() {
   const visibleFiltered = useMemo(() => sortedFiltered.slice(0, visibleProducts), [sortedFiltered, visibleProducts]);
 
   const searchSuggestions = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = debouncedSearch.trim().toLowerCase();
     if (!query) return [];
 
     return filtered
@@ -312,7 +343,7 @@ export default function Index() {
         const nameStarts = normalizedName.startsWith(query) ? 3 : 0;
         const nameContains = normalizedName.includes(query) ? 2 : 0;
         const codeMatches = normalizedCode.includes(query) ? 2 : 0;
-        const descriptionMatches = descriptionIncludesQuery(product.description, search) ? 1 : 0;
+        const descriptionMatches = descriptionIncludesQuery(product.description, query) ? 1 : 0;
 
         return {
           product,
@@ -328,7 +359,7 @@ export default function Index() {
         imageUrl: getProductImageUrls(product)[0] ?? product.image_url ?? null,
         price: resolveProductPrice(product, customerPriceMap),
       }));
-  }, [filtered, search, customerPriceMap]);
+  }, [filtered, debouncedSearch, customerPriceMap]);
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
 
@@ -419,6 +450,9 @@ export default function Index() {
         search={search}
         onSearchChange={setSearch}
         searchSuggestions={searchSuggestions}
+        searchHistory={searchHistory}
+        onSearchHistoryClear={clearSearchHistory}
+        onSearchHistoryRemove={removeFromSearchHistory}
         cartSlot={
           <CartDrawer
             cart={cart}
@@ -551,6 +585,23 @@ export default function Index() {
             )}
         </div>
       </div>
+
+      {compareIds.length > 0 ? (
+        <CompareBar
+          products={products}
+          compareIds={compareIds}
+          max={compareMax}
+          onRemove={removeCompare}
+          onClear={clearCompare}
+          onCompare={() => setCompareOpen(true)}
+        />
+      ) : null}
+
+      <CompareModal
+        open={compareOpen}
+        onOpenChange={setCompareOpen}
+        products={products.filter((p) => compareIds.includes(p.id))}
+      />
 
       <CartTotalBar
         total={cartSubtotal}

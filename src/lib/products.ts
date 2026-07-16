@@ -14,6 +14,7 @@ export interface Product {
   active: boolean;
   is_promotion: boolean;
   price: number | null;
+  stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
   created_at: string;
@@ -74,9 +75,9 @@ export function getProductImageUrls(product: Pick<Product, "image_url" | "image_
 }
 
 const PRODUCT_SELECT_BASE =
-  "id,name,description,type,family,image_url,active,is_promotion,price,average_rating,review_count,created_at,updated_at" as const;
+  "id,name,description,type,family,image_url,active,is_promotion,price,stock,average_rating,review_count,created_at,updated_at" as const;
 const PRODUCT_SELECT_BASE_NO_PROMOTION =
-  "id,name,description,type,family,image_url,active,price,average_rating,review_count,created_at,updated_at" as const;
+  "id,name,description,type,family,image_url,active,price,stock,average_rating,review_count,created_at,updated_at" as const;
 
 export const PRODUCT_SELECT_COLUMNS =
   `${PRODUCT_SELECT_BASE},image_urls,product_code,visible_to` as const;

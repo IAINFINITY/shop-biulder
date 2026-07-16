@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
 import { cn } from "@/lib/utils";
+import { StockBadge } from "@/components/catalogo/StockBadge";
 
 const typeIcons: Record<string, LucideIcon> = {
   Chá: Leaf,
@@ -160,6 +161,8 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
           <p className={cn("mt-auto font-semibold tabular-nums text-foreground", compact ? "pt-1.5 text-sm sm:text-base" : "mt-3 mb-1 text-base sm:text-lg")}>
             {formatBRL(displayPrice)}
           </p>
+
+          <StockBadge stock={product.stock} className="mt-1.5" />
         </div>
       </Link>
 

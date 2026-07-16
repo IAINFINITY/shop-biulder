@@ -1,6 +1,5 @@
-﻿import { useMemo, useState, useCallback, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag, ImageIcon, User, MapPin, FileText, CreditCard, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +29,7 @@ import { profileAddressToForm } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 import { ORDER_TEXT_LIMITS } from "@/lib/orderTextLimits";
+import { CheckoutProgress } from "@/components/pedido/CheckoutProgress";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_WHATSAPP_URL,
@@ -67,6 +67,7 @@ function isSameAddressForm(
 
 export default function OrderForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, customerProfile, loading, isResolvingAccess } = useAuth();
   const allowGuestCheckout = import.meta.env.DEV;
   const customerType = customerProfile?.customer_type ?? null;
@@ -76,7 +77,9 @@ export default function OrderForm() {
     customerTprId,
   );
   const { data: savedAddresses = [], saveAddress, setDefaultAddress } = useCustomerAddresses(user?.id ?? null);
-  const { cart, clearCart } = useCart();
+  const { cart: baseCart, clearCart } = useCart();
+  const buyNowItem = (location.state as { buyNow?: CartItem } | null | undefined)?.buyNow ?? null;
+  const cart = buyNowItem ? [buyNowItem] : baseCart;
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -96,13 +99,25 @@ export default function OrderForm() {
   const cnpjValidation = useCnpjValidation(form.cnpj, cnpjTouched);
   const submitLockRef = useRef(false);
   const checkoutCnpjDigits = useMemo(() => onlyDigits(form.cnpj), [form.cnpj]);
+  const linkedCompanyCnpj = useMemo(
+    () => customerProfile?.linked_company_cnpj ?? null,
+    [customerProfile?.linked_company_cnpj],
+  );
+  const effectiveCnpj = useMemo(
+    () => linkedCompanyCnpj || checkoutCnpjDigits,
+    [linkedCompanyCnpj, checkoutCnpjDigits],
+  );
   const checkoutHasValidCnpj = useMemo(
-    () => checkoutCnpjDigits.length === 14 && isValidCnpj(checkoutCnpjDigits),
-    [checkoutCnpjDigits],
+    () =>
+      (checkoutCnpjDigits.length === 14 && isValidCnpj(checkoutCnpjDigits)) ||
+      (linkedCompanyCnpj !== null && linkedCompanyCnpj.length === 14),
+    [checkoutCnpjDigits, linkedCompanyCnpj],
   );
   const checkoutCnpjHint = checkoutHasValidCnpj
     ? null
-    : "Para finalizar a compra, o cadastro precisa ter um CNPJ válido. CPF não libera pedido B2B.";
+    : linkedCompanyCnpj
+      ? null
+      : "Para finalizar a compra, informe um CNPJ válido.";
   const selectedSavedAddress = useMemo(
     () => (selectedAddressId ? savedAddresses.find((address) => address.id === selectedAddressId) ?? null : null),
     [savedAddresses, selectedAddressId],
@@ -112,6 +127,23 @@ export default function OrderForm() {
     [savedAddresses],
   );
   const checkoutAddress = !manualAddressEdit && selectedSavedAddress ? selectedSavedAddress : addressForm;
+
+  const checkoutSteps = [
+    { label: "Dados", id: "dados" },
+    { label: "Endereço", id: "endereco" },
+    { label: "Observações", id: "obs" },
+    { label: "Enviar", id: "enviar" },
+  ];
+
+  const currentCheckoutStep = useMemo(() => {
+    const hasName = form.name.trim().length > 0;
+    const hasPhone = form.phone.trim().length > 0;
+    const hasDados = hasName && hasPhone;
+    const hasEndereco = checkoutAddress.cep.length >= 8 && checkoutAddress.street.trim().length > 0;
+    if (!hasDados) return 0;
+    if (!hasEndereco) return 1;
+    return 2;
+  }, [form.name, form.phone, checkoutAddress.cep, checkoutAddress.street]);
   const checkoutAddressMatchesSavedAddress = useMemo(
     () =>
       savedAddresses.some((address) =>
@@ -308,7 +340,7 @@ export default function OrderForm() {
         customer_name: form.name.trim(),
         customer_phone: form.phone.trim(),
         customer_company: form.company.trim(),
-        customer_cnpj: form.cnpj.trim(),
+        customer_cnpj: effectiveCnpj,
         customer_observation: orderNote.trim() || null,
         ...addressToOrderColumns(checkoutAddress),
         items: orderItems as unknown as Json,
@@ -338,7 +370,7 @@ export default function OrderForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             customer_name: form.name.trim(),
-            customer_cnpj: form.cnpj.trim(),
+            customer_cnpj: effectiveCnpj,
             customer_company: form.company.trim(),
             customer_observation: orderNote.trim() || null,
             address: addressToProxisPayload(checkoutAddress),
@@ -360,7 +392,7 @@ export default function OrderForm() {
 
       try {
         const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
-        await syncCustomerProxisLink(form.cnpj.trim()).catch(() => null);
+        await syncCustomerProxisLink(effectiveCnpj).catch(() => null);
       } catch {
         // Silencioso — o vínculo Proxsys é atualizado em background.
       }
@@ -372,7 +404,7 @@ export default function OrderForm() {
           body: JSON.stringify({
             customer_name: form.name.trim(),
             customer_company: form.company.trim(),
-            customer_cnpj: form.cnpj.trim(),
+            customer_cnpj: effectiveCnpj,
             customer_phone: form.phone.trim(),
             customer_observation: orderNote.trim() || null,
             address: {
@@ -448,7 +480,9 @@ export default function OrderForm() {
         };
       });
 
-      clearCart();
+      if (!buyNowItem) {
+        clearCart();
+      }
       toast.success("Pedido enviado com sucesso!");
 
       const successState = {
@@ -481,7 +515,7 @@ export default function OrderForm() {
   };
 
   return (
-    <div className="relative overflow-x-hidden min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]">
+    <div className="relative min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
@@ -561,6 +595,8 @@ export default function OrderForm() {
                 </div>
               </div>
             </section>
+
+            <CheckoutProgress steps={checkoutSteps} currentStep={currentCheckoutStep} className="mb-2" />
 
             <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
               <div className="space-y-4 sm:space-y-6">
@@ -816,7 +852,7 @@ export default function OrderForm() {
 
               <div
                 ref={summaryRef}
-                className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:self-start"
+                className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:flex lg:max-h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] lg:flex-col lg:self-start lg:overflow-y-auto"
               >
                 <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -835,7 +871,7 @@ export default function OrderForm() {
                   </Badge>
                 </div>
 
-                <div className="min-h-0 space-y-2.5 sm:space-y-3 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+                <div className="space-y-2.5 sm:space-y-3">
                   {cart.map((item) => {
                     const unit = resolveProductPrice(item.product, customerPriceMap);
                     const line = unit * item.quantity;

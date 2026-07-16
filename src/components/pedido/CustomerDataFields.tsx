@@ -32,7 +32,7 @@ type CustomerDataFieldsProps = {
     isDocInvalid: boolean;
     isDocError: boolean;
     isDocChecking: boolean;
-    docType: "cpf" | "cnpj" | null;
+    docType: "cnpj" | null;
     status: CnpjValidationStatus;
   };
   idPrefix?: string;
@@ -50,9 +50,9 @@ export function CustomerDataFields({
   const id = (field: string) => (idPrefix ? `${idPrefix}-${field}` : field);
   const show = cnpjValidation.shouldShowError ?? false;
   const customerType = normalizeCustomerType(form.customer_type ?? DEFAULT_CUSTOMER_TYPE);
-  const docLabel = cnpjValidation.docType === "cnpj" ? "CNPJ" : "CPF";
+  const docLabel = "CNPJ";
   const cnpjDigits = onlyDigits(form.cnpj);
-  const shouldLookupCustomer = cnpjValidation.docType === "cnpj" && cnpjValidation.status === "valid";
+  const shouldLookupCustomer = cnpjValidation.status === "valid";
   const { status: cnpjLookupStatus, suggestion } = useCnpjCustomerLookup(form.cnpj, shouldLookupCustomer);
   const autoAppliedCnpjRef = useRef<string | null>(null);
 
@@ -170,16 +170,16 @@ export function CustomerDataFields({
       )}
 
       <div className="space-y-2">
-        <Label htmlFor={id("cnpj")}>CPF / CNPJ</Label>
+        <Label htmlFor={id("cnpj")}>CNPJ</Label>
         <p className="text-xs leading-5 text-muted-foreground">
-          Se o CNPJ estiver cadastrado, podemos sugerir nome e empresa automaticamente. Se não localizar, você continua preenchendo manualmente.
+          Informe o CNPJ da empresa para identificar a tabela de preços. Se estiver cadastrado, sugerimos nome e empresa automaticamente.
         </p>
         <Input
           id={id("cnpj")}
           value={form.cnpj}
           onChange={(e) => onChange({ cnpj: formatDocumentId(e.target.value) })}
           onBlur={onCnpjBlur}
-          placeholder="000.000.000-00 ou 00.000.000/0000-00"
+          placeholder="00.000.000/0000-00"
           inputMode="numeric"
           maxLength={18}
           aria-invalid={
@@ -201,11 +201,11 @@ export function CustomerDataFields({
 
         {show && cnpjValidation.isDocIncomplete && (
           <p className="text-xs text-destructive">
-            {docLabel} incompleto. Preencha {cnpjValidation.docType === "cnpj" ? "14" : "11"} dígitos.
+            CNPJ incompleto. Preencha 14 dígitos.
           </p>
         )}
         {show && cnpjValidation.isDocInvalid && (
-          <p className="text-xs text-destructive">{docLabel} inválido. Verifique o número informado.</p>
+          <p className="text-xs text-destructive">CNPJ inválido. Verifique o número informado.</p>
         )}
         {show && cnpjValidation.isDocError && (
           <p className="text-xs text-destructive">

@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { isValidCnpj, isValidCpf, onlyDigits } from "@/lib/brazilianIds";
+import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 
 export type CnpjValidationStatus = "idle" | "checking" | "valid" | "invalid" | "error";
 
-export type DocumentType = "cpf" | "cnpj" | null;
+export type DocumentType = "cnpj" | null;
 
 function detectDocumentType(digits: string): DocumentType {
-  if (digits.length <= 11) return "cpf";
   if (digits.length === 14) return "cnpj";
   return null;
 }
@@ -16,14 +15,14 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
 
   const digits = onlyDigits(cnpj);
   const docType = detectDocumentType(digits);
-  const isDocIncomplete = digits.length > 0 && ((docType === "cpf" && digits.length < 11) || (docType === "cnpj" && digits.length < 14) || (!docType && digits.length < 11));
-  const isDocComplete = (docType === "cpf" && digits.length === 11) || (docType === "cnpj" && digits.length === 14);
+  const isDocIncomplete = digits.length > 0 && (docType === "cnpj" && digits.length < 14);
+  const isDocComplete = docType === "cnpj" && digits.length === 14;
   const shouldShowError = cnpjTouched || isDocComplete;
   const isDocInvalid = isDocComplete && status === "invalid";
   const isDocError = isDocComplete && status === "error";
   const isDocChecking = isDocComplete && status === "checking";
 
-  const requiredLength = docType === "cnpj" ? 14 : 11;
+  const requiredLength = 14;
 
   useEffect(() => {
     if (!isDocComplete) {
@@ -31,14 +30,8 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
       return;
     }
 
-    const isValid = docType === "cpf" ? isValidCpf(digits) : isValidCnpj(digits);
-    if (!isValid) {
+    if (!isValidCnpj(digits)) {
       setStatus("invalid");
-      return;
-    }
-
-    if (docType === "cpf") {
-      setStatus("valid");
       return;
     }
 
@@ -74,15 +67,12 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
   }, [digits, isDocComplete, docType]);
 
   const assertDocReady = (): string | null => {
-    if (digits.length < requiredLength || (!docType && digits.length > 0)) {
-      return docType === "cnpj"
-        ? "CNPJ incompleto. Preencha 14 dígitos."
-        : "CPF incompleto. Preencha 11 dígitos.";
+    if (digits.length < requiredLength || !docType) {
+      return "CNPJ incompleto. Preencha 14 dígitos.";
     }
-    if (docType === "cnpj" && !isValidCnpj(digits)) return "CNPJ inválido. Verifique o número informado.";
-    if (docType === "cpf" && !isValidCpf(digits)) return "CPF inválido. Verifique o número informado.";
+    if (!isValidCnpj(digits)) return "CNPJ inválido. Verifique o número informado.";
     if (status === "checking") return "Validando documento...";
-    if (status === "invalid") return `${docType === "cnpj" ? "CNPJ" : "CPF"} inválido. Verifique o número informado.`;
+    if (status === "invalid") return "CNPJ inválido. Verifique o número informado.";
     if (status === "error") return "Não foi possível validar o documento agora. Tente novamente.";
     return null;
   };

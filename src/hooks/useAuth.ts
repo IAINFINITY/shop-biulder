@@ -44,6 +44,7 @@ function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
     proxis_tpr_id: profile.proxis_tpr_id ?? null,
     proxis_found: profile.proxis_found ?? false,
     proxis_synced_at: profile.proxis_synced_at ?? null,
+    linked_company_cnpj: profile.linked_company_cnpj ?? null,
   };
 }
 

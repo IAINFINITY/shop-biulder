@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, RefreshCw } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,12 @@ import { formatCnpjDisplay } from "@/lib/brazilianIds";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
+import { CUSTOMER_PROFILES_TABLE } from "@/lib/customerProfile";
 import { AdminSectionHeader } from "./AdminSectionHeader";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import type { AdminCustomerSummary } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
+import { deleteCustomerUser } from "@/lib/customerProfile";
 import { listAdminUsers, getRoleLabel, type AdminUserRecord } from "@/lib/adminUsers";
 
 type AdminClientsSectionProps = {
@@ -85,16 +88,21 @@ export function AdminClientsSection({
 }: AdminClientsSectionProps) {
   const NO_REPRESENTATIVE_VALUE = "__none__";
   const { options: customerTypes, addCustomType } = useCustomerTypes();
-  const [editorOpen, setEditorOpen] = useState(false);
+  const queryClient = useQueryClient();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsCustomer, setDetailsCustomer] = useState<AdminCustomerSummary | null>(null);
-  const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomerSummary | null>(null);
-  const [draftType, setDraftType] = useState<string>("cliente");
-  const [saving, setSaving] = useState(false);
   const [updatingCustomerKey, setUpdatingCustomerKey] = useState<string | null>(null);
   const [newTypeOpen, setNewTypeOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
   const [syncingProxis, setSyncingProxis] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCustomer, setEditCustomer] = useState<AdminCustomerSummary | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editObservation, setEditObservation] = useState("");
+  const [editType, setEditType] = useState("cliente");
+  const [editSaving, setEditSaving] = useState(false);
 
   const { data: adminUsers = [] } = useQuery({
     queryKey: ["admin-users"],
@@ -121,11 +129,13 @@ export function AdminClientsSection({
     let filtered = customerSummaries;
 
     if (term) {
-      filtered = filtered.filter((customer) =>
-        [customer.name, customer.company ?? "", customer.phone ?? "", customer.cnpj ?? ""].some((value) =>
+      filtered = filtered.filter((customer) => {
+        const profile = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
+        const email = profile?.email ?? "";
+        return [customer.name, customer.company ?? "", customer.phone ?? "", customer.cnpj ?? "", email].some((value) =>
           value.toLowerCase().includes(term),
-        ),
-      );
+        );
+      });
     }
 
     if (typeFilter !== null) {
@@ -185,10 +195,6 @@ export function AdminClientsSection({
   });
 
   useEffect(() => {
-    setDraftType(selectedCustomer?.customerType ?? "cliente");
-  }, [selectedCustomer]);
-
-  useEffect(() => {
     if (!detailsOpen) {
       setDetailsCustomer(null);
     }
@@ -200,10 +206,15 @@ export function AdminClientsSection({
     }
   }, [detailsOpen, selectedDetailsProfile]);
 
-  const openEditor = (customer: AdminCustomerSummary) => {
-    setSelectedCustomer(customer);
-    setDraftType(customer.customerType ?? "cliente");
-    setEditorOpen(true);
+  const openEdit = (customer: AdminCustomerSummary) => {
+    setEditCustomer(customer);
+    const profile = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
+    setEditName(customer.name);
+    setEditPhone(customer.phone ?? "");
+    setEditEmail(profile?.email ?? "");
+    setEditObservation(profile?.observation ?? "");
+    setEditType(customer.customerType ?? "cliente");
+    setEditOpen(true);
   };
 
   const openDetails = (customer: AdminCustomerSummary) => {
@@ -211,63 +222,55 @@ export function AdminClientsSection({
     setDetailsOpen(true);
   };
 
-  const updateCustomerType = async (customer: AdminCustomerSummary, value: string) => {
-    if (!customer.cnpj) {
-      toast.error("Não foi possível identificar o CNPJ deste cadastro.");
+  const handleEditSave = async () => {
+    if (!editCustomer?.userId) {
+      toast.error("Este cliente não possui perfil completo para edição.");
       return;
     }
+    setEditSaving(true);
+    try {
+      const { error: profileError } = await supabase
+        .from(CUSTOMER_PROFILES_TABLE)
+        .update({
+          name: editName.trim(),
+          phone: editPhone.trim(),
+          observation: editObservation.trim() || null,
+        })
+        .eq("user_id", editCustomer.userId);
+      if (profileError) throw profileError;
 
-    const key = getCustomerKey(customer);
-    setUpdatingCustomerKey(key);
-    const error = await onUpdateCustomerType({
-      userId: customer.userId,
-      cnpj: customer.cnpj,
-      customerType: value,
-    });
-    setUpdatingCustomerKey(null);
+      const currentProfile = editCustomer.userId ? customerProfilesByKey.get(editCustomer.userId) : null;
+      if (editEmail.trim() && editEmail.trim() !== currentProfile?.email) {
+        const { error: emailError } = await supabase.rpc("admin_update_user_email", {
+          p_user_id: editCustomer.userId,
+          p_email: editEmail.trim(),
+        });
+        if (emailError) throw emailError;
+      }
 
-    if (error) {
-      console.error("Erro ao atualizar tipo do cliente", error);
-      toast.error("Não foi possível atualizar o tipo do cliente.");
-      return;
+      const { error: emailColumnError } = await supabase
+        .from(CUSTOMER_PROFILES_TABLE)
+        .update({ email: editEmail.trim() || null })
+        .eq("user_id", editCustomer.userId);
+      if (emailColumnError) throw emailColumnError;
+
+      if (editCustomer.cnpj && editType !== editCustomer.customerType) {
+        await onUpdateCustomerType({
+          userId: editCustomer.userId,
+          cnpj: editCustomer.cnpj,
+          customerType: editType,
+        });
+      }
+
+      toast.success("Cadastro atualizado com sucesso.");
+      setEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar cadastro.");
+    } finally {
+      setEditSaving(false);
     }
-
-    toast.success("Tipo de cliente atualizado.");
   };
-
-  const closeEditor = () => {
-    if (saving) return;
-    setEditorOpen(false);
-  };
-
-  const saveCustomerType = async () => {
-    if (!selectedCustomer?.cnpj) return;
-
-    setSaving(true);
-    const error = await onUpdateCustomerType({
-      userId: selectedCustomer.userId,
-      cnpj: selectedCustomer.cnpj,
-      customerType: draftType,
-    });
-    setSaving(false);
-
-    if (error) {
-      console.error("Erro ao atualizar tipo do cliente", error);
-      toast.error("Não foi possível atualizar o tipo do cliente.");
-      return;
-    }
-
-    toast.success("Tipo de cliente atualizado.");
-    setEditorOpen(false);
-  };
-
-  useEffect(() => {
-    if (!editorOpen) {
-      setSelectedCustomer(null);
-      setSaving(false);
-      setDraftType("cliente");
-    }
-  }, [editorOpen]);
 
   return (
     <div className="space-y-3 sm:space-y-4">
@@ -296,7 +299,7 @@ export function AdminClientsSection({
 
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <Input
-            placeholder="Pesquisar cliente (nome, empresa, telefone, CNPJ)"
+            placeholder="Pesquisar cliente (nome, empresa, telefone, CNPJ, e-mail)"
             value={clientSearch}
             onChange={(e) => onClientSearchChange(e.target.value)}
             className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background"
@@ -382,6 +385,10 @@ export function AdminClientsSection({
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[15px] font-semibold leading-5 text-foreground">{customer.name}</p>
                         <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                        {(() => {
+                          const p = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
+                          return p?.email ? <p className="truncate text-[11px] text-muted-foreground/70">{p.email}</p> : null;
+                        })()}
                       </div>
                     </div>
 
@@ -398,9 +405,10 @@ export function AdminClientsSection({
                         type="button"
                         variant="outline"
                         className="h-10 sm:h-8 rounded-full px-3 text-[13px] sm:text-[12px]"
-                        onClick={() => openEditor(customer)}
+                        onClick={() => openEdit(customer)}
                       >
-                        Alterar tipo
+                        <Pencil className="mr-1 h-3 w-3" />
+                        Editar
                       </Button>
                     </div>
                   </div>
@@ -425,36 +433,6 @@ export function AdminClientsSection({
                         {formatCnpjDisplay(customer.cnpj)}
                       </Badge>
                     ) : null}
-                  </div>
-
-                  <div className="mt-2.5 sm:mt-3 rounded-[1rem] border border-border/70 bg-muted/25 p-2.5 sm:p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Tipo de cadastro
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {customer.userId ? "Vinculado ao front" : "Salvo por CNPJ"}
-                      </p>
-                    </div>
-                    <Select
-                      value={customer.customerType ?? "cliente"}
-                      onValueChange={(value) => updateCustomerType(customer, value)}
-                      disabled={!customer.cnpj || isUpdating}
-                    >
-                      <SelectTrigger className="h-10 rounded-2xl bg-background">
-                        <SelectValue placeholder="Selecione um tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customerTypes.map((type) => (
-                          <SelectItem key={type.name} value={type.name}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-                      A regra fica salva por CNPJ. Se o cliente criar conta no front depois, ele herda essa definição.
-                    </p>
                   </div>
 
                   <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-3 border-t border-border/70 pt-3 sm:pt-4">
@@ -506,6 +484,7 @@ export function AdminClientsSection({
                     <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
                       <DetailField label="CNPJ" value={formatCnpjDisplay(detailsCustomer.cnpj ?? "") || "—"} />
                       <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
+                      <DetailField label="E-mail" value={selectedDetailsProfile?.email || "—"} />
                       <DetailField label="Pedidos" value={String(detailsCustomer.orders)} />
                       <DetailField label="Total gasto" value={formatBRL(detailsCustomer.total)} />
                     </div>
@@ -699,6 +678,7 @@ export function AdminClientsSection({
                       </Button>
                     </div>
                   ) : null}
+
                 </div>
               </div>
             ) : null}
@@ -706,41 +686,48 @@ export function AdminClientsSection({
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={editorOpen}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen && saving) return;
-          setEditorOpen(nextOpen);
-        }}
-      >
-        <DialogContent className="max-w-[34rem] rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70">
+      <Dialog open={editOpen} onOpenChange={(open) => { if (!open && !editSaving) setEditOpen(false); }}>
+        <DialogContent className="max-w-[32rem] rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70">
           <DialogHeader className="text-left">
             <DialogDescription className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">
-              Ajuste administrativo
+              Editar cadastro
             </DialogDescription>
             <DialogTitle className="text-[1.25rem] sm:text-[1.45rem] font-black tracking-[-0.04em] text-foreground">
-              Alterar tipo de cliente
+              Editar dados do cliente
             </DialogTitle>
-            <p className="text-[13px] sm:text-sm leading-5 sm:leading-6 text-muted-foreground">
-              Altere a faixa comercial do cadastro para refletir a tabela correta no catálogo e no admin.
-            </p>
           </DialogHeader>
 
-          {selectedCustomer ? (
-            <div className="space-y-3 sm:space-y-4 pt-2">
-              <div className="rounded-[1.25rem] border border-border/70 bg-muted/30 p-3 sm:p-4">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Cliente selecionado</p>
-                <p className="mt-1 text-[15px] sm:text-base font-semibold text-foreground">{selectedCustomer.name}</p>
+          {editCustomer ? (
+            <div className="space-y-3 pt-2">
+              <div className="rounded-[1.25rem] border border-border/70 bg-muted/30 p-3 sm:p-3">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Cliente</p>
+                <p className="mt-1 text-[15px] sm:text-base font-semibold text-foreground">{editCustomer.name}</p>
                 <p className="mt-1 text-[12px] sm:text-sm text-muted-foreground">
-                  {selectedCustomer.company || "Sem empresa vinculada"} {selectedCustomer.cnpj ? `• ${formatCnpjDisplay(selectedCustomer.cnpj)}` : ""}
+                  {editCustomer.company || "Sem empresa vinculada"} {editCustomer.cnpj ? `• ${formatCnpjDisplay(editCustomer.cnpj)}` : ""}
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="customer-type-select">Tipo de cliente</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nome</Label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-10 rounded-2xl" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</Label>
+                  <Input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="h-10 rounded-2xl" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">E-mail</Label>
+                <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="h-10 rounded-2xl" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Tipo de cliente</Label>
                 <div className="flex gap-2">
-                  <Select value={draftType} onValueChange={(value) => setDraftType(value)}>
-                    <SelectTrigger id="customer-type-select" className="h-10 sm:h-11 rounded-2xl flex-1">
+                  <Select value={editType} onValueChange={(value) => setEditType(value)}>
+                    <SelectTrigger className="h-10 rounded-2xl flex-1">
                       <SelectValue placeholder="Selecione um tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -755,7 +742,7 @@ export function AdminClientsSection({
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="h-10 sm:h-11 w-10 sm:w-11 rounded-2xl shrink-0"
+                    className="h-10 w-10 rounded-2xl shrink-0"
                     onClick={() => {
                       setNewTypeName("");
                       setNewTypeOpen(true);
@@ -766,17 +753,51 @@ export function AdminClientsSection({
                   </Button>
                 </div>
               </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Observação</Label>
+                <Input value={editObservation} onChange={(e) => setEditObservation(e.target.value)} maxLength={120} className="h-10 rounded-2xl" placeholder="Texto simples (máx. 120 caracteres)..." />
+              </div>
             </div>
           ) : null}
 
-          <DialogFooter className="gap-2 pt-2 sm:gap-2">
-            <Button type="button" variant="outline" className="h-10 sm:h-11 rounded-2xl px-5 text-sm" onClick={closeEditor} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button type="button" className="h-10 sm:h-11 rounded-2xl px-5 text-sm" onClick={saveCustomerType} disabled={saving || !selectedCustomer?.cnpj}>
-              {saving ? "Salvando..." : "Salvar alteração"}
-            </Button>
-          </DialogFooter>
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" className="h-10 rounded-2xl px-5 text-sm" onClick={() => setEditOpen(false)} disabled={editSaving}>
+                Cancelar
+              </Button>
+              <Button type="button" className="h-10 rounded-2xl px-5 text-sm" onClick={handleEditSave} disabled={editSaving || !editCustomer?.userId}>
+                {editSaving ? "Salvando..." : "Salvar alterações"}
+              </Button>
+            </div>
+            {editCustomer?.userId ? (
+              <ConfirmActionDialog
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-2xl border-destructive/40 px-4 text-[13px] text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    Excluir conta
+                  </Button>
+                }
+                title="Excluir cliente"
+                description={`Tem certeza que deseja excluir permanentemente a conta de "${editCustomer?.name}"? Esta ação não pode ser desfeita.`}
+                confirmLabel="Excluir"
+                processingLabel="Apagando..."
+                destructive
+                onConfirm={async () => {
+                  if (!editCustomer?.userId) return;
+                  await deleteCustomerUser(editCustomer.userId);
+                  toast.success("Cliente excluído permanentemente");
+                  setEditOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] });
+                  queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+                }}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
 

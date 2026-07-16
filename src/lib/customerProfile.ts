@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 import type { AddressFormData } from "@/lib/address";
 
 export const CUSTOMER_PROFILES_TABLE = "customer_profiles";
@@ -8,12 +9,15 @@ export interface CustomerProfile {
   phone: string;
   company: string;
   cnpj: string;
+  email: string | null;
+  observation: string | null;
   customer_type: string;
   representante_id: string | null;
   proxis_pes_id: number | null;
   proxis_tpr_id: number | null;
   proxis_found: boolean | null;
   proxis_synced_at: string | null;
+  linked_company_cnpj: string | null;
   address_cep: string;
   address_street: string;
   address_number: string;
@@ -50,6 +54,25 @@ export function profileAddressToForm(profile: CustomerProfile): AddressFormData 
     state: profile.address_state,
     ibge: profile.address_ibge,
   };
+}
+
+export async function deleteCustomerUser(userId: string): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Nao autenticado");
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-customer-user`;
+  const res = await fetch(functionUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ userId }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? "Erro ao excluir cliente");
 }
 
 export function addressFormToProfileColumns(address: AddressFormData) {

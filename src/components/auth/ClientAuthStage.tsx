@@ -48,23 +48,23 @@ export function ClientAuthStage({ children, className }: ClientAuthStageProps) {
 
       <div className="grid h-[calc(100dvh-var(--page-header-shell-height))] w-full grid-cols-1 overflow-hidden pt-6 lg:grid-cols-[58%_42%] lg:pt-8">
         <div className="pointer-events-none absolute inset-y-0 left-[58%] hidden w-px bg-border/70 lg:block" />
-        <aside className="relative hidden overflow-hidden bg-background lg:flex">
-          <div className="relative z-10 flex h-full w-full flex-col px-12 pb-10 pt-14 xl:px-[72px] xl:pb-[48px] xl:pt-16">
+        <aside className="relative hidden overflow-y-auto bg-background lg:flex">
+          <div className="relative z-10 flex h-full w-full flex-col justify-center px-12 py-10 xl:px-[72px] xl:py-12">
             <div className="w-full max-w-[900px]">
-              <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.1em] text-primary">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
                 Área do cliente B2B
               </p>
-              <h1 className="max-w-[14ch] text-[clamp(3rem,5vw,4.5rem)] font-bold leading-[1.04] tracking-[-0.04em] text-foreground">
+              <h1 className="max-w-[14ch] text-[clamp(2.4rem,4vw,3.8rem)] font-bold leading-[1.04] tracking-[-0.04em] text-foreground">
                 Acesse sua conta
                 <br />
                 no Clinic+
               </h1>
-              <p className="mt-4 max-w-[66ch] text-[17px] leading-7 text-muted-foreground">
+              <p className="mt-3 max-w-[66ch] text-[15px] leading-6 text-muted-foreground">
                 Entre para ver preços por perfil, pedidos e a experiência completa da sua empresa. Ou crie sua conta para começar.
               </p>
             </div>
 
-            <div className="mt-10 grid w-full max-w-[920px] grid-cols-2 gap-4">
+            <div className="mt-8 grid w-full max-w-[920px] grid-cols-2 gap-4">
               {highlights.map((item, index) => {
                 const Icon = highlightIcons[index % highlightIcons.length];
                 return (
@@ -84,8 +84,8 @@ export function ClientAuthStage({ children, className }: ClientAuthStageProps) {
           </div>
         </aside>
 
-        <section className="flex h-full min-h-0 items-start justify-center overflow-y-auto bg-background px-4 pb-8 pt-6 sm:px-6 sm:pt-10 lg:px-10 lg:pt-12 xl:px-[72px] pb-safe">
-          <div className="flex w-full max-w-[560px] flex-col justify-start min-[900px]:py-2 lg:min-h-full">
+        <section className="flex h-full min-h-0 items-start justify-center overflow-y-auto bg-background px-4 pb-12 pt-6 sm:px-6 sm:pt-10 lg:px-10 lg:pt-12 xl:px-[72px] pb-safe">
+          <div className="flex w-full max-w-[560px] flex-col justify-start min-[900px]:py-4 lg:min-h-full">
             {children}
           </div>
         </section>

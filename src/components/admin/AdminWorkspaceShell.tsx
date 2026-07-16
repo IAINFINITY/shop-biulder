@@ -99,6 +99,7 @@ export function AdminWorkspaceShell({
       label: "Administração",
       items: [
         { id: "usuarios" as const, label: "Usuários", icon: Shield, description: "Contas e permissões" },
+        { id: "funcionarios" as const, label: "Funcionários", icon: Users, description: "Equipe vinculada" },
       ],
     }] : []),
     {

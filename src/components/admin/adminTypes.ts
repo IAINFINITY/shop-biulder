@@ -11,6 +11,7 @@ export type AdminSection =
   | "clientes"
   | "mensagens"
   | "usuarios"
+  | "funcionarios"
   | "configuracoes";
 
 export type AdminOrderSummaryLine = {

@@ -335,8 +335,10 @@ export default function Account() {
     : "Cadastro em processamento";
   const customerOrders = useMemo(() => {
     if (!customerProfile) return [] as Order[];
-    const profileCnpj = onlyDigits(customerProfile.cnpj);
-    return (orders as Order[]).filter((order) => onlyDigits(order.customer_cnpj) === profileCnpj);
+    const effectiveCnpj = customerProfile.linked_company_cnpj
+      ? onlyDigits(customerProfile.linked_company_cnpj)
+      : onlyDigits(customerProfile.cnpj);
+    return (orders as Order[]).filter((order) => onlyDigits(order.customer_cnpj) === effectiveCnpj);
   }, [orders, customerProfile]);
   const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
   const orderViews = useMemo(
@@ -592,6 +594,18 @@ export default function Account() {
               <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
               <InfoTile label="Documento" value={formatDocumentId(customerProfile.cnpj)} icon={Building2} />
             </div>
+
+            {customerProfile.linked_company_cnpj ? (
+              <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
+                <p className="text-sm font-medium text-foreground">
+                  Funcionário vinculado à Clinic+
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Seus pedidos são emitidos em nome de Clinic+ (CNPJ {formatDocumentId(customerProfile.linked_company_cnpj)}).
+                  A empresa vinculada é gerenciada pelo administrador da plataforma.
+                </p>
+              </div>
+            ) : null}
 
             <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
               <div className="flex items-center gap-2">

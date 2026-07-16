@@ -35,7 +35,8 @@ function AppRoutes() {
   const location = useLocation();
   const isAccountRoute = location.pathname.startsWith("/conta");
   const isOrderRoute = location.pathname.startsWith("/pedido");
-  const hideFooter = location.pathname.startsWith("/admin") || isAccountRoute || isOrderRoute;
+  const isLoginRoute = location.pathname === "/login";
+  const hideFooter = location.pathname.startsWith("/admin") || isAccountRoute || isOrderRoute || isLoginRoute;
 
   return (
     <div className="flex min-h-screen flex-col">

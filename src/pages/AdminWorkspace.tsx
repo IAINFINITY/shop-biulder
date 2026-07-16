@@ -1,11 +1,9 @@
-﻿import { useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { LockKeyhole, LogOut, Mail, ShieldCheck, Eye, EyeOff } from "lucide-react";
+﻿import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { AdminAuthStage } from "@/components/auth/AdminAuthStage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
@@ -49,7 +47,6 @@ import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
 import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
 import { AdminSettingsSection } from "@/components/admin/AdminSettingsSection";
-import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
 import {
@@ -72,250 +69,12 @@ import type {
   AdminSection,
 } from "@/components/admin/adminTypes";
 
-const AUTH_FEEDBACK_MIN_MS = 700;
-
-function LoginField({
-  id,
-  label,
-  placeholder,
-  value,
-  onChange,
-  type = "text",
-  autoComplete,
-  required = false,
-  icon: Icon,
-}: {
-  id: string;
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  type: string;
-  autoComplete: string;
-  required: boolean;
-  icon: typeof Mail;
-}) {
-  const [showPassword, setShowPassword] = useState(false);
-  const isPassword = type === "password";
-  const inputType = isPassword ? (showPassword ? "text" : "password") : type;
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-        {label}
-      </Label>
-      <div className="relative">
-        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <span className="pointer-events-none absolute left-10 top-1/2 h-7 w-px -translate-y-1/2 bg-border/80" />
-        <Input
-          id={id}
-          type={inputType}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          required={required}
-          autoComplete={autoComplete}
-          className="h-12 rounded-2xl border-border/70 bg-background pl-14 pr-12 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary/30"
-        />
-        {isPassword ? (
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function LoginForm({
-  onLogin,
-  helperMessage,
-}: {
-  onLogin: (email: string, password: string) => Promise<Error | null>;
-  helperMessage?: string;
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoginError(null);
-    const startedAt = Date.now();
-    setLoading(true);
-    const error = await onLogin(email, password);
-    if (error) setLoginError(error.message || "Não foi possível autenticar.");
-    const elapsed = Date.now() - startedAt;
-    if (elapsed < AUTH_FEEDBACK_MIN_MS) {
-      await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
-    }
-    setLoading(false);
-  };
-
-  return (
-    <AdminAuthStage>
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[2.25rem] border border-border/70 bg-background text-foreground shadow-[0_16px_40px_rgba(16,24,40,0.08)]">
-        <div className="border-b border-border/70 px-6 py-7 sm:px-8">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-primary/25 bg-primary/5 shadow-[0_8px_22px_rgba(16,24,40,0.05)]">
-            <img src="/faviconV2.png" alt="Clinic+ logo" className="h-14 w-auto" />
-          </div>
-
-          <div className="mt-5 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">Acesso interno</p>
-            <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-black leading-[1] tracking-[-0.05em] text-foreground">
-              Entrar no painel administrativo
-            </h2>
-            <p className="mx-auto mt-3 max-w-[32ch] text-sm leading-6 text-muted-foreground">
-              Use seu acesso de administrador para abrir o painel do Clinic+.
-            </p>
-            {helperMessage ? (
-              <div className="mx-auto mt-4 max-w-[30rem] rounded-[1.25rem] border border-primary/15 bg-primary/5 px-4 py-3 text-left text-sm leading-6 text-foreground">
-                {helperMessage}
-              </div>
-            ) : null}
-
-            {loginError ? (
-              <div className="mx-auto mt-4 max-w-[30rem] rounded-[1.25rem] border border-destructive/20 bg-destructive/5 px-4 py-3 text-left text-sm leading-6 text-foreground">
-                {loginError}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-8">
-          <form
-            onSubmit={handleSubmit}
-            className="flex min-h-full flex-col space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
-          >
-            <LoginField
-              id="admin-email"
-              label="E-mail corporativo"
-              placeholder="seu@empresa.com"
-              value={email}
-              onChange={setEmail}
-              type="email"
-              autoComplete="email"
-              required
-              icon={Mail}
-            />
-
-            <LoginField
-              id="admin-password"
-              label="Senha"
-              placeholder="Sua senha"
-              value={password}
-              onChange={setPassword}
-              type="password"
-              autoComplete="current-password"
-              required
-              icon={LockKeyhole}
-            />
-
-            <div className="flex items-center justify-between gap-4 text-[12.5px]">
-              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
-                <Checkbox className="h-4 w-4 border-primary data-[state=checked]:bg-primary" />
-                Lembrar acesso
-              </label>
-              <a href="#" className="text-primary transition-colors hover:text-primary/80">
-                Esqueceu a senha
-              </a>
-            </div>
-
-            <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={loading}>
-              {loading ? "Autenticando..." : "Entrar"}
-            </Button>
-
-            <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Ambiente seguro - acesso exclusivo do time interno
-            </div>
-          </form>
-        </div>
-      </div>
-    </AdminAuthStage>
-  );
-}
-
-function ClientAccessNotice({
-  email,
-  onGoCatalog,
-  onLogout,
-}: {
-  email: string | null;
-  onGoCatalog: () => void;
-  onLogout: () => void;
-}) {
-  return (
-    <div className="min-h-screen bg-muted/40 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center">
-        <div className="w-full rounded-[2rem] border border-border/70 bg-card/95 p-6 shadow-[0_16px_40px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Acesso administrativo
-              </p>
-              <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] text-foreground">
-                Você está logado como cliente
-              </h1>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-[1.5rem] border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
-            {email
-              ? `Você está logado como ${email}. Para acessar o painel, entre com uma conta administrativa.`
-              : "Você está com uma sessão de cliente ativa. Para acessar o painel, entre com uma conta administrativa."}
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoCatalog}>
-              Ir ao catálogo
-            </Button>
-            <ConfirmActionDialog
-              trigger={
-                <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm">
-                  <LogOut className="h-4 w-4" />
-                  Sair da conta
-                </Button>
-              }
-              title="Sair da conta"
-              description="Deseja encerrar a sessão atual? Você vai precisar entrar novamente para voltar ao painel."
-              confirmLabel="Sair"
-              destructive
-              onConfirm={onLogout}
-            />
-          </div>
-
-          <div className="mt-6 flex items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
-            <Link to="/conta" viewTransition className="text-muted-foreground transition-colors hover:text-foreground">
-              Ir para minha conta
-            </Link>
-            <span className="text-[12px] text-muted-foreground">
-              Se precisar do painel administrativo, use uma conta com role de admin.
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function summarizeOrderItems(items: unknown, maps: Parameters<typeof parseOrderTableLines>[1]): OrderTableLine[] {
   return parseOrderTableLines(items, maps);
 }
 
 export default function AdminWorkspace() {
-  const { user, isAdmin, isSuperadmin, loading, isResolvingAccess, signIn, signOut } = useAuth();
-  const navigate = useNavigate();
+  const { user, isAdmin, isSuperadmin, loading, isResolvingAccess } = useAuth();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
   const { data: notifications = [] } = useCatalogNotifications({ activeOnly: false });
@@ -576,20 +335,11 @@ export default function AdminWorkspace() {
   }
 
   if (!user) {
-    return <LoginForm onLogin={signIn} />;
+    return <Navigate to="/login" replace />;
   }
 
   if (!isAdmin) {
-    return (
-      <ClientAccessNotice
-        email={user.email}
-        onGoCatalog={() => navigate("/", { replace: true, viewTransition: true })}
-        onLogout={async () => {
-          await signOut();
-          navigate("/login", { replace: true, viewTransition: true });
-        }}
-      />
-    );
+    return <Navigate to="/login" replace />;
   }
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["products"] });

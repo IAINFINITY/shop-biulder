@@ -17,6 +17,12 @@ verify_jwt = false
 import_map = "./functions/create-employee-user/deno.json"
 entrypoint = "./functions/create-employee-user/index.ts"
 
+[functions.update-employee-user]
+enabled = true
+verify_jwt = false
+import_map = "./functions/update-employee-user/deno.json"
+entrypoint = "./functions/update-employee-user/index.ts"
+
 [functions.delete-admin-user]
 enabled = true
 verify_jwt = false

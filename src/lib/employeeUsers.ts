@@ -13,11 +13,19 @@ export type EmployeeUserCreatePayload = {
   cpf: string;
 };
 
+export type EmployeeUserUpdatePayload = {
+  userId: string;
+  name: string;
+  phone: string;
+  email: string;
+  cpf: string;
+};
+
 export async function listEmployees(): Promise<EmployeeUserRecord[]> {
   const { data, error } = await supabase
     .from(CUSTOMER_PROFILES_TABLE)
     .select("*")
-    .eq("customer_type", "funcionario")
+    .not("linked_company_cnpj", "is", null)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -27,7 +35,7 @@ export async function listEmployees(): Promise<EmployeeUserRecord[]> {
 export async function createEmployeeUser(payload: EmployeeUserCreatePayload): Promise<{ userId: string }> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  if (!token) throw new Error("Nao autenticado");
+  if (!token) throw new Error("Não autenticado");
 
   const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-employee-user`;
   const res = await fetch(functionUrl, {
@@ -43,12 +51,34 @@ export async function createEmployeeUser(payload: EmployeeUserCreatePayload): Pr
   });
 
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "Erro ao criar funcionario");
+  if (!res.ok) throw new Error(body.error ?? "Erro ao criar funcionário");
 
   const userId = body?.user?.id;
-  if (!userId) throw new Error("Resposta invalida ao criar funcionario");
+  if (!userId) throw new Error("Resposta inválida ao criar funcionário");
 
   return { userId };
+}
+
+export async function updateEmployeeUser(payload: EmployeeUserUpdatePayload): Promise<void> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Não autenticado");
+
+  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-employee-user`;
+  const res = await fetch(functionUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      ...payload,
+      linkedCompanyCnpj: CLINIC_MASTER_CNPJ,
+    }),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? "Erro ao atualizar funcionário");
 }
 
 export async function deleteEmployeeUser(userId: string): Promise<void> {

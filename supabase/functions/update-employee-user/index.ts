@@ -6,6 +6,10 @@ const corsHeaders = new Headers({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
 
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
     try {
@@ -54,19 +58,24 @@ export default {
       }
 
       const body = await req.json();
-      const { name, phone, email, password, cpf, linkedCompanyCnpj } = body as {
-        name?: string; phone?: string; email?: string; password?: string;
-        cpf?: string; linkedCompanyCnpj?: string;
+      const { userId, name, phone, email, cpf, linkedCompanyCnpj } = body as {
+        userId?: string;
+        name?: string;
+        phone?: string;
+        email?: string;
+        cpf?: string;
+        linkedCompanyCnpj?: string;
       };
 
-      if (!name || !phone || !email || !password || !cpf || !linkedCompanyCnpj) {
-        return new Response(JSON.stringify({ error: "Nome, telefone, e-mail, senha, CPF e empresa vinculada são obrigatórios" }), {
+      if (!userId || !name || !phone || !email || !cpf || !linkedCompanyCnpj) {
+        return new Response(JSON.stringify({ error: "Nome, telefone, e-mail, CPF, empresa vinculada e userId são obrigatórios" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
       }
 
-      const cpfDigits = cpf.replace(/\D/g, "");
+      const userIdTrimmed = userId.trim();
+      const cpfDigits = onlyDigits(cpf);
       if (cpfDigits.length !== 11) {
         return new Response(JSON.stringify({ error: "CPF inválido" }), {
           status: 400,
@@ -74,7 +83,7 @@ export default {
         });
       }
 
-      const linkedCnpjDigits = linkedCompanyCnpj.replace(/\D/g, "");
+      const linkedCnpjDigits = onlyDigits(linkedCompanyCnpj);
       if (linkedCnpjDigits.length !== 14) {
         return new Response(JSON.stringify({ error: "CNPJ da empresa vinculada inválido" }), {
           status: 400,
@@ -82,22 +91,24 @@ export default {
         });
       }
 
-      if (password.length < 8 || password.length > 64 || !/[A-Z]/.test(password) ||
-          !/[a-z]/.test(password) || !/\d/.test(password) ||
-          !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        return new Response(JSON.stringify({ error: "Senha não atende aos requisitos" }), {
-          status: 400,
+      const { data: currentUserData, error: currentUserErr } = await supabaseAdmin.auth.admin.getUserById(userIdTrimmed);
+      if (currentUserErr || !currentUserData?.user) {
+        return new Response(JSON.stringify({ error: "Funcionário não encontrado" }), {
+          status: 404,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
       }
 
-      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
+      const previousUser = currentUserData.user;
+      const previousEmail = previousUser.email ?? email.trim();
+      const previousMetadata = previousUser.user_metadata ?? {};
+
+      const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(userIdTrimmed, {
+        email: email.trim(),
         user_metadata: {
-          name,
-          phone,
+          ...previousMetadata,
+          name: name.trim(),
+          phone: phone.trim(),
           company: "Clinic+",
           cnpj: cpfDigits,
           customer_type: "funcionario",
@@ -105,30 +116,18 @@ export default {
         },
       });
 
-      if (createErr) {
-        const dup = String(createErr.message).toLowerCase().includes("already");
-        return new Response(JSON.stringify({
-          error: dup ? "Este e-mail já está em uso" : createErr.message,
-        }), {
+      if (authErr) {
+        return new Response(JSON.stringify({ error: authErr.message }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
       }
 
-      if (!created?.user?.id) {
-        return new Response(JSON.stringify({ error: "Falha ao criar usuário no Auth" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
-        });
-      }
-
-      const userId = created.user.id;
-
       const { error: profileErr } = await supabaseAdmin
         .from("customer_profiles")
         .upsert(
           {
-            user_id: userId,
+            user_id: userIdTrimmed,
             name: name.trim(),
             phone: phone.trim(),
             company: "Clinic+",
@@ -141,8 +140,13 @@ export default {
 
       if (profileErr) {
         console.error("Failed to upsert customer profile:", profileErr.message);
-        const { error: rollbackErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
-        if (rollbackErr) console.error("Failed to rollback user deletion:", rollbackErr.message);
+        await supabaseAdmin.auth.admin.updateUserById(userIdTrimmed, {
+          email: previousEmail,
+          user_metadata: previousMetadata,
+        }).catch((rollbackErr) => {
+          console.error("Failed to rollback auth update:", rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr));
+        });
+
         return new Response(JSON.stringify({ error: profileErr.message }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
@@ -150,15 +154,15 @@ export default {
       }
 
       return new Response(JSON.stringify({
-        message: "Funcionário criado com sucesso",
-        user: { id: userId, email },
+        message: "Funcionário atualizado com sucesso",
+        user: { id: userIdTrimmed, email: email.trim() },
       }), {
-        status: 201,
+        status: 200,
         headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("Unhandled error in create-employee-user:", msg);
+      console.error("Unhandled error in update-employee-user:", msg);
       return new Response(JSON.stringify({ error: msg }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },

@@ -5,6 +5,7 @@ import {
   EyeOff,
   Loader2,
   Plus,
+  PencilLine,
   Search,
   ShieldAlert,
   Trash2,
@@ -28,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   listEmployees,
   createEmployeeUser,
+  updateEmployeeUser,
   deleteEmployeeUser,
   CLINIC_MASTER_CNPJ,
   type EmployeeUserRecord,
@@ -51,6 +53,13 @@ export function AdminEmployeesSection() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEmployee, setEditEmployee] = useState<EmployeeUserRecord | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editCpf, setEditCpf] = useState("");
+  const [updating, setUpdating] = useState(false);
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employee_users"],
@@ -67,6 +76,24 @@ export function AdminEmployeesSection() {
       e.cnpj?.includes(q)
     );
   }, [search, employees]);
+
+  function resetEditState() {
+    setEditEmployee(null);
+    setEditName("");
+    setEditPhone("");
+    setEditEmail("");
+    setEditCpf("");
+    setUpdating(false);
+  }
+
+  function openEditEmployee(employee: EmployeeUserRecord) {
+    setEditEmployee(employee);
+    setEditName(employee.name);
+    setEditPhone(employee.phone);
+    setEditEmail(employee.email ?? "");
+    setEditCpf(formatDocumentId(employee.cnpj));
+    setEditOpen(true);
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -134,6 +161,40 @@ export function AdminEmployeesSection() {
       toast.error(err instanceof Error ? err.message : "Erro ao criar funcionário");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editEmployee || !editName || !editPhone || !editEmail || !editCpf) {
+      toast.error("Preencha todos os campos");
+      return;
+    }
+
+    const cpfDigits = onlyDigits(editCpf);
+    if (cpfDigits.length !== 11) {
+      toast.error("CPF inválido. Preencha 11 dígitos.");
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      await updateEmployeeUser({
+        userId: editEmployee.user_id,
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim(),
+        cpf: cpfDigits,
+      });
+
+      toast.success("Funcionário atualizado com sucesso");
+      setEditOpen(false);
+      resetEditState();
+      queryClient.invalidateQueries({ queryKey: ["employee_users"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar funcionário");
+    } finally {
+      setUpdating(false);
     }
   }
 
@@ -229,6 +290,15 @@ export function AdminEmployeesSection() {
                   Criado em {new Date(emp.created_at).toLocaleDateString("pt-BR")}
                 </p>
                 <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-full px-4 text-[13px]"
+                    onClick={() => openEditEmployee(emp)}
+                  >
+                    <PencilLine className="h-4 w-4" />
+                    Editar
+                  </Button>
                   <ConfirmActionDialog
                     trigger={
                       <Button
@@ -427,6 +497,101 @@ export function AdminEmployeesSection() {
               >
                 {creating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Plus className="mr-1.5 h-4 w-4" />}
                 {creating ? "Criando..." : "Criar funcionário"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) resetEditState();
+        }}
+      >
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[56rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+              <PencilLine className="h-5 w-5" />
+              Editar funcionário
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdate} className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nome</Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nome completo"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</Label>
+                <Input
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">CPF</Label>
+                <Input
+                  value={editCpf}
+                  onChange={(e) => setEditCpf(formatDocumentId(e.target.value))}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  maxLength={14}
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">E-mail</Label>
+                <Input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="funcionario@email.com"
+                  required
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                />
+              </div>
+
+              <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
+                O vínculo com a Clinic+ será mantido automaticamente.
+                <div className="mt-1 text-muted-foreground">
+                  CNPJ {formatDocumentId(CLINIC_MASTER_CNPJ)}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="md:col-span-2 gap-2 border-t border-border/70 pt-4 sm:gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditOpen(false);
+                  resetEditState();
+                }}
+                className="h-11 rounded-2xl px-5 text-sm"
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={updating} className="h-11 rounded-2xl px-5 text-sm">
+                {updating ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <PencilLine className="mr-1.5 h-4 w-4" />}
+                {updating ? "Salvando..." : "Salvar alterações"}
               </Button>
             </DialogFooter>
           </form>

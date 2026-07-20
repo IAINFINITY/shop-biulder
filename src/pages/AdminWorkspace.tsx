@@ -50,6 +50,7 @@ import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
 import { AdminSettingsSection } from "@/components/admin/AdminSettingsSection";
 import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
+import { listEmployees } from "@/lib/employeeUsers";
 import {
   CUSTOMER_TYPE_OVERRIDES_TABLE,
   buildCustomerTypeOverrideMap,
@@ -74,6 +75,15 @@ function summarizeOrderItems(items: unknown, maps: Parameters<typeof parseOrderT
   return parseOrderTableLines(items, maps);
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 export default function AdminWorkspace() {
   const { user, isAdmin, isSuperadmin, loading, isResolvingAccess, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
@@ -82,6 +92,12 @@ export default function AdminWorkspace() {
   const { data: banners = [] } = useCatalogBanners({ activeOnly: false });
   const { data: inboxConversations = [] } = useSupportInbox(Boolean(user && isAdmin));
   const { data: adminTypes = [] } = useAdminProductTypes();
+  const { data: employeeProfiles = [] } = useQuery({
+    queryKey: ["employee_users"],
+    enabled: Boolean(user && isAdmin),
+    queryFn: listEmployees,
+    staleTime: 30_000,
+  });
   const { data: customerProfiles = [] } = useQuery({
     queryKey: ["admin-customer-profiles"],
     enabled: Boolean(user && isAdmin),
@@ -130,22 +146,63 @@ export default function AdminWorkspace() {
     () => buildCustomerTypeOverrideMap(customerTypeOverrides),
     [customerTypeOverrides],
   );
+  const orderRows = orders as unknown as AdminOrderRow[];
+  const clientProfiles = useMemo(
+    () =>
+      customerProfiles.filter(
+        (profile) => normalizeCustomerType(profile.customer_type) !== "funcionario" && !profile.linked_company_cnpj,
+      ),
+    [customerProfiles],
+  );
+  const activeCustomerLookup = useMemo(() => {
+    const cnpjSet = new Set<string>();
+    const nameSet = new Set<string>();
+    const companySet = new Set<string>();
+
+    for (const profile of clientProfiles) {
+      const cnpj = onlyDigits(profile.cnpj);
+      if (cnpj) cnpjSet.add(cnpj);
+
+      const name = normalizeText(profile.name);
+      if (name) nameSet.add(name);
+
+      const company = normalizeText(profile.company || "");
+      if (company) companySet.add(company);
+    }
+
+    return { cnpjSet, nameSet, companySet };
+  }, [clientProfiles]);
+  const dashboardOrderRows = useMemo(
+    () =>
+      orderRows.filter((order) => {
+        const orderCnpj = onlyDigits(order.customer_cnpj);
+        if (orderCnpj) {
+          return activeCustomerLookup.cnpjSet.has(orderCnpj);
+        }
+
+        const orderName = normalizeText(order.customer_name);
+        if (orderName && activeCustomerLookup.nameSet.has(orderName)) return true;
+
+        const orderCompany = normalizeText(order.customer_company ?? "");
+        return orderCompany ? activeCustomerLookup.companySet.has(orderCompany) : false;
+      }),
+    [activeCustomerLookup, orderRows],
+  );
   const newUsersCount = useMemo(() => {
     const now = Date.now();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
-    return customerProfiles.filter((profile) => {
+    return clientProfiles.filter((profile) => {
       const createdAt = new Date(profile.created_at).getTime();
       return Number.isFinite(createdAt) && now - createdAt <= sevenDaysMs;
     }).length;
-  }, [customerProfiles]);
+  }, [clientProfiles]);
   const openConversationsCount = useMemo(
     () => inboxConversations.filter((conversation) => conversation.status === "open").length,
     [inboxConversations],
   );
   const sentNotificationsCount = notifications.length;
   const createdBannersCount = banners.length;
-  const orderRows = orders as unknown as AdminOrderRow[];
   const productSalesById = useMemo(() => {
     const counts = new Map<string, number>();
 
@@ -189,7 +246,7 @@ export default function AdminWorkspace() {
   }, [products, productSearch]);
   const recentOrders = useMemo(
     (): AdminDashboardOrder[] =>
-      [...orderRows]
+      [...dashboardOrderRows]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5)
         .map((order) => ({
@@ -207,8 +264,8 @@ export default function AdminWorkspace() {
             unitPrice: line.unitPrice,
             quantity: line.quantity,
           })),
-        })),
-    [orderRows],
+          })),
+    [dashboardOrderRows],
   );
   const customerSummaries = useMemo<AdminCustomerSummary[]>(() => {
     const customers = new Map<
@@ -225,7 +282,7 @@ export default function AdminWorkspace() {
       }
     >();
 
-    for (const profile of customerProfiles) {
+    for (const profile of clientProfiles) {
       const key = onlyDigits(profile.cnpj) || profile.user_id;
       const overrideType = customerTypeOverrideMap.get(onlyDigits(profile.cnpj));
       customers.set(key, {
@@ -240,7 +297,7 @@ export default function AdminWorkspace() {
       });
     }
 
-    for (const order of orderRows) {
+    for (const order of dashboardOrderRows) {
       const key = onlyDigits(order.customer_cnpj) || order.customer_name;
       const current = customers.get(key);
       const orderLines = summarizeOrderItems(order.items, orderEnrichment);
@@ -268,28 +325,28 @@ export default function AdminWorkspace() {
     }
 
     return [...customers.values()].sort((a, b) => b.orders - a.orders || b.total - a.total || a.name.localeCompare(b.name, "pt-BR"));
-  }, [customerProfiles, customerTypeOverrideMap, orderRows]);
+  }, [clientProfiles, customerTypeOverrideMap, dashboardOrderRows, orderEnrichment]);
   const activeProductsCount = useMemo(() => products.filter((p) => p.active).length, [products]);
   const inactiveProductsCount = useMemo(() => products.filter((p) => !p.active).length, [products]);
   const pendingOrdersCount = useMemo(
-    () => orderRows.filter((o) => {
+    () => dashboardOrderRows.filter((o) => {
       const s = o.status.toLowerCase();
       return s.includes("novo") || s.includes("separ") || s.includes("process") || s.includes("prepar");
     }).length,
-    [orderRows],
+    [dashboardOrderRows],
   );
   const totalRevenue = useMemo(
     () =>
-      orderRows.reduce(
+      dashboardOrderRows.reduce(
         (sum, order) =>
           sum + getOrderLinesGrandTotal(summarizeOrderItems(order.items, orderEnrichment)),
         0,
       ),
-    [orderRows],
+    [dashboardOrderRows, orderEnrichment],
   );
   const averageOrderValue = useMemo(
-    () => (orderRows.length > 0 ? totalRevenue / orderRows.length : 0),
-    [orderRows.length, totalRevenue],
+    () => (dashboardOrderRows.length > 0 ? totalRevenue / dashboardOrderRows.length : 0),
+    [dashboardOrderRows.length, totalRevenue],
   );
   const customersWithOrdersCount = useMemo(
     () => customerSummaries.filter((customer) => customer.orders > 0).length,
@@ -301,10 +358,17 @@ export default function AdminWorkspace() {
   );
   const recentCustomers = useMemo(
     () =>
-      [...customerProfiles]
+      [...clientProfiles]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5),
-    [customerProfiles],
+    [clientProfiles],
+  );
+  const recentEmployees = useMemo(
+    () =>
+      [...employeeProfiles]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5),
+    [employeeProfiles],
   );
   const sectionTitle: Record<AdminSection, string> = {
     dashboard: "Dashboard",
@@ -652,7 +716,7 @@ export default function AdminWorkspace() {
           customerSummaries={customerSummaries}
           notifications={notifications}
           banners={banners}
-          customerProfiles={customerProfiles}
+          customerProfiles={clientProfiles}
           orderRows={orderRows}
           activeProductsCount={activeProductsCount}
           inactiveProductsCount={inactiveProductsCount}
@@ -666,6 +730,7 @@ export default function AdminWorkspace() {
           customersWithOrdersCount={customersWithOrdersCount}
           customersWithoutOrdersCount={customersWithoutOrdersCount}
           recentCustomers={recentCustomers}
+          recentEmployees={recentEmployees}
           formatDate={formatDate}
           onGoToOrders={() => setSection("pedidos")}
           onGoToProducts={() => setSection("produtos")}
@@ -743,7 +808,7 @@ export default function AdminWorkspace() {
 
       {section === "clientes" && (
         <AdminClientsSection
-          customerProfiles={customerProfiles}
+          customerProfiles={clientProfiles}
           customerSummaries={customerSummaries}
           clientSearch={clientSearch}
           onClientSearchChange={setClientSearch}

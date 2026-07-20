@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatBRL, coercePrice } from "@/lib/formatMoney";
 import { getProductImageUrls } from "@/lib/products";
-import { formatCnpjDisplay } from "@/lib/brazilianIds";
+import { formatDocumentId } from "@/lib/brazilianIds";
 import { AdminStatCard } from "./AdminStatCard";
 import type { AdminCustomerSummary, AdminDashboardOrder, AdminOrderRow, AdminProduct } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
@@ -29,6 +29,7 @@ type AdminDashboardSectionProps = {
   notifications: CatalogNotification[];
   banners: CatalogBanner[];
   customerProfiles: CustomerProfile[];
+  recentEmployees: CustomerProfile[];
   orderRows: AdminOrderRow[];
   activeProductsCount: number;
   inactiveProductsCount: number;
@@ -54,6 +55,7 @@ export function AdminDashboardSection({
   notifications,
   banners,
   customerProfiles,
+  recentEmployees,
   orderRows,
   activeProductsCount,
   inactiveProductsCount,
@@ -214,105 +216,105 @@ export function AdminDashboardSection({
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <div className="flex flex-col rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)] h-full">
-          <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
-              <p className="text-sm text-foreground">Acompanhe a operação sem sair da visão geral</p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary shrink-0"
-              onClick={onGoToOrders}
-            >
-              Ver todos
-            </Button>
+      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)] h-full">
+        <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
+            <p className="text-sm text-foreground">Acompanhe a operação sem sair da visão geral</p>
           </div>
-          <div className="space-y-3 lg:hidden">
-            {recentOrders.map((order) => {
-              const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-              const shortOrderId = order.id.length > 10 ? `#${order.id.slice(0, 8)}…` : `#${order.id}`;
+          <Button
+            type="button"
+            variant="ghost"
+            className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary shrink-0"
+            onClick={onGoToOrders}
+          >
+            Ver todos
+          </Button>
+        </div>
+        <div className="space-y-3 lg:hidden">
+          {recentOrders.map((order) => {
+            const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+            const shortOrderId = order.id.length > 10 ? `#${order.id.slice(0, 8)}…` : `#${order.id}`;
 
-              return (
-                <div
-                  key={order.id}
-                  className="rounded-[1.1rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="truncate font-mono text-[13px] text-foreground" title={`Pedido ${order.id}`}>
-                        {shortOrderId}
-                      </p>
-                      <p className="truncate text-[14px] font-medium text-foreground" title={order.customer_company || order.customer_name}>
-                        {order.customer_company || order.customer_name}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
-                      className="rounded-full px-2.5 py-0.5 text-[11px]"
-                    >
-                      {order.status}
-                    </Badge>
+            return (
+              <div
+                key={order.id}
+                className="rounded-[1.1rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="truncate font-mono text-[13px] text-foreground" title={`Pedido ${order.id}`}>
+                      {shortOrderId}
+                    </p>
+                    <p className="truncate text-[14px] font-medium text-foreground" title={order.customer_company || order.customer_name}>
+                      {order.customer_company || order.customer_name}
+                    </p>
                   </div>
+                  <Badge
+                    variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
+                    className="rounded-full px-2.5 py-0.5 text-[11px]"
+                  >
+                    {order.status}
+                  </Badge>
+                </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
-                    <div className="rounded-2xl bg-muted/20 px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Data</p>
-                      <p className="mt-1 text-foreground">{formatDate(order.created_at)}</p>
-                    </div>
-                    <div className="rounded-2xl bg-muted/20 px-3 py-2 text-right">
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Valor</p>
-                      <p className="mt-1 font-mono text-foreground">{formatBRL(total)}</p>
-                    </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="rounded-2xl bg-muted/20 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Data</p>
+                    <p className="mt-1 text-foreground">{formatDate(order.created_at)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/20 px-3 py-2 text-right">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Valor</p>
+                    <p className="mt-1 font-mono text-foreground">{formatBRL(total)}</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="flex-1 hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
-            <table className="w-full table-fixed border-collapse text-sm h-full">
-              <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                <tr>
-                  <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>
-                  <th className="w-[29%] whitespace-nowrap px-4 py-3 text-left font-semibold">Cliente</th>
-                  <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Data</th>
-                  <th className="w-[13%] whitespace-nowrap px-4 py-3 text-right font-semibold">Valor</th>
-                  <th className="w-[16%] whitespace-nowrap px-4 py-3 text-left font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((order) => {
-                  const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-                  const shortOrderId = order.id.length > 10 ? `#${order.id.slice(0, 8)}…` : `#${order.id}`;
-                  return (
-                    <tr key={order.id} className="border-t border-border/60 hover:bg-muted/20">
-                      <td className="truncate px-4 py-3 font-mono text-sm text-foreground" title={`Pedido ${order.id}`}>
-                        {shortOrderId}
-                      </td>
-                      <td className="truncate px-4 py-3 text-foreground" title={order.customer_company || order.customer_name}>
-                        {order.customer_company || order.customer_name}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-foreground">{formatBRL(total)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 pr-4">
-                        <Badge
-                          variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
-                          className="inline-flex min-w-[7.75rem] max-w-full justify-center rounded-full px-3 py-1 text-[10px] leading-none"
-                        >
-                          {order.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            );
+          })}
         </div>
 
+        <div className="flex-1 hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
+          <table className="w-full table-fixed border-collapse text-sm h-full">
+            <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              <tr>
+                <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>
+                <th className="w-[29%] whitespace-nowrap px-4 py-3 text-left font-semibold">Cliente</th>
+                <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Data</th>
+                <th className="w-[13%] whitespace-nowrap px-4 py-3 text-right font-semibold">Valor</th>
+                <th className="w-[16%] whitespace-nowrap px-4 py-3 text-left font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.map((order) => {
+                const total = order.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+                const shortOrderId = order.id.length > 10 ? `#${order.id.slice(0, 8)}…` : `#${order.id}`;
+                return (
+                  <tr key={order.id} className="border-t border-border/60 hover:bg-muted/20">
+                    <td className="truncate px-4 py-3 font-mono text-sm text-foreground" title={`Pedido ${order.id}`}>
+                      {shortOrderId}
+                    </td>
+                    <td className="truncate px-4 py-3 text-foreground" title={order.customer_company || order.customer_name}>
+                      {order.customer_company || order.customer_name}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDate(order.created_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-foreground">{formatBRL(total)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 pr-4">
+                      <Badge
+                        variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
+                        className="inline-flex min-w-[7.75rem] max-w-full justify-center rounded-full px-3 py-1 text-[10px] leading-none"
+                      >
+                        {order.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -332,10 +334,42 @@ export function AdminDashboardSection({
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="truncate text-[15px] font-semibold text-foreground">{customer.name}</p>
                   <p className="truncate text-[12px] text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
-                  <p className="break-words text-[12px] text-muted-foreground">CNPJ {formatCnpjDisplay(customer.cnpj)}</p>
+                  <p className="break-words text-[12px] text-muted-foreground">Documento {formatDocumentId(customer.cnpj)}</p>
                 </div>
                 <Badge variant={customer.proxis_found ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px]">
                   {customer.proxis_found ? "Proxsys ok" : "Sem vínculo"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Funcionários recentes</p>
+              <p className="text-sm text-foreground">Equipe vinculada à Clinic+</p>
+            </div>
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+              {recentEmployees.length} registro(s)
+            </Badge>
+          </div>
+          <div className="space-y-3">
+            {recentEmployees.slice(0, 4).map((employee) => (
+              <div
+                key={employee.user_id}
+                className="flex items-start justify-between gap-3 rounded-[1.1rem] border border-border/70 bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="truncate text-[15px] font-semibold text-foreground">{employee.name}</p>
+                  <p className="truncate text-[12px] text-muted-foreground">{employee.phone || "Sem telefone cadastrado"}</p>
+                  <p className="break-words text-[12px] text-muted-foreground">Documento {formatDocumentId(employee.cnpj)}</p>
+                  <p className="break-words text-[12px] text-muted-foreground">
+                    Vinculado a {employee.linked_company_cnpj ? formatDocumentId(employee.linked_company_cnpj) : "—"}
+                  </p>
+                </div>
+                <Badge variant={employee.linked_company_cnpj ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px]">
+                  Funcionário
                 </Badge>
               </div>
             ))}
@@ -589,7 +623,7 @@ export function AdminDashboardSection({
                     </Badge>
                   </div>
                   <div className="mt-3 space-y-1 text-[12px] leading-5 text-muted-foreground">
-                    <p className="break-words">CNPJ {formatCnpjDisplay(customer.cnpj)}</p>
+                    <p className="break-words">Documento {formatDocumentId(customer.cnpj)}</p>
                     <p>Sincronizado em {formatCompactDateTime(customer.proxis_synced_at)}</p>
                   </div>
                 </div>

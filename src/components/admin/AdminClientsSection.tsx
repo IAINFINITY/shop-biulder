@@ -780,16 +780,16 @@ export function AdminClientsSection({
                     className="h-10 rounded-2xl border-destructive/40 px-4 text-[13px] text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="mr-1.5 h-4 w-4" />
-                    {editCustomer?.userId ? "Excluir conta e dados" : "Excluir cliente"}
+                    {editCustomer?.userId ? "Excluir tudo" : "Excluir cliente"}
                   </Button>
                 }
                 title="Excluir conta e dados do cliente"
                 description={
                   editCustomer?.userId
-                    ? `Esta ação apaga permanentemente a conta, cadastro, endereços e pedidos vinculados ao CNPJ de "${editCustomer?.name}". O histórico do cliente será removido e não poderá ser recuperado.`
-                    : `Este é um cliente legado sem conta de acesso. A exclusão remove o cadastro consolidado, endereços e pedidos vinculados ao CNPJ informado.`
+                    ? `Esta ação apaga permanentemente a conta, cadastro, carrinho/pedidos, endereços e histórico vinculados ao CNPJ de "${editCustomer?.name}". O acesso não poderá ser recuperado.`
+                    : `Este é um cliente legado sem conta de acesso. A exclusão remove o cadastro consolidado, carrinho/pedidos, endereços e histórico, usando nome e/ou CNPJ para localizar registros antigos.`
                 }
-                confirmLabel="Excluir"
+                confirmLabel="Excluir tudo"
                 processingLabel="Apagando..."
                 destructive
                 onConfirm={async () => {

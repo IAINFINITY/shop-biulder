@@ -15,6 +15,15 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 function isNotFoundError(message: string): boolean {
   return /not found|não encontrado|nao encontrado/i.test(message);
 }
@@ -27,6 +36,33 @@ async function deleteIfAny(
 ): Promise<void> {
   const { error } = await supabaseAdmin.from(table).delete().eq(column, value);
   if (error) throw error;
+}
+
+async function deleteOrdersByCustomerIdentifier(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  customerCnpj: string,
+  customerName: string,
+): Promise<void> {
+  const { data: orders, error: ordersErr } = await supabaseAdmin
+    .from(ORDERS_TABLE)
+    .select("id, customer_cnpj, customer_name");
+
+  if (ordersErr) throw ordersErr;
+
+  const normalizedName = normalizeText(customerName);
+  const byCnpj = customerCnpj
+    ? (orders ?? []).filter((order) => onlyDigits(order.customer_cnpj ?? "") === customerCnpj).map((order) => order.id)
+    : [];
+  const orderIds = byCnpj.length > 0 || !normalizedName
+    ? byCnpj
+    : (orders ?? [])
+        .filter((order) => normalizeText(order.customer_name ?? "") === normalizedName)
+        .map((order) => order.id);
+
+  if (orderIds.length === 0) return;
+
+  const { error: deleteErr } = await supabaseAdmin.from(ORDERS_TABLE).delete().in("id", orderIds);
+  if (deleteErr) throw deleteErr;
 }
 
 export default {
@@ -80,13 +116,15 @@ export default {
       const { userId, cnpj } = body as {
         userId?: string;
         cnpj?: string;
+        name?: string;
       };
 
       const normalizedUserId = typeof userId === "string" ? userId.trim() : "";
       const normalizedCnpj = typeof cnpj === "string" ? onlyDigits(cnpj).slice(0, 14) : "";
+      const normalizedName = typeof body.name === "string" ? body.name.trim() : "";
 
-      if (!normalizedUserId && !normalizedCnpj) {
-        return new Response(JSON.stringify({ error: "userId ou cnpj e obrigatorio" }), {
+      if (!normalizedUserId && !normalizedCnpj && !normalizedName) {
+        return new Response(JSON.stringify({ error: "userId, cnpj ou name e obrigatorio" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -135,21 +173,19 @@ export default {
         await deleteIfAny(supabaseAdmin, CUSTOMER_TYPE_OVERRIDES_TABLE, "cnpj", profileCnpj);
       }
 
-      if (deleteTargetCnpj) {
-        const { error: ordersErr } = await supabaseAdmin
-          .from(ORDERS_TABLE)
-          .delete()
-          .eq("customer_cnpj", deleteTargetCnpj);
-
-        if (ordersErr) {
-          return new Response(JSON.stringify({ error: ordersErr.message }), {
+      if (deleteTargetCnpj || normalizedName) {
+        try {
+          await deleteOrdersByCustomerIdentifier(supabaseAdmin, deleteTargetCnpj, normalizedName);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return new Response(JSON.stringify({ error: msg }), {
             status: 500,
             headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
           });
         }
       }
 
-      return new Response(JSON.stringify({ message: "Usuario excluido com sucesso" }), {
+      return new Response(JSON.stringify({ message: "Usuário excluído com sucesso" }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
       });

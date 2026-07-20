@@ -155,11 +155,15 @@ export default function AdminWorkspace() {
     [customerProfiles],
   );
   const activeCustomerLookup = useMemo(() => {
+    const userIdSet = new Set<string>();
     const cnpjSet = new Set<string>();
     const nameSet = new Set<string>();
     const companySet = new Set<string>();
 
     for (const profile of clientProfiles) {
+      const userId = profile.user_id.trim();
+      if (userId) userIdSet.add(userId);
+
       const cnpj = onlyDigits(profile.cnpj);
       if (cnpj) cnpjSet.add(cnpj);
 
@@ -170,11 +174,16 @@ export default function AdminWorkspace() {
       if (company) companySet.add(company);
     }
 
-    return { cnpjSet, nameSet, companySet };
+    return { userIdSet, cnpjSet, nameSet, companySet };
   }, [clientProfiles]);
   const dashboardOrderRows = useMemo(
     () =>
       orderRows.filter((order) => {
+        const orderUserId = typeof order.customer_user_id === "string" ? order.customer_user_id.trim() : "";
+        if (orderUserId) {
+          return activeCustomerLookup.userIdSet.has(orderUserId);
+        }
+
         const orderCnpj = onlyDigits(order.customer_cnpj);
         if (orderCnpj) {
           return activeCustomerLookup.cnpjSet.has(orderCnpj);
@@ -206,7 +215,7 @@ export default function AdminWorkspace() {
   const productSalesById = useMemo(() => {
     const counts = new Map<string, number>();
 
-    for (const order of orderRows) {
+    for (const order of dashboardOrderRows) {
       const items = Array.isArray(order.items) ? order.items : [];
       for (const item of items) {
         if (!item || typeof item !== "object") continue;
@@ -219,11 +228,11 @@ export default function AdminWorkspace() {
     }
 
     return counts;
-  }, [orderRows]);
+  }, [dashboardOrderRows]);
   const filteredOrders = useMemo<AdminOrderRow[]>(() => {
     const term = orderSearch.trim().toLowerCase();
-    if (!term) return orderRows;
-    return orderRows.filter((order) => {
+    if (!term) return dashboardOrderRows;
+    return dashboardOrderRows.filter((order) => {
       const fields = [
         order.customer_name,
         order.customer_company ?? "",
@@ -235,7 +244,7 @@ export default function AdminWorkspace() {
       ].map((value) => String(value).toLowerCase());
       return fields.some((value) => value.includes(term));
     });
-  }, [orderRows, orderSearch]);
+  }, [dashboardOrderRows, orderSearch]);
   const filteredProducts = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
     if (!term) return products;
@@ -252,6 +261,7 @@ export default function AdminWorkspace() {
         .map((order) => ({
           id: order.id,
           created_at: order.created_at,
+          customer_user_id: order.customer_user_id ?? null,
           customer_name: order.customer_name,
           customer_company: order.customer_company,
           customer_phone: order.customer_phone,

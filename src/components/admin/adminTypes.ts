@@ -22,6 +22,7 @@ export type AdminOrderSummaryLine = {
 export type AdminDashboardOrder = {
   id: string;
   created_at: string;
+  customer_user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
@@ -36,6 +37,7 @@ export type AdminDashboardOrder = {
 export type AdminOrderRow = {
   id: string;
   created_at: string;
+  customer_user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
@@ -75,6 +77,7 @@ export type AdminCustomerSummary = {
 export type AdminRecentOrder = {
   id: string;
   created_at: string;
+  customer_user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;

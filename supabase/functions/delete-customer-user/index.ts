@@ -129,15 +129,17 @@ export default {
         await deleteIfAny(supabaseAdmin, CUSTOMER_PROFILES_TABLE, "user_id", profileUserId);
       }
 
+      const deleteTargetCnpj = profileCnpj || normalizedCnpj;
+
       if (profileCnpj) {
         await deleteIfAny(supabaseAdmin, CUSTOMER_TYPE_OVERRIDES_TABLE, "cnpj", profileCnpj);
       }
 
-      if (!profileUserId && normalizedCnpj) {
+      if (deleteTargetCnpj) {
         const { error: ordersErr } = await supabaseAdmin
           .from(ORDERS_TABLE)
           .delete()
-          .eq("customer_cnpj", normalizedCnpj);
+          .eq("customer_cnpj", deleteTargetCnpj);
 
         if (ordersErr) {
           return new Response(JSON.stringify({ error: ordersErr.message }), {

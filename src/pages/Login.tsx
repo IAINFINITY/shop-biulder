@@ -201,22 +201,22 @@ export default function Login() {
     }
 
     if (signUpPassword.length > 64) {
-      toast.error("A senha deve ter no mÃ¡ximo 64 caracteres.");
+      toast.error("A senha deve ter no máximo 64 caracteres.");
       return;
     }
 
     if (!/[A-Z]/.test(signUpPassword)) {
-      toast.error("A senha deve conter pelo menos uma letra maiÃºscula.");
+      toast.error("A senha deve conter pelo menos uma letra maiúscula.");
       return;
     }
 
     if (!/[a-z]/.test(signUpPassword)) {
-      toast.error("A senha deve conter pelo menos uma letra minÃºscula.");
+      toast.error("A senha deve conter pelo menos uma letra minúscula.");
       return;
     }
 
     if (!/\d/.test(signUpPassword)) {
-      toast.error("A senha deve conter pelo menos um nÃºmero.");
+      toast.error("A senha deve conter pelo menos um número.");
       return;
     }
 
@@ -226,7 +226,7 @@ export default function Login() {
     }
 
     if (signUpPassword !== signUpPasswordConfirm) {
-      toast.error("As senhas nÃ£o coincidem.");
+      toast.error("As senhas não coincidem.");
       return;
     }
 
@@ -293,7 +293,7 @@ export default function Login() {
             <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-muted-foreground">
 {authTab === "entrar"
                   ? "Entre com seu e-mail e senha cadastrados."
-                 : "Preencha os dados da sua empresa para criar sua conta B2B."}
+                  : "Preencha os dados da sua empresa e informe um CNPJ para criar sua conta B2B."}
             </p>
           </div>
         </div>

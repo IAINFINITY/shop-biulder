@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDocumentId, formatPhone, onlyDigits } from "@/lib/brazilianIds";
+import { formatCnpj, formatPhone, onlyDigits } from "@/lib/brazilianIds";
 import type { CnpjValidationStatus } from "@/hooks/useCnpjValidation";
 import { useCnpjCustomerLookup } from "@/hooks/useCnpjCustomerLookup";
 import {
@@ -177,7 +177,7 @@ export function CustomerDataFields({
         <Input
           id={id("cnpj")}
           value={form.cnpj}
-          onChange={(e) => onChange({ cnpj: formatDocumentId(e.target.value) })}
+          onChange={(e) => onChange({ cnpj: formatCnpj(e.target.value) })}
           onBlur={onCnpjBlur}
           placeholder="00.000.000/0000-00"
           inputMode="numeric"

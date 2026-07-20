@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/formatMoney";
 import { customerTypeLabel } from "@/lib/pricing";
-import { formatCnpjDisplay } from "@/lib/brazilianIds";
+import { formatDocumentId } from "@/lib/brazilianIds";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
@@ -431,7 +431,7 @@ export function AdminClientsSection({
                     ) : null}
                     {customer.cnpj ? (
                       <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
-                        {formatCnpjDisplay(customer.cnpj)}
+                         {formatDocumentId(customer.cnpj)}
                       </Badge>
                     ) : null}
                   </div>
@@ -483,7 +483,7 @@ export function AdminClientsSection({
                     </div>
 
                     <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-                      <DetailField label="CNPJ" value={formatCnpjDisplay(detailsCustomer.cnpj ?? "") || "—"} />
+                      <DetailField label="Documento" value={formatDocumentId(detailsCustomer.cnpj ?? "") || "—"} />
                       <DetailField label="Telefone" value={detailsCustomer.phone || "—"} />
                       <DetailField label="E-mail" value={selectedDetailsProfile?.email || "—"} />
                       <DetailField label="Pedidos" value={String(detailsCustomer.orders)} />
@@ -704,7 +704,7 @@ export function AdminClientsSection({
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Cliente</p>
                 <p className="mt-1 text-[15px] sm:text-base font-semibold text-foreground">{editCustomer.name}</p>
                 <p className="mt-1 text-[12px] sm:text-sm text-muted-foreground">
-                  {editCustomer.company || "Sem empresa vinculada"} {editCustomer.cnpj ? `• ${formatCnpjDisplay(editCustomer.cnpj)}` : ""}
+                   {editCustomer.company || "Sem empresa vinculada"} {editCustomer.cnpj ? `• ${formatDocumentId(editCustomer.cnpj)}` : ""}
                 </p>
               </div>
 

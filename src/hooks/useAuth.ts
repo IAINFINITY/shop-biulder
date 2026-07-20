@@ -412,6 +412,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpCustomer = async (data: CustomerRegistrationData) => {
     const supabase = await loadSupabaseClient();
+    const documentDigits = onlyDigits(data.cnpj.trim());
+    if (documentDigits.length !== 14) {
+      return {
+        error: new Error("CNPJ inválido. Preencha 14 dígitos."),
+        needsEmailConfirmation: false,
+      };
+    }
+
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: data.email.trim(),
       password: data.password,

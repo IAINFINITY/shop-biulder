@@ -625,7 +625,7 @@ export default function Account() {
               ) : (
                 <div className="mt-5">
                   <EmptyPanel
-                    title="Endereco nao cadastrado"
+                    title="Endereço não cadastrado"
                     description="Quando os dados de endereco forem salvos no perfil, eles aparecem aqui para consulta do cliente."
                   />
                 </div>

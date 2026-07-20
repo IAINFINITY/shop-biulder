@@ -65,7 +65,7 @@ export function profileAddressToForm(profile: CustomerProfile): AddressFormData 
 export async function deleteCustomerRecord(payload: DeleteCustomerRecordPayload): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  if (!token) throw new Error("Nao autenticado");
+  if (!token) throw new Error("Não autenticado");
 
   const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-customer-user`;
   const res = await fetch(functionUrl, {

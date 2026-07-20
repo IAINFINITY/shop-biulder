@@ -89,7 +89,7 @@ export function AdminSettingsSection() {
       toast.error("Usuário não autenticado");
       return;
     }
-    if (!name.trim()) { toast.error("Nome nao pode ficar vazio"); return; }
+    if (!name.trim()) { toast.error("Nome não pode ficar vazio"); return; }
     setSavingProfile(true);
     try {
       const nextName = name.trim();

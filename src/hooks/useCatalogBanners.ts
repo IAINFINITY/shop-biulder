@@ -53,7 +53,7 @@ export function useCatalogBanners(options?: UseCatalogBannersOptions) {
         }
       }
 
-      if (!data) throw lastError ?? new Error("Nao foi possivel carregar banners.");
+      if (!data) throw lastError ?? new Error("Não foi possível carregar banners.");
       return (data ?? []).map((row) => normalizeCatalogBannerFromSupabaseRow(row)) as CatalogBanner[];
     },
     initialData: [] as CatalogBanner[],

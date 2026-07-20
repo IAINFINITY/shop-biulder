@@ -56,7 +56,7 @@ export async function listAdminUsers(): Promise<AdminUserRecord[]> {
 export async function createAdminUser(payload: AdminUserCreatePayload): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  if (!token) throw new Error("Nao autenticado");
+  if (!token) throw new Error("Não autenticado");
 
   const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-admin-user`;
   const res = await fetch(functionUrl, {
@@ -69,7 +69,7 @@ export async function createAdminUser(payload: AdminUserCreatePayload): Promise<
   });
 
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "Erro ao criar usuario");
+  if (!res.ok) throw new Error(body.error ?? "Erro ao criar usuário");
 }
 
 export async function updateAdminRole(userId: string, role: string): Promise<void> {
@@ -91,7 +91,7 @@ export async function toggleAdminActive(userId: string, isActive: boolean): Prom
 export async function deleteAdminUser(userId: string): Promise<void> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  if (!token) throw new Error("Nao autenticado");
+  if (!token) throw new Error("Não autenticado");
 
   const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-admin-user`;
   const res = await fetch(functionUrl, {
@@ -104,7 +104,7 @@ export async function deleteAdminUser(userId: string): Promise<void> {
   });
 
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "Erro ao excluir usuario");
+  if (!res.ok) throw new Error(body.error ?? "Erro ao excluir usuário");
 }
 
 export function canManageRole(currentRole: string, targetRole: string): boolean {

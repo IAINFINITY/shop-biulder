@@ -101,7 +101,7 @@ export function useProducts(options?: UseProductsOptions) {
         if (!missingColumn) throw result.error;
       }
 
-      if (!data) throw lastError ?? new Error("Nao foi possivel carregar produtos.");
+      if (!data) throw lastError ?? new Error("Não foi possível carregar produtos.");
       const products = data.map((row) => normalizeProductFromSupabaseRow(row));
       writeCachedProducts(includeInactive, products);
       return products;

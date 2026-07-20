@@ -25,7 +25,7 @@ function normalizeText(value: string): string {
 }
 
 function isNotFoundError(message: string): boolean {
-  return /not found|não encontrado|nao encontrado/i.test(message);
+  return /not found|não encontrado/i.test(message);
 }
 
 async function deleteIfAny(
@@ -94,7 +94,7 @@ export default {
       const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
       const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
       if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: "Nao autenticado" }), {
+        return new Response(JSON.stringify({ error: "Não autenticado" }), {
           status: 401,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -124,7 +124,7 @@ export default {
       const normalizedName = typeof body.name === "string" ? body.name.trim() : "";
 
       if (!normalizedUserId && !normalizedCnpj && !normalizedName) {
-        return new Response(JSON.stringify({ error: "userId, cnpj ou name e obrigatorio" }), {
+        return new Response(JSON.stringify({ error: "userId, cnpj ou nome são obrigatórios" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });

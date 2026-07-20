@@ -35,7 +35,7 @@ export default {
       const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
       const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
       if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: "Nao autenticado" }), {
+        return new Response(JSON.stringify({ error: "Não autenticado" }), {
           status: 401,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -57,7 +57,7 @@ export default {
       const { userId } = body as { userId?: string };
 
       if (!userId) {
-        return new Response(JSON.stringify({ error: "userId e obrigatorio" }), {
+        return new Response(JSON.stringify({ error: "userId é obrigatório" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -72,7 +72,7 @@ export default {
         });
       }
 
-      return new Response(JSON.stringify({ message: "Usuario excluido com sucesso" }), {
+      return new Response(JSON.stringify({ message: "Usuário excluído com sucesso" }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
       });

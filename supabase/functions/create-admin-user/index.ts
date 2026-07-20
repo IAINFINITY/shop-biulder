@@ -35,7 +35,7 @@ export default {
       const token = req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
       const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
       if (userErr || !userData?.user) {
-        return new Response(JSON.stringify({ error: "Nao autenticado" }), {
+        return new Response(JSON.stringify({ error: "Não autenticado" }), {
           status: 401,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -59,7 +59,7 @@ export default {
       };
 
       if (!email || !password) {
-        return new Response(JSON.stringify({ error: "Email e senha sao obrigatorios" }), {
+        return new Response(JSON.stringify({ error: "Email e senha são obrigatórios" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -68,7 +68,7 @@ export default {
       if (password.length < 8 || password.length > 64 || !/[A-Z]/.test(password) ||
           !/[a-z]/.test(password) || !/\d/.test(password) ||
           !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        return new Response(JSON.stringify({ error: "Senha nao atende aos requisitos" }), {
+        return new Response(JSON.stringify({ error: "Senha não atende aos requisitos" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -86,7 +86,7 @@ export default {
       if (createErr) {
         const dup = String(createErr.message).toLowerCase().includes("already");
         return new Response(JSON.stringify({
-          error: dup ? "Este email ja esta em uso" : createErr.message,
+          error: dup ? "Este e-mail já está em uso" : createErr.message,
         }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
@@ -94,7 +94,7 @@ export default {
       }
 
       if (!created?.user?.id) {
-        return new Response(JSON.stringify({ error: "Falha ao criar usuario no Auth" }), {
+        return new Response(JSON.stringify({ error: "Falha ao criar usuário no Auth" }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });
@@ -127,7 +127,7 @@ export default {
       }
 
       return new Response(JSON.stringify({
-        message: "Usuario criado com sucesso",
+        message: "Usuário criado com sucesso",
         user: { id: userId, email, role: normalizedRole },
       }), {
         status: 201,

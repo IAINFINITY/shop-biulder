@@ -635,8 +635,10 @@ export function AdminClientsSection({
                                   await syncCustomerProxisLink(cnpj, detailUserId);
                                   toast.success("Vínculo Proxsys atualizado.");
                                   setDetailsOpen(false);
-                                } catch {
-                                  toast.error("Erro ao sincronizar com Proxsys.");
+                                } catch (err) {
+                                  const msg = err instanceof Error ? err.message : typeof err === "object" && err !== null ? JSON.stringify(err) : String(err);
+                                  console.error("[AdminClients] syncCustomerProxisLink error:", err);
+                                  toast.error(`Erro ao sincronizar com Proxsys: ${msg}`);
                                 } finally {
                                   setSyncingProxis(false);
                                 }
@@ -667,8 +669,10 @@ export function AdminClientsSection({
                             await syncCustomerProxisLink(detailsCustomer.cnpj!, detailUserId);
                             toast.success("Vínculo Proxsys atualizado.");
                             setDetailsOpen(false);
-                          } catch {
-                            toast.error("Erro ao sincronizar com Proxsys.");
+                          } catch (err) {
+                                  const msg = err instanceof Error ? err.message : typeof err === "object" && err !== null ? JSON.stringify(err) : String(err);
+                                  console.error("[AdminClients] syncCustomerProxisLink error:", err);
+                                  toast.error(`Erro ao sincronizar com Proxsys: ${msg}`);
                           } finally {
                             setSyncingProxis(false);
                           }

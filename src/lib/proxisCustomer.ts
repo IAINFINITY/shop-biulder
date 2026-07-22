@@ -39,7 +39,10 @@ export async function lookupProxisCustomerByCnpj(cnpj: string): Promise<ProxisCu
 }
 
 export async function syncCustomerProxisLink(cnpj: string, userId?: string | null) {
-  const lookup = await lookupProxisCustomerByCnpj(cnpj).catch(() => EMPTY_LOOKUP_RESULT);
+  const lookup = await lookupProxisCustomerByCnpj(cnpj).catch((err) => {
+    console.error("[proxisCustomer] lookupProxisCustomerByCnpj failed:", err);
+    return EMPTY_LOOKUP_RESULT;
+  });
   const supabase = await loadSupabaseClient();
   const rpcParams: Record<string, unknown> = {
     p_proxis_pes_id: lookup.pes_id,
@@ -49,8 +52,13 @@ export async function syncCustomerProxisLink(cnpj: string, userId?: string | nul
   if (userId) {
     rpcParams.p_user_id = userId;
   }
-  const { error } = await supabase.rpc("sync_customer_proxis_link", rpcParams);
+  console.log("[proxisCustomer] Chamando sync_customer_proxis_link com params:", rpcParams);
+  const { data, error } = await supabase.rpc("sync_customer_proxis_link", rpcParams);
 
-  if (error) throw error;
+  if (error) {
+    console.error("[proxisCustomer] sync_customer_proxis_link RPC error:", error);
+    throw new Error(error.message || JSON.stringify(error));
+  }
+  console.log("[proxisCustomer] sync_customer_proxis_link sucesso:", data);
   return lookup;
 }

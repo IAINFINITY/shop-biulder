@@ -393,8 +393,8 @@ export default function OrderForm() {
       try {
         const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
         await syncCustomerProxisLink(effectiveCnpj).catch(() => null);
-      } catch {
-        // Silencioso — o vínculo Proxsys é atualizado em background.
+      } catch (err) {
+        console.warn("[OrderForm] syncCustomerProxisLink background error:", err);
       }
 
       try {

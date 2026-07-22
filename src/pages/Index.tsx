@@ -3,11 +3,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
-import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
-import { StoreHeader } from "@/components/catalogo/StoreHeader";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
-import { CategoryTopNav } from "@/components/catalogo/CategoryTopNav";
 import { type CatalogSortMode } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
 import { QuickView } from "@/components/catalogo/QuickView";
@@ -20,7 +17,6 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richTextPure";
 import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
@@ -39,10 +35,10 @@ import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/cust
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useComparison } from "@/hooks/useComparison";
 import { CompareBar } from "@/components/catalogo/CompareBar";
 import { CompareModal } from "@/components/catalogo/CompareModal";
+import { usePublicLayout } from "@/components/layout/PublicLayout";
 import type { Product } from "@/lib/products";
 
 const INITIAL_PRODUCTS_VISIBLE = 20;
@@ -142,11 +138,9 @@ export default function Index() {
   const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart } = useCart();
   const { ids: recentlyViewedIds } = useRecentlyViewed();
   const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
-  const [search, setSearch] = useState(() => readCatalogViewState()?.search ?? "");
+  const { search, setSearch, setIsCartOpen, setCategoryTopNavProps } = usePublicLayout();
   const debouncedSearch = useDebounce(search, 250);
-  const { history: searchHistory, add: addToSearchHistory, remove: removeFromSearchHistory, clear: clearSearchHistory } = useSearchHistory();
+  const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
   const { ids: compareIds, toggle: toggleCompare, remove: removeCompare, clear: clearCompare, max: compareMax } = useComparison();
   const [compareOpen, setCompareOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
@@ -198,12 +192,6 @@ export default function Index() {
       });
     };
   }, [search, selectedType, selectedFamily, visibleProducts, sortMode]);
-
-  useEffect(() => {
-    if (debouncedSearch.trim().length > 0) {
-      addToSearchHistory(debouncedSearch.trim());
-    }
-  }, [addToSearchHistory, debouncedSearch]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -332,36 +320,21 @@ export default function Index() {
 
   const visibleFiltered = useMemo(() => sortedFiltered.slice(0, visibleProducts), [sortedFiltered, visibleProducts]);
 
-  const searchSuggestions = useMemo(() => {
-    const query = debouncedSearch.trim().toLowerCase();
-    if (!query) return [];
-
-    return filtered
-      .map((product) => {
-        const normalizedName = product.name.toLowerCase();
-        const normalizedCode = product.product_code?.toLowerCase() ?? "";
-        const nameStarts = normalizedName.startsWith(query) ? 3 : 0;
-        const nameContains = normalizedName.includes(query) ? 2 : 0;
-        const codeMatches = normalizedCode.includes(query) ? 2 : 0;
-        const descriptionMatches = descriptionIncludesQuery(product.description, query) ? 1 : 0;
-
-        return {
-          product,
-          score: nameStarts + nameContains + codeMatches + descriptionMatches,
-        };
-      })
-      .sort((a, b) => b.score - a.score || a.product.name.localeCompare(b.product.name))
-      .map(({ product }) => ({
-        id: product.id,
-        name: product.name,
-        type: product.type,
-        family: product.family,
-        imageUrl: getProductImageUrls(product)[0] ?? product.image_url ?? null,
-        price: resolveProductPrice(product, customerPriceMap),
-      }));
-  }, [filtered, debouncedSearch, customerPriceMap]);
-
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
+
+  useEffect(() => {
+    setCategoryTopNavProps({
+      families: categoryFamilies,
+      familyTypesByFamily: familyTypesByFamily,
+      typeCounts: typeCounts,
+      familyCounts: familyCounts,
+      selectedFamily: selectedFamily,
+      selectedType: selectedType,
+      onFamilyChange: setSelectedFamily,
+      onTypeChange: setSelectedType,
+      totalProducts: filtered.length,
+    });
+  }, [categoryFamilies, familyTypesByFamily, typeCounts, familyCounts, selectedFamily, selectedType, filtered.length, setCategoryTopNavProps]);
 
   const openCart = useCallback(() => setIsCartOpen(true), []);
 
@@ -446,40 +419,6 @@ export default function Index() {
     <div
       className="min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]"
     >
-      <StoreHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchSuggestions={searchSuggestions}
-        searchHistory={searchHistory}
-        onSearchHistoryClear={clearSearchHistory}
-        onSearchHistoryRemove={removeFromSearchHistory}
-        cartSlot={
-          <CartDrawer
-            cart={cart}
-            onUpdateQuantity={updateQuantity}
-            onSetQuantity={setQuantity}
-            onRemove={removeFromCart}
-            onClear={clearCart}
-            open={isCartOpen}
-            onOpenChange={setIsCartOpen}
-            resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
-          />
-        }
-        filterNav={
-          <CategoryTopNav
-            families={categoryFamilies}
-            familyTypesByFamily={familyTypesByFamily}
-            typeCounts={typeCounts}
-            familyCounts={familyCounts}
-            selectedFamily={selectedFamily}
-            selectedType={selectedType}
-            onFamilyChange={setSelectedFamily}
-            onTypeChange={setSelectedType}
-            totalProducts={filtered.length}
-          />
-        }
-      />
-
       <StoreHeroBanner customerType={customerType} />
 
       <div

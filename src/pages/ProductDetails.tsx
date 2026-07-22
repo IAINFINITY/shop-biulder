@@ -303,15 +303,6 @@ export default function ProductDetails() {
   if (isLoading && !product) {
     return (
       <div className="min-h-screen bg-muted/40 pb-28 flex flex-col">
-        <PageHeaderShell>
-          <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <Skeleton className="h-5 w-44 rounded-md" />
-              <div className="ml-auto">
-                <Skeleton className="h-10 w-32 rounded-full" />
-              </div>
-          </div>
-        </PageHeaderShell>
 
         <main className="flex flex-1 items-start">
           <div className="container mx-auto max-w-[1400px] px-4 py-4 lg:py-6">
@@ -400,40 +391,22 @@ export default function ProductDetails() {
 
   return (
       <div className="min-h-screen bg-muted/40 pb-28 flex flex-col">
-        <PageHeaderShell>
-          <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-            <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-              <Link to="/" viewTransition className="shrink-0">
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-border bg-background shadow-sm">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-              <span className="text-muted-foreground/30 hidden sm:inline select-none">/</span>
-              <Link to="/" viewTransition className="hidden sm:inline hover:text-foreground transition-colors truncate">
-                Catálogo
-              </Link>
-              <span className="text-muted-foreground/30 hidden sm:inline select-none">/</span>
-              <span className="hidden sm:inline text-foreground font-medium truncate">{product.type}</span>
-            </div>
-
-            <div />
-
-            <div className="hidden justify-self-end xl:block">
-              <CartDrawer
-                cart={cart}
-                onUpdateQuantity={updateQuantity}
-                onRemove={removeFromCart}
-                onClear={clearCart}
-                open={isCartOpen}
-                onOpenChange={setIsCartOpen}
-                resolveUnitPrice={(currentProduct) => resolveProductPrice(currentProduct, customerPriceMap)}
-              />
-            </div>
-          </div>
-        </PageHeaderShell>
 
       <main className="flex flex-1 items-start">
         <div className="container mx-auto max-w-[1400px] px-4 py-4 lg:py-6">
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <Link to="/" viewTransition className="shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-border bg-background shadow-sm">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <span className="text-muted-foreground/30 select-none">/</span>
+            <Link to="/" viewTransition className="hover:text-foreground transition-colors truncate">
+              Catálogo
+            </Link>
+            <span className="text-muted-foreground/30 select-none">/</span>
+            <span className="text-foreground font-medium truncate">{product.type}</span>
+          </div>
           <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.18fr)_minmax(360px,0.92fr)] xl:items-start">
             <div className="hidden xl:flex xl:sticky xl:top-5 xl:flex-col xl:gap-2">
               {galleryUrls.length > 0 ? (

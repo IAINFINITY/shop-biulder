@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
-import { StoreFooter } from "@/components/layout/StoreFooter";
+import { PublicLayout } from "@/components/layout/PublicLayout";
 const Index = lazy(() => import("./pages/Index.tsx"));
 const Admin = lazy(() => import("./pages/AdminWorkspace.tsx"));
 const ProductDetails = lazy(() => import("./pages/ProductDetails.tsx"));
@@ -28,37 +28,35 @@ function RouteLoader() {
 }
 
 const queryClient = new QueryClient();
-const supportsViewTransitions =
-  typeof document !== "undefined" && "startViewTransition" in document;
 
 function AppRoutes() {
   const location = useLocation();
-  const isAccountRoute = location.pathname.startsWith("/conta");
-  const isOrderRoute = location.pathname.startsWith("/pedido");
-  const isLoginRoute = location.pathname === "/login";
-  const hideFooter = location.pathname.startsWith("/admin") || isAccountRoute || isOrderRoute || isLoginRoute;
+  const isAdmin = location.pathname.startsWith("/admin");
+
+  if (isAdmin) {
+    return (
+      <Suspense fallback={<RouteLoader />}>
+        <Routes location={location}>
+          <Route path="/admin" element={<Admin />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-<main
-      data-native-view-transition={supportsViewTransitions ? "true" : "false"}
-      className="flex-1 page-shell"
-    >
+    <PublicLayout>
       <Suspense fallback={<RouteLoader />}>
         <Routes location={location}>
           <Route path="/" element={<Index />} />
           <Route path="/produto/:id" element={<ProductDetails />} />
           <Route path="/pedido" element={<OrderForm />} />
           <Route path="/pedido/obrigado" element={<OrderSuccess />} />
-          <Route path="/admin" element={<Admin />} />
           <Route path="/login" element={<Login />} />
           <Route path="/conta" element={<Account />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-</Suspense>
-    </main>
-      {!hideFooter ? <StoreFooter /> : null}
-    </div>
+      </Suspense>
+    </PublicLayout>
   );
 }
 

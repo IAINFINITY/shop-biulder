@@ -520,27 +520,7 @@ export default function OrderForm() {
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       </div>
-      <PageHeaderShell compact>
-        <div className="flex w-full items-center gap-3">
-              <Link to="/" viewTransition>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full border border-border bg-background shadow-sm"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              </Link>
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-muted-foreground">
-                  Checkout
-                </p>
-                <p className="text-sm font-medium text-foreground">Revise sua compra</p>
-              </div>
-        </div>
-      </PageHeaderShell>
-
-      <div className="mx-auto max-w-[1600px] px-3 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-6 lg:px-8">
         {!user && allowGuestCheckout ? (
           <div className="mb-6 flex items-start gap-3 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">

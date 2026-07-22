@@ -22,17 +22,20 @@ export type StoreHeaderSearchSuggestion = {
 export type StoreHeaderProps = {
   search: string;
   onSearchChange: (value: string) => void;
+  onSearchSubmit?: (value: string) => void;
   cartSlot: ReactNode;
   searchSuggestions?: StoreHeaderSearchSuggestion[];
   filterNav?: ReactNode;
   searchHistory?: string[];
   onSearchHistoryClear?: () => void;
   onSearchHistoryRemove?: (term: string) => void;
+  showSearchSuggestions?: boolean;
 };
 
 type SearchPanelProps = {
   search: string;
   onSearchChange: (value: string) => void;
+  onSearchSubmit?: (value: string) => void;
   searchSuggestions: StoreHeaderSearchSuggestion[];
   showSuggestions: boolean;
   panelId: string;
@@ -62,6 +65,7 @@ function SearchPanel({
 
   const onSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
+    onSearchSubmit?.(search);
   };
 
   const wrapperClassName = floating
@@ -221,15 +225,17 @@ function SearchPanel({
 export function StoreHeader({
   search,
   onSearchChange,
+  onSearchSubmit,
   cartSlot,
   searchSuggestions = [],
   filterNav,
   searchHistory,
   onSearchHistoryClear,
   onSearchHistoryRemove,
+  showSearchSuggestions = true,
 }: StoreHeaderProps) {
   const trimmedSearch = search.trim();
-  const showSuggestions = trimmedSearch.length > 0;
+  const showSuggestions = showSearchSuggestions && trimmedSearch.length > 0;
   const mobilePanelId = useId();
   const desktopPanelId = useId();
   const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
@@ -271,6 +277,7 @@ export function StoreHeader({
         <SearchPanel
           search={search}
           onSearchChange={onSearchChange}
+          onSearchSubmit={onSearchSubmit}
           searchSuggestions={searchSuggestions}
           showSuggestions={showSuggestions}
           panelId={mobilePanelId}
@@ -305,6 +312,7 @@ export function StoreHeader({
               <SearchPanel
                 search={search}
                 onSearchChange={onSearchChange}
+                onSearchSubmit={onSearchSubmit}
                 searchSuggestions={searchSuggestions}
                 showSuggestions={showSuggestions}
                 panelId={desktopPanelId}

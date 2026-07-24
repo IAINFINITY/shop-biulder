@@ -1,5 +1,7 @@
 export const CATALOG_BANNERS_TABLE = "catalog_banners";
 
+export type CatalogBannerPlacement = "catalog" | "product";
+
 export type CatalogBanner = {
   id: string;
   label: string;
@@ -7,6 +9,7 @@ export type CatalogBanner = {
   link_url: string | null;
   sort_order: number;
   active: boolean;
+  placement: CatalogBannerPlacement;
   visible_to: string[] | null;
   created_at: string;
   updated_at: string;
@@ -38,9 +41,9 @@ export function normalizeCatalogBannerFromSupabaseRow(row: unknown): CatalogBann
     link_url: normalizeOptionalText(record.link_url),
     sort_order: Number.isFinite(Number(record.sort_order)) ? Math.trunc(Number(record.sort_order)) : 0,
     active: Boolean(record.active),
+    placement: record.placement === "product" ? "product" : "catalog",
     visible_to: visibleTo,
     created_at: typeof record.created_at === "string" ? record.created_at : "",
     updated_at: typeof record.updated_at === "string" ? record.updated_at : "",
   };
 }
-

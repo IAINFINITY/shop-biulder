@@ -11,7 +11,8 @@ type UseCatalogBannersOptions = {
   activeOnly?: boolean;
 };
 
-const BANNER_SELECT_COLUMNS = "id,label,image_url,link_url,sort_order,active,visible_to,created_at,updated_at" as const;
+const BANNER_SELECT_COLUMNS = "id,label,image_url,link_url,sort_order,active,placement,visible_to,created_at,updated_at" as const;
+const BANNER_SELECT_COLUMNS_NO_PLACEMENT = "id,label,image_url,link_url,sort_order,active,visible_to,created_at,updated_at" as const;
 const BANNER_SELECT_COLUMNS_LEGACY = "id,label,image_url,link_url,sort_order,active,created_at,updated_at" as const;
 
 export function useCatalogBanners(options?: UseCatalogBannersOptions) {
@@ -25,7 +26,7 @@ export function useCatalogBanners(options?: UseCatalogBannersOptions) {
     queryFn: async () => {
       const supabase = await loadSupabaseClient();
 
-      const columnSets = [BANNER_SELECT_COLUMNS, BANNER_SELECT_COLUMNS_LEGACY] as const;
+      const columnSets = [BANNER_SELECT_COLUMNS, BANNER_SELECT_COLUMNS_NO_PLACEMENT, BANNER_SELECT_COLUMNS_LEGACY] as const;
 
       let data: unknown[] | null = null;
       let lastError: Error | null = null;
@@ -48,7 +49,10 @@ export function useCatalogBanners(options?: UseCatalogBannersOptions) {
         }
         lastError = result.error;
 
-        if (!isMissingColumnError(result.error.message, "visible_to")) {
+        if (
+          !isMissingColumnError(result.error.message, "placement") &&
+          !isMissingColumnError(result.error.message, "visible_to")
+        ) {
           throw result.error;
         }
       }

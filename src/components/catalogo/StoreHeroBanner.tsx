@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 const AUTOPLAY_MS = 5500;
 
 const slideImageClass = "absolute inset-0 block h-full w-full object-cover object-center";
-const heroFrameClass = "relative aspect-[3/2] sm:aspect-[2/1] lg:aspect-[4/1] w-full overflow-hidden bg-muted";
+const heroFrameClass = "relative aspect-[4/1] w-full overflow-hidden bg-muted";
 
 type HeroSlide = {
   src: string;
@@ -66,6 +66,7 @@ export function StoreHeroBanner({ customerType }: StoreHeroBannerProps) {
   const slides = useMemo<HeroSlide[]>(() => {
     return banners
       .filter((banner) => {
+        if (banner.placement !== "catalog") return false;
         if (!banner.visible_to || banner.visible_to.length === 0) return true;
         if (!customerType) return false;
         return banner.visible_to.includes(customerType);

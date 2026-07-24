@@ -14,7 +14,7 @@ import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminBanner } from "./adminTypes";
 import { CATALOG_BANNERS_TABLE } from "@/lib/catalogBanners";
-import { deleteStorageImage, uploadProductImageFile } from "@/lib/productImageStorage";
+import { deleteStorageImage, isProductImageStorageUrl, uploadProductImageFile } from "@/lib/productImageStorage";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 import { cn } from "@/lib/utils";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
@@ -31,7 +31,8 @@ type BannerFormState = {
 };
 
 const DEFAULT_SORT_STEP = 10;
-const BANNER_PREVIEW_FRAME_CLASS = "aspect-[4/1] w-full overflow-hidden";
+const BANNER_PREVIEW_FRAME_CLASS = "w-full overflow-hidden";
+const BANNER_PREVIEW_ASPECT_CLASS = "aspect-[4/1]";
 
 function getNextSortOrder(banners: AdminBanner[]): string {
   if (banners.length === 0) return "0";
@@ -107,6 +108,11 @@ export function AdminBannersSection() {
       return;
     }
 
+    const previousImage = draft?.imageUrl?.trim();
+    if (previousImage && isProductImageStorageUrl(previousImage)) {
+      await deleteStorageImage(previousImage);
+    }
+
     setDraft((current) => {
       if (!current) return current;
       return { ...current, imageUrl: result.publicUrl };
@@ -117,6 +123,7 @@ export function AdminBannersSection() {
   const saveBanner = async () => {
     if (!draft) return;
 
+    const previousImageUrl = draft.id ? banners.find((banner) => banner.id === draft.id)?.image_url ?? null : null;
     const label = draft.label.trim();
     const imageUrl = draft.imageUrl.trim();
     if (!label || !imageUrl) {
@@ -132,6 +139,7 @@ export function AdminBannersSection() {
       link_url: normalizeLinkUrl(draft.linkUrl),
       sort_order: sortOrder,
       active: draft.active,
+      placement: "catalog",
       visible_to: visibleTo,
     };
 
@@ -145,6 +153,15 @@ export function AdminBannersSection() {
       console.error("Erro ao salvar banner", error);
       toast.error("Erro ao salvar banner.");
       return;
+    }
+
+    if (
+      draft.id &&
+      previousImageUrl &&
+      previousImageUrl !== imageUrl &&
+      isProductImageStorageUrl(previousImageUrl)
+    ) {
+      await deleteStorageImage(previousImageUrl);
     }
 
     toast.success(draft.id ? "Banner atualizado." : "Banner adicionado.");
@@ -189,8 +206,8 @@ export function AdminBannersSection() {
     <div className="space-y-6">
       <AdminSectionHeader
         eyebrow="Banners"
-        title="Hero do catálogo sob controle do admin"
-        description="Cadastre, reordene e desative banners sem depender de arquivos fixos na aplicação."
+        title="Banners sob controle do admin"
+        description="Cadastre banners para a vitrine principal."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
@@ -207,7 +224,7 @@ export function AdminBannersSection() {
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-sm text-foreground">O catálogo usa apenas os banners marcados como ativos, em ordem crescente.</p>
+            <p className="text-sm text-foreground">Cada área usa apenas seus banners ativos, em ordem crescente.</p>
             <p className="text-xs text-muted-foreground">As imagens podem ser enviadas do computador ou coladas por URL.</p>
           </div>
           <Badge variant="outline" className="rounded-full border-border/70 px-3 py-1 text-[11px] font-medium">
@@ -235,7 +252,7 @@ export function AdminBannersSection() {
                   !banner.active && "opacity-70",
                 )}
               >
-                <div className={banner.image_url ? BANNER_PREVIEW_FRAME_CLASS : cn(BANNER_PREVIEW_FRAME_CLASS, "bg-muted/20")}>
+                <div className={cn(BANNER_PREVIEW_FRAME_CLASS, BANNER_PREVIEW_ASPECT_CLASS, !banner.image_url && "bg-muted/20")}>
                   {banner.image_url ? (
                     <img src={banner.image_url} alt={banner.label} className="h-full w-full object-cover" />
                   ) : (
@@ -250,8 +267,7 @@ export function AdminBannersSection() {
                     <div className="min-w-0">
                       <p className="truncate text-[14px] sm:text-[15px] font-semibold text-foreground">{banner.label}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Ordem {banner.sort_order}
-                        {banner.link_url ? " • com link" : " • sem link"}
+                        Ordem {banner.sort_order}{banner.link_url ? " • com link" : " • sem link"}
                       </p>
                     </div>
                     <Badge variant={banner.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[11px]">
@@ -321,7 +337,7 @@ export function AdminBannersSection() {
                 {draft?.id ? "Editar banner" : "Novo banner"}
               </DialogTitle>
               <DialogDescription className="text-left text-[13px] text-muted-foreground">
-                Ajuste o conteúdo visual que aparece na vitrine principal do catálogo.
+                Ajuste o conteúdo visual e escolha em qual área ele será exibido.
               </DialogDescription>
             </DialogHeader>
 
@@ -373,6 +389,28 @@ export function AdminBannersSection() {
                           <Upload className="h-4 w-4" />
                           {uploading ? "Enviando..." : "Enviar imagem"}
                         </Button>
+                        {draft.imageUrl ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-10 rounded-2xl px-4 text-sm text-destructive"
+                            disabled={uploading}
+                            onClick={async () => {
+                              const currentImage = draft.imageUrl.trim();
+                              if (currentImage && isProductImageStorageUrl(currentImage)) {
+                                const result = await deleteStorageImage(currentImage);
+                                if (!result.ok) {
+                                  toast.error(result.message);
+                                  return;
+                                }
+                              }
+                              setDraft((current) => (current ? { ...current, imageUrl: "" } : current));
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Remover imagem
+                          </Button>
+                        ) : null}
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -421,7 +459,7 @@ export function AdminBannersSection() {
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                             Banner ativo
                           </p>
-                          <p className="text-sm text-foreground">Exibir no catálogo público</p>
+                          <p className="text-sm text-foreground">Exibir no catálogo</p>
                         </div>
                         <Switch
                           checked={draft.active}
@@ -488,7 +526,7 @@ export function AdminBannersSection() {
 
                   <div className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-background shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                     {draft?.imageUrl ? (
-                      <div className={draft?.imageUrl ? BANNER_PREVIEW_FRAME_CLASS : cn(BANNER_PREVIEW_FRAME_CLASS, "bg-muted/20")}>
+                      <div className={cn(BANNER_PREVIEW_FRAME_CLASS, BANNER_PREVIEW_ASPECT_CLASS, !draft?.imageUrl && "bg-muted/20")}>
                         <img src={draft.imageUrl} alt={draft.label || "Banner"} className="h-full w-full object-cover" />
                       </div>
                     ) : (

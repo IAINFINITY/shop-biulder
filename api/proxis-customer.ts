@@ -4,6 +4,7 @@ const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
 const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
+const DEFAULT_PROXSIS_TPR_ID = 8728;
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -120,9 +121,10 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
 }
 
 function resolveTprId(cliente: Record<string, unknown> | null): number | null {
+  if (!cliente) return null;
   const tabelas = cliente?.tabelapreco as Array<{ tpr_id: number }> | undefined;
   const tprId = tabelas?.[0]?.tpr_id;
-  return Number.isFinite(tprId) && Number(tprId) > 0 ? Math.trunc(Number(tprId)) : null;
+  return Number.isFinite(tprId) && Number(tprId) > 0 ? Math.trunc(Number(tprId)) : DEFAULT_PROXSIS_TPR_ID;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

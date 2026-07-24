@@ -16,6 +16,7 @@ function defaultTypes(): CustomerTypeOption[] {
     { name: "cliente", label: "Cliente" },
     { name: "lojista", label: "Lojista" },
     { name: "distribuidor", label: "Distribuidor" },
+    { name: "funcionario", label: "Funcionário" },
   ];
 }
 

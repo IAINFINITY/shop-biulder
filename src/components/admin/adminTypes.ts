@@ -42,6 +42,14 @@ export type AdminOrderRow = {
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
   customer_cnpj: string | null | undefined;
+  customer_address_cep?: string | null;
+  customer_address_street?: string | null;
+  customer_address_number?: string | null;
+  customer_address_complement?: string | null;
+  customer_address_neighborhood?: string | null;
+  customer_address_city?: string | null;
+  customer_address_state?: string | null;
+  customer_address_ibge?: string | null;
   customer_observation?: string | null | undefined;
   status: string;
   total_items: number;
@@ -59,6 +67,7 @@ export type AdminProductFormState = {
   active: boolean;
   is_promotion: boolean;
   priceInput: string;
+  stockInput: string;
   productCode: string;
   visible_to: string[];
 };

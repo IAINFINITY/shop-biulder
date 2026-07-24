@@ -64,7 +64,6 @@ function buildLineFields(
   cnpjDigits: string,
   line: OrderTableLine,
   emissionDate: string,
-  rep: string,
 ): string[] {
   return [
     String(proxisImportId),
@@ -75,7 +74,7 @@ function buildLineFields(
     emissionDate,
     emissionDate,
     "",
-    rep,
+    "",
     PROXIS_IMPORT_DIV_VENDA,
     "",
     "",
@@ -100,7 +99,6 @@ export function getProxisImportRep(seed = 0): string {
 
 export function buildProxisImportLines(
   order: ProxisImportOrderInput,
-  rep: string = getProxisImportRep(order.proxisImportId),
 ): string[] {
   const cnpjDigits = onlyDigits(order.customerCnpj);
   if (!cnpjDigits) {
@@ -125,28 +123,24 @@ export function buildProxisImportLines(
   const emissionDate = formatProxisImportDate(order.createdAt);
 
   return lines.map((line) =>
-    formatProxisImportLine(
-      buildLineFields(order.proxisImportId, cnpjDigits, line, emissionDate, rep),
-    ),
+    formatProxisImportLine(buildLineFields(order.proxisImportId, cnpjDigits, line, emissionDate)),
   );
 }
 
 export function buildProxisImportFileContent(
   orders: ProxisImportOrderInput[],
-  rep?: string,
 ): string {
   const allLines: string[] = [];
 
   for (let index = 0; index < orders.length; index++) {
     const order = orders[index];
-    const orderRep = rep ?? getProxisImportRep(index);
-    allLines.push(...buildProxisImportLines(order, orderRep));
+    allLines.push(...buildProxisImportLines(order));
   }
 
   return `${allLines.join("\n")}\n`;
 }
 
-export function proxisImportFileName(proxisImportId: number, createdAt: string): string {
+export function foccoImportFileName(proxisImportId: number, createdAt: string): string {
   const date = new Date(createdAt).toISOString().slice(0, 10);
-  return `pedido-proxis-${proxisImportId}-${date}.txt`;
+  return `pedido-focco-${proxisImportId}-${date}.txt`;
 }

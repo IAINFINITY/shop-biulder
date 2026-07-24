@@ -60,6 +60,8 @@ import {
 import { normalizeCustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { getOrderLinesGrandTotal, parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
+import { addressToProxisPayload } from "@/lib/address";
+import { sendProxisOrder } from "@/lib/proxisOrder";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useSupportInbox } from "@/hooks/useSupportChat";
@@ -137,6 +139,7 @@ export default function AdminWorkspace() {
   const [clientFilter, setClientFilter] = useState<"all" | "orders" | "revenue">("all");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [proxisExportingId, setProxisExportingId] = useState<string | null>(null);
+  const [proxisResendingId, setProxisResendingId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -478,6 +481,7 @@ export default function AdminWorkspace() {
       active: true,
       is_promotion: false,
       priceInput: "",
+      stockInput: "",
       productCode: "",
       visible_to: [],
     });
@@ -495,6 +499,7 @@ export default function AdminWorkspace() {
       active: p.active,
       is_promotion: p.is_promotion,
       priceInput: priceToAdminInput(coercePrice(p.price)),
+      stockInput: typeof p.stock === "number" && Number.isFinite(p.stock) ? String(Math.max(0, Math.trunc(p.stock))) : "",
       productCode: p.product_code ?? "",
       visible_to: p.visible_to ?? [],
     });
@@ -534,6 +539,20 @@ export default function AdminWorkspace() {
     toast.success("Foto adicionada!");
   };
 
+  const moveImageAt = (from: number, to: number) => {
+    setEditing((prev) => {
+      if (!prev) return prev;
+      if (from === to) return prev;
+      if (from < 0 || from >= prev.image_urls.length) return prev;
+      if (to < 0 || to >= prev.image_urls.length) return prev;
+
+      const next = [...prev.image_urls];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return { ...prev, image_urls: next };
+    });
+  };
+
   const save = async () => {
     if (!editing || !editing.name || !editing.family) {
       toast.error("Preencha nome e família do produto.");
@@ -547,6 +566,13 @@ export default function AdminWorkspace() {
       return;
     }
 
+    const stockInput = editing.stockInput.trim();
+    const stock = stockInput === "" ? null : Number.parseInt(stockInput, 10);
+    if (stockInput !== "" && (!Number.isInteger(stock) || stock < 0)) {
+      toast.error("Informe um estoque válido ou deixe em branco.");
+      return;
+    }
+
     const { withGallery, legacyOnly } = buildProductDbPayload({
       name: editing.name,
       description,
@@ -556,6 +582,7 @@ export default function AdminWorkspace() {
       active: editing.active,
       is_promotion: editing.is_promotion,
       price: normalizedPrice,
+      stock,
       product_code: editing.productCode,
       visible_to: editing.visible_to.length > 0 ? editing.visible_to.map((t) => t.trim().toLowerCase()) : null,
     });
@@ -692,6 +719,30 @@ export default function AdminWorkspace() {
     }
   };
 
+  const resendProxisOrder = async (orderPayload: {
+    id: string;
+    customer_name: string;
+    customer_cnpj: string;
+    customer_company: string;
+    customer_observation: string | null;
+    address: Parameters<typeof addressToProxisPayload>[0];
+    items: Array<{ product_code: string; quantity: number; unit_price: number; name: string }>;
+    note?: string | null;
+  }) => {
+    const { id, ...payload } = orderPayload;
+    setProxisResendingId(id);
+    try {
+      const response = await sendProxisOrder(payload);
+      const sentCount = response.items_count ?? orderPayload.items.length;
+      toast.success(`Pedido reenviado ao Proxis (${sentCount} item(ns)).`);
+    } catch (err) {
+      console.error("Erro ao reenviar pedido ao Proxis", err);
+      toast.error(err instanceof Error ? err.message : "Erro ao reenviar pedido ao Proxis.");
+    } finally {
+      setProxisResendingId(null);
+    }
+  };
+
   const exportOrderXlsx = async (exportPayload: OrderExportInput) => {
     const { downloadOrderXlsx } = await import("@/lib/orderExport");
     downloadOrderXlsx(exportPayload);
@@ -772,16 +823,26 @@ export default function AdminWorkspace() {
           onAddType={addType}
           onDeleteType={deleteType}
           onFileChange={handleImageFile}
-          onRemoveImageAt={(index) =>
-            setEditing((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    image_urls: prev.image_urls.filter((_, i) => i !== index),
-                  }
-                : prev,
-            )
-          }
+          onMoveImageAt={moveImageAt}
+          onRemoveImageAt={async (index) => {
+            const currentUrl = editing?.image_urls[index];
+            setEditing((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                image_urls: prev.image_urls.filter((_, i) => i !== index),
+              };
+            });
+
+            if (currentUrl) {
+              const result = await deleteStorageImage(currentUrl);
+              if (!result.ok) {
+                toast.warning(`Imagem removida da edição, mas não foi possível apagar do storage: ${result.message}`);
+              }
+            }
+
+            toast.success("Foto removida.");
+          }}
           onSave={save}
           onCancel={cancel}
         />
@@ -808,7 +869,9 @@ export default function AdminWorkspace() {
           orderEnrichment={orderEnrichment}
           formatDate={formatDate}
           proxisExportingId={proxisExportingId}
+          proxisResendingId={proxisResendingId}
           onExportProxis={exportProxisOrder}
+          onResendProxis={resendProxisOrder}
           onExportXlsx={exportOrderXlsx}
           onExportPdf={exportOrderPdf}
           onDelete={deleteOrder}

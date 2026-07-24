@@ -37,6 +37,52 @@ export const FontSize = Extension.create({
   },
 });
 
+export const TextAlign = Extension.create({
+  name: "textAlign",
+  addOptions() {
+    return { types: ["heading", "paragraph", "listItem"] };
+  },
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          textAlign: {
+            default: null,
+            parseHTML: (element) => element.style.textAlign || null,
+            renderHTML: (attributes) => {
+              if (!attributes.textAlign) return {};
+              return { style: `text-align: ${attributes.textAlign}` };
+            },
+          },
+        },
+      },
+    ];
+  },
+  addCommands() {
+    return {
+      setTextAlign:
+        (alignment: "left" | "center" | "right" | "justify") =>
+        ({ commands }) => {
+          let updated = false;
+          for (const type of this.options.types) {
+            updated = commands.updateAttributes(type, { textAlign: alignment }) || updated;
+          }
+          return updated;
+        },
+      unsetTextAlign:
+        () =>
+        ({ commands }) => {
+          let updated = false;
+          for (const type of this.options.types) {
+            updated = commands.updateAttributes(type, { textAlign: null }) || updated;
+          }
+          return updated;
+        },
+    };
+  },
+});
+
 export { TextStyle };
 
 export const FONT_SIZE_OPTIONS = [

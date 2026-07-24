@@ -486,7 +486,17 @@ function NotificationEditor({
                           type="button"
                           variant="ghost"
                           className="h-9 rounded-full px-3 text-[12px] text-destructive"
-                          onClick={onClearImage}
+                          onClick={async () => {
+                            const currentImage = draft.imageUrl.trim();
+                            if (currentImage && isProductImageStorageUrl(currentImage)) {
+                              const result = await deleteStorageImage(currentImage);
+                              if (!result.ok) {
+                                toast.error(result.message);
+                                return;
+                              }
+                            }
+                            onClearImage();
+                          }}
                         >
                           <X className="h-4 w-4" />
                           Remover imagem
@@ -780,6 +790,7 @@ export function AdminNotificationsSection() {
   const saveNotification = async () => {
     if (!draft) return;
 
+    const previousImageUrl = draft.id ? notifications.find((item) => item.id === draft.id)?.image_url ?? null : null;
     const title = draft.title.trim();
     const summary = draft.summary.trim();
     const body = draft.body.trim();
@@ -837,6 +848,15 @@ export function AdminNotificationsSection() {
       console.error("Erro ao salvar notificação", error);
       toast.error("Erro ao salvar notificação.");
       return;
+    }
+
+    if (
+      draft.id &&
+      previousImageUrl &&
+      previousImageUrl !== trimToNull(draft.imageUrl) &&
+      isProductImageStorageUrl(previousImageUrl)
+    ) {
+      await deleteStorageImage(previousImageUrl);
     }
 
     toast.success(draft.id ? "Notificação atualizada." : "Notificação publicada.");

@@ -62,7 +62,8 @@ type AdminProductsSectionProps = {
   onAddType: () => void;
   onDeleteType: (id: string) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
-  onRemoveImageAt: (index: number) => void;
+  onRemoveImageAt: (index: number) => Promise<void>;
+  onMoveImageAt: (from: number, to: number) => void;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -92,11 +93,12 @@ export function AdminProductsSection({
   onDeleteType,
   onFileChange,
   onRemoveImageAt,
+  onMoveImageAt,
   onSave,
   onCancel,
 }: AdminProductsSectionProps) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("catalog");
-  const [editorPanel, setEditorPanel] = useState<"form" | "preview">("form");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [productListFilter, setProductListFilter] = useState<"all" | "promotions" | "best_sellers">("all");
   const [newFamily, setNewFamily] = useState("");
   const [newFamilyTypeId, setNewFamilyTypeId] = useState("");
@@ -180,8 +182,8 @@ export function AdminProductsSection({
   }, [editingKey]);
 
   useEffect(() => {
-    if (editing) {
-      setEditorPanel("form");
+    if (!editing) {
+      setPreviewOpen(false);
     }
   }, [editing, editingKey]);
 
@@ -637,6 +639,17 @@ export function AdminProductsSection({
                             Promoção
                           </Badge>
                         ) : null}
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                            typeof p.stock === "number" && p.stock > 0
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-red-200 bg-red-50 text-red-700",
+                          )}
+                        >
+                          {typeof p.stock === "number" && p.stock > 0 ? "Em estoque" : "Sem estoque"}
+                        </Badge>
                         <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px]">
                           {p.active ? "Ativo" : "Inativo"}
                         </Badge>
@@ -683,92 +696,92 @@ export function AdminProductsSection({
         <DialogContent className="max-h-[92vh] w-[min(98vw,1720px)] max-w-[1720px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
           <div className="flex max-h-[92vh] flex-col overflow-hidden">
             <DialogHeader className="border-b border-border/70 px-5 py-4">
-              <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
-                {isNew ? "Novo Produto" : "Editar Produto"}
-              </DialogTitle>
-              <DialogDescription className="text-left text-[13px] text-muted-foreground">
-                Ajuste os dados do produto sem ocupar a tela inteira do admin
-              </DialogDescription>
+              <div className="flex flex-wrap items-start justify-between gap-3 pr-10 sm:pr-12">
+                <div className="space-y-1 text-left">
+                  <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                    {isNew ? "Novo Produto" : "Editar Produto"}
+                  </DialogTitle>
+                  <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                    Ajuste os dados do produto sem ocupar a tela inteira do admin
+                  </DialogDescription>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-full px-4 text-sm"
+                  onClick={() => setPreviewOpen(true)}
+                  disabled={!editing}
+                >
+                  <Eye className="h-4 w-4" />
+                  Ver preview
+                </Button>
+              </div>
             </DialogHeader>
 
-            <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3 lg:hidden">
-              <Button
-                type="button"
-                variant={editorPanel === "form" ? "default" : "ghost"}
-                className="h-10 flex-1 rounded-full px-3 text-xs"
-                onClick={() => setEditorPanel("form")}
-              >
-                Formulário
-              </Button>
-              <Button
-                type="button"
-                variant={editorPanel === "preview" ? "default" : "ghost"}
-                className="h-10 flex-1 rounded-full px-3 text-xs"
-                onClick={() => setEditorPanel("preview")}
-              >
-                Pré-visualização
-              </Button>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+              {editing ? (
+                <AdminProductForm
+                  editing={editing}
+                  typeOptions={typeOptions}
+                  familyOptions={familyOptionsForEditing}
+                  uploading={uploading}
+                  fileInputRef={fileInputRef}
+                  onChange={onEditChange}
+                  onFileChange={onFileChange}
+                  onRemoveImageAt={onRemoveImageAt}
+                  onMoveImageAt={onMoveImageAt}
+                  onSave={onSave}
+                  onCancel={requestClose}
+                  className="border-0 bg-transparent p-0 shadow-none"
+                />
+              ) : null}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className={cn("min-h-0 overflow-y-auto p-4 sm:p-5", editorPanel !== "form" && "hidden lg:block")}>
-                {editing ? (
-                  <AdminProductForm
-                    editing={editing}
-                    typeOptions={typeOptions}
-                    familyOptions={familyOptionsForEditing}
-                    uploading={uploading}
-                    fileInputRef={fileInputRef}
-                    onChange={onEditChange}
-                    onFileChange={onFileChange}
-                    onRemoveImageAt={onRemoveImageAt}
-                    onSave={onSave}
-                    onCancel={requestClose}
-                    className="border-0 bg-transparent p-0 shadow-none"
-                  />
-                ) : null}
-              </div>
-
-              <div className={cn("min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:border-l lg:border-t-0", editorPanel !== "preview" && "hidden lg:block")}>
-                <div className="flex h-full min-h-[320px] flex-col">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        Pré-visualização
-                      </p>
-                      <p className="text-sm text-foreground/80">
-                        Alterna entre a miniatura do catálogo e a visão expandida do produto.
-                      </p>
-                    </div>
-
-                    <div className="inline-flex rounded-full border border-border/70 bg-background p-1">
-                      <Button
-                        type="button"
-                        variant={previewMode === "catalog" ? "default" : "ghost"}
-                        className="h-10 sm:h-9 rounded-full px-3 text-xs"
-                        onClick={() => setPreviewMode("catalog")}
-                      >
-                        Catálogo
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={previewMode === "details" ? "default" : "ghost"}
-                        className="h-10 sm:h-9 rounded-full px-3 text-xs"
-                        onClick={() => setPreviewMode("details")}
-                      >
-                        Aberto
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`flex min-h-0 flex-1 justify-center py-6 ${
-                      previewMode === "catalog" ? "items-center" : "items-start"
-                    }`}
-                  >
-                    <AdminProductPreview editing={editing} mode={previewMode} />
-                  </div>
+      <Dialog
+        open={previewOpen && Boolean(editing)}
+        onOpenChange={(open) => setPreviewOpen(open)}
+      >
+        <DialogContent className="max-h-[92vh] w-[min(96vw,1460px)] max-w-[1460px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
+          <div className="flex max-h-[92vh] flex-col overflow-hidden">
+            <DialogHeader className="border-b border-border/70 px-5 py-4">
+              <div className="flex flex-wrap items-start justify-between gap-3 pr-10 sm:pr-12">
+                <div className="space-y-1 text-left">
+                  <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                    Pré-visualização do produto
+                  </DialogTitle>
+                  <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                    Veja como o produto fica no catálogo e na página aberta.
+                  </DialogDescription>
                 </div>
+
+                <div className="inline-flex rounded-full border border-border/70 bg-background p-1">
+                  <Button
+                    type="button"
+                    variant={previewMode === "catalog" ? "default" : "ghost"}
+                    className="h-10 rounded-full px-3 text-xs"
+                    onClick={() => setPreviewMode("catalog")}
+                  >
+                    Catálogo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={previewMode === "details" ? "default" : "ghost"}
+                    className="h-10 rounded-full px-3 text-xs"
+                    onClick={() => setPreviewMode("details")}
+                  >
+                    Aberto
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="min-h-0 flex-1 overflow-y-auto bg-muted/15 p-4 sm:p-5">
+              <div className={`flex min-h-0 justify-center ${previewMode === "catalog" ? "items-center" : "items-start"}`}>
+                <AdminProductPreview editing={editing} mode={previewMode} />
               </div>
             </div>
           </div>

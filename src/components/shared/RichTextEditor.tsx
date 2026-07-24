@@ -5,6 +5,10 @@ import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
   Bold,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
   Italic,
   Underline as UnderlineIcon,
   Heading2,
@@ -26,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { FontSize, TextStyle, FONT_SIZE_OPTIONS } from "@/lib/richTextEditor";
+import { FontSize, TextAlign, TextStyle, FONT_SIZE_OPTIONS } from "@/lib/richTextEditor";
 
 type RichTextEditorProps = {
   value: string;
@@ -40,6 +44,11 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 
   const currentSize =
     (editor.getAttributes("textStyle").fontSize as string | undefined) ?? "16px";
+  const currentTextAlign =
+    (editor.getAttributes("paragraph").textAlign as string | undefined) ??
+    (editor.getAttributes("heading").textAlign as string | undefined) ??
+    (editor.getAttributes("listItem").textAlign as string | undefined) ??
+    "left";
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-2" role="toolbar">
@@ -138,6 +147,47 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 
       <span className="mx-1 hidden h-6 w-px bg-border sm:inline" aria-hidden />
 
+      <div className="inline-flex items-center rounded-md border border-border bg-background p-0.5">
+        <Toggle
+          size="sm"
+          pressed={currentTextAlign === "left"}
+          onPressedChange={() => editor.chain().focus().unsetTextAlign().run()}
+          aria-label="Alinhar à esquerda"
+          className="h-8 w-8 p-0"
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={currentTextAlign === "center"}
+          onPressedChange={() => editor.chain().focus().setTextAlign("center").run()}
+          aria-label="Centralizar"
+          className="h-8 w-8 p-0"
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={currentTextAlign === "right"}
+          onPressedChange={() => editor.chain().focus().setTextAlign("right").run()}
+          aria-label="Alinhar à direita"
+          className="h-8 w-8 p-0"
+        >
+          <AlignRight className="h-4 w-4" />
+        </Toggle>
+        <Toggle
+          size="sm"
+          pressed={currentTextAlign === "justify"}
+          onPressedChange={() => editor.chain().focus().setTextAlign("justify").run()}
+          aria-label="Justificar"
+          className="h-8 w-8 p-0"
+        >
+          <AlignJustify className="h-4 w-4" />
+        </Toggle>
+      </div>
+
+      <span className="mx-1 hidden h-6 w-px bg-border sm:inline" aria-hidden />
+
       <Button
         type="button"
         variant="ghost"
@@ -176,16 +226,17 @@ function Toolbar({ editor }: { editor: Editor | null }) {
 
 export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [2, 3] },
-      }),
-      Underline,
-      TextStyle,
-      FontSize,
-      Placeholder.configure({
-        placeholder: placeholder ?? "Descreva o produto...",
-      }),
+      extensions: [
+        StarterKit.configure({
+          heading: { levels: [2, 3] },
+        }),
+        Underline,
+        TextAlign,
+        TextStyle,
+        FontSize,
+        Placeholder.configure({
+          placeholder: placeholder ?? "Descreva o produto...",
+        }),
     ],
     content: value || "",
     editorProps: {
@@ -217,7 +268,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
         <EditorContent editor={editor} />
       </div>
       <p className="text-xs text-muted-foreground">
-        Use negrito, sublinhado, tamanho da fonte e listas. Produtos antigos em texto simples continuam funcionando.
+        Use negrito, sublinhado, alinhamento, tamanho da fonte e listas. Produtos antigos em texto simples continuam funcionando.
       </p>
     </div>
   );

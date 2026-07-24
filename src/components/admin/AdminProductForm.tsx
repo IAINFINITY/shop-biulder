@@ -26,7 +26,8 @@ type AdminProductFormProps = {
   fileInputRef: RefObject<HTMLInputElement>;
   onChange: (next: AdminProductFormState) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
-  onRemoveImageAt: (index: number) => void;
+  onRemoveImageAt: (index: number) => Promise<void>;
+  onMoveImageAt: (from: number, to: number) => void;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -41,6 +42,7 @@ export function AdminProductForm({
   onChange,
   onFileChange,
   onRemoveImageAt,
+  onMoveImageAt,
   onSave,
   onCancel,
 }: AdminProductFormProps) {
@@ -150,8 +152,8 @@ export function AdminProductForm({
         </p>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:items-stretch">
+        <div className="flex h-full flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <Label htmlFor="product-code" className="text-[13px] font-medium">
               Código do produto
@@ -168,10 +170,10 @@ export function AdminProductForm({
             maxLength={ADMIN_TEXT_LIMITS.products.code}
             className="h-11 rounded-2xl border-border/70 bg-background font-mono"
           />
-          <p className="text-[11px] leading-5 text-muted-foreground">Uso interno para pedidos e exportações</p>
+          <p className="min-h-[2.5rem] text-[11px] leading-5 text-muted-foreground">Uso interno para pedidos e exportações</p>
         </div>
 
-        <div className="space-y-2">
+        <div className="flex h-full flex-col gap-2">
           <Label htmlFor="product-price" className="text-[13px] font-medium">
             Preço (R$)
           </Label>
@@ -189,10 +191,28 @@ export function AdminProductForm({
             }
             className="h-11 rounded-2xl border-border/70 bg-background"
           />
-          <p className="text-[11px] leading-5 text-muted-foreground">
+          <p className="min-h-[2.5rem] text-[11px] leading-5 text-muted-foreground">
             Use vírgula ou ponto para centavos. O valor precisa ser maior que zero.
           </p>
         </div>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 sm:max-w-[18rem]">
+        <Label htmlFor="product-stock" className="text-[13px] font-medium">
+          Estoque
+        </Label>
+        <Input
+          id="product-stock"
+          type="text"
+          inputMode="numeric"
+          placeholder="Ex: 120"
+          value={editing.stockInput}
+          onChange={(e) => onChange({ ...editing, stockInput: e.target.value.replace(/[^0-9]/g, "") })}
+          className="h-11 rounded-2xl border-border/70 bg-background"
+        />
+        <p className="text-[11px] leading-5 text-muted-foreground">
+          Deixe em branco para não exibir quantidade. Use número inteiro.
+        </p>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -256,6 +276,7 @@ export function AdminProductForm({
           fileInputRef={fileInputRef}
           onFileChange={onFileChange}
           onRemoveAt={onRemoveImageAt}
+          onMoveAt={onMoveImageAt}
         />
       </div>
 

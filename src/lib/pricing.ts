@@ -1,7 +1,7 @@
 import type { CartItem, Product } from "@/lib/products";
 import { getProductUnitPrice } from "@/lib/products";
 
-export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor"];
+export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor", "funcionario"];
 
 export const DEFAULT_CUSTOMER_TYPE = "cliente";
 
@@ -9,6 +9,7 @@ export const CUSTOMER_TYPE_LABELS: Record<string, string> = {
   cliente: "Cliente",
   lojista: "Lojista",
   distribuidor: "Distribuidor",
+  funcionario: "Funcionário",
 };
 
 export function customerTypeLabel(value: string): string {

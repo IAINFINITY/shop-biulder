@@ -113,6 +113,11 @@ function extractStoragePath(publicUrl: string): string | null {
   return publicUrl.slice(idx + marker.length).split("?")[0];
 }
 
+export function isProductImageStorageUrl(publicUrl: string | null | undefined): boolean {
+  if (!publicUrl) return false;
+  return extractStoragePath(publicUrl) !== null;
+}
+
 export type DeleteImageResult =
   | { ok: true }
   | { ok: false; message: string };

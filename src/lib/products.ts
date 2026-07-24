@@ -143,6 +143,7 @@ export type ProductDbPayloadInput = {
   active: boolean;
   is_promotion: boolean;
   price: number;
+  stock: number | null;
   product_code: string;
   visible_to: string[] | null;
 };
@@ -156,6 +157,7 @@ type ProductDbRow = {
   active: boolean;
   is_promotion: boolean;
   price: number;
+  stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
 };
@@ -175,6 +177,7 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     active: input.active,
     is_promotion: input.is_promotion,
     price: input.price,
+    stock: input.stock,
     image_url: urls[0] ?? null,
     product_code: (input.product_code ?? "").trim() || null,
     visible_to: visibleTo,

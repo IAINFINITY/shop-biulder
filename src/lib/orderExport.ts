@@ -11,7 +11,7 @@ import {
 } from "@/lib/orders";
 import {
   buildProxisImportFileContent,
-  proxisImportFileName,
+  foccoImportFileName,
   type ProxisImportOrderInput,
 } from "@/lib/proxisImportExport";
 import { ensureProxisImportId } from "@/lib/proxisImportId";
@@ -206,6 +206,6 @@ export async function downloadProxisImportTxt(order: OrderExportInput): Promise<
   };
 
   const content = buildProxisImportFileContent([input]);
-  downloadTextFile(proxisImportFileName(proxisImportId, order.created_at), content);
+  downloadTextFile(foccoImportFileName(proxisImportId, order.created_at), content);
   return proxisImportId;
 }

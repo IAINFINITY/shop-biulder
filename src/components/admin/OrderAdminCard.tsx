@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ChevronDown, RotateCcw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -40,6 +40,8 @@ type Props = {
   formatDate: (value: string) => string;
   isProxisExporting: boolean;
   onExportProxis: () => void;
+  isProxisResending: boolean;
+  onResendProxis: () => void;
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onDelete: () => void;
@@ -73,6 +75,8 @@ export function OrderAdminCard({
   formatDate,
   isProxisExporting,
   onExportProxis,
+  isProxisResending,
+  onResendProxis,
   onExportXlsx,
   onExportPdf,
   onDelete,
@@ -165,7 +169,11 @@ export function OrderAdminCard({
         <div className="flex flex-wrap items-center gap-2 pl-10 sm:pl-11">
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" disabled={isProxisExporting} onClick={onExportProxis}>
             <img src="/icons/txt-file.png" alt="" className="h-3.5 w-3.5" />
-            {isProxisExporting ? "Gerando..." : "Proxis .txt"}
+            {isProxisExporting ? "Gerando..." : "FOCCO .txt"}
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" disabled={isProxisResending} onClick={onResendProxis}>
+            <RotateCcw className="h-3.5 w-3.5" />
+            {isProxisResending ? "Enviando..." : "Reenviar Proxis"}
           </Button>
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={onExportXlsx}>
             <img src="/icons/xls.png" alt="" className="h-3.5 w-3.5" /> Excel

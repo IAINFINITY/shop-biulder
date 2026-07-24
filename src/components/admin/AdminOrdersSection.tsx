@@ -8,10 +8,12 @@ import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
+import type { ProxisOrderRequest } from "@/lib/proxisOrder";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminOrderRow } from "./adminTypes";
 
 type OrderEnrichmentMaps = Parameters<typeof parseOrderTableLines>[1];
+type ProxisResendPayload = ProxisOrderRequest & { id: string };
 
 type AdminOrdersSectionProps = {
   ordersLoading: boolean;
@@ -22,7 +24,9 @@ type AdminOrdersSectionProps = {
   orderEnrichment: OrderEnrichmentMaps;
   formatDate: (value: string) => string;
   proxisExportingId: string | null;
+  proxisResendingId: string | null;
   onExportProxis: (payload: OrderExportInput) => void | Promise<void>;
+  onResendProxis: (payload: ProxisResendPayload) => void | Promise<void>;
   onExportXlsx: (payload: OrderExportInput) => void | Promise<void>;
   onExportPdf: (payload: OrderExportInput) => void | Promise<void>;
   onDelete: (id: string) => void;
@@ -55,7 +59,9 @@ export function AdminOrdersSection({
   orderEnrichment,
   formatDate,
   proxisExportingId,
+  proxisResendingId,
   onExportProxis,
+  onResendProxis,
   onExportXlsx,
   onExportPdf,
   onDelete,
@@ -85,6 +91,19 @@ export function AdminOrdersSection({
     }
     return Math.round(total * 100) / 100;
   }, [visibleOrders, orderEnrichment]);
+
+  function normalizeAddressPayload(order: AdminOrderRow): ProxisOrderRequest["address"] {
+    return {
+      cep: String(order.customer_address_cep ?? ""),
+      street: String(order.customer_address_street ?? ""),
+      number: String(order.customer_address_number ?? ""),
+      complement: String(order.customer_address_complement ?? ""),
+      neighborhood: String(order.customer_address_neighborhood ?? ""),
+      city: String(order.customer_address_city ?? ""),
+      state: String(order.customer_address_state ?? ""),
+      ibge: String(order.customer_address_ibge ?? ""),
+    };
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -188,6 +207,21 @@ export function AdminOrdersSection({
               proxis_import_id: order.proxis_import_id,
               enrichmentMaps: orderEnrichment,
             } as const;
+            const resendPayload: ProxisResendPayload = {
+              id: order.id,
+              customer_name: order.customer_name,
+              customer_cnpj: order.customer_cnpj ?? "",
+              customer_company: order.customer_company || order.customer_name,
+              customer_observation: customerObservation || null,
+              address: normalizeAddressPayload(order),
+              items: lines.map((line) => ({
+                product_code: line.code === "—" ? "" : line.code,
+                quantity: line.quantity,
+                unit_price: line.unitPrice,
+                name: line.name,
+              })),
+              note: customerObservation || "Pedido reenviado pelo admin.",
+            };
 
             return (
               <OrderAdminCard
@@ -210,7 +244,9 @@ export function AdminOrdersSection({
                 orderQty={orderQty}
                 formatDate={formatDate}
                 isProxisExporting={proxisExportingId === order.id}
+                isProxisResending={proxisResendingId === order.id}
                 onExportProxis={() => onExportProxis(exportPayload)}
+                onResendProxis={() => onResendProxis(resendPayload)}
                 onExportXlsx={() => onExportXlsx(exportPayload)}
                 onExportPdf={() => onExportPdf(exportPayload)}
                 onDelete={() => onDelete(order.id)}

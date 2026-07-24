@@ -26,7 +26,7 @@ const CartContext = createContext<CartContextValue | null>(null);
 
 function normalizeQuantity(quantity: number) {
   if (!Number.isFinite(quantity)) return 1;
-  return Math.max(1, Math.min(99, Math.round(quantity)));
+  return Math.max(1, Math.round(quantity));
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -42,15 +42,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart,
       addToCart: (product, quantity = 1) => {
         const safeQuantity = normalizeQuantity(quantity);
+        const wasInCart = cart.some((item) => item.product.id === product.id);
         setCart((prev) => {
           const existing = prev.find((item) => item.product.id === product.id);
           if (existing) {
-            return prev.filter((item) => item.product.id !== product.id);
+            return prev.map((item) =>
+              item.product.id === product.id ? { ...item, quantity: normalizeQuantity(item.quantity + safeQuantity) } : item,
+            );
           }
           return [...prev, { product, quantity: safeQuantity }];
         });
-        if (cart.some((item) => item.product.id === product.id)) {
-          toast.info("Produto removido do carrinho.");
+        if (wasInCart) {
+          toast.success("Quantidade atualizada no carrinho.");
         } else {
           toast.success("Produto adicionado com sucesso no carrinho.");
         }

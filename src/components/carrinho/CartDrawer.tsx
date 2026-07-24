@@ -15,6 +15,11 @@ function getCartImage(item: CartItem): string | null {
   return getProductImageUrls(item.product)[0] ?? item.product.image_url ?? null;
 }
 
+function formatCartBadgeCount(total: number) {
+  if (total <= 99) return String(total);
+  return "99+";
+}
+
 interface CartDrawerProps {
   cart: CartItem[];
   onUpdateQuantity: (productId: string, delta: number) => void;
@@ -42,6 +47,8 @@ export function CartDrawer({
   ) / 100;
   const navigate = useNavigate();
   const [bounceKey, setBounceKey] = useState(0);
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
+  const [editingQuantityIds, setEditingQuantityIds] = useState<Record<string, boolean>>({});
   const prevTotalRef = useRef(totalItems);
 
   useEffect(() => {
@@ -50,6 +57,45 @@ export function CartDrawer({
       setBounceKey((k) => k + 1);
     }
   }, [totalItems]);
+
+  useEffect(() => {
+    setQuantityDrafts((current) => {
+      const next: Record<string, string> = {};
+
+      for (const item of cart) {
+        if (current[item.product.id] !== undefined) {
+          next[item.product.id] = current[item.product.id];
+        }
+      }
+
+      return next;
+    });
+    setEditingQuantityIds((current) => {
+      const next: Record<string, boolean> = {};
+      for (const item of cart) {
+        if (current[item.product.id]) {
+          next[item.product.id] = true;
+        }
+      }
+      return next;
+    });
+  }, [cart]);
+
+  const handleQuantityChange = (productId: string, value: string) => {
+    const digits = value.replace(/\D/g, "");
+    setQuantityDrafts((current) => ({ ...current, [productId]: digits }));
+
+    if (digits === "") return;
+
+    const parsed = Number.parseInt(digits, 10);
+    if (Number.isFinite(parsed)) {
+      onSetQuantity(productId, parsed);
+    }
+  };
+
+  const handleQuantityBlur = (productId: string) => {
+    setEditingQuantityIds((current) => ({ ...current, [productId]: false }));
+  };
 
   const handleSend = () => {
     if (cart.length === 0) {
@@ -67,8 +113,11 @@ export function CartDrawer({
           <ShoppingBag className="h-5 w-5" />
           <span className="hidden sm:inline">Meu Carrinho</span>
           {totalItems > 0 && (
-            <Badge key={bounceKey} className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center bg-warm p-0 text-xs text-warm-foreground animate-cart-bounce">
-              {totalItems}
+            <Badge
+              key={bounceKey}
+              className="pointer-events-none absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-warm px-1.5 text-[10px] font-bold leading-none text-warm-foreground tabular-nums animate-cart-bounce"
+            >
+              {formatCartBadgeCount(totalItems)}
             </Badge>
           )}
         </Button>
@@ -169,15 +218,20 @@ export function CartDrawer({
                         <Minus className="h-3.5 w-3.5" />
                       </Button>
                       <Input
-                        type="number"
-                        min={1}
-                        max={99}
-                        step={1}
+                        type="text"
                         inputMode="numeric"
                         aria-label={`Quantidade de ${item.product.name}`}
-                        value={item.quantity}
-                        onChange={(e) => onSetQuantity(item.product.id, Number(e.target.value))}
-                        className="h-8 w-20 rounded-full border-border bg-background px-3 text-center text-sm font-medium tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        value={editingQuantityIds[item.product.id] ? (quantityDrafts[item.product.id] ?? "") : String(item.quantity)}
+                        onFocus={() => {
+                          setEditingQuantityIds((current) => ({ ...current, [item.product.id]: true }));
+                          setQuantityDrafts((current) => ({
+                            ...current,
+                            [item.product.id]: current[item.product.id] ?? String(item.quantity),
+                          }));
+                        }}
+                        onChange={(e) => handleQuantityChange(item.product.id, e.target.value)}
+                        onBlur={() => handleQuantityBlur(item.product.id)}
+                        className="h-8 w-20 rounded-full border-border bg-background px-3 text-center text-sm font-medium tabular-nums"
                       />
                       <Button
                         variant="outline"

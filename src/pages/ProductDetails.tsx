@@ -24,6 +24,7 @@ import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Carousel,
@@ -71,6 +72,73 @@ function hashTypeName(value: string) {
     hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
   }
   return hash;
+}
+
+function QuantityStepper({
+  value,
+  onChange,
+  className,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  className?: string;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setDraft(String(value));
+    }
+  }, [isEditing, value]);
+
+  const commitDraft = (raw: string) => {
+    const digits = raw.replace(/\D/g, "");
+    setDraft(digits);
+    if (digits === "") return;
+
+    const parsed = Number.parseInt(digits, 10);
+    if (Number.isFinite(parsed)) {
+      onChange(Math.max(1, parsed));
+    }
+  };
+
+  return (
+    <div className={cn("flex items-center rounded-full border border-border/60 bg-background shadow-sm", className)}>
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(1, value - 1))}
+        disabled={value <= 1}
+        className="flex h-8 w-8 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={isEditing ? draft : String(value)}
+        onFocus={() => {
+          setIsEditing(true);
+          setDraft(String(value));
+        }}
+        onChange={(event) => commitDraft(event.target.value)}
+        onBlur={() => {
+          setIsEditing(false);
+          if (draft.trim() === "") {
+            setDraft(String(value));
+          }
+        }}
+        className="h-8 w-16 border-0 bg-transparent px-0 text-center text-sm font-semibold tabular-nums shadow-none focus-visible:ring-0"
+      />
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        className="flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </div>
+  );
 }
 
 export default function ProductDetails() {
@@ -267,9 +335,6 @@ export default function ProductDetails() {
       toast.error("Não foi possível compartilhar o produto.");
     }
   };
-
-  const decQuantity = () => setQuantity((q) => Math.max(1, q - 1));
-  const incQuantity = () => setQuantity((q) => Math.min(99, q + 1));
 
   const handleRelatedAdd = (targetProduct: (typeof allProducts)[number]) => {
     addToCart(targetProduct);
@@ -689,27 +754,7 @@ export default function ProductDetails() {
                       </div>
 
                       <div className="mt-4 flex items-center justify-between gap-3">
-                        <div className="flex items-center rounded-full border border-border/60 bg-background shadow-sm">
-                          <button
-                            type="button"
-                            onClick={decQuantity}
-                            disabled={quantity <= 1}
-                            className="flex h-8 w-8 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-                          <span className="flex h-8 min-w-[2rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">
-                            {quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={incQuantity}
-                            disabled={quantity >= 99}
-                            className="flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        </div>
+                        <QuantityStepper value={quantity} onChange={setQuantity} />
 
                         <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                           <ShieldCheck className="h-3.5 w-3.5" />
@@ -1087,10 +1132,10 @@ export default function ProductDetails() {
               <p className="text-xl font-semibold text-foreground tabular-nums">{formatBRL(selectedTotalPrice)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => toggleWishlist(product.id)}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => toggleWishlist(product.id)}
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-full border transition-colors",
                 wishlistIds.includes(product.id)
@@ -1101,27 +1146,7 @@ export default function ProductDetails() {
             >
               <Heart className={cn("h-4 w-4", wishlistIds.includes(product.id) && "fill-current")} />
             </button>
-            <div className="flex items-center rounded-full border border-border/60 bg-background shadow-sm">
-              <button
-                type="button"
-                onClick={decQuantity}
-                disabled={quantity <= 1}
-                className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </button>
-              <span className="flex h-9 min-w-[2.5rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">
-                {quantity}
-              </span>
-              <button
-                type="button"
-                onClick={incQuantity}
-                disabled={quantity >= 99}
-                className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <QuantityStepper value={quantity} onChange={setQuantity} className="h-9" />
             <Button onClick={handleAdd} className="gap-2 shrink-0" size="sm">
               <Plus className="h-4 w-4" /> Add
             </Button>

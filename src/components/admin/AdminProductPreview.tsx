@@ -353,8 +353,7 @@ function ExpandedPreview({
                     <span className="flex h-8 min-w-[2rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">{quantity}</span>
                     <button
                       type="button"
-                      onClick={() => setQuantity((current) => Math.min(99, current + 1))}
-                      disabled={quantity >= 99}
+                      onClick={() => setQuantity((current) => current + 1)}
                       className="flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
                     >
                       <Plus className="h-3 w-3" />

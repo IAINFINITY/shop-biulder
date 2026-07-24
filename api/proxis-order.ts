@@ -14,11 +14,44 @@ const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 48);
 const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 3);
 const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
 const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 8728);
+const PROXSIS_ORDER_TPR_ID = proxisEnvId("PROXSIS_ORDER_TPR_ID", 40);
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
 const PROXSIS_DEFAULT_EST_SIGLA = (process.env.PROXSIS_DEFAULT_EST_SIGLA ?? "").trim() || "SC";
 const PROXSIS_DOC_MARCADOR = (process.env.PROXSIS_DOC_MARCADOR ?? "").trim() || "PEDIDO B2B";
+
+class ProxisRequestError extends Error {
+  status: number;
+  upstream: {
+    endpoint: string;
+    method: string;
+    proxy_http_status: number;
+    status: number;
+    body: unknown;
+    error: string | null;
+    debug: Record<string, unknown> | null;
+  };
+
+  constructor(
+    status: number,
+    upstream: {
+      endpoint: string;
+      method: string;
+      proxy_http_status: number;
+      status: number;
+      body: unknown;
+      error: string | null;
+      debug: Record<string, unknown> | null;
+    },
+    message: string
+  ) {
+    super(message);
+    this.name = "ProxisRequestError";
+    this.status = status;
+    this.upstream = upstream;
+  }
+}
 
 interface CustomerAddressInput {
   cep: string;
@@ -113,18 +146,47 @@ async function proxsisRequest(
       }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`n8n Proxy error (${res.status}): ${text}`);
+    const responseText = await res.text();
+    let result: Record<string, unknown> | null = null;
+    if (responseText.trim()) {
+      try {
+        const parsed = JSON.parse(responseText);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          result = parsed as Record<string, unknown>;
+        }
+      } catch {
+        // Preserve non-JSON proxy responses below.
+      }
     }
 
-    const result = await res.json();
+    const reportedStatus = Number(result?.status);
+    const upstreamStatus = Number.isFinite(reportedStatus) && reportedStatus >= 100
+      ? Math.trunc(reportedStatus)
+      : res.status;
+    const resultDebug = result?.debug && typeof result.debug === "object" && !Array.isArray(result.debug)
+      ? result.debug as Record<string, unknown>
+      : null;
 
-    if (result?.status && result.status >= 400) {
-      const detail = result.body || result.error || "Unknown error";
-      throw new Error(`Proxsis API error via n8n (${result.status}): ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
+    if (!res.ok || upstreamStatus >= 400) {
+      const upstreamBody = (result?.body ?? responseText) || null;
+      const proxyError = typeof result?.error === "string" ? result.error : null;
+      const detail = upstreamBody || proxyError || `Proxy returned HTTP ${res.status}`;
+      throw new ProxisRequestError(
+        upstreamStatus,
+        {
+          endpoint: endpointName,
+          method,
+          proxy_http_status: res.status,
+          status: upstreamStatus,
+          body: upstreamBody,
+          error: proxyError,
+          debug: resultDebug,
+        },
+        `Proxsis API error via n8n (${upstreamStatus}): ${typeof detail === "string" ? detail : JSON.stringify(detail)}`
+      );
     }
 
+    if (!result) return responseText.trim() ? responseText : null;
     if (result.body === null || result.body === undefined || result.body === "") return null;
     return result.body;
   }
@@ -312,6 +374,7 @@ async function criarCliente(
     pes_cpf_cnpj: formatCnpj(cnpj),
     pes_tipo_cliente: true,
     endereco: [endereco],
+    tabelapreco: [{ tpr_id: PROXSIS_TPR_ID_DEFAULT }],
   };
 
   const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload, extraHeaders: {} });
@@ -333,6 +396,23 @@ async function buscarProdutoPorNumero(numero: string): Promise<Record<string, un
   if (!result) return null;
   if (Array.isArray(result)) return result[0] || null;
   return result as Record<string, unknown>;
+}
+
+function firstLinkedId(
+  cliente: Record<string, unknown>,
+  relationName: string,
+  idField: string
+): number | null {
+  const rows = cliente[relationName];
+  if (!Array.isArray(rows)) return null;
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const id = parsePesId((row as Record<string, unknown>)[idField]);
+    if (id) return id;
+  }
+
+  return null;
 }
 
 async function criarPedido(pedido: Record<string, unknown>): Promise<unknown> {
@@ -394,11 +474,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const diagnostic: {
+    customer_cnpj: string;
+    items_attempted: number;
+    items_resolved: number;
+    pes_id: number | null;
+    tpr_id: number | null;
+    customer_tpr_id: number | null;
+    pes_id_ven: number | null;
+    oin_id: number | null;
+    cpa_id: number | null;
+    tti_id: number | null;
+    por_id: number | null;
+    operation_source: "api_contract" | null;
+  } = {
+    customer_cnpj: customerCnpjDigits,
+    items_attempted: body.items.length,
+    items_resolved: 0,
+    pes_id: null,
+    tpr_id: null,
+    customer_tpr_id: null,
+    pes_id_ven: null,
+    oin_id: null,
+    cpa_id: null,
+    tti_id: null,
+    por_id: null,
+    operation_source: null,
+  };
+
   try {
     console.log("[proxis-order] Buscando cliente por CNPJ:", body.customer_cnpj);
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
     console.log("[proxis-order] Resultado da busca de cliente:", cliente ? "encontrado" : "nao encontrado", cliente);
     let pesId: number | null = null;
+    let selectedTprId = PROXSIS_TPR_ID_DEFAULT;
+    let customerTableIds: number[] = [];
 
     const normalizedAddress = normalizeAddressInput(body.address ?? null);
 
@@ -448,14 +558,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    diagnostic.pes_id = pesId;
+
     console.log("[proxis-order] Garantindo endereço do cliente");
     await garantirEnderecoCliente(cliente, normalizedAddress);
 
-    let tprId = PROXSIS_TPR_ID_DEFAULT;
     const tabelas = cliente.tabelapreco as Array<{ tpr_id: number }> | undefined;
     if (tabelas?.length && tabelas[0].tpr_id) {
-      tprId = tabelas[0].tpr_id;
+      customerTableIds = tabelas
+        .map((row) => Number(row.tpr_id))
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .map((value) => Math.trunc(value));
+      selectedTprId = customerTableIds[0] ?? PROXSIS_TPR_ID_DEFAULT;
     }
+    diagnostic.customer_tpr_id = selectedTprId;
+    diagnostic.tpr_id = PROXSIS_ORDER_TPR_ID;
+
+const orderConfig = {
+      oin_id: PROXSIS_OIN_ID,
+      cpa_id: PROXSIS_CPA_ID,
+      tti_id: PROXSIS_TTI_ID,
+      por_id: PROXSIS_POR_ID,
+    };
+    diagnostic.oin_id = orderConfig.oin_id;
+    diagnostic.cpa_id = orderConfig.cpa_id;
+    diagnostic.tti_id = orderConfig.tti_id;
+    diagnostic.por_id = orderConfig.por_id;
+    diagnostic.operation_source = "api_contract";
+
+    console.log("[proxis-order] Tabela selecionada:", {
+      selectedTprId,
+      orderTprId: PROXSIS_ORDER_TPR_ID,
+      customerTableIds,
+      pesId,
+      orderConfig,
+    });
 
     const documentoItens: Array<{
       ite_id: number;
@@ -491,6 +628,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log("[proxis-order] Produtos resolvidos:", documentoItens.length, "falhas:", failedProducts.length);
+    diagnostic.items_resolved = documentoItens.length;
     if (documentoItens.length === 0) {
       return res.status(400).json({
         error: "No valid products found in Proxsis",
@@ -501,19 +639,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const now = new Date();
     const docDtEmissao = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
     const docPedWeb = `INFINITY-${Date.now().toString(36).toUpperCase()}`;
+    const representativeId = resolveRepresentativeId(body);
+    diagnostic.pes_id_ven = representativeId;
 
     const pedido = {
       doc_tipo: 2,
-      oin_id: PROXSIS_OIN_ID,
-      tpr_id: tprId,
-      cpa_id: PROXSIS_CPA_ID,
-      tti_id: PROXSIS_TTI_ID,
-      por_id: PROXSIS_POR_ID,
+      doc_tipo_documento: 1,
+      doc_tipopgto: 2,
+      doc_oper_estoque: "S",
+      fil_id: Number(PROXSIS_FILIAL),
+      oin_id: orderConfig.oin_id,
+      tpr_id: PROXSIS_ORDER_TPR_ID,
+      cpa_id: orderConfig.cpa_id,
+      tti_id: orderConfig.tti_id,
+      por_id: orderConfig.por_id,
       pes_id_cli: pesId,
-      pes_id_ven: resolveRepresentativeId(body),
+      pes_id_ven: representativeId,
       doc_dt_emissao: docDtEmissao,
       doc_ped_web: docPedWeb,
-      doc_marcador: PROXSIS_DOC_MARCADOR,
+doc_marcador: PROXSIS_DOC_MARCADOR,
       DocumentoItens: documentoItens,
     };
 
@@ -521,6 +665,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       doc_ped_web: docPedWeb,
       pes_id_cli: pesId,
       pes_id_ven: pedido.pes_id_ven,
+      tpr_id: PROXSIS_ORDER_TPR_ID,
+      customer_tpr_id: selectedTprId,
+      oin_id: orderConfig.oin_id,
+      cpa_id: orderConfig.cpa_id,
+      tti_id: orderConfig.tti_id,
+      por_id: orderConfig.por_id,
       total_itens: documentoItens.length,
     });
 
@@ -535,12 +685,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       items_count: documentoItens.length,
       failed_products: failedProducts.length > 0 ? failedProducts : undefined,
       proxsis_response: resultado,
+      debug: {
+        tpr_id: PROXSIS_ORDER_TPR_ID,
+        customer_tpr_id: selectedTprId,
+        customer_table_ids: customerTableIds,
+        pes_id_ven: pedido.pes_id_ven,
+        oin_id: orderConfig.oin_id,
+        cpa_id: orderConfig.cpa_id,
+        tti_id: orderConfig.tti_id,
+        por_id: orderConfig.por_id,
+        items_attempted: body.items.length,
+      },
     });
   } catch (error) {
     console.error("[proxis-order] Proxsis integration error:", error);
+    const upstream = error instanceof ProxisRequestError ? error.upstream : null;
     return res.status(500).json({
       error: "Proxsis integration failed",
       detail: error instanceof Error ? error.message : String(error),
+      upstream: upstream ?? undefined,
+      debug: diagnostic,
     });
   }
 }

@@ -177,6 +177,28 @@ export function AdminClientsSection({
   }, [customerProfilesByKey, detailsCustomer]);
 
   const detailUserId = detailsCustomer?.userId ?? selectedDetailsProfile?.user_id ?? null;
+  const detailCnpj = selectedDetailsProfile?.cnpj || detailsCustomer?.cnpj || "";
+  const normalizedDetailCnpj = detailCnpj.replace(/\D/g, "");
+
+  const {
+    data: proxisDetails,
+    error: proxisDetailsError,
+    isFetching: proxisDetailsLoading,
+    refetch: refetchProxisDetails,
+  } = useQuery({
+    queryKey: ["admin-proxis-customer", normalizedDetailCnpj],
+    enabled: detailsOpen && normalizedDetailCnpj.length === 14,
+    staleTime: 30_000,
+    retry: 1,
+    queryFn: async () => {
+      const { lookupProxisCustomerByCnpj } = await import("@/lib/proxisCustomer");
+      return lookupProxisCustomerByCnpj(normalizedDetailCnpj);
+    },
+  });
+
+  const proxisFound = proxisDetails?.found ?? Boolean(selectedDetailsProfile?.proxis_found);
+  const displayedProxisPesId = proxisDetails?.pes_id ?? selectedDetailsProfile?.proxis_pes_id ?? null;
+  const displayedProxisTprId = proxisDetails?.tpr_id ?? selectedDetailsProfile?.proxis_tpr_id ?? null;
 
   const { data: detailAddresses = [] } = useQuery({
     queryKey: ["admin-customer-addresses", detailUserId],
@@ -221,6 +243,30 @@ export function AdminClientsSection({
   const openDetails = (customer: AdminCustomerSummary) => {
     setDetailsCustomer(customer);
     setDetailsOpen(true);
+  };
+
+  const syncDetailsProxis = async () => {
+    if (normalizedDetailCnpj.length !== 14) {
+      toast.error("CNPJ não encontrado.");
+      return;
+    }
+
+    setSyncingProxis(true);
+    try {
+      const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
+      await syncCustomerProxisLink(normalizedDetailCnpj, detailUserId);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] }),
+        refetchProxisDetails(),
+      ]);
+      toast.success("Vínculo Proxsys atualizado.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[AdminClients] syncCustomerProxisLink error:", err);
+      toast.error(`Erro ao sincronizar com Proxsys: ${message}`);
+    } finally {
+      setSyncingProxis(false);
+    }
   };
 
   const handleEditSave = async () => {
@@ -606,81 +652,71 @@ export function AdminClientsSection({
                     </div>
                   ) : null}
 
-                  {selectedDetailsProfile ? (
+                  {normalizedDetailCnpj.length === 14 ? (
                     <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Vínculo Proxsys</p>
-                        {selectedDetailsProfile.proxis_found ? (
-                          <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-                            <DetailField label="PES ID" value={String(selectedDetailsProfile.proxis_pes_id ?? "—")} />
-                            <DetailField label="TPR ID" value={String(selectedDetailsProfile.proxis_tpr_id ?? "—")} />
-                            <DetailField label="Sincronizado" value={formatDateTime(selectedDetailsProfile.proxis_synced_at)} />
-                          </div>
-                        ) : (
-                          <div className="mt-3 space-y-3">
-                            <p className="text-[13px] leading-6 text-muted-foreground">
-                              Este cliente ainda não está vinculado ao Proxsys.
-                            </p>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-9 rounded-full px-3 text-[12px]"
-                              disabled={syncingProxis}
-                              onClick={async () => {
-                                const cnpj = selectedDetailsProfile.cnpj || detailsCustomer.cnpj;
-                                if (!cnpj) { toast.error("CNPJ não encontrado."); return; }
-                                setSyncingProxis(true);
-                                try {
-                                  const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
-                                  await syncCustomerProxisLink(cnpj, detailUserId);
-                                  toast.success("Vínculo Proxsys atualizado.");
-                                  setDetailsOpen(false);
-                                } catch (err) {
-                                  const msg = err instanceof Error ? err.message : typeof err === "object" && err !== null ? JSON.stringify(err) : String(err);
-                                  console.error("[AdminClients] syncCustomerProxisLink error:", err);
-                                  toast.error(`Erro ao sincronizar com Proxsys: ${msg}`);
-                                } finally {
-                                  setSyncingProxis(false);
-                                }
-                              }}
-                            >
-                              {syncingProxis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                              Sincronizar agora
-                            </Button>
-                          </div>
-                        )}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Vínculo Proxsys</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9 rounded-full px-3 text-[12px]"
+                          disabled={syncingProxis || proxisDetailsLoading}
+                          onClick={syncDetailsProxis}
+                        >
+                          {syncingProxis || proxisDetailsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                          {proxisFound ? "Atualizar vínculo" : "Sincronizar agora"}
+                        </Button>
                       </div>
-                  ) : detailsCustomer.cnpj ? (
-                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Vínculo Proxsys</p>
-                      <p className="mt-3 text-[13px] leading-6 text-muted-foreground">
-                        Cliente sem perfil completo. Use o botão abaixo para verificar o vínculo pelo CNPJ.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-3 h-9 rounded-full px-3 text-[12px]"
-                        disabled={syncingProxis}
-                        onClick={async () => {
-                          setSyncingProxis(true);
-                          try {
-                            const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
-                            await syncCustomerProxisLink(detailsCustomer.cnpj!, detailUserId);
-                            toast.success("Vínculo Proxsys atualizado.");
-                            setDetailsOpen(false);
-                          } catch (err) {
-                                  const msg = err instanceof Error ? err.message : typeof err === "object" && err !== null ? JSON.stringify(err) : String(err);
-                                  console.error("[AdminClients] syncCustomerProxisLink error:", err);
-                                  toast.error(`Erro ao sincronizar com Proxsys: ${msg}`);
-                          } finally {
-                            setSyncingProxis(false);
-                          }
-                        }}
-                      >
-                        {syncingProxis ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        Sincronizar agora
-                      </Button>
+
+                      {proxisDetailsLoading && !proxisDetails ? (
+                        <p className="mt-3 text-[13px] text-muted-foreground">Consultando dados atuais do Proxsys...</p>
+                      ) : proxisFound ? (
+                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                          <DetailField label="PES ID" value={String(displayedProxisPesId ?? "—")} />
+                          <DetailField
+                            label="Tabela de preço (TPR)"
+                            value={String(displayedProxisTprId ?? "—")}
+                            hint={proxisDetails?.tpr_description ?? undefined}
+                          />
+                          <DetailField
+                            label="Condição (CPA)"
+                            value={String(proxisDetails?.cpa_id ?? "—")}
+                            hint={proxisDetails?.cpa_description ?? undefined}
+                          />
+                          <DetailField
+                            label="Forma (TTI)"
+                            value={String(proxisDetails?.tti_id ?? "—")}
+                            hint={proxisDetails?.tti_description ?? undefined}
+                          />
+                          <DetailField
+                            label="Operação (OIN)"
+                            value={String(proxisDetails?.oin_id ?? "—")}
+                            hint={
+                              proxisDetails?.operation_source === "customer_order"
+                                ? "Último pedido compatível"
+                                : proxisDetails?.operation_source === "price_table_default"
+                                  ? "Padrão da tabela B2B"
+                                  : undefined
+                            }
+                          />
+                          <DetailField label="Portador (POR)" value={String(proxisDetails?.por_id ?? "—")} />
+                          <DetailField
+                            label="Sincronizado no cadastro"
+                            value={formatDateTime(selectedDetailsProfile?.proxis_synced_at)}
+                          />
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-[13px] leading-6 text-muted-foreground">
+                          Este cliente ainda não está vinculado ao Proxsys.
+                        </p>
+                      )}
+
+                      {proxisDetailsError ? (
+                        <p className="mt-3 text-[12px] leading-5 text-destructive">
+                          Não foi possível atualizar os detalhes ao vivo. Os dados salvos continuam visíveis.
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
 

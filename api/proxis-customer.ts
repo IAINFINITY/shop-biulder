@@ -4,7 +4,10 @@ const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
 const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
-const DEFAULT_PROXSIS_TPR_ID = 8728;
+const configuredDefaultTprId = Number(process.env.PROXSIS_TPR_ID_DEFAULT);
+const DEFAULT_PROXSIS_TPR_ID = Number.isFinite(configuredDefaultTprId) && configuredDefaultTprId > 0
+  ? Math.trunc(configuredDefaultTprId)
+  : 8728;
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -127,6 +130,43 @@ function resolveTprId(cliente: Record<string, unknown> | null): number | null {
   return Number.isFinite(tprId) && Number(tprId) > 0 ? Math.trunc(Number(tprId)) : DEFAULT_PROXSIS_TPR_ID;
 }
 
+function firstRelationRow(cliente: Record<string, unknown> | null, relationName: string): Record<string, unknown> | null {
+  if (!cliente) return null;
+  const rows = cliente[relationName];
+  if (!Array.isArray(rows)) return null;
+  const row = rows.find((value) => value && typeof value === "object");
+  return row ? row as Record<string, unknown> : null;
+}
+
+function positiveId(value: unknown): number | null {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+}
+
+async function buscarUltimaConfiguracaoPedido(
+  pesId: number,
+  tprId: number | null,
+): Promise<{ oin_id: number; por_id: number | null } | null> {
+  const result = await proxsisRequest("GET", "ObterPedidos", {
+    extraHeaders: {
+      "X-ProManager-Pagina-Inicio": "0",
+      "X-ProManager-Pagina-Quant": "20",
+      "X-Promanager-Busca-Filtro": `pes_id_cli = ${pesId}`,
+    },
+  });
+  const rows = Array.isArray(result) ? result : [result].filter(Boolean);
+  const matching = rows.find((row) => (
+    row
+    && typeof row === "object"
+    && positiveId((row as Record<string, unknown>).tpr_id) === tprId
+  ));
+  const row = matching ?? rows[0];
+  if (!row || typeof row !== "object") return null;
+  const order = row as Record<string, unknown>;
+  const oinId = positiveId(order.oin_id);
+  return oinId ? { oin_id: oinId, por_id: positiveId(order.por_id) } : null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -149,13 +189,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const pesId = Number(cliente?.pes_id);
     const found = !!cliente && Number.isFinite(pesId) && pesId > 0;
     const tprId = resolveTprId(cliente);
+    const tpr = firstRelationRow(cliente, "tabelapreco");
+    const paymentCondition = firstRelationRow(cliente, "condicaopagamento");
+    const paymentMethod = firstRelationRow(cliente, "formapagamento");
+    let previousOrder: { oin_id: number; por_id: number | null } | null = null;
 
-    console.log("[proxis-customer] Resultado:", { found, pes_id: found ? Math.trunc(pesId) : null, tpr_id: tprId });
+    if (found) {
+      try {
+        previousOrder = await buscarUltimaConfiguracaoPedido(Math.trunc(pesId), tprId);
+      } catch (error) {
+        console.warn("[proxis-customer] Falha ao consultar configuracao de pedido anterior:", error);
+      }
+    }
+
+    const isB2bTable = tprId === 8728 || tprId === 8729;
+    const oinId = previousOrder?.oin_id ?? (isB2bTable ? 47 : null);
+    const operationSource = previousOrder ? "customer_order" : isB2bTable ? "price_table_default" : null;
+
+    console.log("[proxis-customer] Resultado:", {
+      found,
+      pes_id: found ? Math.trunc(pesId) : null,
+      tpr_id: tprId,
+      cpa_id: positiveId(paymentCondition?.cpa_id),
+      tti_id: positiveId(paymentMethod?.tti_id),
+      oin_id: oinId,
+    });
 
     return res.status(200).json({
       found,
       pes_id: found ? Math.trunc(pesId) : null,
       tpr_id: tprId,
+      tpr_description: typeof tpr?.tpr_descricao === "string" ? tpr.tpr_descricao : null,
+      cpa_id: positiveId(paymentCondition?.cpa_id),
+      cpa_description: typeof paymentCondition?.cpa_descricao === "string" ? paymentCondition.cpa_descricao : null,
+      tti_id: positiveId(paymentMethod?.tti_id),
+      tti_description: typeof paymentMethod?.tti_descricao === "string" ? paymentMethod.tti_descricao : null,
+      oin_id: oinId,
+      por_id: previousOrder?.por_id ?? (found ? 1 : null),
+      operation_source: operationSource,
       customer_name: found ? String(cliente.pes_nome ?? "") : null,
       customer_company: found ? String(cliente.pes_fantasia ?? cliente.pes_nome ?? "") : null,
     });

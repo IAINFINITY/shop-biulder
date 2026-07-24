@@ -37,7 +37,29 @@ export type ProxisOrderResponse = {
   proxsis_response?: unknown;
   error?: string;
   detail?: string;
+  upstream?: {
+    endpoint: string;
+    method: string;
+    proxy_http_status: number;
+    status: number;
+    body: unknown;
+    error: string | null;
+    debug: Record<string, unknown> | null;
+  };
+  debug?: Record<string, unknown>;
 };
+
+export class ProxisSendError extends Error {
+  status: number;
+  response: ProxisOrderResponse;
+
+  constructor(status: number, response: ProxisOrderResponse, message?: string) {
+    super(message || response.detail || response.error || `Proxis send failed (${status})`);
+    this.name = "ProxisSendError";
+    this.status = status;
+    this.response = response;
+  }
+}
 
 export async function sendProxisOrder(payload: ProxisOrderRequest): Promise<ProxisOrderResponse> {
   const response = await fetch("/api/proxis-order", {
@@ -49,7 +71,7 @@ export async function sendProxisOrder(payload: ProxisOrderRequest): Promise<Prox
   const data = (await response.json().catch(() => ({}))) as ProxisOrderResponse;
 
   if (!response.ok) {
-    throw new Error(data.error || data.detail || `Proxis send failed (${response.status})`);
+    throw new ProxisSendError(response.status, data);
   }
 
   return data;

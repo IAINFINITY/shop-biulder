@@ -36,3 +36,6 @@ design/
 
 # Supabase local temp files
 supabase/.temp/
+
+# Workflow n8n local-only
+n8n/*.local.json

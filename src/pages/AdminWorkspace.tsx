@@ -1,4 +1,4 @@
-﻿import { useMemo, useRef, useState, type ChangeEvent } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { LogOut, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,8 @@ import { normalizeCustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { getOrderLinesGrandTotal, parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
 import { addressToProxisPayload } from "@/lib/address";
-import { sendProxisOrder } from "@/lib/proxisOrder";
+import { sendProxisOrder, ProxisSendError } from "@/lib/proxisOrder";
+import type { AdminPermissions } from "@/lib/adminUsers";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useSupportInbox } from "@/hooks/useSupportChat";
@@ -98,6 +99,20 @@ export default function AdminWorkspace() {
     queryKey: ["employee_users"],
     enabled: Boolean(user && isAdmin),
     queryFn: listEmployees,
+    staleTime: 30_000,
+  });
+  const { data: adminPermissions } = useQuery({
+    queryKey: ["admin_permissions", user?.id],
+    enabled: Boolean(user && isAdmin && !isSuperadmin),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admin_users")
+        .select("permissions")
+        .eq("user_id", user!.id)
+        .single();
+      if (error) throw error;
+      return (data?.permissions ?? null) as AdminPermissions | null;
+    },
     staleTime: 30_000,
   });
   const { data: customerProfiles = [] } = useQuery({
@@ -401,6 +416,18 @@ export default function AdminWorkspace() {
       ? derivedTypes
       : getProductTypes();
   const displayUserLabel = user?.user_metadata?.name?.trim() || user?.email || "Administrador";
+  const allowedSections = useMemo(() => {
+    if (isSuperadmin) return null;
+    if (!adminPermissions) return null;
+    const allowed = new Set(Object.entries(adminPermissions).filter(([, v]) => v).map(([k]) => k));
+    return allowed;
+  }, [isSuperadmin, adminPermissions]);
+
+  useEffect(() => {
+    if (allowedSections && !allowedSections.has(section)) {
+      setSection("dashboard");
+    }
+  }, [allowedSections, section]);
 
   if ((!user && loading) || (!user && isResolvingAccess)) {
     return (
@@ -731,15 +758,43 @@ export default function AdminWorkspace() {
   }) => {
     const { id, ...payload } = orderPayload;
     setProxisResendingId(id);
+    console.groupCollapsed(`[Proxis debug] resend order ${id}`);
+    console.log("payload", payload);
+    console.log("items", payload.items);
+    console.log("address", payload.address);
     try {
       const response = await sendProxisOrder(payload);
+      console.log("response", response);
       const sentCount = response.items_count ?? orderPayload.items.length;
-      toast.success(`Pedido reenviado ao Proxis (${sentCount} item(ns)).`);
+      if (response.failed_products && response.failed_products.length > 0) {
+        console.warn("failed_products", response.failed_products);
+        toast.warning(`Pedido reenviado ao Proxis com ${response.failed_products.length} produto(s) sem correspondência.`);
+      } else {
+        toast.success(`Pedido reenviado ao Proxis (${sentCount} item(ns)).`);
+      }
     } catch (err) {
-      console.error("Erro ao reenviar pedido ao Proxis", err);
-      toast.error(err instanceof Error ? err.message : "Erro ao reenviar pedido ao Proxis.");
+      if (err instanceof ProxisSendError) {
+        const failedEndpoint = err.response.upstream?.endpoint;
+        console.error("Proxis send error", {
+          status: err.status,
+          message: err.message,
+          response: err.response,
+        });
+        if (err.response.failed_products?.length) {
+          console.warn("failed_products", err.response.failed_products);
+        }
+        toast.error(
+          failedEndpoint
+            ? `Erro no Proxis em ${failedEndpoint} (${err.response.upstream?.status ?? err.status}). Veja o console.`
+            : `Erro ao reenviar para Proxis (${err.status}). Veja o console.`,
+        );
+      } else {
+        console.error("Erro ao reenviar pedido ao Proxis", err);
+        toast.error(err instanceof Error ? err.message : "Erro ao reenviar pedido ao Proxis.");
+      }
     } finally {
       setProxisResendingId(null);
+      console.groupEnd();
     }
   };
 
@@ -766,6 +821,7 @@ export default function AdminWorkspace() {
       sidebarOpen={sidebarOpen}
       onSidebarToggle={() => setSidebarOpen((value) => !value)}
       isSuperadmin={isSuperadmin}
+      permissions={adminPermissions}
     >
       {section === "banners" && <AdminBannersSection />}
       {section === "notificacoes" && <AdminNotificationsSection />}

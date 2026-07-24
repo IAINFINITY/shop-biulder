@@ -3,13 +3,11 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { type LucideIcon, ArrowLeft, Plus, Minus, Heart, GitCompare, Leaf, Pill, FlaskConical, ImageIcon, ShieldCheck, Truck, RotateCcw, ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { type LucideIcon, ArrowLeft, Plus, Minus, Heart, GitCompare, Leaf, Pill, FlaskConical, ImageIcon, ShieldCheck, Truck, ChevronLeft, ChevronRight, Star, Hash, Package, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -25,15 +23,20 @@ import {
 import { formatBRL } from "@/lib/formatMoney";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { StockBadge } from "@/components/catalogo/StockBadge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
-import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
-import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
+import { ProductGalleryModal } from "@/components/catalogo/ProductGalleryModal";
 import { StickyBottomCTA } from "@/components/mobile/StickyBottomCTA";
 import { TouchCarousel } from "@/components/mobile/TouchCarousel";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,7 +51,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useComparison } from "@/hooks/useComparison";
-import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
+import { resolveProductPrice } from "@/lib/pricing";
 import { toast } from "sonner";
 
 type ProductTypeTheme = {
@@ -89,27 +92,14 @@ export default function ProductDetails() {
   const { cart, addToCart, updateQuantity, removeFromCart, clearCart } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [isImageHovered, setIsImageHovered] = useState(false);
-  const imageFrameRef = useRef<HTMLDivElement>(null);
-  const productImageRef = useRef<HTMLImageElement>(null);
-  const lensRef = useRef<HTMLDivElement>(null);
-  const zoomPreviewRef = useRef<HTMLDivElement>(null);
-  const pointerRafRef = useRef<number | null>(null);
-  const relatedRowRef = useRef<HTMLDivElement>(null);
+  const [relatedCarouselApi, setRelatedCarouselApi] = useState<CarouselApi>();
   const [relatedPage, setRelatedPage] = useState(0);
-  const pendingPointerRef = useRef<{
-    clientX: number;
-    clientY: number;
-    frameRect: DOMRect;
-    imageRect: DOMRect;
-  } | null>(null);
 
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [id]);
-
-  const openCart = useCallback(() => setIsCartOpen(true), []);
 
   const navigate = useNavigate();
   const { add: addToRecentlyViewed } = useRecentlyViewed();
@@ -129,8 +119,6 @@ export default function ProductDetails() {
     if (id) addToRecentlyViewed(id);
   }, [id, addToRecentlyViewed]);
 
-  const cartSubtotal = useMemo(() => calculateCartSubtotal(cart, customerPriceMap), [cart, customerPriceMap]);
-  const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
   const cartIds = useMemo(() => new Set(cart.map((item) => item.product.id)), [cart]);
 
   const { data: liveProduct, isLoading, error } = useQuery({
@@ -167,6 +155,55 @@ export default function ProductDetails() {
   const galleryUrls = product ? getProductImageUrls(product) : [];
   const selectedImage = galleryUrls[selectedImageIndex] ?? galleryUrls[0] ?? null;
   const productPrice = product ? resolveProductPrice(product, customerPriceMap) : 0;
+  const selectedTotalPrice = productPrice * quantity;
+  const selectedPixPrice = selectedTotalPrice * 0.9;
+  const selectedInstallmentPrice = selectedTotalPrice / 10;
+  const summaryFacts = useMemo(() => {
+    if (!product) return [];
+
+    return [
+      {
+        icon: Hash,
+        label: "Código",
+        value: product.product_code?.trim() || "Sem código",
+      },
+      {
+        icon: Package,
+        label: "Categoria",
+        value: `${product.type} · ${product.family}`,
+      },
+      {
+        icon: ShieldCheck,
+        label: "Estoque",
+        value:
+          typeof product.stock === "number"
+            ? product.stock > 0
+              ? `${product.stock} unidade${product.stock === 1 ? "" : "s"}`
+              : "Sem estoque"
+            : "Consulte disponibilidade",
+      },
+      {
+        icon: Star,
+        label: "Avaliação",
+        value:
+          product.review_count > 0
+            ? `${product.average_rating.toFixed(1)} (${product.review_count})`
+            : "Sem avaliações",
+      },
+    ];
+  }, [product]);
+  const descriptionPreview = useMemo(() => {
+    if (!product) return "";
+    return product.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }, [product]);
+  const descriptionBullets = useMemo(() => {
+    if (!descriptionPreview) return [];
+    return descriptionPreview
+      .split(/(?<=[.!?])\s+/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+  }, [descriptionPreview]);
   const typeThemeMap = useMemo(() => {
     const uniqueTypes = [...new Set(allProducts.map((item) => item.type).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b),
@@ -181,21 +218,13 @@ export default function ProductDetails() {
   useEffect(() => {
     setSelectedImageIndex(0);
     setQuantity(1);
-  }, [product.id]);
+  }, [product?.id]);
 
   useEffect(() => {
     if (!selectedImage) return;
     const preload = new Image();
     preload.src = selectedImage;
   }, [selectedImage]);
-
-  useEffect(() => {
-    return () => {
-      if (pointerRafRef.current !== null) {
-        window.cancelAnimationFrame(pointerRafRef.current);
-      }
-    };
-  }, []);
 
   const relatedProducts = useMemo(() => {
     if (!product) return [];
@@ -216,6 +245,29 @@ export default function ProductDetails() {
     setQuantity(1);
   };
 
+  const handleShare = async () => {
+    if (!product) return;
+
+    const shareData = {
+      title: product.name,
+      text: product.description.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim(),
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+
+      await navigator.clipboard.writeText(shareData.url);
+      toast.success("Link do produto copiado.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error("Não foi possível compartilhar o produto.");
+    }
+  };
+
   const decQuantity = () => setQuantity((q) => Math.max(1, q - 1));
   const incQuantity = () => setQuantity((q) => Math.min(99, q + 1));
 
@@ -223,89 +275,31 @@ export default function ProductDetails() {
     addToCart(targetProduct);
   };
 
-  const scrollRelated = (direction: -1 | 1) => {
-    if (!relatedRowRef.current) return;
-    const distance = Math.max(relatedRowRef.current.clientWidth * 0.75, 280);
-    relatedRowRef.current.scrollBy({ left: direction * distance, behavior: "smooth" });
-  };
-
-  const relatedTotalPages = Math.max(1, Math.ceil(relatedProducts.length / 5));
+  const relatedTotalPages = relatedCarouselApi ? relatedCarouselApi.scrollSnapList().length : 1;
 
   useEffect(() => {
-    const el = relatedRowRef.current;
-    if (!el || relatedTotalPages <= 1) return;
-    const onScroll = () => {
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (maxScroll <= 0) { setRelatedPage(0); return; }
-      const ratio = el.scrollLeft / maxScroll;
-      const page = Math.round(ratio * (relatedTotalPages - 1));
-      setRelatedPage(Math.min(relatedTotalPages - 1, Math.max(0, page)));
+    if (!relatedCarouselApi || relatedProducts.length === 0) return;
+
+    const updatePage = () => setRelatedPage(relatedCarouselApi.selectedScrollSnap());
+    const raf = requestAnimationFrame(() => relatedCarouselApi.reInit());
+
+    updatePage();
+    relatedCarouselApi.on("select", updatePage);
+    relatedCarouselApi.on("reInit", updatePage);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      relatedCarouselApi.off("select", updatePage);
+      relatedCarouselApi.off("reInit", updatePage);
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [relatedTotalPages]);
-
-  const handleImageMove = useCallback(
-    (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (!selectedImage) return;
-
-      const frameRect = imageFrameRef.current.getBoundingClientRect();
-      const imageRect = productImageRef.current.getBoundingClientRect();
-      if (!frameRect || !imageRect || imageRect.width === 0 || imageRect.height === 0) return;
-
-      pendingPointerRef.current = {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        frameRect,
-        imageRect,
-      };
-
-      if (pointerRafRef.current !== null) return;
-
-      pointerRafRef.current = window.requestAnimationFrame(() => {
-        pointerRafRef.current = null;
-        const pending = pendingPointerRef.current;
-        if (!pending) return;
-
-        const { clientX, clientY, frameRect, imageRect } = pending;
-        const nextX = ((clientX - imageRect.left) / imageRect.width) * 100;
-        const nextY = ((clientY - imageRect.top) / imageRect.height) * 100;
-        const x = Math.min(100, Math.max(0, nextX));
-        const y = Math.min(100, Math.max(0, nextY));
-        const clampedClientX = Math.min(imageRect.right, Math.max(imageRect.left, clientX));
-        const clampedClientY = Math.min(imageRect.bottom, Math.max(imageRect.top, clientY));
-        const lensX = ((clampedClientX - frameRect.left) / frameRect.width) * 100;
-        const lensY = ((clampedClientY - frameRect.top) / frameRect.height) * 100;
-
-        if (lensRef.current) {
-          lensRef.current.style.left = `${lensX}%`;
-          lensRef.current.style.top = `${lensY}%`;
-        }
-
-        if (zoomPreviewRef.current) {
-          zoomPreviewRef.current.style.backgroundPosition = `${x}% ${y}%`;
-        }
-      });
-    },
-    [selectedImage],
-  );
-
-  const zoomPreviewStyle = selectedImage
-    ? {
-        backgroundImage: `url(${selectedImage})`,
-        backgroundPosition: "50% 50%",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "240%",
-      }
-    : undefined;
+  }, [relatedCarouselApi, relatedProducts.length]);
 
   if (isLoading && !product) {
     return (
       <div className="min-h-screen bg-muted/40 pb-28 flex flex-col">
 
         <main className="flex flex-1 items-start">
-          <div className="container mx-auto max-w-[1400px] px-4 py-4 lg:py-6">
+          <div className="w-full px-4 py-4 lg:py-6">
             <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.35fr)_minmax(360px,0.95fr)] xl:items-stretch">
               <div className="hidden xl:flex xl:flex-col xl:gap-2">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -388,12 +382,24 @@ export default function ProductDetails() {
   const typeTheme = typeThemeMap[product.type] ?? TYPE_THEME_PALETTE[0];
   const Icon = typeTheme.Icon;
   const hasDescription = Boolean(product.description.trim());
-
+  const reviewCount = product.review_count > 0 ? product.review_count : reviewTotalCount;
+  const stockLabel =
+    typeof product.stock === "number"
+      ? product.stock > 0
+        ? "Em estoque"
+        : "Sem estoque"
+      : "Consulte disponibilidade";
+  const stockToneClass =
+    typeof product.stock === "number"
+      ? product.stock > 0
+        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+        : "border-red-200 bg-red-50 text-red-700"
+      : "border-border/70 bg-background text-muted-foreground";
   return (
       <div className="min-h-screen bg-muted/40 pb-28 flex flex-col">
 
       <main className="flex flex-1 items-start">
-        <div className="container mx-auto max-w-[1400px] px-4 py-4 lg:py-6">
+        <div className="flex w-full min-h-[calc(100svh-7rem)] flex-col px-2 py-3 sm:px-4 lg:px-6 lg:py-5">
           <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
             <Link to="/" viewTransition className="shrink-0">
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full border border-border bg-background shadow-sm">
@@ -407,279 +413,338 @@ export default function ProductDetails() {
             <span className="text-muted-foreground/30 select-none">/</span>
             <span className="text-foreground font-medium truncate">{product.type}</span>
           </div>
-          <div className="grid gap-4 xl:grid-cols-[92px_minmax(0,1.18fr)_minmax(360px,0.92fr)] xl:items-start">
-            <div className="hidden xl:flex xl:sticky xl:top-5 xl:flex-col xl:gap-2">
-              {galleryUrls.length > 0 ? (
-                galleryUrls.map((src, index) => (
-                  <button
-                    key={`${src}-${index}`}
-                    type="button"
-                    onClick={() => setSelectedImageIndex(index)}
-                    className={`overflow-hidden rounded-lg border bg-background p-1 transition-all ${
-                      index === selectedImageIndex
-                        ? "border-primary ring-2 ring-primary/20"
-                        : "border-border/70 hover:border-primary/40"
-                    }`}
-                    aria-label={`Ver imagem ${index + 1}`}
-                  >
-                    <img src={src} alt="" width={1200} height={900} loading="lazy" decoding="async" className="aspect-square h-full w-full rounded-md object-contain" />
-                  </button>
-                ))
-              ) : (
-                <div className="flex aspect-square items-center justify-center rounded-lg border border-border/70 bg-muted/30">
-                  <ImageIcon className="h-8 w-8 text-muted-foreground/30" />
-                </div>
-              )}
-            </div>
-
-            <div className="min-w-0 self-stretch">
-               <div className="xl:hidden">
-                {galleryUrls.length > 0 ? (
-                  <>
-                    <TouchCarousel aspectRatio="aspect-square" showDots>
-                      {galleryUrls.map((url, i) => (
-                        <div key={i} className="flex h-full w-full items-center justify-center bg-background p-2">
-                          <img src={url} alt={product.name} className="h-full w-full object-contain" />
+          <div className="grid flex-1 gap-6 xl:min-h-[calc(100svh-7rem)] xl:grid-cols-[minmax(0,0.88fr)_minmax(500px,1.12fr)] xl:items-stretch">
+            <div className="min-w-0 self-start xl:sticky xl:top-5">
+              <div className="space-y-3">
+                <div className="relative hidden xl:flex xl:min-h-[640px] flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card shadow-sm">
+                  <div className="flex flex-1 overflow-hidden">
+                    <button
+                      type="button"
+                      className="group relative flex flex-1 cursor-zoom-in items-center justify-center bg-background p-6 text-left sm:p-8"
+                      onClick={() => setIsGalleryOpen(true)}
+                      aria-label="Abrir galeria ampliada"
+                    >
+                      {selectedImage ? (
+                        <img
+                          src={selectedImage}
+                          alt={product.name}
+                          width={1200}
+                          height={900}
+                          fetchPriority="high"
+                          className="h-full max-h-[520px] w-full max-w-[560px] object-contain object-center"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-background p-8">
+                          <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
                         </div>
-                      ))}
-                    </TouchCarousel>
-                    {galleryUrls.length > 1 && (
-                      <div className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none] pb-1">
-                        {galleryUrls.map((url, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => setSelectedImageIndex(i)}
-                            className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border bg-background p-0.5 transition-all ${
-                              i === selectedImageIndex ? "border-primary ring-2 ring-primary/20" : "border-border/70"
-                            }`}
-                            aria-label={`Ver imagem ${i + 1}`}
-                          >
-                            <img src={url} alt="" width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full rounded-md object-contain" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex aspect-square items-center justify-center rounded-2xl border border-border/70 bg-muted/30">
-                    <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                      )}
+                      {selectedImage && (
+                        <div className="pointer-events-none absolute inset-0 flex items-end justify-start p-5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-2 text-[11px] font-medium text-foreground shadow-sm">
+                            <ImageIcon className="h-4 w-4 text-primary" />
+                            Clique para ampliar
+                          </div>
+                        </div>
+                      )}
+                    </button>
                   </div>
-                )}
-              </div>
 
-              <div className="relative hidden xl:flex h-full flex-col overflow-visible xl:min-h-[640px]">
-                <div className="flex flex-1 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
-                  <div
-                    ref={imageFrameRef}
-                    className="relative flex flex-1 cursor-zoom-in items-center justify-center bg-background p-4 sm:p-6"
-                    onMouseEnter={() => setIsImageHovered(true)}
-                    onMouseLeave={() => setIsImageHovered(false)}
-                    onMouseMove={handleImageMove}
-                  >
-                  {selectedImage ? (
-                      <img
-                        ref={productImageRef}
-                        src={selectedImage}
-                        alt={product.name}
-                        width={1200}
-                        height={900}
-                        fetchPriority="high"
-                        className="max-h-[560px] w-full max-w-[560px] object-contain object-center transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-background p-8">
-                        <ImageIcon className="h-16 w-16 text-muted-foreground/30" />
-                      </div>
-                    )}
-                    {selectedImage && (
-                      <>
-                        <div
-                          className={`pointer-events-none absolute inset-0 bg-black/8 transition-opacity duration-150 ${
-                            isImageHovered ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        <div
-                          ref={lensRef}
-                          className={`pointer-events-none absolute h-[34%] w-[34%] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/50 bg-black/5 shadow-lg transition-opacity duration-150 ${
-                            isImageHovered ? "opacity-100" : "opacity-0"
-                          }`}
-                          style={{ left: "50%", top: "50%" }}
-                        />
-                      </>
-                    )}
-                  </div>
                 </div>
 
-                <div
-                  className={`pointer-events-none absolute right-4 top-4 z-20 hidden h-[38%] w-[38%] overflow-hidden rounded-xl border border-border/70 bg-muted/80 shadow-lg xl:block ${
-                    selectedImage && isImageHovered ? "opacity-100" : "opacity-0"
-                  }`}
-                >
-                  {selectedImage ? (
-                    <div
-                      ref={zoomPreviewRef}
-                      className="h-full w-full"
-                      style={zoomPreviewStyle}
-                    />
-                  ) : null}
+                <div className="hidden xl:flex items-center justify-center gap-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImageIndex((index) => Math.max(0, index - 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-30"
+                      disabled={galleryUrls.length <= 1 || selectedImageIndex <= 0}
+                      aria-label="Imagem anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImageIndex((index) => Math.min(galleryUrls.length - 1, index + 1))}
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-30"
+                      disabled={galleryUrls.length <= 1 || selectedImageIndex >= galleryUrls.length - 1}
+                      aria-label="Próxima imagem"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                </div>
+
+                {galleryUrls.length > 0 ? (
+                  <div className="hidden xl:flex gap-2 overflow-x-auto pb-0 [scrollbar-width:none] justify-center">
+                      {galleryUrls.map((src, index) => (
+                        <button
+                          key={`${src}-${index}`}
+                          type="button"
+                          onClick={() => setSelectedImageIndex(index)}
+                          className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border bg-background p-1.5 shadow-sm transition-all ${
+                            index === selectedImageIndex
+                              ? "border-primary ring-2 ring-primary/20"
+                              : "border-border/70 hover:border-primary/40"
+                          }`}
+                          aria-label={`Ver imagem ${index + 1}`}
+                        >
+                          <img src={src} alt="" width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full rounded-lg object-contain" />
+                        </button>
+                      ))}
+                  </div>
+                ) : null}
+
+                <div className="xl:hidden">
+                  {galleryUrls.length > 0 ? (
+                    <>
+                      <div className="mx-auto w-full max-w-[28rem]">
+                        <TouchCarousel
+                          aspectRatio="aspect-square"
+                          showDots
+                          selectedIndex={selectedImageIndex}
+                          onSelectedIndexChange={setSelectedImageIndex}
+                          className="mx-auto"
+                        >
+                        {galleryUrls.map((url, i) => (
+                          <div key={i} className="flex h-full w-full items-center justify-center bg-background p-2">
+                            <img src={url} alt={product.name} className="h-full w-full object-contain" />
+                          </div>
+                        ))}
+                        </TouchCarousel>
+                      </div>
+                      {galleryUrls.length > 1 && (
+                        <div className="mt-1 flex justify-center gap-2 overflow-x-auto pb-0 [scrollbar-width:none]">
+                          {galleryUrls.map((url, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setSelectedImageIndex(i)}
+                              className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border bg-background p-0.5 transition-all ${
+                                i === selectedImageIndex ? "border-primary ring-2 ring-primary/20" : "border-border/70"
+                              }`}
+                              aria-label={`Ver imagem ${i + 1}`}
+                            >
+                              <img src={url} alt="" width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full rounded-md object-contain" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex aspect-square items-center justify-center rounded-2xl border border-border/70 bg-muted/30">
+                      <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="self-stretch xl:sticky xl:top-5">
-              <Card className="flex h-full flex-col overflow-hidden border-border/70 shadow-sm">
-                <CardHeader className="space-y-3 p-4 sm:p-5">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className={`${typeTheme.className} text-xs font-medium`}>
-                      <Icon className="mr-1 h-3 w-3" />
-                      {product.type}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      {product.family}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2">
-                    <CardTitle className="text-[1.5rem] leading-tight tracking-tight sm:text-[1.75rem]">
-                      {product.name}
-                    </CardTitle>
-                    {product.is_promotion && (
-                      <Badge className="bg-primary text-primary-foreground text-xs font-semibold">
-                        Promoção
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                      Preço
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-2xl font-semibold text-foreground tabular-nums">{formatBRL(productPrice)}</p>
-                      <StockBadge stock={product.stock} />
-                    </div>
-                  </div>
-
-                  <div className="hidden sm:flex sm:flex-col sm:gap-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleWishlist(product.id)}
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
-                          wishlistIds.includes(product.id)
-                            ? "border-primary/30 bg-primary/5 text-primary"
-                            : "border-border/60 bg-background text-muted-foreground hover:text-primary hover:border-primary/30",
+            <div className="self-start xl:sticky xl:top-5">
+              <div className="space-y-3">
+                <Card className="overflow-hidden border-border/70 shadow-sm">
+                  <CardHeader className="space-y-2 p-3 sm:p-4">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 gap-y-2">
+                      <div className="flex min-w-0 flex-wrap gap-2">
+                        <Badge variant="outline" className={`${typeTheme.className} text-xs font-medium`}>
+                          <Icon className="mr-1 h-3 w-3" />
+                          {product.type}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {product.family}
+                        </Badge>
+                        {product.is_promotion && (
+                          <Badge className="bg-primary text-primary-foreground text-xs font-semibold">
+                            Promoção
+                          </Badge>
                         )}
-                        aria-label={wishlistIds.includes(product.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-                      >
-                        <Heart className={cn("h-3.5 w-3.5", wishlistIds.includes(product.id) && "fill-current")} />
-                      </button>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
+                      </div>
+
+                      <div className="flex shrink-0 justify-end gap-1.5 sm:gap-2">
+                        <Button
                           type="button"
-                          onClick={() => toggleCompare(product.id)}
+                          variant={wishlistIds.includes(product.id) ? "default" : "outline"}
+                          size="sm"
                           className={cn(
-                            "flex h-8 w-8 items-center justify-center rounded-full border transition-colors",
-                            compareIds.includes(product.id)
-                              ? "border-primary/30 bg-primary/5 text-primary"
-                              : "border-border/60 bg-background text-muted-foreground hover:text-primary hover:border-primary/30",
+                            "h-8 w-8 gap-0 rounded-full p-0 sm:h-9 sm:w-auto sm:gap-2 sm:px-3",
+                            wishlistIds.includes(product.id) && "bg-primary text-primary-foreground",
                           )}
-                          aria-label={compareIds.includes(product.id) ? "Remover da comparação" : "Adicionar à comparação"}
+                          onClick={() => toggleWishlist(product.id)}
+                          aria-pressed={wishlistIds.includes(product.id)}
+                          aria-label="Favoritar"
+                        >
+                          <Heart className={cn("h-3.5 w-3.5", wishlistIds.includes(product.id) && "fill-current")} />
+                          <span className="sr-only sm:not-sr-only">Favoritar</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={compareIds.includes(product.id) ? "default" : "outline"}
+                          size="sm"
+                          className={cn(
+                            "h-8 w-8 gap-0 rounded-full p-0 sm:h-9 sm:w-auto sm:gap-2 sm:px-3",
+                            compareIds.includes(product.id) && "bg-primary text-primary-foreground",
+                          )}
+                          onClick={() => toggleCompare(product.id)}
+                          aria-pressed={compareIds.includes(product.id)}
+                          aria-label="Comparar"
                         >
                           <GitCompare className="h-3.5 w-3.5" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top">
-                        {compareIds.includes(product.id) ? "Remover da comparação" : "Adicionar à comparação"}
-                      </TooltipContent>
-                    </Tooltip>
-                      <div className="ml-auto flex items-center rounded-full border border-border/60 bg-background shadow-sm">
-                        <button
+                          <span className="sr-only sm:not-sr-only">Comparar</span>
+                        </Button>
+                        <Button
                           type="button"
-                          onClick={decQuantity}
-                          disabled={quantity <= 1}
-                          className="flex h-8 w-8 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 gap-0 rounded-full p-0 sm:h-9 sm:w-auto sm:gap-2 sm:px-3"
+                          onClick={handleShare}
+                          aria-label="Compartilhar"
                         >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="flex h-8 min-w-[2rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">
-                          {quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={incQuantity}
-                          disabled={quantity >= 99}
-                          className="flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
+                          <Share2 className="h-3.5 w-3.5" />
+                          <span className="sr-only sm:not-sr-only">Compartilhar</span>
+                        </Button>
                       </div>
+
+                      <CardTitle className="col-span-2 text-xl leading-tight tracking-tight sm:text-2xl lg:col-span-1">
+                        {product.name}
+                      </CardTitle>
                     </div>
 
-                    <div className="flex gap-2">
-                      <Button onClick={handleAdd} className="gap-1.5 flex-1 h-10 text-sm">
-                        <Plus className="h-4 w-4" /> Adicionar
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="gap-1.5 flex-1 h-10 text-sm"
-                          onClick={() => {
-                            navigate("/pedido", {
-                              state: {
-                                buyNow: {
-                                  product,
-                                  quantity,
-                                },
-                              },
-                            });
-                          }}
-                        >
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <StarRating rating={Math.round(averageRating)} size="sm" />
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {reviewCount > 0 ? `(${reviewCount})` : "(0)"}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {averageRating > 0 ? `${averageRating.toFixed(1)} de 5` : "Sem avaliações"}
+                      </span>
+                    </div>
+                  </CardHeader>
+                </Card>
+
+                <div className="grid gap-3 xl:grid-cols-2 xl:items-stretch">
+                  <Card className="overflow-hidden border-border/70 shadow-sm">
+                    <CardContent className="flex h-full flex-col p-4 sm:p-5">
+                      <div className="flex items-center gap-2 pb-3">
+                        <Package className="h-4 w-4 text-primary" />
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                          Sobre o produto
+                        </p>
+                        <span className="ml-auto rounded-full border border-border/60 bg-card px-2.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          Resumo rápido
+                        </span>
+                      </div>
+
+                      <div className="flex flex-1 flex-col rounded-2xl border border-border/60 bg-card p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">Sobre o produto</p>
+                        <ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
+                          {(descriptionBullets.length > 0 ? descriptionBullets : [descriptionPreview || "Descrição indisponível."]).map((item, index) => (
+                            <li key={`${index}-${item}`} className="flex gap-2">
+                              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <a href="#descricao-produto" className="mt-3 inline-flex text-xs font-medium text-primary underline underline-offset-4">
+                          Ver descrição completa
+                        </a>
+                      </div>
+
+                    </CardContent>
+                  </Card>
+
+                  <Card className="overflow-hidden border-border/70 shadow-sm">
+                    <CardContent className="flex h-full flex-col p-4 sm:p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                            Preço
+                          </p>
+                          <p className="text-3xl font-semibold leading-none text-foreground tabular-nums">
+                            {formatBRL(selectedTotalPrice)}
+                          </p>
+                          <p className="text-sm font-medium text-foreground tabular-nums">
+                            {formatBRL(selectedPixPrice)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Total para {quantity} unidade{quantity === 1 ? "" : "s"}.
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatBRL(selectedTotalPrice)} em até 10x de {formatBRL(selectedInstallmentPrice)} sem juros ou 1x com 10% de desconto no cartão
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                            Estoque
+                          </p>
+                          <div className="mt-2 flex justify-end">
+                            <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-medium", stockToneClass)}>
+                              {stockLabel}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-center rounded-xl border border-border/60 bg-card px-3 py-2 text-[11px] text-muted-foreground">
+                        <Truck className="mr-2 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span>Frete e prazo são confirmados na finalização do pedido.</span>
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        <div className="flex items-center rounded-full border border-border/60 bg-background shadow-sm">
+                          <button
+                            type="button"
+                            onClick={decQuantity}
+                            disabled={quantity <= 1}
+                            className="flex h-8 w-8 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="flex h-8 min-w-[2rem] items-center justify-center text-sm font-semibold tabular-nums text-foreground">
+                            {quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={incQuantity}
+                            disabled={quantity >= 99}
+                            className="flex h-8 w-8 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          <span>Pagamento seguro</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-2">
+                        <Button onClick={() => navigate("/pedido", { state: { buyNow: { product, quantity } } })} className="h-10 gap-1.5 text-sm w-full">
                           Comprar agora
                         </Button>
-                    </div>
-                  </div>
+                        <Button onClick={handleAdd} variant={cartIds.has(product.id) ? "secondary" : "outline"} className="h-10 gap-1.5 text-sm w-full">
+                          <Plus className="h-4 w-4" />
+                          {cartIds.has(product.id) ? "Já no carrinho" : "Adicionar ao carrinho"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Pagamento seguro</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Truck className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Entrega rápida</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <RotateCcw className="h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Garantia</span>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-bold text-foreground">Sobre este item</h3>
-                    <ul className="space-y-1.5">
-                      {[
-                        { label: "Tipo", value: product.type },
-                        { label: "Família", value: product.family },
-                      ].map((item) => (
-                        <li key={item.label} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <span><strong className="text-foreground">{item.label}:</strong> {item.value}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
             </div>
           </div>
 
+          <ProductGalleryModal
+            open={isGalleryOpen}
+            onOpenChange={setIsGalleryOpen}
+            title={product.name}
+            images={galleryUrls}
+            selectedIndex={selectedImageIndex}
+            onSelectedIndexChange={setSelectedImageIndex}
+          />
+
           {hasDescription && (
-            <section className="mt-8">
+            <section id="descricao-produto" className="mt-8 rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6 scroll-mt-24">
               <h2 className="mb-4 text-lg font-bold tracking-tight text-foreground sm:text-xl">Descrição do produto</h2>
               <div className="rounded-xl border border-border/70 bg-background p-5 sm:p-6">
                 <ProductDescription
@@ -690,7 +755,7 @@ export default function ProductDetails() {
             </section>
           )}
 
-          <section className="mt-8">
+          <section className="mt-8 rounded-2xl border border-border/70 bg-card p-5 shadow-sm sm:p-6">
             <h2 className="mb-4 text-lg font-bold tracking-tight text-foreground sm:text-xl">
               Avaliações
               {averageRating > 0 && (
@@ -967,64 +1032,50 @@ export default function ProductDetails() {
 
           {relatedProducts.length > 0 && (
             <section className="mt-6">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex items-start justify-between gap-3">
                 <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">Produtos relacionados</h2>
-                <div className="flex items-center gap-1.5">
-                  {relatedTotalPages > 1 && (
-                    <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
-                      Página {relatedPage + 1}/{relatedTotalPages}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => scrollRelated(-1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary/30 hover:text-primary sm:h-9 sm:w-9"
-                    aria-label="Anterior"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => scrollRelated(1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary/30 hover:text-primary sm:h-9 sm:w-9"
-                    aria-label="Próximo"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
               </div>
-
               <div className="group relative">
-                <div
-                  ref={relatedRowRef}
-                  className="flex gap-3 overflow-x-auto overscroll-x-contain [scrollbar-width:none] snap-x snap-mandatory scroll-smooth pb-2"
-                >
-                  {relatedProducts.map((related) => (
-                    <div key={related.id} className="w-[55%] shrink-0 snap-start sm:w-[38%] md:w-[28%] lg:w-[calc(20%-0.6rem)]">
-                      <CatalogProductCard
-                        product={related}
-                        price={resolveProductPrice(related, customerPriceMap)}
-                        onAdd={handleRelatedAdd}
-                        inCart={cartIds.has(related.id)}
-                        compact
-                        isWishlisted={wishlistIds.includes(related.id)}
-                        onToggleWishlist={() => toggleWishlist(related.id)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                <Carousel opts={{ align: "start", dragFree: false }} setApi={setRelatedCarouselApi}>
+                  <div className="mb-3 flex items-center justify-end gap-1.5">
+                    {relatedTotalPages > 1 ? (
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        Página {relatedPage + 1}/{relatedTotalPages}
+                      </span>
+                    ) : null}
+                    <CarouselPrevious
+                      className="relative inset-auto h-8 w-8 translate-y-0 rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm hover:border-primary/30 hover:text-primary sm:h-9 sm:w-9"
+                      aria-label="Anterior"
+                    />
+                    <CarouselNext
+                      className="relative inset-auto h-8 w-8 translate-y-0 rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm hover:border-primary/30 hover:text-primary sm:h-9 sm:w-9"
+                      aria-label="Próximo"
+                    />
+                  </div>
+                  <CarouselContent className="-ml-2 sm:-ml-3">
+                    {relatedProducts.map((related) => (
+                      <CarouselItem
+                        key={related.id}
+                        className="basis-1/2 pl-2 sm:pl-3 md:basis-1/3 lg:basis-1/4 xl:basis-[calc(100%/7)]"
+                      >
+                        <CatalogProductCard
+                          product={related}
+                          price={resolveProductPrice(related, customerPriceMap)}
+                          onAdd={handleRelatedAdd}
+                          inCart={cartIds.has(related.id)}
+                          compact
+                          isWishlisted={wishlistIds.includes(related.id)}
+                          onToggleWishlist={() => toggleWishlist(related.id)}
+                        />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
               </div>
             </section>
           )}
         </div>
       </main>
-
-      <CartTotalBar
-        total={cartSubtotal}
-        itemCount={cartUnitCount}
-        visible={cart.length > 0}
-        onOpenCart={openCart}
-      />
 
       <StickyBottomCTA>
         <div className="flex items-center justify-between gap-2 px-4 py-3">
@@ -1033,7 +1084,7 @@ export default function ProductDetails() {
               Preço
             </p>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-semibold text-foreground tabular-nums">{formatBRL(productPrice)}</p>
+              <p className="text-xl font-semibold text-foreground tabular-nums">{formatBRL(selectedTotalPrice)}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">

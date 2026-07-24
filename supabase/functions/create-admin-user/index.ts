@@ -54,8 +54,8 @@ export default {
       }
 
       const body = await req.json();
-      const { email, password, displayName, role } = body as {
-        email?: string; password?: string; displayName?: string; role?: string;
+      const { email, password, displayName, role, permissions } = body as {
+        email?: string; password?: string; displayName?: string; role?: string; permissions?: Record<string, boolean>;
       };
 
       if (!email || !password) {
@@ -122,7 +122,7 @@ export default {
 
       if (normalizedRole !== "user") {
         const { error: adminUsersErr } = await supabaseAdmin.from("admin_users")
-          .insert({ user_id: userId, display_name: displayName || "", is_active: true });
+          .insert({ user_id: userId, display_name: displayName || "", is_active: true, permissions: permissions ?? null });
         if (adminUsersErr) console.error("Failed to insert admin_users:", adminUsersErr.message);
       }
 

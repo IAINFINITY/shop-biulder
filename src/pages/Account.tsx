@@ -607,6 +607,18 @@ export default function Account() {
               </div>
             ) : null}
 
+            {customerProfile.proxis_tpr_id ? (
+              <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
+                <p className="text-sm font-medium text-foreground">
+                  Tabela de preço
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Você está habilitado na tabela <strong>#{customerProfile.proxis_tpr_id}</strong>.
+                  Os preços exibidos no catálogo seguem esta referência.
+                </p>
+              </div>
+            ) : null}
+
             <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
               <div className="flex items-center gap-2">
                 <MapPinned className="h-5 w-5 text-primary" />

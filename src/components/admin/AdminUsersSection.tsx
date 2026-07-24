@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
+  Edit,
   Eye,
   EyeOff,
   Loader2,
@@ -15,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -43,10 +45,85 @@ import {
   updateAdminRole,
   toggleAdminActive,
   deleteAdminUser,
+  updateAdminPermissions,
+  type AdminPermissions,
   type AdminUserCreatePayload,
   type AdminUserRecord,
 } from "@/lib/adminUsers";
+import type { AdminSection } from "./adminTypes";
 import { cn } from "@/lib/utils";
+
+const PERMISSION_OPTIONS: { id: AdminSection; label: string }[] = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "banners", label: "Banners" },
+  { id: "notificacoes", label: "Notificações" },
+  { id: "produtos", label: "Produtos" },
+  { id: "precos", label: "Preços" },
+  { id: "pedidos", label: "Pedidos" },
+  { id: "clientes", label: "Clientes" },
+  { id: "mensagens", label: "Mensagens" },
+  { id: "configuracoes", label: "Configurações" },
+];
+
+const SUPERADMIN_ONLY_OPTIONS: { id: AdminSection; label: string }[] = [
+  { id: "usuarios", label: "Usuários" },
+  { id: "funcionarios", label: "Funcionários" },
+];
+
+function defaultPermissions(): AdminPermissions {
+  const perms = {} as AdminPermissions;
+  for (const opt of PERMISSION_OPTIONS) {
+    perms[opt.id] = false;
+  }
+  for (const opt of SUPERADMIN_ONLY_OPTIONS) {
+    perms[opt.id] = false;
+  }
+  return perms;
+}
+
+function allPermissions(): AdminPermissions {
+  const perms = defaultPermissions();
+  for (const key of Object.keys(perms) as AdminSection[]) {
+    perms[key] = true;
+  }
+  return perms;
+}
+
+type PermissionChecklistProps = {
+  value: AdminPermissions;
+  onChange: (value: AdminPermissions) => void;
+};
+
+function PermissionChecklist({ value, onChange }: PermissionChecklistProps) {
+  const toggle = (id: AdminSection) => {
+    onChange({ ...value, [id]: !value[id] });
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Permissões
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {PERMISSION_OPTIONS.map((opt) => (
+          <label
+            key={opt.id}
+            className="flex items-center gap-2 rounded-xl border border-border/70 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/30 transition-colors"
+          >
+            <Checkbox
+              checked={value[opt.id]}
+              onCheckedChange={() => toggle(opt.id)}
+            />
+            <span>{opt.label}</span>
+          </label>
+        ))}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        {SUPERADMIN_ONLY_OPTIONS.map((o) => o.label).join(" e ")} — apenas visível para superadmin
+      </p>
+    </div>
+  );
+}
 
 function passwordStrength(password: string): { label: string; score: number; checks: { label: string; ok: boolean }[] } {
   const checks = [
@@ -77,6 +154,12 @@ export function AdminUsersSection() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [newPermissions, setNewPermissions] = useState<AdminPermissions>(defaultPermissions());
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
+  const [editPermissions, setEditPermissions] = useState<AdminPermissions>(defaultPermissions());
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users"],
@@ -130,6 +213,7 @@ export function AdminUsersSection() {
         password: newPassword,
         displayName: newDisplayName.trim(),
         role: newRole,
+        permissions: newPermissions,
       });
       toast.success("Usuário criado com sucesso");
       setCreateOpen(false);
@@ -138,6 +222,7 @@ export function AdminUsersSection() {
       setNewPasswordConfirm("");
       setNewDisplayName("");
       setNewRole("admin");
+      setNewPermissions(defaultPermissions());
       setShowPassword(false);
       setShowConfirmPassword(false);
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
@@ -145,6 +230,28 @@ export function AdminUsersSection() {
       toast.error(err instanceof Error ? err.message : "Erro ao criar usuário");
     } finally {
       setCreating(false);
+    }
+  }
+
+  function openEdit(user: AdminUserRecord) {
+    setEditingUser(user);
+    setEditPermissions(user.permissions ?? allPermissions());
+    setEditOpen(true);
+  }
+
+  async function handleSavePermissions() {
+    if (!editingUser) return;
+    setSavingPermissions(true);
+    try {
+      await updateAdminPermissions(editingUser.user_id, editPermissions);
+      toast.success("Permissões atualizadas");
+      setEditOpen(false);
+      setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar permissões");
+    } finally {
+      setSavingPermissions(false);
     }
   }
 
@@ -305,6 +412,15 @@ export function AdminUsersSection() {
                   <div className="flex items-center gap-2">
                   {u.role !== "superadmin" && (
                     <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full px-4 text-[13px]"
+                        onClick={() => openEdit(u)}
+                      >
+                        <Edit className="h-4 w-4" />
+                        Editar
+                      </Button>
                       <ConfirmActionDialog
                         trigger={
                           <Button
@@ -457,6 +573,15 @@ export function AdminUsersSection() {
                     <div className="flex items-center justify-end gap-1">
                     {u.role !== "superadmin" && (
                       <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                        onClick={() => openEdit(u)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                       <ConfirmActionDialog
                         trigger={
                           <Button
@@ -600,13 +725,13 @@ export function AdminUsersSection() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Senha
-                </Label>
-                <div className="relative">
-                  <Input
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Senha
+                  </Label>
+                  <div className="relative">
+                    <Input
                     type={showPassword ? "text" : "password"}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -683,6 +808,10 @@ export function AdminUsersSection() {
               </div>
             </div>
 
+            <div className="md:col-span-2 border-t border-border/60 pt-4">
+              <PermissionChecklist value={newPermissions} onChange={setNewPermissions} />
+            </div>
+
             <DialogFooter className="md:col-span-2 gap-2 border-t border-border/70 pt-4 sm:gap-2">
               <Button
                 type="button"
@@ -711,6 +840,49 @@ export function AdminUsersSection() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={(open) => {
+        setEditOpen(open);
+        if (!open) {
+          setEditingUser(null);
+        }
+      }}>
+        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[42rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+              <Edit className="h-5 w-5" />
+              Editar permissões — {editingUser?.display_name || editingUser?.email?.split("@")[0] || "..."}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-4">
+            <PermissionChecklist value={editPermissions} onChange={setEditPermissions} />
+          </div>
+
+          <DialogFooter className="gap-2 border-t border-border/70 pt-4 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setEditOpen(false);
+                setEditingUser(null);
+              }}
+              className="h-11 rounded-2xl px-5 text-sm"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={savingPermissions}
+              onClick={handleSavePermissions}
+              className="h-11 rounded-2xl px-5 text-sm"
+            >
+              {savingPermissions ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+              {savingPermissions ? "Salvando..." : "Salvar permissões"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

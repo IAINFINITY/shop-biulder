@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { useProxisHealth } from "@/hooks/useProxisHealth";
 import type { AdminSection } from "./adminTypes";
+import type { AdminPermissions } from "@/lib/adminUsers";
 
 type AdminWorkspaceShellProps = {
   section: AdminSection;
@@ -16,6 +17,7 @@ type AdminWorkspaceShellProps = {
   sidebarOpen: boolean;
   onSidebarToggle: () => void;
   isSuperadmin?: boolean;
+  permissions?: AdminPermissions | null;
   children: ReactNode;
 };
 
@@ -74,26 +76,33 @@ export function AdminWorkspaceShell({
   sidebarOpen,
   onSidebarToggle,
   isSuperadmin = false,
+  permissions = null,
   children,
 }: AdminWorkspaceShellProps) {
+  function hasPermission(id: AdminSection): boolean {
+    if (isSuperadmin) return true;
+    if (!permissions) return true;
+    return permissions[id] === true;
+  }
+
   const navGroups = [
     {
       label: "Visão geral",
       items: [
         { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, description: "Resumo geral" },
-        { id: "banners" as const, label: "Banners", icon: Image, description: "Hero do catálogo" },
-        { id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" },
-        { id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" },
-        { id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" },
-        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" },
-      ],
+        ...(hasPermission("banners") ? [{ id: "banners" as const, label: "Banners", icon: Image, description: "Hero do catálogo" }] : []),
+        ...(hasPermission("notificacoes") ? [{ id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" }] : []),
+        ...(hasPermission("produtos") ? [{ id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" }] : []),
+        ...(hasPermission("precos") ? [{ id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" }] : []),
+        ...(hasPermission("pedidos") ? [{ id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" }] : []),
+      ].filter(Boolean),
     },
     {
       label: "Consultas",
       items: [
-        { id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" },
-        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" },
-      ],
+        ...(hasPermission("clientes") ? [{ id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" }] : []),
+        ...(hasPermission("mensagens") ? [{ id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" }] : []),
+      ].filter(Boolean),
     },
     ...(isSuperadmin ? [{
       label: "Administração",
@@ -105,10 +114,10 @@ export function AdminWorkspaceShell({
     {
       label: "Sistema",
       items: [
-        { id: "configuracoes" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" },
-      ],
+        ...(hasPermission("configuracoes") ? [{ id: "configuracoes" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" }] : []),
+      ].filter(Boolean),
     },
-  ];
+  ].filter((g) => g.items.length > 0);
 
   const collapsed = !sidebarOpen;
 

@@ -1,4 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { AdminSection } from "@/components/admin/adminTypes";
+
+export type AdminPermissions = Record<AdminSection, boolean>;
 
 export type AdminUserRecord = {
   user_id: string;
@@ -7,6 +10,7 @@ export type AdminUserRecord = {
   role: "superadmin" | "admin" | "consultor" | "representante" | "admin_atendimento";
   is_active: boolean;
   created_at: string;
+  permissions: AdminPermissions | null;
 };
 
 export type AdminUserCreatePayload = {
@@ -14,6 +18,7 @@ export type AdminUserCreatePayload = {
   password: string;
   displayName: string;
   role: AdminUserRecord["role"];
+  permissions?: AdminPermissions | null;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -70,6 +75,14 @@ export async function createAdminUser(payload: AdminUserCreatePayload): Promise<
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? "Erro ao criar usuário");
+}
+
+export async function updateAdminPermissions(userId: string, permissions: AdminPermissions): Promise<void> {
+  const { error } = await supabase.rpc("update_admin_permissions", {
+    p_user_id: userId,
+    p_permissions: permissions as unknown as Record<string, unknown>,
+  });
+  if (error) throw error;
 }
 
 export async function updateAdminRole(userId: string, role: string): Promise<void> {

@@ -171,21 +171,16 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
           type="button"
           onClick={() => onAdd(product)}
           variant={inCart ? "secondary" : "default"}
-          className={cn("w-full gap-1.5 transition-all active:scale-95", compact ? "h-8 text-xs sm:h-10 sm:text-sm" : "h-10 text-xs sm:text-sm")}
+          aria-label={inCart ? "Já no carrinho" : "Adicionar ao carrinho"}
+          className={cn(
+            "w-full gap-1 px-1.5 transition-all active:scale-95 [&_svg]:size-3.5 min-[375px]:gap-1.5 min-[375px]:px-3 min-[375px]:[&_svg]:size-4",
+            compact ? "h-8 text-xs sm:h-10 sm:text-sm" : "h-10 text-xs sm:text-sm",
+          )}
           size="sm"
         >
           <Plus className="h-4 w-4" />
-          {inCart ? (
-            <>
-              <span className="sm:hidden">No carrinho</span>
-              <span className="hidden sm:inline">Já no carrinho</span>
-            </>
-          ) : (
-            <>
-              <span className="sm:hidden">Adicionar</span>
-              <span className="hidden sm:inline">Adicionar ao carrinho</span>
-            </>
-          )}
+          <span className="min-[360px]:hidden">{inCart ? "No carrinho" : "Adicionar"}</span>
+          <span className="hidden min-[360px]:inline">{inCart ? "Já no carrinho" : "Adicionar ao carrinho"}</span>
         </Button>
       </div>
     </article>

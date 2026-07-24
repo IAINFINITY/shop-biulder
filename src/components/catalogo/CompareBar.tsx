@@ -17,7 +17,7 @@ export function CompareBar({ products, compareIds, max, onRemove, onClear, onCom
   const compareLabel = compareIds.length < 2 ? `Adicione mais ${2 - compareIds.length}` : "Comparar agora";
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1rem)] max-w-[44rem] -translate-x-1/2 rounded-2xl border border-border bg-card/95 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur sm:bottom-6 sm:w-[calc(100%-3rem)] sm:p-4">
+    <div className="fixed bottom-20 left-1/2 z-40 w-[calc(100%-1rem)] max-w-[44rem] -translate-x-1/2 rounded-2xl border border-border bg-card/95 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur sm:bottom-6 sm:w-[calc(100%-3rem)] sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex shrink-0 items-start gap-2 text-foreground">
           <GitCompare className="h-4 w-4 text-primary" />

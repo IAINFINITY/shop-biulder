@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
+import { toast } from "sonner";
 import { type CartItem, getCart, saveCart } from "@/lib/products";
 import type { Product } from "@/lib/products";
 
@@ -44,10 +45,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCart((prev) => {
           const existing = prev.find((item) => item.product.id === product.id);
           if (existing) {
-            return prev.map((item) => (item.product.id === product.id ? { ...item, quantity: safeQuantity } : item));
+            return prev.filter((item) => item.product.id !== product.id);
           }
           return [...prev, { product, quantity: safeQuantity }];
         });
+        if (cart.some((item) => item.product.id === product.id)) {
+          toast.info("Produto removido do carrinho.");
+        } else {
+          toast.success("Produto adicionado com sucesso no carrinho.");
+        }
       },
       updateQuantity: (productId, delta) => {
         setCart((prev) =>

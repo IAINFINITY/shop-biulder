@@ -135,11 +135,16 @@ function ThemeProductCard({
             type="button"
             size="sm"
             variant={inCart ? "secondary" : "default"}
-            className={cn("h-8 w-full rounded-full text-xs transition-all sm:h-9 sm:text-sm", inCart && "text-foreground")}
+            className={cn(
+              "h-8 w-full gap-1 rounded-full px-1.5 text-xs transition-all [&_svg]:size-3.5 min-[375px]:gap-2 min-[375px]:px-3 min-[375px]:[&_svg]:size-4 sm:h-9 sm:text-sm",
+              inCart && "text-foreground",
+            )}
             onClick={() => onAdd(product)}
+            aria-label={inCart ? "Já no carrinho" : "Adicionar ao carrinho"}
           >
             <Plus className="mr-1 h-3 w-3" />
-            {inCart ? "No carrinho" : "Adicionar"}
+            <span className="min-[360px]:hidden">{inCart ? "No carrinho" : "Adicionar"}</span>
+            <span className="hidden min-[360px]:inline">{inCart ? "Já no carrinho" : "Adicionar ao carrinho"}</span>
           </Button>
         </div>
       </div>

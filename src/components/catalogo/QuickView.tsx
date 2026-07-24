@@ -123,7 +123,7 @@ export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, i
               </button>
             </div>
             <Button onClick={handleAdd} className="flex-1 gap-2">
-              <Plus className="h-4 w-4" /> {inCart ? "Adicionar mais" : "Adicionar ao carrinho"}
+              <Plus className="h-4 w-4" /> {inCart ? "Já no carrinho" : "Adicionar ao carrinho"}
             </Button>
           </div>
           <Link

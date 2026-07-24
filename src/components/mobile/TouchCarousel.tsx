@@ -9,6 +9,8 @@ interface TouchCarouselProps {
   aspectRatio?: string;
   showDots?: boolean;
   showArrows?: boolean;
+  selectedIndex?: number;
+  onSelectedIndexChange?: (index: number) => void;
 }
 
 export function TouchCarousel({
@@ -17,6 +19,8 @@ export function TouchCarousel({
   aspectRatio = "aspect-[4/3]",
   showDots = true,
   showArrows = false,
+  selectedIndex,
+  onSelectedIndexChange,
 }: TouchCarouselProps) {
   const [current, setCurrent] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -27,10 +31,18 @@ export function TouchCarousel({
 
   const goTo = useCallback(
     (index: number) => {
-      setCurrent(Math.max(0, Math.min(index, totalSlides - 1)));
+      const next = Math.max(0, Math.min(index, totalSlides - 1));
+      setCurrent(next);
+      onSelectedIndexChange?.(next);
     },
-    [totalSlides],
+    [totalSlides, onSelectedIndexChange],
   );
+
+  useEffect(() => {
+    if (typeof selectedIndex === "number" && Number.isFinite(selectedIndex)) {
+      setCurrent(Math.max(0, Math.min(selectedIndex, totalSlides - 1)));
+    }
+  }, [selectedIndex, totalSlides]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     setIsDragging(true);

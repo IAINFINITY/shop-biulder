@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, memo } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
-import { CartTotalBar } from "@/components/carrinho/CartTotalBar";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { type CatalogSortMode } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
@@ -22,7 +22,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
-import { calculateCartSubtotal, resolveProductPrice } from "@/lib/pricing";
+import { resolveProductPrice } from "@/lib/pricing";
 import {
   Select,
   SelectContent,
@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ChevronUp } from "lucide-react";
+import { ArrowUpDown, ChevronUp, Heart } from "lucide-react";
 import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -41,8 +41,8 @@ import { CompareModal } from "@/components/catalogo/CompareModal";
 import { usePublicLayout } from "@/components/layout/PublicLayout";
 import type { Product } from "@/lib/products";
 
-const INITIAL_PRODUCTS_VISIBLE = 20;
-const PRODUCTS_VISIBLE_STEP = 10;
+const INITIAL_PRODUCTS_VISIBLE = 6;
+const PRODUCTS_VISIBLE_STEP = 12;
 const CATALOG_VIEW_STORAGE_KEY = "clinicplus_catalog_view";
 
 type CatalogViewState = {
@@ -63,10 +63,7 @@ function readCatalogViewState(): CatalogViewState | null {
       search: typeof parsed.search === "string" ? parsed.search : "",
       selectedType: typeof parsed.selectedType === "string" ? parsed.selectedType : null,
       selectedFamily: typeof parsed.selectedFamily === "string" ? parsed.selectedFamily : null,
-      visibleProducts:
-        typeof parsed.visibleProducts === "number" && Number.isFinite(parsed.visibleProducts)
-          ? Math.max(INITIAL_PRODUCTS_VISIBLE, parsed.visibleProducts)
-          : INITIAL_PRODUCTS_VISIBLE,
+      visibleProducts: INITIAL_PRODUCTS_VISIBLE,
       scrollY:
         typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY) ? Math.max(0, parsed.scrollY) : 0,
       sortMode:
@@ -109,7 +106,7 @@ const SortModeControl = memo(function SortModeControl({
   const handleChange = useCallback((v: string) => onChange(v as CatalogSortMode), [onChange]);
   return (
     <Select value={value} onValueChange={handleChange}>
-      <SelectTrigger className="h-8 gap-1.5 rounded-full border-border/60 bg-background px-3 text-xs font-medium shadow-none hover:bg-muted/40 [&>svg]:h-3.5 [&>svg]:w-3.5">
+      <SelectTrigger className="h-8 w-full gap-1.5 rounded-full border-border/60 bg-background px-3 text-xs font-medium shadow-none hover:bg-muted/40 sm:w-auto [&>svg]:h-3.5 [&>svg]:w-3.5">
         <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
@@ -125,6 +122,7 @@ const SortModeControl = memo(function SortModeControl({
 });
 
 export default function Index() {
+  const location = useLocation();
   const { data: products = [], isLoading } = useProducts();
   const authSnapshot = readAuthBootstrapSnapshot();
   const customerProfile = readCachedCustomerProfile(authSnapshot?.user.id ?? null);
@@ -139,6 +137,7 @@ export default function Index() {
   const { ids: recentlyViewedIds } = useRecentlyViewed();
   const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
   const { search, setSearch, setIsCartOpen, setCategoryTopNavProps } = usePublicLayout();
+  const [searchParams, setSearchParams] = useSearchParams();
   const debouncedSearch = useDebounce(search, 250);
   const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
   const { ids: compareIds, toggle: toggleCompare, remove: removeCompare, clear: clearCompare, max: compareMax } = useComparison();
@@ -154,6 +153,7 @@ export default function Index() {
   const catalogRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const showFavoritesView = searchParams.get("view") === "favoritos";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -169,12 +169,13 @@ export default function Index() {
     restoredScrollRef.current = true;
     const savedState = readCatalogViewState();
     window.history.scrollRestoration = "manual";
-    window.scrollTo({ top: savedState?.scrollY ?? 0, left: 0, behavior: "auto" });
+    const shouldScrollTop = Boolean((location.state as { scrollToTop?: boolean } | null | undefined)?.scrollToTop);
+    window.scrollTo({ top: shouldScrollTop ? 0 : savedState?.scrollY ?? 0, left: 0, behavior: "auto" });
 
     return () => {
       window.history.scrollRestoration = "auto";
     };
-  }, []);
+  }, [location.state]);
 
   useEffect(() => {
     setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
@@ -336,13 +337,6 @@ export default function Index() {
     });
   }, [categoryFamilies, familyTypesByFamily, typeCounts, familyCounts, selectedFamily, selectedType, filtered.length, setCategoryTopNavProps]);
 
-  const openCart = useCallback(() => setIsCartOpen(true), []);
-
-  const cartSubtotal = useMemo(
-    () => calculateCartSubtotal(cart, customerPriceMap),
-    [cart, customerPriceMap],
-  );
-  const cartUnitCount = useMemo(() => cart.reduce((s, c) => s + c.quantity, 0), [cart]);
   const showAllProducts = useCallback(() => {
     setSearch("");
     setSelectedType(null);
@@ -416,112 +410,154 @@ export default function Index() {
   }, [customerPriceMap, familyCounts, filtered, orderHistory, orderPopularity, selectedType]);
 
   return (
-    <div
-      className="min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]"
-    >
+    <div id="top" className="min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]">
       <StoreHeroBanner customerType={customerType} />
 
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className="mx-auto max-w-[1600px] px-3 pt-1 sm:px-6 sm:pt-3 lg:px-8"
+        className="w-full px-3 pt-1 sm:px-6 sm:pt-3 lg:px-8"
       >
         <div className="space-y-6">
-          <CatalogThemeSections
-            sections={catalogThemeSections}
-            resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
-            onAdd={addToCart}
-            inCartIds={cartIds}
-          />
-
+          {showFavoritesView ? (
             <section className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
-                  {selectedFamily || selectedType
-                    ? `Resultados para "${selectedFamily || selectedType}"`
-                    : "Catálogo completo"}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <SortModeControl value={sortMode} onChange={setSortMode} />
-                  <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium whitespace-nowrap">
-                    {filtered.length} item(ns)
-                  </Badge>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Favoritos</p>
+                  <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">Meus favoritos</h2>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 rounded-full border-border/60 px-4 text-sm"
+                  onClick={() => setSearchParams({})}
+                >
+                  Ver catálogo
+                </Button>
               </div>
 
-              {isLoading ? (
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-                  {Array.from({ length: 10 }).map((_, index) => (
-                    <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
-                      <Skeleton className="aspect-square w-full rounded-none" />
-                    </div>
-                  ))}
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
-                  <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
-                  <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+              {wishlistProducts.length === 0 ? (
+                <div className="rounded-[1.35rem] border border-dashed border-border/70 bg-background/80 px-6 py-14 text-center shadow-sm">
+                  <Heart className="mx-auto h-10 w-10 text-muted-foreground/35" />
+                  <p className="mt-4 text-lg font-semibold text-foreground">Vc n tem itens favoritos</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Marque produtos com o coração para salvar aqui e acessar depois.
+                  </p>
+                  <Button type="button" className="mt-5 rounded-full" onClick={() => setSearchParams({})}>
+                    Voltar ao catálogo
+                  </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-                    {visibleFiltered.map((product) => (
-                      <CatalogProductCard
-                        key={product.id}
-                        product={product}
-                        price={resolveProductPrice(product, customerPriceMap)}
-                        onAdd={addToCart}
-                        inCart={cartIds.has(product.id)}
-                        compact
-                        isWishlisted={wishlistIds.includes(product.id)}
-                        onToggleWishlist={() => toggleWishlist(product.id)}
-                      />
-                    ))}
-                  </div>
-                  {visibleProducts < filtered.length ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="lg"
-                        className="h-11 rounded-full border-border/60 px-8 text-sm font-medium shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5"
-                        onClick={() =>
-                          setVisibleProducts((current) =>
-                            Math.min(current + PRODUCTS_VISIBLE_STEP, sortedFiltered.length),
-                          )
-                        }
-                      >
-                        Carregar mais produtos
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
+                <ProductCarouselSection
+                  title="Meus favoritos"
+                  products={wishlistProducts}
+                  resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+                  onAdd={addToCart}
+                  inCartIds={cartIds}
+                  wishlistIds={wishlistIds}
+                  toggleWishlist={toggleWishlist}
+                />
               )}
             </section>
-
-            {wishlistProducts.length > 0 && (
-              <ProductCarouselSection
-                title="Meus favoritos"
-                products={wishlistProducts}
-                resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+          ) : (
+            <>
+              <CatalogThemeSections
+                sections={catalogThemeSections}
+                resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
                 onAdd={addToCart}
                 inCartIds={cartIds}
-                wishlistIds={wishlistIds}
-                toggleWishlist={toggleWishlist}
               />
-            )}
 
-            {recentlyViewedProducts.length > 0 && (
-              <ProductCarouselSection
-                title="Vistos recentemente"
-                products={recentlyViewedProducts}
-                resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                onAdd={addToCart}
-                inCartIds={cartIds}
-                wishlistIds={wishlistIds}
-                toggleWishlist={toggleWishlist}
-              />
-            )}
+              <section className="space-y-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 className="max-sm:text-base max-sm:font-semibold tracking-tight text-foreground sm:text-2xl sm:font-bold">
+                    {selectedFamily || selectedType
+                      ? `Resultados para "${selectedFamily || selectedType}"`
+                      : "Catálogo completo"}
+                  </h2>
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                    <SortModeControl value={sortMode} onChange={setSortMode} />
+                    <Badge variant="outline" className="w-full justify-center rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium whitespace-nowrap sm:w-auto">
+                      {filtered.length} item(ns)
+                    </Badge>
+                  </div>
+                </div>
+
+                {isLoading ? (
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                    {Array.from({ length: 10 }).map((_, index) => (
+                      <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
+                        <Skeleton className="aspect-square w-full rounded-none" />
+                      </div>
+                    ))}
+                  </div>
+                ) : filtered.length === 0 ? (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
+                    <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
+                    <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                      {visibleFiltered.map((product) => (
+                        <CatalogProductCard
+                          key={product.id}
+                          product={product}
+                          price={resolveProductPrice(product, customerPriceMap)}
+                          onAdd={addToCart}
+                          inCart={cartIds.has(product.id)}
+                          compact
+                          isWishlisted={wishlistIds.includes(product.id)}
+                          onToggleWishlist={() => toggleWishlist(product.id)}
+                        />
+                      ))}
+                    </div>
+                    {visibleProducts < filtered.length ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="lg"
+                          className="h-11 rounded-full border-border/60 px-8 text-sm font-medium shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5"
+                          onClick={() =>
+                            setVisibleProducts((current) =>
+                              Math.min(current + PRODUCTS_VISIBLE_STEP, sortedFiltered.length),
+                            )
+                          }
+                        >
+                          Carregar mais produtos
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </section>
+
+              {wishlistProducts.length > 0 && (
+                <ProductCarouselSection
+                  title="Meus favoritos"
+                  products={wishlistProducts}
+                  resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+                  onAdd={addToCart}
+                  inCartIds={cartIds}
+                  wishlistIds={wishlistIds}
+                  toggleWishlist={toggleWishlist}
+                />
+              )}
+
+              {recentlyViewedProducts.length > 0 && (
+                <ProductCarouselSection
+                  title="Vistos recentemente"
+                  products={recentlyViewedProducts}
+                  resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+                  onAdd={addToCart}
+                  inCartIds={cartIds}
+                  wishlistIds={wishlistIds}
+                  toggleWishlist={toggleWishlist}
+                />
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -540,13 +576,6 @@ export default function Index() {
         open={compareOpen}
         onOpenChange={setCompareOpen}
         products={products.filter((p) => compareIds.includes(p.id))}
-      />
-
-      <CartTotalBar
-        total={cartSubtotal}
-        itemCount={cartUnitCount}
-        visible={cart.length > 0}
-        onOpenCart={openCart}
       />
 
       {showBackToTop ? (

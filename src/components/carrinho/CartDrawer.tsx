@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
 import { ImageIcon, Minus, Plus, Send, ShoppingBag, Trash2, X } from "lucide-react";
 import { getProductImageUrls } from "@/lib/products";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -194,8 +193,7 @@ export function CartDrawer({
               ))}
             </div>
 
-            <div className="space-y-3 border-t border-border pt-4">
-              <CatalogOrderNotice variant="compact" className="rounded-xl border-border/60 bg-muted/40" />
+            <div className="space-y-3 border-t border-border pt-4 pb-6 sm:pb-7 lg:pb-8">
               <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2">
                 <span className="text-sm font-medium text-muted-foreground">Subtotal</span>
                 <span className="text-base font-semibold tabular-nums text-foreground">{formatBRL(subtotal)}</span>

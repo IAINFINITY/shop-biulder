@@ -286,7 +286,7 @@ export function CatalogFiltersBarV2({
 
   return (
     <div className="sticky left-1/2 top-[calc(var(--page-header-shell-height,88px)-1px)] z-40 w-screen max-w-[100vw] -translate-x-1/2 overflow-x-clip border-b border-border/40 bg-muted/40">
-      <div className="mx-auto w-full max-w-[1600px] space-y-3 px-3 py-3 sm:px-6 lg:px-8">
+      <div className="w-full space-y-3 px-3 py-3 sm:px-6 lg:px-8">
       {isLoading ? (
         <div
           ref={filtersRef}

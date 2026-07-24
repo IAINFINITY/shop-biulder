@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, ShoppingBag, User, type LucideIcon } from "lucide-react";
+import { Heart, Home, User, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -9,27 +9,32 @@ interface NavItem {
   onClick: () => void;
 }
 
-interface MobileBottomNavProps {
-  cartItemCount: number;
-  onOpenCart: () => void;
-}
-
-export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavProps) {
+export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const isFavoritesView = new URLSearchParams(location.search).get("view") === "favoritos";
 
   const items: NavItem[] = [
     {
       id: "home",
       label: "Início",
       icon: Home,
-      onClick: () => (location.pathname === "/" ? window.scrollTo({ top: 0, behavior: "smooth" }) : navigate("/")),
+      onClick: () => {
+        if (location.pathname === "/" && !isFavoritesView) {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        navigate("/");
+      },
     },
     {
-      id: "cart",
-      label: "Carrinho",
-      icon: ShoppingBag,
-      onClick: onOpenCart,
+      id: "favorites",
+      label: "Favoritos",
+      icon: Heart,
+      onClick: () => {
+        if (location.pathname === "/" && isFavoritesView) return;
+        navigate("/?view=favoritos");
+      },
     },
     {
       id: "account",
@@ -45,13 +50,15 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0rem)" }}
       aria-label="Navegação principal"
     >
-      <div className="flex h-14 items-center justify-around px-2">
+      <div className="grid h-14 grid-cols-3 items-stretch px-1.5">
         {items.map((item) => {
           const active =
             item.id === "home"
-              ? location.pathname === "/"
+              ? location.pathname === "/" && !isFavoritesView
               : item.id === "account"
                 ? location.pathname === "/conta" || location.pathname === "/login"
+                : item.id === "favorites"
+                  ? location.pathname === "/" && isFavoritesView
                 : false;
 
           return (
@@ -60,18 +67,13 @@ export function MobileBottomNav({ cartItemCount, onOpenCart }: MobileBottomNavPr
               type="button"
               onClick={item.onClick}
               className={cn(
-                "relative flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 transition-colors",
+                "relative flex h-full w-full min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition-colors",
                 "touch-manipulation select-none",
                 active ? "text-primary" : "text-muted-foreground active:text-foreground",
               )}
             >
-              <div className="relative">
+              <div className="relative flex h-6 w-6 items-center justify-center">
                 <item.icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
-                {item.id === "cart" && cartItemCount > 0 ? (
-                  <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-card">
-                    {cartItemCount > 99 ? "99+" : cartItemCount}
-                  </span>
-                ) : null}
               </div>
               <span className={cn("text-[11px] font-medium leading-none", active && "font-semibold")}>
                 {item.label}

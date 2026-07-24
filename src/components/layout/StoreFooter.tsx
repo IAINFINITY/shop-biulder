@@ -54,6 +54,13 @@ const QUICK_LINKS = [
   { label: "Ajuda", href: "/ajuda", icon: HelpCircle },
 ];
 
+const HELP_LINKS = [
+  { label: "Como funciona", href: "/ajuda#como-funciona" },
+  { label: "Pedidos", href: "/ajuda#pedidos" },
+  { label: "Conta", href: "/ajuda#conta" },
+  { label: "Catálogo", href: "/ajuda#catalogo" },
+];
+
 function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
@@ -62,6 +69,27 @@ function FooterSection({ title, children }: { title: string; children: React.Rea
       </h3>
       {children}
     </div>
+  );
+}
+
+function InfinityBrandMark() {
+  return (
+    <a
+      href="https://iainfinity.com.br/"
+      target="_blank"
+      rel="noreferrer"
+      className="group inline-flex flex-col gap-2 transition-opacity hover:opacity-90"
+      aria-label="Abrir site da IA Infinity"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70 group-hover:text-primary/90">
+        Site desenvolvido pela
+      </p>
+      <img
+        src="/iainfinityclarologo.svg"
+        alt="IA Infinity"
+        className="h-7 w-auto rounded-lg bg-background p-0.5 shadow-sm transition-transform group-hover:scale-[1.02]"
+      />
+    </a>
   );
 }
 
@@ -99,8 +127,8 @@ export function StoreFooter() {
 
   return (
     <footer className="border-t border-border/60 bg-gradient-to-b from-background to-muted/20">
-      <div className="mx-auto max-w-[1600px] px-3 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1.4fr] lg:gap-12">
+      <div className="mx-auto w-full px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.25fr_0.82fr_0.82fr_1.25fr] lg:gap-12">
           {/* Brand */}
           <div className="space-y-4 sm:col-span-2 lg:col-span-1">
             <ClinicPlusLogo className="h-9 sm:h-10" alt="Clinic+ Suplemento e Nutrição" />
@@ -108,6 +136,7 @@ export function StoreFooter() {
               Suplementos e nutrição para o seu dia a dia. Qualidade e confiança para
               revendedores e distribuidores em todo o Brasil.
             </p>
+            <InfinityBrandMark />
             <div className="flex items-center gap-2.5 pt-1">
               {SOCIAL.map(({ label, href, icon: Icon }) => (
                 <a
@@ -125,7 +154,7 @@ export function StoreFooter() {
           </div>
 
           {/* Quick links */}
-          <div>
+          <div className="lg:justify-self-center lg:max-w-[240px]">
             <FooterSection title="Links rápidos">
               <ul className="space-y-2.5">
                 {QUICK_LINKS.map(({ label, href, icon: Icon }) => (
@@ -158,7 +187,7 @@ export function StoreFooter() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div className="lg:justify-self-center lg:max-w-[240px]">
             <FooterSection title="Atendimento">
               <ul className="space-y-3">
                 <li>
@@ -180,13 +209,33 @@ export function StoreFooter() {
             </FooterSection>
           </div>
 
+          {/* Help */}
+          <div className="lg:justify-self-end lg:max-w-[240px]">
+            <FooterSection title="Ajuda rápida">
+              <ul className="space-y-2.5">
+                {HELP_LINKS.map(({ label, href }) => (
+                  <li key={label}>
+                    <Link
+                      to={href}
+                      viewTransition
+                      className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5 text-primary/50 transition-colors group-hover:text-primary/80" />
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </FooterSection>
+          </div>
+
 
         </div>
       </div>
 
       {/* Bottom bar */}
       <div className="border-t border-border/40 bg-muted/30">
-        <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-2 px-3 py-4 text-[11px] text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full flex-col items-center justify-between gap-2 px-4 py-4 text-[11px] text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
           <p>
             &copy; {new Date().getFullYear()} {COMPANY.legalName}. Todos os direitos reservados.
           </p>

@@ -1,5 +1,5 @@
-﻿import { type FormEvent, type ReactNode, useId, useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+﻿import { type FormEvent, type MouseEvent, type ReactNode, useId, useCallback, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ImageIcon, Search, User, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ type SearchPanelProps = {
   floating: boolean;
   compact?: boolean;
   variant: "mobile" | "desktop";
+  showSubmitButton?: boolean;
   searchHistory?: string[];
   onSearchHistoryClear?: () => void;
   onSearchHistoryRemove?: (term: string) => void;
@@ -56,6 +57,7 @@ function SearchPanel({
   floating,
   compact = false,
   variant,
+  showSubmitButton = true,
   searchHistory = [],
   onSearchHistoryClear,
   onSearchHistoryRemove,
@@ -63,7 +65,7 @@ function SearchPanel({
   const [isFocused, setIsFocused] = useState(false);
   const showHistory = isFocused && search.trim().length === 0 && searchHistory.length > 0;
 
-  const onSearchSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     onSearchSubmit?.(search);
   };
@@ -79,7 +81,7 @@ function SearchPanel({
   return (
     <div className={wrapperClassName}>
       <div className={cardClassName}>
-        <form onSubmit={onSearchSubmit} className="relative">
+        <form onSubmit={handleSubmit} className="relative">
           <Input
             data-catalog-search={variant}
             type="search"
@@ -89,7 +91,8 @@ function SearchPanel({
             onFocus={() => setIsFocused(true)}
             onBlur={() => setTimeout(() => setIsFocused(false), 200)}
             className={cn(
-              "h-12 w-full rounded-none border-0 bg-transparent pl-4 pr-14 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:pl-5 sm:pr-16",
+              "h-12 w-full rounded-none border-0 bg-transparent pl-4 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:pl-5",
+              showSubmitButton ? "pr-14 sm:pr-16" : "pr-4 sm:pr-5",
               compact ? "sm:h-12" : "sm:h-14",
             )}
             aria-label="Buscar produtos"
@@ -98,17 +101,19 @@ function SearchPanel({
             aria-expanded={showSuggestions}
             aria-autocomplete="list"
           />
-          <Button
-            type="submit"
-            size="icon"
-            className={cn(
-              "absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
-              compact ? "h-8 w-8 sm:right-1.5" : "h-9 w-9 sm:right-2 sm:h-10 sm:w-10",
-            )}
-            aria-label="Buscar"
-          >
-            <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
-          </Button>
+          {showSubmitButton ? (
+            <Button
+              type="submit"
+              size="icon"
+              className={cn(
+                "absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+                compact ? "h-8 w-8 sm:right-1.5" : "h-9 w-9 sm:right-2 sm:h-10 sm:w-10",
+              )}
+              aria-label="Buscar"
+            >
+              <Search className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+            </Button>
+          ) : null}
         </form>
 
         {showHistory ? (
@@ -238,63 +243,60 @@ export function StoreHeader({
   const showSuggestions = showSearchSuggestions && trimmedSearch.length > 0;
   const mobilePanelId = useId();
   const desktopPanelId = useId();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
+
+  const handleLogoClick = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (location.pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    navigate("/", { state: { scrollToTop: true } });
+  }, [location.pathname, navigate]);
 
   return (
     <div className="sticky top-0 z-50">
       <PageHeaderShell
         compact
         className="!relative border-b border-border/70 bg-card/95 shadow-sm backdrop-blur lg:hidden"
-        innerClassName="flex-col items-stretch gap-3 py-3 sm:gap-4 sm:py-4"
+        innerClassName="flex-col items-stretch gap-2.5 py-3 sm:gap-4 sm:py-4"
       >
-        <div className="flex w-full items-center gap-3">
-          <Link to="/" viewTransition className="min-w-0 shrink-0">
-            <ClinicPlusLogo className="h-8 w-auto sm:h-9" alt="Clinic+ Suplemento e Nutrição" />
-          </Link>
-
-          <div className="min-w-0 shrink">
-            <CepLocationButton
-              currentCep={deliveryCep}
-              onCepResolved={saveDeliveryCep}
+        <div className="flex w-full items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <SearchPanel
+              search={search}
+              onSearchChange={onSearchChange}
+              onSearchSubmit={onSearchSubmit}
+              searchSuggestions={searchSuggestions}
+              showSuggestions={showSuggestions}
+              panelId={mobilePanelId}
+              floating={false}
+              compact
+              variant="mobile"
+              showSubmitButton={false}
+              searchHistory={searchHistory}
+              onSearchHistoryClear={onSearchHistoryClear}
+              onSearchHistoryRemove={onSearchHistoryRemove}
             />
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <Link to="/conta" viewTransition>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-10 w-10 rounded-full border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                aria-label="Minha conta"
-              >
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
-            <div className="flex items-center">{cartSlot}</div>
-          </div>
+          <div className="shrink-0 pt-0.5">{cartSlot}</div>
         </div>
 
-        <SearchPanel
-          search={search}
-          onSearchChange={onSearchChange}
-          onSearchSubmit={onSearchSubmit}
-          searchSuggestions={searchSuggestions}
-          showSuggestions={showSuggestions}
-          panelId={mobilePanelId}
-          floating={false}
-          compact
-          variant="mobile"
-          searchHistory={searchHistory}
-          onSearchHistoryClear={onSearchHistoryClear}
-          onSearchHistoryRemove={onSearchHistoryRemove}
+        <CepLocationButton
+          currentCep={deliveryCep}
+          onCepResolved={saveDeliveryCep}
+          className="w-full rounded-2xl border border-border/70 bg-background/90 px-4 py-3 shadow-sm"
         />
       </PageHeaderShell>
 
       <PageHeaderShell compact className="!relative hidden lg:flex" innerClassName="pt-3.5 sm:pt-0 sm:items-center">
-        <div className="flex w-full items-center gap-4 xl:gap-6">
-          {/* Logo + CEP */}
-          <div className="flex items-center gap-4 shrink-0">
-            <Link to="/" viewTransition className="inline-block shrink-0">
+            <div className="flex w-full items-center gap-4 xl:gap-6">
+              {/* Logo + CEP */}
+              <div className="flex items-center gap-4 shrink-0">
+            <Link to="/" viewTransition className="inline-block shrink-0" onClick={handleLogoClick}>
               <ClinicPlusLogo />
             </Link>
             <div className="hidden h-8 w-px bg-border/50 xl:block" />

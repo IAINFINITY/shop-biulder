@@ -5,6 +5,7 @@ import { StoreHeader, type StoreHeaderSearchSuggestion } from "@/components/cata
 import { CategoryTopNav, type CategoryTopNavProps } from "@/components/catalogo/CategoryTopNav";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { StoreFooter } from "@/components/layout/StoreFooter";
+import { MobileBottomNav } from "@/components/mobile";
 import { useCart } from "@/hooks/useCart";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
@@ -100,9 +101,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const isOrderRoute = location.pathname.startsWith("/pedido");
   const isLoginRoute = location.pathname === "/login";
   const isProductRoute = location.pathname.startsWith("/produto");
+  const isHelpRoute = location.pathname.startsWith("/ajuda");
   const hideFooter = isAccountRoute || isOrderRoute || isLoginRoute;
-  const showStoreHeader = isIndexRoute || isProductRoute || isOrderRoute;
-
+  const showStoreHeader = isIndexRoute || isProductRoute || isOrderRoute || isHelpRoute;
   const handleSearchSubmit = useCallback((value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -154,10 +155,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           data-native-view-transition={
             typeof document !== "undefined" && "startViewTransition" in document ? "true" : "false"
           }
-          className="flex-1 page-shell"
+          className="flex-1 page-shell pb-16 lg:pb-0"
         >
           {children}
         </main>
+        {!isLoginRoute ? <MobileBottomNav /> : null}
         {!hideFooter ? <StoreFooter /> : null}
       </div>
     </PublicLayoutContext.Provider>

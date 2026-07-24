@@ -23,9 +23,11 @@ type CepData = {
 export function CepLocationButton({
   currentCep,
   onCepResolved,
+  className,
 }: {
   currentCep: CepData | null;
   onCepResolved: (data: CepData) => void;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -78,19 +80,16 @@ export function CepLocationButton({
           className={cn(
             "flex items-center gap-2.5 rounded-lg px-4 py-2 text-left transition-colors hover:bg-muted/60",
             currentCep ? "text-foreground" : "text-muted-foreground",
+            className,
           )}
         >
           <MapPin className={cn(
             "h-5 w-5 shrink-0",
             currentCep ? "text-primary" : "text-muted-foreground",
           )} />
-          <span className="leading-tight">
-            <span className="block text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground/80">
-              Informações do CEP
-            </span>
-            <span className="block text-sm font-semibold">
-              {label}
-            </span>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight whitespace-nowrap xl:whitespace-normal">
+            <span className="inline text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground/80 xl:block">Informações do CEP:</span>{" "}
+            <span className="inline xl:block">{label}</span>
           </span>
         </button>
       </PopoverTrigger>

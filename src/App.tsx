@@ -14,6 +14,7 @@ const OrderForm = lazy(() => import("./pages/OrderForm.tsx"));
 const OrderSuccess = lazy(() => import("./pages/OrderSuccess.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Account = lazy(() => import("./pages/Account.tsx"));
+const Help = lazy(() => import("./pages/Help.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 function RouteLoader() {
@@ -53,6 +54,7 @@ function AppRoutes() {
           <Route path="/pedido/obrigado" element={<OrderSuccess />} />
           <Route path="/login" element={<Login />} />
           <Route path="/conta" element={<Account />} />
+          <Route path="/ajuda" element={<Help />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

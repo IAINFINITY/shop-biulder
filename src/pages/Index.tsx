@@ -154,6 +154,9 @@ export default function Index() {
   const restoredScrollRef = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const showFavoritesView = searchParams.get("view") === "favoritos";
+  const handleRequestAdd = useCallback((product: Product) => {
+    setQuickViewProduct(product.id);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -452,7 +455,7 @@ export default function Index() {
                   title="Meus favoritos"
                   products={wishlistProducts}
                   resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                  onAdd={addToCart}
+                  onAdd={handleRequestAdd}
                   inCartIds={cartIds}
                   wishlistIds={wishlistIds}
                   toggleWishlist={toggleWishlist}
@@ -464,7 +467,7 @@ export default function Index() {
               <CatalogThemeSections
                 sections={catalogThemeSections}
                 resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
-                onAdd={addToCart}
+                onAdd={handleRequestAdd}
                 inCartIds={cartIds}
               />
 
@@ -504,7 +507,7 @@ export default function Index() {
                           key={product.id}
                           product={product}
                           price={resolveProductPrice(product, customerPriceMap)}
-                          onAdd={addToCart}
+                           onAdd={handleRequestAdd}
                           inCart={cartIds.has(product.id)}
                           compact
                           isWishlisted={wishlistIds.includes(product.id)}
@@ -538,7 +541,7 @@ export default function Index() {
                   title="Meus favoritos"
                   products={wishlistProducts}
                   resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                  onAdd={addToCart}
+                  onAdd={handleRequestAdd}
                   inCartIds={cartIds}
                   wishlistIds={wishlistIds}
                   toggleWishlist={toggleWishlist}
@@ -550,7 +553,7 @@ export default function Index() {
                   title="Vistos recentemente"
                   products={recentlyViewedProducts}
                   resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                  onAdd={addToCart}
+                  onAdd={handleRequestAdd}
                   inCartIds={cartIds}
                   wishlistIds={wishlistIds}
                   toggleWishlist={toggleWishlist}

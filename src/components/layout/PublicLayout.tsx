@@ -128,6 +128,12 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             search={search}
             onSearchChange={setSearch}
             onSearchSubmit={handleSearchSubmit}
+            onSearchResultSelect={() => {
+              setSearch("");
+              if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+              }
+            }}
             searchSuggestions={searchSuggestions}
             searchHistory={searchHistory}
             onSearchHistoryClear={clearSearchHistory}

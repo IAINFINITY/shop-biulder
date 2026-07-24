@@ -23,6 +23,7 @@ export type StoreHeaderProps = {
   search: string;
   onSearchChange: (value: string) => void;
   onSearchSubmit?: (value: string) => void;
+  onSearchResultSelect?: () => void;
   cartSlot: ReactNode;
   searchSuggestions?: StoreHeaderSearchSuggestion[];
   filterNav?: ReactNode;
@@ -36,6 +37,7 @@ type SearchPanelProps = {
   search: string;
   onSearchChange: (value: string) => void;
   onSearchSubmit?: (value: string) => void;
+  onSearchResultSelect?: () => void;
   searchSuggestions: StoreHeaderSearchSuggestion[];
   showSuggestions: boolean;
   panelId: string;
@@ -52,6 +54,7 @@ function SearchPanel({
   search,
   onSearchChange,
   searchSuggestions,
+  onSearchResultSelect,
   showSuggestions,
   panelId,
   floating,
@@ -193,6 +196,10 @@ function SearchPanel({
                     to={`/produto/${item.id}`}
                     viewTransition
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/70"
+                    onClick={() => {
+                      onSearchResultSelect?.();
+                      onSearchChange("");
+                    }}
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
                       {item.imageUrl ? (
@@ -231,6 +238,7 @@ export function StoreHeader({
   search,
   onSearchChange,
   onSearchSubmit,
+  onSearchResultSelect,
   cartSlot,
   searchSuggestions = [],
   filterNav,
@@ -269,6 +277,7 @@ export function StoreHeader({
               search={search}
               onSearchChange={onSearchChange}
               onSearchSubmit={onSearchSubmit}
+              onSearchResultSelect={onSearchResultSelect}
               searchSuggestions={searchSuggestions}
               showSuggestions={showSuggestions}
               panelId={mobilePanelId}
@@ -315,6 +324,7 @@ export function StoreHeader({
                 search={search}
                 onSearchChange={onSearchChange}
                 onSearchSubmit={onSearchSubmit}
+                onSearchResultSelect={onSearchResultSelect}
                 searchSuggestions={searchSuggestions}
                 showSuggestions={showSuggestions}
                 panelId={desktopPanelId}

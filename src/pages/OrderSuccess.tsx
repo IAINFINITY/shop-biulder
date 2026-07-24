@@ -109,7 +109,7 @@ export default function OrderSuccess() {
         <div className="absolute right-[-120px] top-20 h-80 w-80 rounded-full bg-accent/15 blur-3xl" />
       </div>
 
-      <main className="relative mx-auto max-w-[1600px] px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-safe">
+      <main className="relative w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-safe">
         <section className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm">
           <div className="flex flex-col gap-4 sm:gap-5">
             <div className="max-w-4xl space-y-2 sm:space-y-3">

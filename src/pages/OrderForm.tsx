@@ -14,7 +14,6 @@ import { type CartItem, getProductImageUrls } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
-import { MobileBottomNav } from "@/components/mobile/MobileBottomNav";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ORDERS_TABLE, toOrderItems, type SubmittedCartLine } from "@/lib/orders";
 import { toast } from "sonner";
@@ -30,6 +29,7 @@ import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 import { ORDER_TEXT_LIMITS } from "@/lib/orderTextLimits";
 import { CheckoutProgress } from "@/components/pedido/CheckoutProgress";
+import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_WHATSAPP_URL,
@@ -516,11 +516,11 @@ export default function OrderForm() {
 
   return (
     <div className="relative min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]">
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       </div>
-      <div className="mx-auto max-w-[1600px] px-3 py-4 sm:px-6 lg:px-8">
+      <div className="w-full px-3 py-4 sm:px-6 lg:px-8">
         {!user && allowGuestCheckout ? (
           <div className="mb-6 flex items-start gap-3 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -578,8 +578,10 @@ export default function OrderForm() {
 
             <CheckoutProgress steps={checkoutSteps} currentStep={currentCheckoutStep} className="mb-2" />
 
+            <CatalogOrderNotice variant="banner" className="border-border/70 bg-card/95 shadow-sm" />
+
             <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(340px,0.82fr)]">
-              <div className="space-y-4 sm:space-y-6">
+              <div className="order-last space-y-4 sm:space-y-6 lg:order-first">
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-6 shadow-sm">
                     <div className="mb-4 sm:mb-5 flex items-start justify-between gap-4">
@@ -832,7 +834,7 @@ export default function OrderForm() {
 
               <div
                 ref={summaryRef}
-                className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:flex lg:max-h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] lg:flex-col lg:self-start lg:overflow-y-auto"
+                className="order-first rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:order-last lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:flex lg:max-h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] lg:flex-col lg:self-start lg:overflow-y-auto"
               >
                 <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -944,7 +946,6 @@ export default function OrderForm() {
         />
       </div>
 
-      <MobileBottomNav cartItemCount={totalItems} onOpenCart={openCart} />
       </div>
     );
   }

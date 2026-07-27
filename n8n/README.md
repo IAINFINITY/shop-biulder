@@ -7,7 +7,7 @@
 3. Abra o nó **Config Proxis** e preencha:
    - `proxis_user` — mesmo do `.env` (`PROXSIS_USER`)
    - `proxis_password` — mesmo do `.env` (`PROXSIS_PASSWORD`)
-   - `proxis_filial` — normalmente `5`
+    - `proxis_filial` — `5`
 4. **Execute workflow** (botão *Test workflow*)
 
 ## URL gerada
@@ -71,23 +71,45 @@ Se preferir um único **HTTP Request** sem importar o JSON:
 - **Sucesso:** JSON array com produtos (`ite_id`, `ite_numero`, `ite_descricao`, …)
 - **Erro:** HTML do IIS com título `404` — API indisponível ou URL incorreta nesta rede
 
-## Workflow Proxy (`proxis-proxy.json`)
+## Workflow Proxy (`proxis-proxy.local.json`)
 
 Este workflow serve de ponte entre a Vercel (cloud) e o Proxis (rede interna).
 
-**Como funciona:**
-1. A Vercel envia `POST /proxis-proxy` com `{ endpoint, method, headers, body }`
-2. O nó Code monta a URL do Proxis e faz a chamada real
-3. A resposta volta pra Vercel
+**Status:** ativo | **Total de nós:** 5 | **Tags:** proxy, proxis, webhook
 
-**Importar:** `proxis-proxy.json` (não precisa preencher credenciais — a Vercel já manda o header Authorization pronto)
+**Como funciona:**
+1. O webhook recebe `POST /proxis-proxy` com `{ endpoint, method, headers, body }`
+2. O primeiro nó Code normaliza e valida o payload
+3. O HTTP Request do n8n faz a chamada real ao Proxis
+4. Um segundo nó Code normaliza a resposta
+5. O webhook devolve o resultado ao sistema chamador
+
+**Pontos de entrada**
+
+| Tipo    | Caminho        | Método |
+| ------- | -------------- | ------ |
+| Webhook | `proxis-proxy` | POST |
+
+**Regras do fluxo:**
+- `endpoint`, `method` e `headers` são obrigatórios
+- A URL é montada como `http://177.38.10.218:8082/datasnap/rest/TSMApi/"<endpoint>"`
+- O header `x-promanager-filial` precisa vir preenchido como string
+- A resposta é devolvida como JSON quando possível
+- Timeout do HTTP Request: `30000` ms
+
+**Importar:** `proxis-proxy.local.json` (arquivo local, não versionado)
 
 **No `.env` da Vercel, certifique-se de que `N8N_WEBHOOK_BASE_URL` está definido:**
 ```
 N8N_WEBHOOK_BASE_URL="https://webhooks-n8n.iainfinity.app/webhook"
 ```
 
-Com essa env var presente, o código automaticamente roteia todas as chamadas do Proxis pelo proxy em vez de ir direto no IP interno.
+Com essa env var presente, o código automaticamente roteia as chamadas do Proxis pelo proxy em vez de ir direto no IP interno.
+
+**Observações:**
+- O webhook não possui autenticação própria
+- A URL base do Proxis está fixa no workflow
+- Recomenda-se limitar os endpoints aceitos no chamador
 
 ## Testar com CURL (fora do n8n)
 
@@ -98,7 +120,7 @@ Com essa env var presente, o código automaticamente roteia todas as chamadas do
 
 2. **Executar o CURL:**
 ```powershell
-curl.exe -v -X GET "http://177.38.10.218:8082/datasnap/rest/TSMApi/`"ObterItens`"" -H "Content-Type: application/json" -H "Authorization: Basic SEU_TOKEN_AQUI" -H "x-promanager-filial: 2" -H "X-ProManager-Pagina-Inicio: 0" -H "X-ProManager-Pagina-Quant: 10" --connect-timeout 15 --max-time 30
+curl.exe -v -X GET "http://177.38.10.218:8082/datasnap/rest/TSMApi/`"ObterItens`"" -H "Content-Type: application/json" -H "Authorization: Basic SEU_TOKEN_AQUI" -H "x-promanager-filial: 5" -H "X-ProManager-Pagina-Inicio: 0" -H "X-ProManager-Pagina-Quant: 10" --connect-timeout 15 --max-time 30
 ```
 
 - `ECONNREFUSED` = porta fechada ou IP errado (firewall)

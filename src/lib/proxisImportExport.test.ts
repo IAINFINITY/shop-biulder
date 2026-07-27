@@ -20,10 +20,10 @@ describe("proxisImportExport", () => {
       "14",
       "1",
       "",
-      "",
+      "356",
       "1",
     ]);
-    expect(line).toBe("7;4163851000106;5;10;;25/05/2026;25/05/2026;;14;1;;;1");
+    expect(line).toBe("7;4163851000106;5;10;;25/05/2026;25/05/2026;;14;1;;356;1");
     expect(line.split(";")).toHaveLength(PROXIS_IMPORT_COLUMN_COUNT);
   });
 

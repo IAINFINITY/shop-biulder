@@ -34,7 +34,7 @@
             {
               "id": "cfg-filial",
               "name": "proxis_filial",
-              "value": "5",
+              "value": "2",
               "type": "string"
             },
             {
@@ -58,7 +58,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [220, 300],
-      "notes": "Edite user/senha/filial 5 (valores do .env). filtro_produto vazio = listar todos; ou: item.ite_numero = '7500'"
+      "notes": "Edite user/senha/filial 2 (valores do .env). filtro_produto vazio = listar todos; ou: item.ite_numero = '7500'"
     },
     {
       "parameters": {
@@ -100,7 +100,7 @@
               "value": "={{ $json.pagina_quant }}"
             },
             {
-              "name": "X-Promanager-Busca-Filtro",
+              "name": "X-ProManager-Busca-Filtro",
               "value": "={{ $json.filtro_produto }}"
             }
           ]

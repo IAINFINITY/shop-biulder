@@ -9,6 +9,8 @@ Projeto de catalogo, carrinho e pedido para a Clinic+, construido com Vite, Reac
 - Area de login, conta e admin
 - Integracao com Supabase para dados, auth, storage e tipos
 - Integracao serverless com Proxis em `api/proxis-order.ts`
+- Exportacao FOCCO em TXT com condicao de pagamento a vista (`356`)
+- Resend Proxis validado para a filial `5`
 
 ## Estrutura principal
 - `src/pages/` para rotas e orquestracao

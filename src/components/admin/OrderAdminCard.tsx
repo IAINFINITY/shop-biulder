@@ -34,6 +34,7 @@ const ORDER_STATUSES = [
 
 type Props = {
   order: OrderAdminCardPayload;
+  displayOrderNumber: number;
   lines: OrderTableLine[];
   orderTotal: number;
   orderQty: number;
@@ -69,6 +70,7 @@ function statusClassName(status: string) {
 
 export function OrderAdminCard({
   order,
+  displayOrderNumber,
   lines,
   orderTotal,
   orderQty,
@@ -137,7 +139,7 @@ export function OrderAdminCard({
                 )}
                 {order.proxis_import_id != null ? (
                   <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
-                    Proxis {order.proxis_import_id}
+                    Pedido {displayOrderNumber}
                   </Badge>
                 ) : null}
                 <span className="whitespace-nowrap text-[11px] text-muted-foreground">{formatDate(order.created_at)}</span>

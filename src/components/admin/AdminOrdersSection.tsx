@@ -188,7 +188,8 @@ export function AdminOrdersSection({
         </div>
       ) : (
         <div className="space-y-3">
-          {visibleOrders.map((order) => {
+          {visibleOrders.map((order, index) => {
+            const displayOrderNumber = visibleOrders.length - index;
             const lines = parseOrderTableLines(order.items, orderEnrichment);
             const orderTotal = getOrderLinesGrandTotal(lines);
             const orderQty = getOrderLinesQuantityTotal(lines);
@@ -239,6 +240,7 @@ export function AdminOrdersSection({
                   proxis_import_id: order.proxis_import_id,
                   items: order.items,
                 }}
+                displayOrderNumber={displayOrderNumber}
                 lines={lines}
                 orderTotal={orderTotal}
                 orderQty={orderQty}

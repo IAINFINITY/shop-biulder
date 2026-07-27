@@ -7,7 +7,7 @@
 3. Abra o nó **Config Proxis** e preencha:
    - `proxis_user` — mesmo do `.env` (`PROXSIS_USER`)
    - `proxis_password` — mesmo do `.env` (`PROXSIS_PASSWORD`)
-    - `proxis_filial` — `5`
+    - `proxis_filial` — `2`
 4. **Execute workflow** (botão *Test workflow*)
 
 ## URL gerada
@@ -80,7 +80,7 @@ Este workflow serve de ponte entre a Vercel (cloud) e o Proxis (rede interna).
 **Como funciona:**
 1. O webhook recebe `POST /proxis-proxy` com `{ endpoint, method, headers, body }`
 2. O primeiro nó Code normaliza e valida o payload
-3. O HTTP Request do n8n faz a chamada real ao Proxis
+3. O HTTP Request do n8n faz a chamada real ao Proxis e usa `Response Format: Text`
 4. Um segundo nó Code normaliza a resposta
 5. O webhook devolve o resultado ao sistema chamador
 

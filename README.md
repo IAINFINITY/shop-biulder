@@ -34,13 +34,13 @@ Instale as dependencias com:
 npm install
 ```
 
-Inicie o desenvolvimento com:
+Inicie o frontend e as rotas `/api/*` locais usando o proxy n8n com:
 
 ```bash
 npm run dev
 ```
 
-Para testar as rotas `/api/*` localmente, use:
+Para chamar a Proxis diretamente, sem passar pelo n8n, use:
 
 ```bash
 npm run dev:local
@@ -48,8 +48,9 @@ npm run dev:local
 
 Abra `http://127.0.0.1:8080`.
 
-Esse comando sobe o Vite no `8080` e uma API local no `3000`, então o botão de reenviar Proxis usa o backend local sem passar pela Vercel publicada.
-No modo local, as rotas Proxis ignoram o `N8N_WEBHOOK_BASE_URL` para chamar a Proxis direto, igual ao ambiente da Vercel.
+Os dois comandos sobem o Vite no `8080` e uma API local no `3000`, sem usar a API antiga publicada na Vercel. `npm run dev` mantém o `N8N_WEBHOOK_BASE_URL`; `npm run dev:local` chama a Proxis diretamente.
+
+Para executar somente o Vite e encaminhar `/api` para o ambiente publicado, use `npm run dev:remote`.
 
 Gere a versao de producao com:
 

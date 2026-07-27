@@ -22,15 +22,16 @@ type AdminWorkspaceShellProps = {
 };
 
 function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
-  const { connected, checking, checkNow } = useProxisHealth();
+  const { connected, error, checking, checkNow } = useProxisHealth();
+  const statusLabel = connected ? "Proxis conectado" : checking ? "Verificando Proxis..." : error || "Erro ao consultar Proxis";
 
   if (collapsed) {
     return (
       <button
         type="button"
         onClick={checkNow}
-        title={connected ? "Proxis conectado" : checking ? "Verificando Proxis..." : "Proxis desconectado"}
-        aria-label={connected ? "Proxis conectado" : "Proxis desconectado"}
+        title={statusLabel}
+        aria-label={statusLabel}
         className="mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-muted/40"
       >
         <span className="relative flex h-3 w-3">
@@ -57,7 +58,7 @@ function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
           ) : null}
         </span>
         <span className="text-[12px] font-medium text-muted-foreground">
-          {connected ? "Proxis conectado" : checking ? "Verificando..." : "Proxis offline"}
+          {connected ? "Proxis conectado" : checking ? "Verificando..." : "Erro no Proxis"}
         </span>
         <span className="ml-auto">
           {connected ? <Wifi className="h-3.5 w-3.5 text-emerald-500" /> : <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50" />}

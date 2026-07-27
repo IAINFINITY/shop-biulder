@@ -3,20 +3,22 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
-const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
+const PROXSIS_HEALTH_FILIAL = (process.env.PROXSIS_HEALTH_FILIAL || "2").trim();
 
 function buildAuthHeader(): string {
-  return "Basic " + Buffer.from(`${PROXSIS_USER}:${PROXSIS_PASSWORD}`).toString("base64");
+  const user = PROXSIS_USER.trim();
+  const password = PROXSIS_PASSWORD.trim();
+  return "Basic " + Buffer.from(`${user}:${password}`).toString("base64");
 }
 
 async function checkProxisDirect(): Promise<{ connected: boolean; error: string | null }> {
-  const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/"ObterItens"`;
+  const url = `${PROXSIS_BASE_URL.replace(/\/$/, "")}/%22ObterItens%22`;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: buildAuthHeader(),
-    "x-promanager-filial": PROXSIS_FILIAL,
+    "x-proManager-filial": PROXSIS_HEALTH_FILIAL,
     "X-ProManager-Pagina-Inicio": "0",
-    "X-ProManager-Pagina-Quant": "1",
+    "X-ProManager-Pagina-Quant": "10",
   };
 
   try {
@@ -65,9 +67,9 @@ async function checkProxisViaN8n(): Promise<{ connected: boolean; error: string 
         headers: {
           "Content-Type": "application/json",
           Authorization: auth,
-          "x-promanager-filial": PROXSIS_FILIAL,
+          "x-proManager-filial": PROXSIS_HEALTH_FILIAL,
           "X-ProManager-Pagina-Inicio": "0",
-          "X-ProManager-Pagina-Quant": "1",
+          "X-ProManager-Pagina-Quant": "10",
         },
         body: null,
       }),

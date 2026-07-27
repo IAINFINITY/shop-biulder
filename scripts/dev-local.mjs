@@ -7,6 +7,7 @@ const viteBin = path.join(rootDir, "node_modules", "vite", "bin", "vite.js");
 const apiServer = path.join(rootDir, "scripts", "local-api-server.mjs");
 const children = [];
 let shuttingDown = false;
+const useN8nProxy = process.argv.includes("--proxy");
 
 function start(command, args, env = {}) {
   const child = spawn(command, args, {
@@ -43,7 +44,9 @@ function shutdown(code = 0) {
   process.exit(code);
 }
 
-start(process.execPath, ["--import", "tsx", apiServer]);
+start(process.execPath, ["--import", "tsx", apiServer], {
+  LOCAL_USE_N8N_PROXY: useN8nProxy ? "1" : "0",
+});
 start(process.execPath, [viteBin, "--config", "vite.config.js", "--host", "127.0.0.1", "--port", "8080"], {
   VITE_API_PROXY_TARGET: "http://127.0.0.1:3000",
 });

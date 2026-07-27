@@ -9,8 +9,9 @@ loadDotenv({ path: path.join(rootDir, ".env") });
 loadDotenv({ path: path.join(rootDir, ".env.local") });
 loadDotenv({ path: path.join(rootDir, ".env.development") });
 
-// Mirror Vercel production: these routes talk directly to Proxis locally.
-process.env.N8N_WEBHOOK_BASE_URL = "";
+if (process.env.LOCAL_USE_N8N_PROXY !== "1") {
+  process.env.N8N_WEBHOOK_BASE_URL = "";
+}
 
 const handlers = new Map(
   await Promise.all(

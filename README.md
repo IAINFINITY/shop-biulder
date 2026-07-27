@@ -38,6 +38,17 @@ Inicie o desenvolvimento com:
 npm run dev
 ```
 
+Para testar as rotas `/api/*` localmente, use:
+
+```bash
+npm run dev:local
+```
+
+Abra `http://127.0.0.1:8080`.
+
+Esse comando sobe o Vite no `8080` e uma API local no `3000`, então o botão de reenviar Proxis usa o backend local sem passar pela Vercel publicada.
+No modo local, as rotas Proxis ignoram o `N8N_WEBHOOK_BASE_URL` para chamar a Proxis direto, igual ao ambiente da Vercel.
+
 Gere a versao de producao com:
 
 ```bash

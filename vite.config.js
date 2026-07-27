@@ -45,50 +45,55 @@ function inlineCriticalCss() {
   };
 }
 
-export default defineConfig(() => ({
-  server: {
-    host: "::",
-    port: 8080,
-    hmr: {
-      overlay: false,
-    },
-    proxy: {
-      "/api": {
-        target: "https://catalogo-clinicmais.iainfinity.com.br",
-        changeOrigin: true,
-        secure: false,
+export default defineConfig(() => {
+  // Allow local dev to point /api at the local API server instead of production.
+  const apiProxyTarget = process.env.VITE_API_PROXY_TARGET || "https://catalogo-clinicmais.iainfinity.com.br";
+
+  return {
+    server: {
+      host: "::",
+      port: 8080,
+      hmr: {
+        overlay: false,
       },
-    },
-  },
-  plugins: [react(), inlineCriticalCss()],
-  build: {
-    emptyOutDir: true,
-    cssCodeSplit: false,
-    cssMinify: "esbuild",
-    modulePreload: false,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          const normalizedId = id.replace(/\\/g, "/");
-          if (normalizedId.includes("vite/preload-helper")) return "preload-helper";
-          if (normalizedId.includes("node_modules/react") || normalizedId.includes("node_modules/react-dom") || normalizedId.includes("node_modules/scheduler")) {
-            return "react-vendor";
-          }
-          if (normalizedId.includes("node_modules/@tanstack")) return "query-vendor";
-          if (normalizedId.includes("node_modules/@supabase")) return "supabase-vendor";
-          if (normalizedId.includes("node_modules/lucide-react")) return "icons-vendor";
-          if (normalizedId.includes("node_modules/jspdf") || normalizedId.includes("node_modules/jspdf-autotable")) return "pdf";
-          if (normalizedId.includes("node_modules/xlsx")) return "xlsx";
-          if (normalizedId.includes("node_modules/@tiptap")) return "tiptap";
+      proxy: {
+        "/api": {
+          target: apiProxyTarget,
+          changeOrigin: true,
+          secure: false,
         },
-        chunkFileNames: "assets/[name]-[hash].js",
       },
     },
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    plugins: [react(), inlineCriticalCss()],
+    build: {
+      emptyOutDir: true,
+      cssCodeSplit: false,
+      cssMinify: "esbuild",
+      modulePreload: false,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            const normalizedId = id.replace(/\\/g, "/");
+            if (normalizedId.includes("vite/preload-helper")) return "preload-helper";
+            if (normalizedId.includes("node_modules/react") || normalizedId.includes("node_modules/react-dom") || normalizedId.includes("node_modules/scheduler")) {
+              return "react-vendor";
+            }
+            if (normalizedId.includes("node_modules/@tanstack")) return "query-vendor";
+            if (normalizedId.includes("node_modules/@supabase")) return "supabase-vendor";
+            if (normalizedId.includes("node_modules/lucide-react")) return "icons-vendor";
+            if (normalizedId.includes("node_modules/jspdf") || normalizedId.includes("node_modules/jspdf-autotable")) return "pdf";
+            if (normalizedId.includes("node_modules/xlsx")) return "xlsx";
+            if (normalizedId.includes("node_modules/@tiptap")) return "tiptap";
+          },
+          chunkFileNames: "assets/[name]-[hash].js",
+        },
+      },
     },
-    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
-  },
-}));
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+      dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
+    },
+  };
+});

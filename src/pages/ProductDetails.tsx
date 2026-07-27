@@ -225,7 +225,6 @@ export default function ProductDetails() {
   const productPrice = product ? resolveProductPrice(product, customerPriceMap) : 0;
   const selectedTotalPrice = productPrice * quantity;
   const selectedPixPrice = selectedTotalPrice * 0.9;
-  const selectedInstallmentPrice = selectedTotalPrice / 10;
   const summaryFacts = useMemo(() => {
     if (!product) return [];
 
@@ -720,19 +719,13 @@ export default function ProductDetails() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 space-y-2">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-                            Preço
+                            Preço à vista
                           </p>
                           <p className="text-3xl font-semibold leading-none text-foreground tabular-nums">
-                            {formatBRL(selectedTotalPrice)}
-                          </p>
-                          <p className="text-sm font-medium text-foreground tabular-nums">
                             {formatBRL(selectedPixPrice)}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             Total para {quantity} unidade{quantity === 1 ? "" : "s"}.
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatBRL(selectedTotalPrice)} em até 10x de {formatBRL(selectedInstallmentPrice)} sem juros ou 1x com 10% de desconto no cartão
                           </p>
                         </div>
 

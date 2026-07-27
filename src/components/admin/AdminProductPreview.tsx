@@ -159,7 +159,6 @@ function ExpandedPreview({
   const selectedImage = galleryUrls[selectedImageIndex] ?? galleryUrls[0] ?? coverUrl;
   const selectedTotalPrice = priceValue * quantity;
   const selectedPixPrice = selectedTotalPrice * 0.9;
-  const selectedInstallmentPrice = selectedTotalPrice / 10;
 
   return (
     <div className="w-full max-w-[1360px] rounded-[1.5rem] border border-border/70 bg-background p-3 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
@@ -314,14 +313,10 @@ function ExpandedPreview({
               <CardContent className="flex h-full flex-col p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 space-y-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Preço</p>
-                    <p className="text-3xl font-semibold leading-none text-foreground tabular-nums">{formatBRL(selectedTotalPrice)}</p>
-                    <p className="text-sm font-medium text-foreground tabular-nums">{formatBRL(selectedPixPrice)}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Preço à vista</p>
+                    <p className="text-3xl font-semibold leading-none text-foreground tabular-nums">{formatBRL(selectedPixPrice)}</p>
                     <p className="text-sm text-muted-foreground">
                       Total para {quantity} unidade{quantity === 1 ? "" : "s"}.
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatBRL(selectedTotalPrice)} em até 10x de {formatBRL(selectedInstallmentPrice)} sem juros ou 1x com 10% de desconto no cartão
                     </p>
                   </div>
 

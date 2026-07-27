@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
-const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
+const PROXSIS_FILIAL = (process.env.PROXSIS_FILIAL || "5").trim();
 const configuredDefaultTprId = Number(process.env.PROXSIS_TPR_ID_DEFAULT);
 const DEFAULT_PROXSIS_TPR_ID = Number.isFinite(configuredDefaultTprId) && configuredDefaultTprId > 0
   ? Math.trunc(configuredDefaultTprId)
@@ -22,14 +22,16 @@ function formatCnpj(value: string): string {
 }
 
 function buildAuthHeader(): string {
-  return "Basic " + Buffer.from(`${PROXSIS_USER}:${PROXSIS_PASSWORD}`).toString("base64");
+  const user = PROXSIS_USER.trim();
+  const password = PROXSIS_PASSWORD.trim();
+  return "Basic " + Buffer.from(`${user}:${password}`).toString("base64");
 }
 
 function baseHeaders(): Record<string, string> {
   return {
     "Content-Type": "application/json",
     Authorization: buildAuthHeader(),
-    "x-promanager-filial": PROXSIS_FILIAL,
+    "x-proManager-filial": PROXSIS_FILIAL,
   };
 }
 

@@ -7,7 +7,7 @@ const PROXSIS_FILIAL = process.env.PROXSIS_FILIAL || "5";
 const configuredDefaultTprId = Number(process.env.PROXSIS_TPR_ID_DEFAULT);
 const DEFAULT_PROXSIS_TPR_ID = Number.isFinite(configuredDefaultTprId) && configuredDefaultTprId > 0
   ? Math.trunc(configuredDefaultTprId)
-  : 8728;
+  : 8729;
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -98,29 +98,60 @@ async function proxsisRequest(
   return JSON.parse(text);
 }
 
-async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknown> | null> {
-  const formatted = formatCnpj(cnpj);
-  const filtro = `pes_cpf_cnpj = '${formatted}'`;
+function cnpjFromRecord(record: Record<string, unknown>): string {
+  const candidates = [
+    record.pes_cpf_cnpj,
+    record.cpf_cnpj,
+    record.pes_cnpj,
+    record.cnpj,
+    record.documento,
+  ];
 
-  const result = await proxsisRequest("GET", "ObterParticipantes", {
-    extraHeaders: {
-      "X-ProManager-Pagina-Inicio": "0",
-      "X-ProManager-Pagina-Quant": "5",
-      "X-Promanager-Busca-Filtro": filtro,
-    },
-  });
-
-  if (!result) return null;
-
-  if (Array.isArray(result)) {
-    const digits = onlyDigits(cnpj);
-    const match = result.find(
-      (item: Record<string, unknown>) => onlyDigits(String(item.pes_cpf_cnpj || "")) === digits,
-    );
-    return (match || result[0] || null) as Record<string, unknown> | null;
+  for (const value of candidates) {
+    const digits = onlyDigits(String(value ?? ""));
+    if (digits.length === 14) return digits;
   }
 
-  return result as Record<string, unknown>;
+  return "";
+}
+
+async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknown> | null> {
+  const digits = onlyDigits(cnpj);
+  const filters = [formatCnpj(cnpj), digits].filter((value, index, list) => value && list.indexOf(value) === index);
+  const candidates: Record<string, unknown>[] = [];
+
+  for (const filterValue of filters) {
+    const result = await proxsisRequest("GET", "ObterParticipantes", {
+      extraHeaders: {
+        "X-ProManager-Pagina-Inicio": "0",
+        "X-ProManager-Pagina-Quant": "10",
+        "X-Promanager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
+      },
+    });
+
+    const rows = Array.isArray(result) ? result : result ? [result as Record<string, unknown>] : [];
+    for (const row of rows) {
+      if (row && typeof row === "object") candidates.push(row as Record<string, unknown>);
+    }
+  }
+
+  const match = candidates.find((item) => cnpjFromRecord(item) === digits);
+  if (match) return match;
+
+  if (candidates.length > 0) {
+    console.log("[proxis-customer] Participantes recebidos sem match exato:", candidates.slice(0, 3).map((item) => ({
+      pes_id: item.pes_id ?? null,
+      pes_nome: item.pes_nome ?? null,
+      pes_fantasia: item.pes_fantasia ?? null,
+      pes_cpf_cnpj: item.pes_cpf_cnpj ?? null,
+      cpf_cnpj: item.cpf_cnpj ?? null,
+      pes_cnpj: item.pes_cnpj ?? null,
+      cnpj: item.cnpj ?? null,
+      documento: item.documento ?? null,
+    })));
+  }
+
+  return null;
 }
 
 function resolveTprId(cliente: Record<string, unknown> | null): number | null {
@@ -146,7 +177,7 @@ function positiveId(value: unknown): number | null {
 async function buscarUltimaConfiguracaoPedido(
   pesId: number,
   tprId: number | null,
-): Promise<{ oin_id: number; por_id: number | null } | null> {
+): Promise<{ fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null> {
   const result = await proxsisRequest("GET", "ObterPedidos", {
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
@@ -163,8 +194,17 @@ async function buscarUltimaConfiguracaoPedido(
   const row = matching ?? rows[0];
   if (!row || typeof row !== "object") return null;
   const order = row as Record<string, unknown>;
+  const filId = positiveId(order.fil_id);
   const oinId = positiveId(order.oin_id);
-  return oinId ? { oin_id: oinId, por_id: positiveId(order.por_id) } : null;
+  return oinId
+    ? {
+        fil_id: filId,
+        oin_id: oinId,
+        cpa_id: positiveId(order.cpa_id),
+        tti_id: positiveId(order.tti_id),
+        por_id: positiveId(order.por_id),
+      }
+    : null;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -192,27 +232,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tpr = firstRelationRow(cliente, "tabelapreco");
     const paymentCondition = firstRelationRow(cliente, "condicaopagamento");
     const paymentMethod = firstRelationRow(cliente, "formapagamento");
-    let previousOrder: { oin_id: number; por_id: number | null } | null = null;
+    let previousOrderConfig: { fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null = null;
 
     if (found) {
       try {
-        previousOrder = await buscarUltimaConfiguracaoPedido(Math.trunc(pesId), tprId);
+        previousOrderConfig = await buscarUltimaConfiguracaoPedido(Math.trunc(pesId), tprId);
       } catch (error) {
         console.warn("[proxis-customer] Falha ao consultar configuracao de pedido anterior:", error);
       }
     }
 
     const isB2bTable = tprId === 8728 || tprId === 8729;
-    const oinId = previousOrder?.oin_id ?? (isB2bTable ? 47 : null);
-    const operationSource = previousOrder ? "customer_order" : isB2bTable ? "price_table_default" : null;
+    const oinId = previousOrderConfig?.oin_id ?? (isB2bTable ? 47 : null);
+    const operationSource = previousOrderConfig ? "customer_order" : isB2bTable ? "price_table_default" : null;
+    const filId = previousOrderConfig?.fil_id ?? (found ? Number(PROXSIS_FILIAL) : null);
+    const cpaId = positiveId(paymentCondition?.cpa_id) ?? previousOrderConfig?.cpa_id;
+    const ttiId = positiveId(paymentMethod?.tti_id) ?? previousOrderConfig?.tti_id;
+    const porId = previousOrderConfig?.por_id ?? (found ? 1 : null);
 
     console.log("[proxis-customer] Resultado:", {
       found,
       pes_id: found ? Math.trunc(pesId) : null,
       tpr_id: tprId,
-      cpa_id: positiveId(paymentCondition?.cpa_id),
-      tti_id: positiveId(paymentMethod?.tti_id),
+      fil_id: filId,
+      cpa_id: cpaId,
+      tti_id: ttiId,
       oin_id: oinId,
+      por_id: porId,
     });
 
     return res.status(200).json({
@@ -220,12 +266,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pes_id: found ? Math.trunc(pesId) : null,
       tpr_id: tprId,
       tpr_description: typeof tpr?.tpr_descricao === "string" ? tpr.tpr_descricao : null,
-      cpa_id: positiveId(paymentCondition?.cpa_id),
+      fil_id: filId,
+      cpa_id: cpaId,
       cpa_description: typeof paymentCondition?.cpa_descricao === "string" ? paymentCondition.cpa_descricao : null,
-      tti_id: positiveId(paymentMethod?.tti_id),
+      tti_id: ttiId,
       tti_description: typeof paymentMethod?.tti_descricao === "string" ? paymentMethod.tti_descricao : null,
       oin_id: oinId,
-      por_id: previousOrder?.por_id ?? (found ? 1 : null),
+      por_id: porId,
       operation_source: operationSource,
       customer_name: found ? String(cliente.pes_nome ?? "") : null,
       customer_company: found ? String(cliente.pes_fantasia ?? cliente.pes_nome ?? "") : null,

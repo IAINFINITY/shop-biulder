@@ -13,8 +13,7 @@ function proxisEnvId(name: string, fallback: number): number {
 const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 48);
 const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 3);
 const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
-const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 8728);
-const PROXSIS_ORDER_TPR_ID = proxisEnvId("PROXSIS_ORDER_TPR_ID", 40);
+const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 8729);
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
@@ -217,30 +216,108 @@ async function proxsisRequest(
   return JSON.parse(text);
 }
 
-async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknown> | null> {
-  const formatted = formatCnpj(cnpj);
-  const filtro = `pes_cpf_cnpj = '${formatted}'`;
+function cnpjFromRecord(record: Record<string, unknown>): string {
+  const candidates = [
+    record.pes_cpf_cnpj,
+    record.cpf_cnpj,
+    record.pes_cnpj,
+    record.cnpj,
+    record.documento,
+  ];
 
-  const result = await proxsisRequest("GET", "ObterParticipantes", {
+  for (const value of candidates) {
+    const digits = onlyDigits(String(value ?? ""));
+    if (digits.length === 14) return digits;
+  }
+
+  return "";
+}
+
+function positiveId(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.trunc(numeric) : null;
+}
+
+function firstRelationRow(cliente: Record<string, unknown> | null, relationName: string): Record<string, unknown> | null {
+  if (!cliente) return null;
+  const rows = cliente[relationName];
+  if (!Array.isArray(rows)) return null;
+  const row = rows.find((value) => value && typeof value === "object");
+  return row ? row as Record<string, unknown> : null;
+}
+
+async function buscarUltimaConfiguracaoPedido(
+  pesId: number,
+  tprId: number | null,
+): Promise<{ fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null> {
+  const result = await proxsisRequest("GET", "ObterPedidos", {
     body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
-      "X-ProManager-Pagina-Quant": "5",
-      "X-Promanager-Busca-Filtro": filtro,
+      "X-ProManager-Pagina-Quant": "20",
+      "X-Promanager-Busca-Filtro": `pes_id_cli = ${pesId}`,
     },
   });
 
-  if (!result) return null;
+  const rows = Array.isArray(result) ? result : result ? [result as Record<string, unknown>] : [];
+  const matching = rows.find(
+    (row) => row && typeof row === "object" && positiveId((row as Record<string, unknown>).tpr_id) === tprId,
+  );
+  const row = matching ?? rows[0];
+  if (!row || typeof row !== "object") return null;
 
-  if (Array.isArray(result)) {
-    const digits = onlyDigits(cnpj);
-    const match = result.find(
-      (item: Record<string, unknown>) => onlyDigits(String(item.pes_cpf_cnpj || "")) === digits
-    );
-    return (match || result[0] || null) as Record<string, unknown> | null;
+  const order = row as Record<string, unknown>;
+  const filId = positiveId(order.fil_id);
+  const oinId = positiveId(order.oin_id);
+  return oinId
+    ? {
+        fil_id: filId,
+        oin_id: oinId,
+        cpa_id: positiveId(order.cpa_id),
+        tti_id: positiveId(order.tti_id),
+        por_id: positiveId(order.por_id),
+      }
+    : null;
+}
+
+async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknown> | null> {
+  const digits = onlyDigits(cnpj);
+  const filters = [formatCnpj(cnpj), digits].filter((value, index, list) => value && list.indexOf(value) === index);
+  const candidates: Record<string, unknown>[] = [];
+
+  for (const filterValue of filters) {
+    const result = await proxsisRequest("GET", "ObterParticipantes", {
+      body: null,
+      extraHeaders: {
+        "X-ProManager-Pagina-Inicio": "0",
+        "X-ProManager-Pagina-Quant": "10",
+        "X-Promanager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
+      },
+    });
+
+    const rows = Array.isArray(result) ? result : result ? [result as Record<string, unknown>] : [];
+    for (const row of rows) {
+      if (row && typeof row === "object") candidates.push(row as Record<string, unknown>);
+    }
   }
 
-  return result as Record<string, unknown>;
+  const match = candidates.find((item) => cnpjFromRecord(item) === digits);
+  if (match) return match;
+
+  if (candidates.length > 0) {
+    console.log("[proxis-order] Participantes recebidos sem match exato:", candidates.slice(0, 3).map((item) => ({
+      pes_id: item.pes_id ?? null,
+      pes_nome: item.pes_nome ?? null,
+      pes_fantasia: item.pes_fantasia ?? null,
+      pes_cpf_cnpj: item.pes_cpf_cnpj ?? null,
+      cpf_cnpj: item.cpf_cnpj ?? null,
+      pes_cnpj: item.pes_cnpj ?? null,
+      cnpj: item.cnpj ?? null,
+      documento: item.documento ?? null,
+    })));
+  }
+
+  return null;
 }
 
 function buildEnderecoPadrao() {
@@ -302,18 +379,24 @@ async function buscarMunIdPorIbge(ibge: string): Promise<number> {
 
 async function buildEnderecoProxis(address: CustomerAddressInput) {
   const munId = await buscarMunIdPorIbge(address.ibge);
-  return {
+  const endereco: Record<string, unknown> = {
     pen_tipo_endereco: 1,
     pen_cep: onlyDigits(address.cep),
     pen_endereco: address.street.toUpperCase(),
     pen_num_endereco: address.number || "S/N",
-    pen_complemento: address.complement || null,
     pen_bairro: address.neighborhood.toUpperCase(),
     mun_id: munId,
     est_sigla: address.state.toUpperCase(),
     pen_ie: "ISENTO",
     pen_contribuinte: 2,
   };
+
+  const complement = String(address.complement || "").trim();
+  if (complement) {
+    endereco.pen_complemento = complement;
+  }
+
+  return endereco;
 }
 
 async function salvarEnderecoCliente(
@@ -326,11 +409,6 @@ async function salvarEnderecoCliente(
   await proxsisRequest("POST", "SalvarParticipante", {
     body: {
       pes_id: pesId,
-      pes_tipo_pessoa: cliente.pes_tipo_pessoa || "J",
-      pes_nome: cliente.pes_nome,
-      pes_fantasia: cliente.pes_fantasia || cliente.pes_nome,
-      pes_cpf_cnpj: cliente.pes_cpf_cnpj,
-      pes_tipo_cliente: true,
       endereco: [endereco],
     },
     extraHeaders: {},
@@ -370,14 +448,18 @@ async function criarCliente(
   const payload = {
     pes_tipo_pessoa: "J",
     pes_nome: nome.toUpperCase(),
-    pes_fantasia: nome.toUpperCase(),
     pes_cpf_cnpj: formatCnpj(cnpj),
-    pes_tipo_cliente: true,
-    endereco: [endereco],
-    tabelapreco: [{ tpr_id: PROXSIS_TPR_ID_DEFAULT }],
   };
 
   const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload, extraHeaders: {} });
+
+  const created = result as Record<string, unknown>;
+  const createdPesId = parsePesId(created.pes_id);
+  if (createdPesId && normalized) {
+    await salvarEnderecoCliente({ pes_id: createdPesId }, endereco);
+    return { ...created, pes_id: createdPesId };
+  }
+
   return result as Record<string, unknown>;
 }
 
@@ -481,12 +563,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     pes_id: number | null;
     tpr_id: number | null;
     customer_tpr_id: number | null;
+    fil_id: number | null;
     pes_id_ven: number | null;
     oin_id: number | null;
     cpa_id: number | null;
     tti_id: number | null;
     por_id: number | null;
-    operation_source: "api_contract" | null;
+    operation_source: string | null;
   } = {
     customer_cnpj: customerCnpjDigits,
     items_attempted: body.items.length,
@@ -494,6 +577,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     pes_id: null,
     tpr_id: null,
     customer_tpr_id: null,
+    fil_id: null,
     pes_id_ven: null,
     oin_id: null,
     cpa_id: null,
@@ -572,23 +656,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       selectedTprId = customerTableIds[0] ?? PROXSIS_TPR_ID_DEFAULT;
     }
     diagnostic.customer_tpr_id = selectedTprId;
-    diagnostic.tpr_id = PROXSIS_ORDER_TPR_ID;
+    diagnostic.tpr_id = selectedTprId;
 
-const orderConfig = {
-      oin_id: PROXSIS_OIN_ID,
-      cpa_id: PROXSIS_CPA_ID,
-      tti_id: PROXSIS_TTI_ID,
-      por_id: PROXSIS_POR_ID,
+    const paymentCondition = firstRelationRow(cliente, "condicaopagamento");
+    const paymentMethod = firstRelationRow(cliente, "formapagamento");
+
+    let previousOrderConfig: { fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null = null;
+    if (pesId) {
+      try {
+        previousOrderConfig = await buscarUltimaConfiguracaoPedido(pesId, selectedTprId);
+      } catch (error) {
+        console.warn("[proxis-order] Falha ao consultar configuracao de pedido anterior:", error);
+      }
+    }
+
+    const orderConfig = {
+      fil_id: previousOrderConfig?.fil_id ?? Number(PROXSIS_FILIAL),
+      oin_id: previousOrderConfig?.oin_id ?? (selectedTprId === 8728 || selectedTprId === 8729 ? 47 : PROXSIS_OIN_ID),
+      cpa_id: positiveId(paymentCondition?.cpa_id) ?? previousOrderConfig?.cpa_id ?? PROXSIS_CPA_ID,
+      tti_id: positiveId(paymentMethod?.tti_id) ?? previousOrderConfig?.tti_id ?? PROXSIS_TTI_ID,
+      por_id: previousOrderConfig?.por_id ?? PROXSIS_POR_ID,
     };
+
     diagnostic.oin_id = orderConfig.oin_id;
     diagnostic.cpa_id = orderConfig.cpa_id;
     diagnostic.tti_id = orderConfig.tti_id;
     diagnostic.por_id = orderConfig.por_id;
-    diagnostic.operation_source = "api_contract";
+    diagnostic.fil_id = orderConfig.fil_id;
+    diagnostic.operation_source = previousOrderConfig ? "customer_order" : "b2b_default";
 
     console.log("[proxis-order] Tabela selecionada:", {
       selectedTprId,
-      orderTprId: PROXSIS_ORDER_TPR_ID,
+      orderTprId: selectedTprId,
       customerTableIds,
       pesId,
       orderConfig,
@@ -647,9 +746,9 @@ const orderConfig = {
       doc_tipo_documento: 1,
       doc_tipopgto: 2,
       doc_oper_estoque: "S",
-      fil_id: Number(PROXSIS_FILIAL),
+      fil_id: orderConfig.fil_id,
       oin_id: orderConfig.oin_id,
-      tpr_id: PROXSIS_ORDER_TPR_ID,
+      tpr_id: selectedTprId,
       cpa_id: orderConfig.cpa_id,
       tti_id: orderConfig.tti_id,
       por_id: orderConfig.por_id,
@@ -657,7 +756,7 @@ const orderConfig = {
       pes_id_ven: representativeId,
       doc_dt_emissao: docDtEmissao,
       doc_ped_web: docPedWeb,
-doc_marcador: PROXSIS_DOC_MARCADOR,
+      doc_marcador: PROXSIS_DOC_MARCADOR,
       DocumentoItens: documentoItens,
     };
 
@@ -665,8 +764,9 @@ doc_marcador: PROXSIS_DOC_MARCADOR,
       doc_ped_web: docPedWeb,
       pes_id_cli: pesId,
       pes_id_ven: pedido.pes_id_ven,
-      tpr_id: PROXSIS_ORDER_TPR_ID,
+      tpr_id: selectedTprId,
       customer_tpr_id: selectedTprId,
+      fil_id: orderConfig.fil_id,
       oin_id: orderConfig.oin_id,
       cpa_id: orderConfig.cpa_id,
       tti_id: orderConfig.tti_id,
@@ -686,10 +786,11 @@ doc_marcador: PROXSIS_DOC_MARCADOR,
       failed_products: failedProducts.length > 0 ? failedProducts : undefined,
       proxsis_response: resultado,
       debug: {
-        tpr_id: PROXSIS_ORDER_TPR_ID,
+        tpr_id: selectedTprId,
         customer_tpr_id: selectedTprId,
         customer_table_ids: customerTableIds,
         pes_id_ven: pedido.pes_id_ven,
+        fil_id: orderConfig.fil_id,
         oin_id: orderConfig.oin_id,
         cpa_id: orderConfig.cpa_id,
         tti_id: orderConfig.tti_id,

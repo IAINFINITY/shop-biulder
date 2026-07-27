@@ -689,6 +689,7 @@ export function AdminClientsSection({
                             value={String(proxisDetails?.tti_id ?? "—")}
                             hint={proxisDetails?.tti_description ?? undefined}
                           />
+                          <DetailField label="Filial" value={String(proxisDetails?.fil_id ?? "—")} />
                           <DetailField
                             label="Operação (OIN)"
                             value={String(proxisDetails?.oin_id ?? "—")}

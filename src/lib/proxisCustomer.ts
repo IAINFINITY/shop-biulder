@@ -5,6 +5,7 @@ export type ProxisCustomerLookupResult = {
   pes_id: number | null;
   tpr_id: number | null;
   tpr_description: string | null;
+  fil_id: number | null;
   cpa_id: number | null;
   cpa_description: string | null;
   tti_id: number | null;
@@ -21,6 +22,7 @@ const EMPTY_LOOKUP_RESULT: ProxisCustomerLookupResult = {
   pes_id: null,
   tpr_id: null,
   tpr_description: null,
+  fil_id: null,
   cpa_id: null,
   cpa_description: null,
   tti_id: null,
@@ -50,6 +52,7 @@ export async function lookupProxisCustomerByCnpj(cnpj: string): Promise<ProxisCu
     pes_id: typeof data.pes_id === "number" && Number.isFinite(data.pes_id) ? Math.trunc(data.pes_id) : null,
     tpr_id: typeof data.tpr_id === "number" && Number.isFinite(data.tpr_id) ? Math.trunc(data.tpr_id) : null,
     tpr_description: typeof data.tpr_description === "string" ? data.tpr_description : null,
+    fil_id: typeof data.fil_id === "number" && Number.isFinite(data.fil_id) ? Math.trunc(data.fil_id) : null,
     cpa_id: typeof data.cpa_id === "number" && Number.isFinite(data.cpa_id) ? Math.trunc(data.cpa_id) : null,
     cpa_description: typeof data.cpa_description === "string" ? data.cpa_description : null,
     tti_id: typeof data.tti_id === "number" && Number.isFinite(data.tti_id) ? Math.trunc(data.tti_id) : null,

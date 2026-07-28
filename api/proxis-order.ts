@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const PROXSIS_BASE_URL = process.env.PROXSIS_BASE_URL || "";
+const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
 const PROXSIS_FILIAL = (process.env.PROXSIS_FILIAL || "5").trim();

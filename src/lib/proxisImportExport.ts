@@ -22,8 +22,6 @@ export const PROXIS_IMPORT_DIV_VENDA = "1";
 // FOCCO usa 356 para venda à vista.
 export const PROXIS_IMPORT_COND_PAG_A_VISTA = "356";
 
-export const PROXIS_IMPORT_PORTADOR_DEFAULT = "1";
-
 export const PROXIS_IMPORT_REP_DEFAULT =
   "2871,3216,2880,7798,7057,6437,7318,2365,2370";
 
@@ -79,9 +77,9 @@ function buildLineFields(
     "",
     "",
     PROXIS_IMPORT_DIV_VENDA,
+    "",
     PROXIS_IMPORT_COND_PAG_A_VISTA,
     "",
-    PROXIS_IMPORT_PORTADOR_DEFAULT,
   ];
 }
 

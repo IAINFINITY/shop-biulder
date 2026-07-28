@@ -258,7 +258,7 @@ export default function Login() {
       toast.success("Conta criada! Confirme seu e-mail para concluir o cadastro.");
     } else {
       toast.success("Conta criada com sucesso!");
-      navigate(returnTo ?? "/conta", { replace: true, viewTransition: true });
+      navigate("/conta", { replace: true, viewTransition: true });
     }
     setSubmitting(false);
   };
@@ -424,7 +424,7 @@ export default function Login() {
                   <AuthField
                     id="signup-password"
                     label="Senha"
-                    placeholder="MÃ­nimo 8 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     value={signUpPassword}
                     onChange={setSignUpPassword}
                     type="password"

@@ -87,13 +87,24 @@ export async function deleteCustomerUser(userId: string): Promise<void> {
 
 export function addressFormToProfileColumns(address: AddressFormData) {
   return {
-    p_address_cep: address.cep,
-    p_address_street: address.street,
-    p_address_number: address.number,
-    p_address_complement: address.complement,
-    p_address_neighborhood: address.neighborhood,
-    p_address_city: address.city,
-    p_address_state: address.state,
-    p_address_ibge: address.ibge,
+    address_cep: address.cep,
+    address_street: address.street,
+    address_number: address.number,
+    address_complement: address.complement,
+    address_neighborhood: address.neighborhood,
+    address_city: address.city,
+    address_state: address.state,
+    address_ibge: address.ibge,
   };
+}
+
+export async function saveCustomerProfileAddress(userId: string, address: AddressFormData): Promise<void> {
+  const { error } = await supabase
+    .from(CUSTOMER_PROFILES_TABLE)
+    .update(addressFormToProfileColumns(address) as never)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(error.message || "Erro ao salvar endereço no perfil");
+  }
 }

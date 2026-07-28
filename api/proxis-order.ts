@@ -322,20 +322,6 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   return null;
 }
 
-function buildEnderecoPadrao() {
-  return {
-    pen_tipo_endereco: 1,
-    pen_cep: PROXSIS_DEFAULT_CEP,
-    pen_endereco: "A DEFINIR",
-    pen_num_endereco: "S/N",
-    pen_bairro: "CENTRO",
-    mun_id: PROXSIS_DEFAULT_MUN_ID,
-    est_sigla: PROXSIS_DEFAULT_EST_SIGLA,
-    pen_ie: "ISENTO",
-    pen_contribuinte: 2,
-  };
-}
-
 function normalizeAddressInput(address: CustomerAddressInput | null): CustomerAddressInput | null {
   if (!address) return null;
   const cep = onlyDigits(address.cep || "");
@@ -424,41 +410,33 @@ function clienteTemEndereco(cliente: Record<string, unknown>): boolean {
 
 async function garantirEnderecoCliente(
   cliente: Record<string, unknown>,
-  address: CustomerAddressInput | null
+  address: CustomerAddressInput
 ): Promise<void> {
   if (clienteTemEndereco(cliente)) return;
 
-  const normalized = normalizeAddressInput(address);
-  if (normalized) {
-    const endereco = await buildEnderecoProxis(normalized);
-    await salvarEnderecoCliente(cliente, endereco);
-    return;
-  }
-
-  await salvarEnderecoCliente(cliente, buildEnderecoPadrao());
+  const endereco = await buildEnderecoProxis(address);
+  await salvarEnderecoCliente(cliente, endereco);
 }
 
 async function criarCliente(
   nome: string,
   cnpj: string,
-  address: CustomerAddressInput | null
+  address: CustomerAddressInput
 ): Promise<Record<string, unknown>> {
-  const normalized = normalizeAddressInput(address);
-  const endereco = normalized
-    ? await buildEnderecoProxis(normalized)
-    : buildEnderecoPadrao();
+  const endereco = await buildEnderecoProxis(address);
 
   const payload = {
     pes_tipo_pessoa: "J",
     pes_nome: nome.toUpperCase(),
     pes_cpf_cnpj: formatCnpj(cnpj),
+    endereco: [endereco],
   };
 
   const result = await proxsisRequest("POST", "SalvarParticipante", { body: payload, extraHeaders: {} });
 
   const created = result as Record<string, unknown>;
   const createdPesId = parsePesId(created.pes_id);
-  if (createdPesId && normalized) {
+  if (createdPesId) {
     await salvarEnderecoCliente({ pes_id: createdPesId }, endereco);
     return { ...created, pes_id: createdPesId };
   }
@@ -559,6 +537,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  const normalizedAddress = normalizeAddressInput(body.address ?? null);
+  if (!normalizedAddress) {
+    return res.status(400).json({
+      error: "Endereço obrigatório para finalizar o pedido",
+      detail: "Preencha CEP, rua, número, bairro, cidade, UF e IBGE antes de enviar ao Proxsys.",
+    });
+  }
+
   const diagnostic: {
     customer_cnpj: string;
     items_attempted: number;
@@ -596,8 +582,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let pesId: number | null = null;
     let selectedTprId = PROXSIS_TPR_ID_DEFAULT;
     let customerTableIds: number[] = [];
-
-    const normalizedAddress = normalizeAddressInput(body.address ?? null);
 
     if (cliente?.pes_id) {
       const existingPesId = parsePesId(cliente.pes_id);

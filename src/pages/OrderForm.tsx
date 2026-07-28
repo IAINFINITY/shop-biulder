@@ -24,7 +24,7 @@ import { useCustomerAddresses } from "@/hooks/useCustomerAddresses";
 import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, resolveProductPrice } from "@/lib/pricing";
 import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
-import { profileAddressToForm } from "@/lib/customerProfile";
+import { profileAddressToForm, saveCustomerProfileAddress } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 import { ORDER_TEXT_LIMITS } from "@/lib/orderTextLimits";
@@ -201,8 +201,8 @@ export default function OrderForm() {
   }, [customerProfile, manualAddressEdit, savedAddresses, selectedSavedAddress, preferredSavedAddress]);
 
   const persistCheckoutAddress = useCallback(
-    async ({ notify }: { notify: boolean }) => {
-      if (!user) return { ok: false as const, saved: false as const };
+    async ({ notify, storeInAddressBook }: { notify: boolean; storeInAddressBook: boolean }) => {
+      if (!user) return { ok: true as const, saved: false as const };
 
       const addressMessage = assertAddressReady(checkoutAddress);
       if (addressMessage) {
@@ -210,39 +210,50 @@ export default function OrderForm() {
         return { ok: false as const, saved: false as const };
       }
 
-      const addressPayload: CustomerAddressFormData = {
-        ...checkoutAddress,
-        label: savedAddresses.length > 0 ? "Endereço do pedido" : "Principal",
-        is_default: savedAddresses.length === 0,
-      };
+      if (storeInAddressBook) {
+        const addressPayload: CustomerAddressFormData = {
+          ...checkoutAddress,
+          label: savedAddresses.length > 0 ? "Endereço do pedido" : "Principal",
+          is_default: savedAddresses.length === 0,
+        };
 
-      const { error, data } = await saveAddress(addressPayload);
-      if (error) {
+        const { error, data } = await saveAddress(addressPayload);
+        if (error) {
+          if (notify) {
+            console.error("Erro ao salvar endereço", error);
+            toast.error("Não foi possível salvar o endereço");
+          }
+          return { ok: false as const, saved: false as const };
+        }
+
+        if (addressPayload.is_default && data?.id) {
+          const defaultResult = await setDefaultAddress(data.id);
+          if (defaultResult.error) {
+            if (notify) {
+              console.error("Erro ao definir endereço padrão", defaultResult.error);
+              toast.error("Não foi possível definir o endereço padrão");
+            }
+            return { ok: false as const, saved: false as const };
+          }
+        }
+
+        if (data?.id) {
+          setSelectedAddressId(data.id);
+          setAddressForm(customerAddressFormFromAddress(data));
+        }
+      }
+
+      try {
+        await saveCustomerProfileAddress(user.id, checkoutAddress);
+      } catch (error) {
         if (notify) {
-          console.error("Erro ao salvar endereço", error);
-          toast.error("Não foi possível salvar o endereço");
+          console.error("Erro ao salvar endereço no perfil", error);
+          toast.error("Não foi possível salvar o endereço no perfil do cliente");
         }
         return { ok: false as const, saved: false as const };
       }
 
-      if (addressPayload.is_default && data?.id) {
-        const defaultResult = await setDefaultAddress(data.id);
-        if (defaultResult.error) {
-          if (notify) {
-            console.error("Erro ao definir endereço padrão", defaultResult.error);
-            toast.error("Não foi possível definir o endereço padrão");
-          }
-          return { ok: false as const, saved: false as const };
-        }
-      }
-
-      if (data?.id) {
-        setSelectedAddressId(data.id);
-      }
       setManualAddressEdit(false);
-      if (data) {
-        setAddressForm(customerAddressFormFromAddress(data));
-      }
 
       if (notify) {
         toast.success("Endereço salvo na sua conta.");
@@ -256,7 +267,7 @@ export default function OrderForm() {
   const handleSaveCheckoutAddress = useCallback(async () => {
     if (!user) return;
     setSavingAddress(true);
-    await persistCheckoutAddress({ notify: true });
+    await persistCheckoutAddress({ notify: true, storeInAddressBook: true });
     setSavingAddress(false);
   }, [persistCheckoutAddress, user]);
 
@@ -325,8 +336,11 @@ export default function OrderForm() {
         return;
       }
 
-      if (!checkoutAddressMatchesSavedAddress) {
-        const savedAddressResult = await persistCheckoutAddress({ notify: false });
+      if (user) {
+        const savedAddressResult = await persistCheckoutAddress({
+          notify: false,
+          storeInAddressBook: !checkoutAddressMatchesSavedAddress,
+        });
         if (!savedAddressResult.ok) {
           return;
         }

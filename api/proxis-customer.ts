@@ -127,7 +127,7 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
       extraHeaders: {
         "X-ProManager-Pagina-Inicio": "0",
         "X-ProManager-Pagina-Quant": "10",
-        "X-Promanager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
+        "X-ProManager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
       },
     });
 
@@ -184,7 +184,7 @@ async function buscarUltimaConfiguracaoPedido(
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "20",
-      "X-Promanager-Busca-Filtro": `pes_id_cli = ${pesId}`,
+      "X-ProManager-Busca-Filtro": `pes_id_cli = ${pesId}`,
     },
   });
   const rows = Array.isArray(result) ? result : [result].filter(Boolean);

@@ -257,7 +257,7 @@ async function buscarUltimaConfiguracaoPedido(
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "20",
-      "X-Promanager-Busca-Filtro": `pes_id_cli = ${pesId}`,
+      "X-ProManager-Busca-Filtro": `pes_id_cli = ${pesId}`,
     },
   });
 
@@ -293,7 +293,7 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
       extraHeaders: {
         "X-ProManager-Pagina-Inicio": "0",
         "X-ProManager-Pagina-Quant": "10",
-        "X-Promanager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
+        "X-ProManager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
       },
     });
 
@@ -369,7 +369,7 @@ async function buscarMunIdPorIbge(ibge: string): Promise<number> {
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
-      "X-Promanager-Busca-Filtro": `mun_cod_ibge = ${ibgeDigits}`,
+      "X-ProManager-Busca-Filtro": `mun_cod_ibge = ${ibgeDigits}`,
     },
   });
 
@@ -473,7 +473,7 @@ async function buscarProdutoPorNumero(numero: string): Promise<Record<string, un
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
-      "X-Promanager-Busca-Filtro": filtro,
+      "X-ProManager-Busca-Filtro": filtro,
     },
   });
 

@@ -426,6 +426,8 @@ async function garantirEnderecoCliente(
   cliente: Record<string, unknown>,
   address: CustomerAddressInput | null
 ): Promise<void> {
+  if (clienteTemEndereco(cliente)) return;
+
   const normalized = normalizeAddressInput(address);
   if (normalized) {
     const endereco = await buildEnderecoProxis(normalized);
@@ -433,7 +435,6 @@ async function garantirEnderecoCliente(
     return;
   }
 
-  if (clienteTemEndereco(cliente)) return;
   await salvarEnderecoCliente(cliente, buildEnderecoPadrao());
 }
 

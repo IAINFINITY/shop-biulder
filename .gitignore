@@ -37,5 +37,8 @@ design/
 # Supabase local temp files
 supabase/.temp/
 
+# Vercel local project metadata
+.vercel/
+
 # Workflow n8n local-only
 n8n/

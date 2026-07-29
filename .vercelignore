@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+.git
+.vercel
+.env
+.env.*
+!.env.example
+documentation/
+design/
+.od-skills/
+n8n/
+supabase/.temp/
+*.log
+CHECKLIST_AJUSTES_PROJETO.txt

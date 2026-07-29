@@ -7,7 +7,7 @@ const PROXSIS_FILIAL = (process.env.PROXSIS_FILIAL || "5").trim();
 const configuredDefaultTprId = Number(process.env.PROXSIS_TPR_ID_DEFAULT);
 const DEFAULT_PROXSIS_TPR_ID = Number.isFinite(configuredDefaultTprId) && configuredDefaultTprId > 0
   ? Math.trunc(configuredDefaultTprId)
-  : 8729;
+  : 8278;
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -244,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const isB2bTable = tprId === 8728 || tprId === 8729;
+    const isB2bTable = tprId === 8278 || tprId === 8728 || tprId === 8729;
     const oinId = previousOrderConfig?.oin_id ?? (isB2bTable ? 47 : null);
     const operationSource = previousOrderConfig ? "customer_order" : isB2bTable ? "price_table_default" : null;
     const filId = previousOrderConfig?.fil_id ?? (found ? Number(PROXSIS_FILIAL) : null);

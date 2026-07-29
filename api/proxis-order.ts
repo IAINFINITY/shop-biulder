@@ -13,7 +13,7 @@ function proxisEnvId(name: string, fallback: number): number {
 const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 48);
 const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 3);
 const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
-const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 8729);
+const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 8278);
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
@@ -130,7 +130,7 @@ async function proxsisRequest(
   endpointName: string,
   options: { body: unknown; extraHeaders: Record<string, string> }
 ): Promise<unknown> {
-  const n8nProxy = (process.env.N8N_WEBHOOK_BASE_URL || "").trim();
+  let n8nProxy = "";
 
   if (n8nProxy) {
     const proxyUrl = `${n8nProxy.replace(/\/$/, "")}/proxis-proxy`;
@@ -659,7 +659,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const orderConfig = {
       fil_id: previousOrderConfig?.fil_id ?? Number(PROXSIS_FILIAL),
-      oin_id: previousOrderConfig?.oin_id ?? (selectedTprId === 8728 || selectedTprId === 8729 ? 47 : PROXSIS_OIN_ID),
+      oin_id: previousOrderConfig?.oin_id ?? (selectedTprId === 8278 || selectedTprId === 8728 || selectedTprId === 8729 ? 47 : PROXSIS_OIN_ID),
       cpa_id: positiveId(paymentCondition?.cpa_id) ?? previousOrderConfig?.cpa_id ?? PROXSIS_CPA_ID,
       tti_id: positiveId(paymentMethod?.tti_id) ?? previousOrderConfig?.tti_id ?? PROXSIS_TTI_ID,
       por_id: previousOrderConfig?.por_id ?? PROXSIS_POR_ID,

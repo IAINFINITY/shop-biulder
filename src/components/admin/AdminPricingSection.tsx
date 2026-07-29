@@ -279,8 +279,8 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
   const bulkLabel = bulkMode === "percent" ? `${bulkValue}%` : `R$ ${bulkValue}`;
   const filterTabs: Array<{ id: PricingFilterMode; label: string; count: number }> = [
     { id: "all", label: "Todos", count: searchedProducts.length },
-    { id: "with_override", label: "Com override", count: searchedProducts.filter((p) => overrideMap.has(p.normalizedCode)).length },
-    { id: "without_override", label: "Sem override", count: searchedProducts.filter((p) => !overrideMap.has(p.normalizedCode)).length },
+    { id: "with_override", label: "Com preço personalizado", count: searchedProducts.filter((p) => overrideMap.has(p.normalizedCode)).length },
+    { id: "without_override", label: "Sem preço personalizado", count: searchedProducts.filter((p) => !overrideMap.has(p.normalizedCode)).length },
   ];
 
   return (
@@ -530,13 +530,17 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
             ))}
           </div>
 
+          <div className="rounded-[1rem] border border-dashed border-border/70 bg-background/70 px-3 py-2 text-[12px] leading-5 text-muted-foreground">
+            Produtos destacados possuem <span className="font-medium text-foreground">preço personalizado salvo</span> para o escopo atual.
+          </div>
+
           <div className="min-h-[12rem]">
           {filteredProducts.length === 0 ? (
             <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
               {priceFilter === "with_override"
-                ? "Nenhum produto com override salvo neste escopo."
+                ? "Nenhum produto com preço personalizado salvo neste escopo."
                 : priceFilter === "without_override"
-                  ? "Todos os produtos já possuem override neste escopo."
+                  ? "Todos os produtos já possuem preço personalizado neste escopo."
                   : "Nenhum produto encontrado com esse filtro."}
             </div>
           ) : (
@@ -582,7 +586,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                             </Badge>
                             {existing ? (
                               <Badge className="rounded-full border-primary/20 bg-primary/10 px-2.5 py-0.5 text-[11px] text-primary">
-                                Override salvo
+                                Preço personalizado salvo
                               </Badge>
                             ) : null}
                             <span className="text-[12px] text-muted-foreground">

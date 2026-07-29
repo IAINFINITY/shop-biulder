@@ -200,6 +200,7 @@ export async function downloadProxisImportTxt(order: OrderExportInput): Promise<
   const input: ProxisImportOrderInput = {
     proxisImportId,
     customerCnpj: order.customer_cnpj,
+    customerTprId: order.customer_tpr_id,
     createdAt: order.created_at,
     items: order.items,
     enrichmentMaps: order.enrichmentMaps,

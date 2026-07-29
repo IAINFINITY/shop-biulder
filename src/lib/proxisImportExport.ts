@@ -25,9 +25,12 @@ export const PROXIS_IMPORT_COND_PAG_A_VISTA = "356";
 export const PROXIS_IMPORT_REP_DEFAULT =
   "2871,3216,2880,7798,7057,6437,7318,2365,2370";
 
+export const PROXIS_IMPORT_TPR_DEFAULT = 8278;
+
 export type ProxisImportOrderInput = {
   proxisImportId: number;
   customerCnpj: string;
+  customerTprId: number | null;
   createdAt: string;
   items: unknown;
   enrichmentMaps?: Parameters<typeof parseOrderTableLines>[1];
@@ -63,9 +66,14 @@ export function formatProxisImportLine(fields: string[]): string {
 function buildLineFields(
   proxisImportId: number,
   cnpjDigits: string,
+  customerTprId: number | null,
   line: OrderTableLine,
   emissionDate: string,
 ): string[] {
+  const tabVenda = Number.isFinite(customerTprId ?? NaN) && Number(customerTprId) > 0
+    ? Math.trunc(Number(customerTprId))
+    : PROXIS_IMPORT_TPR_DEFAULT;
+
   return [
     String(proxisImportId),
     cnpjDigits,
@@ -77,7 +85,7 @@ function buildLineFields(
     "",
     "",
     PROXIS_IMPORT_DIV_VENDA,
-    "",
+    String(tabVenda),
     PROXIS_IMPORT_COND_PAG_A_VISTA,
     "",
   ];
@@ -124,7 +132,7 @@ export function buildProxisImportLines(
   const emissionDate = formatProxisImportDate(order.createdAt);
 
   return lines.map((line) =>
-    formatProxisImportLine(buildLineFields(order.proxisImportId, cnpjDigits, line, emissionDate)),
+    formatProxisImportLine(buildLineFields(order.proxisImportId, cnpjDigits, order.customerTprId, line, emissionDate)),
   );
 }
 

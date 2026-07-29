@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CustomerProfile } from "@/lib/customerProfile";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import { formatBRL } from "@/lib/formatMoney";
@@ -31,6 +32,7 @@ type AdminOrdersSectionProps = {
   onExportPdf: (payload: OrderExportInput) => void | Promise<void>;
   onDelete: (id: string) => void;
   onStatusChange?: (orderId: string, status: string) => void;
+  customerProfiles: CustomerProfile[];
 };
 
 function statusFilterKey(status: string) {
@@ -66,8 +68,27 @@ export function AdminOrdersSection({
   onExportPdf,
   onDelete,
   onStatusChange,
+  customerProfiles,
 }: AdminOrdersSectionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilterId>("all");
+
+  const customerTprByKey = useMemo(() => {
+    const map = new Map<string, number>();
+
+    for (const profile of customerProfiles) {
+      const tprId = Number(profile.proxis_tpr_id);
+      if (!Number.isFinite(tprId) || tprId <= 0) continue;
+
+      const normalizedTprId = Math.trunc(tprId);
+      const userKey = profile.user_id.trim();
+      const cnpjKey = String(profile.cnpj ?? "").replace(/\D/g, "");
+
+      if (userKey) map.set(userKey, normalizedTprId);
+      if (cnpjKey) map.set(cnpjKey, normalizedTprId);
+    }
+
+    return map;
+  }, [customerProfiles]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<StatusFilterId, number> = { all: filteredOrders.length, em_andamento: 0, concluido: 0, cancelado: 0 };
@@ -202,6 +223,15 @@ export function AdminOrdersSection({
               customer_company: order.customer_company,
               customer_phone: order.customer_phone,
               customer_cnpj: order.customer_cnpj,
+              customer_tpr_id: (() => {
+                const userId = typeof order.customer_user_id === "string" ? order.customer_user_id.trim() : "";
+                if (userId && customerTprByKey.has(userId)) return customerTprByKey.get(userId) ?? null;
+
+                const cnpj = typeof order.customer_cnpj === "string" ? order.customer_cnpj.replace(/\D/g, "") : "";
+                if (cnpj && customerTprByKey.has(cnpj)) return customerTprByKey.get(cnpj) ?? null;
+
+                return null;
+              })(),
               customer_observation: customerObservation || null,
               status: order.status,
               items: order.items,

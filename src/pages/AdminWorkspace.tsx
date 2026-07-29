@@ -932,6 +932,7 @@ export default function AdminWorkspace() {
           onExportPdf={exportOrderPdf}
           onDelete={deleteOrder}
           onStatusChange={updateOrderStatus}
+          customerProfiles={clientProfiles}
         />
       )}
 

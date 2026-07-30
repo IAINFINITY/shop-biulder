@@ -1,4 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import {
+  isB2bProxisTprId,
+  resolveConfiguredProxisTprId,
+  resolveCustomerProxisTpr,
+} from "../src/lib/proxisTpr";
 
 const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
@@ -13,7 +18,7 @@ function proxisEnvId(name: string, fallback: number): number {
 const PROXSIS_OIN_ID = proxisEnvId("PROXSIS_OIN_ID", 48);
 const PROXSIS_CPA_ID = proxisEnvId("PROXSIS_CPA_ID", 3);
 const PROXSIS_TTI_ID = proxisEnvId("PROXSIS_TTI_ID", 7);
-const PROXSIS_TPR_ID_DEFAULT = proxisEnvId("PROXSIS_TPR_ID_DEFAULT", 8278);
+const PROXSIS_TPR_ID_DEFAULT = resolveConfiguredProxisTprId(process.env.PROXSIS_TPR_ID_DEFAULT);
 const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
@@ -130,6 +135,8 @@ async function proxsisRequest(
   endpointName: string,
   options: { body: unknown; extraHeaders: Record<string, string> }
 ): Promise<unknown> {
+  // The proxy path is intentionally disabled while the direct Proxis route is in use.
+  // eslint-disable-next-line prefer-const
   let n8nProxy = "";
 
   if (n8nProxy) {
@@ -634,14 +641,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("[proxis-order] Garantindo endereço do cliente");
     await garantirEnderecoCliente(cliente, normalizedAddress);
 
-    const tabelas = cliente.tabelapreco as Array<{ tpr_id: number }> | undefined;
-    if (tabelas?.length && tabelas[0].tpr_id) {
-      customerTableIds = tabelas
-        .map((row) => Number(row.tpr_id))
-        .filter((value) => Number.isFinite(value) && value > 0)
-        .map((value) => Math.trunc(value));
-      selectedTprId = customerTableIds[0] ?? PROXSIS_TPR_ID_DEFAULT;
-    }
+    const resolvedCustomerTpr = resolveCustomerProxisTpr(cliente.tabelapreco);
+    customerTableIds = resolvedCustomerTpr.customerTableIds;
+    selectedTprId = customerTableIds.length > 0
+      ? resolvedCustomerTpr.tprId
+      : PROXSIS_TPR_ID_DEFAULT;
     diagnostic.customer_tpr_id = selectedTprId;
     diagnostic.tpr_id = selectedTprId;
 
@@ -659,7 +663,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const orderConfig = {
       fil_id: previousOrderConfig?.fil_id ?? Number(PROXSIS_FILIAL),
-      oin_id: previousOrderConfig?.oin_id ?? (selectedTprId === 8278 || selectedTprId === 8728 || selectedTprId === 8729 ? 47 : PROXSIS_OIN_ID),
+      oin_id: previousOrderConfig?.oin_id ?? (isB2bProxisTprId(selectedTprId) ? 47 : PROXSIS_OIN_ID),
       cpa_id: positiveId(paymentCondition?.cpa_id) ?? previousOrderConfig?.cpa_id ?? PROXSIS_CPA_ID,
       tti_id: positiveId(paymentMethod?.tti_id) ?? previousOrderConfig?.tti_id ?? PROXSIS_TTI_ID,
       por_id: previousOrderConfig?.por_id ?? PROXSIS_POR_ID,

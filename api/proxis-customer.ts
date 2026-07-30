@@ -1,13 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import {
+  isB2bProxisTprId,
+  resolveConfiguredProxisTprId,
+  resolveCustomerProxisTpr,
+} from "../src/lib/proxisTpr";
 
 const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
 const PROXSIS_PASSWORD = process.env.PROXSIS_PASSWORD || "";
 const PROXSIS_FILIAL = (process.env.PROXSIS_FILIAL || "5").trim();
-const configuredDefaultTprId = Number(process.env.PROXSIS_TPR_ID_DEFAULT);
-const DEFAULT_PROXSIS_TPR_ID = Number.isFinite(configuredDefaultTprId) && configuredDefaultTprId > 0
-  ? Math.trunc(configuredDefaultTprId)
-  : 8278;
+const DEFAULT_PROXSIS_TPR_ID = resolveConfiguredProxisTprId(process.env.PROXSIS_TPR_ID_DEFAULT);
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -158,9 +160,8 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
 
 function resolveTprId(cliente: Record<string, unknown> | null): number | null {
   if (!cliente) return null;
-  const tabelas = cliente?.tabelapreco as Array<{ tpr_id: number }> | undefined;
-  const tprId = tabelas?.[0]?.tpr_id;
-  return Number.isFinite(tprId) && Number(tprId) > 0 ? Math.trunc(Number(tprId)) : DEFAULT_PROXSIS_TPR_ID;
+  const resolved = resolveCustomerProxisTpr(cliente.tabelapreco);
+  return resolved.customerTableIds.length > 0 ? resolved.tprId : DEFAULT_PROXSIS_TPR_ID;
 }
 
 function firstRelationRow(cliente: Record<string, unknown> | null, relationName: string): Record<string, unknown> | null {
@@ -244,7 +245,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const isB2bTable = tprId === 8278 || tprId === 8728 || tprId === 8729;
+    const isB2bTable = isB2bProxisTprId(tprId);
     const oinId = previousOrderConfig?.oin_id ?? (isB2bTable ? 47 : null);
     const operationSource = previousOrderConfig ? "customer_order" : isB2bTable ? "price_table_default" : null;
     const filId = previousOrderConfig?.fil_id ?? (found ? Number(PROXSIS_FILIAL) : null);

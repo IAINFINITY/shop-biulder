@@ -19,11 +19,11 @@ describe("proxisImportExport", () => {
       "",
       "14",
       "1",
-      "8278",
+      "8728",
       "356",
       "",
     ]);
-    expect(line).toBe("7;4163851000106;5;10;;25/05/2026;25/05/2026;;14;1;8278;356;");
+    expect(line).toBe("7;4163851000106;5;10;;25/05/2026;25/05/2026;;14;1;8728;356;");
     expect(line.split(";")).toHaveLength(PROXIS_IMPORT_COLUMN_COUNT);
   });
 
@@ -43,9 +43,9 @@ describe("proxisImportExport", () => {
 
     expect(lines).toHaveLength(2);
     expect(lines[0].startsWith("7;4163851000106;5;10;")).toBe(true);
-    expect(lines[0]).toContain(";1;8278;356;");
+    expect(lines[0]).toContain(";1;8728;356;");
     expect(lines[1].startsWith("7;4163851000106;35;3;")).toBe(true);
-    expect(lines[1]).toContain(";1;8278;356;");
+    expect(lines[1]).toContain(";1;8728;356;");
   });
 
   it("monta arquivo com quebra de linha final", () => {
@@ -53,7 +53,7 @@ describe("proxisImportExport", () => {
       {
         proxisImportId: 8,
         customerCnpj: "12141138930",
-        customerTprId: 8278,
+        customerTprId: null,
         createdAt: "2026-05-25T12:00:00.000Z",
         items: [{ product_code: "12", name: "C", quantity: 2, unit_price: 0, line_total: 0 }],
       },

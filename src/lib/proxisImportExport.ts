@@ -1,4 +1,5 @@
 import { parseOrderTableLines, type OrderTableLine } from "@/lib/orders";
+import { DEFAULT_PROXSIS_TPR_ID, normalizeProxisTprId } from "@/lib/proxisTpr";
 
 export const PROXIS_IMPORT_COLUMN_COUNT = 13;
 
@@ -25,7 +26,7 @@ export const PROXIS_IMPORT_COND_PAG_A_VISTA = "356";
 export const PROXIS_IMPORT_REP_DEFAULT =
   "2871,3216,2880,7798,7057,6437,7318,2365,2370";
 
-export const PROXIS_IMPORT_TPR_DEFAULT = 8278;
+export const PROXIS_IMPORT_TPR_DEFAULT = DEFAULT_PROXSIS_TPR_ID;
 
 export type ProxisImportOrderInput = {
   proxisImportId: number;
@@ -70,9 +71,7 @@ function buildLineFields(
   line: OrderTableLine,
   emissionDate: string,
 ): string[] {
-  const tabVenda = Number.isFinite(customerTprId ?? NaN) && Number(customerTprId) > 0
-    ? Math.trunc(Number(customerTprId))
-    : PROXIS_IMPORT_TPR_DEFAULT;
+  const tabVenda = normalizeProxisTprId(customerTprId) ?? PROXIS_IMPORT_TPR_DEFAULT;
 
   return [
     String(proxisImportId),

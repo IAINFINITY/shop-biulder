@@ -3,7 +3,7 @@ import {
   isB2bProxisTprId,
   resolveConfiguredProxisTprId,
   resolveCustomerProxisTpr,
-} from "../src/lib/proxisTpr";
+} from "../src/lib/proxisTpr.js";
 
 const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";

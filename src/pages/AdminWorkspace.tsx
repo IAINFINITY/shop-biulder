@@ -748,6 +748,7 @@ export default function AdminWorkspace() {
 
   const resendProxisOrder = async (orderPayload: {
     id: string;
+    submission_key?: string | null;
     customer_name: string;
     customer_cnpj: string;
     customer_company: string;
@@ -766,7 +767,9 @@ export default function AdminWorkspace() {
       const response = await sendProxisOrder(payload);
       console.log("response", response);
       const sentCount = response.items_count ?? orderPayload.items.length;
-      if (response.failed_products && response.failed_products.length > 0) {
+      if (response.already_sent) {
+        toast.info("Este pedido já constava no Proxis. Nada foi duplicado.");
+      } else if (response.failed_products && response.failed_products.length > 0) {
         console.warn("failed_products", response.failed_products);
         toast.warning(`Pedido reenviado ao Proxis com ${response.failed_products.length} produto(s) sem correspondência.`);
       } else {
@@ -795,6 +798,9 @@ export default function AdminWorkspace() {
     } finally {
       setProxisResendingId(null);
       console.groupEnd();
+      // A rota reescreve o status de sincronia em qualquer desfecho, entao o
+      // selo do cartao e a fila de pendentes precisam recarregar dos dois lados.
+      refreshOrders();
     }
   };
 

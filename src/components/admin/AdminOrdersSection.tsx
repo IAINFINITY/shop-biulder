@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from "react";
-import { ShoppingBag } from "lucide-react";
+import { AlertTriangle, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,8 @@ import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLin
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
 import type { ProxisOrderRequest } from "@/lib/proxisOrder";
+import { needsProxisReconciliation } from "@/lib/proxisOrderStatus";
+import { cn } from "@/lib/utils";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminOrderRow } from "./adminTypes";
 
@@ -71,6 +73,14 @@ export function AdminOrdersSection({
   customerProfiles,
 }: AdminOrdersSectionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilterId>("all");
+  // Dimensao independente do status comercial: um pedido "Entregue" tambem pode
+  // nunca ter chegado ao ERP.
+  const [onlyPendingErp, setOnlyPendingErp] = useState(false);
+
+  const pendingErpCount = useMemo(
+    () => filteredOrders.filter((order) => needsProxisReconciliation(order.proxis_status)).length,
+    [filteredOrders],
+  );
 
   const customerTprByKey = useMemo(() => {
     const map = new Map<string, number>();
@@ -100,9 +110,12 @@ export function AdminOrdersSection({
   }, [filteredOrders]);
 
   const visibleOrders = useMemo(() => {
-    if (statusFilter === "all") return filteredOrders;
-    return filteredOrders.filter((order) => statusFilterKey(order.status) === statusFilter);
-  }, [filteredOrders, statusFilter]);
+    const byErp = onlyPendingErp
+      ? filteredOrders.filter((order) => needsProxisReconciliation(order.proxis_status))
+      : filteredOrders;
+    if (statusFilter === "all") return byErp;
+    return byErp.filter((order) => statusFilterKey(order.status) === statusFilter);
+  }, [filteredOrders, onlyPendingErp, statusFilter]);
 
   const summaryTotal = useMemo(() => {
     let total = 0;
@@ -141,6 +154,12 @@ export function AdminOrdersSection({
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
                 {pendingOrdersCount} em andamento
               </Badge>
+              {pendingErpCount > 0 ? (
+                <Badge className="gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-800">
+                  <AlertTriangle className="h-3 w-3" />
+                  {pendingErpCount} fora do ERP
+                </Badge>
+              ) : null}
             </div>
           }
         />
@@ -167,6 +186,23 @@ export function AdminOrdersSection({
             </Badge>
           </Button>
         ))}
+
+        <Button
+          type="button"
+          variant={onlyPendingErp ? "default" : "outline"}
+          className={cn(
+            "h-10 gap-1 rounded-full px-3 text-[13px] sm:h-9 sm:text-[12px]",
+            !onlyPendingErp && pendingErpCount > 0 && "border-amber-300 text-amber-800 hover:bg-amber-50",
+          )}
+          onClick={() => setOnlyPendingErp((value) => !value)}
+          disabled={pendingErpCount === 0 && !onlyPendingErp}
+        >
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Pendentes no ERP
+          <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[10px] leading-none">
+            {pendingErpCount}
+          </Badge>
+        </Button>
       </div>
 
       {visibleOrders.length > 0 && (
@@ -200,11 +236,13 @@ export function AdminOrdersSection({
           </div>
           <p className="mt-4 text-[15px] font-semibold text-foreground">Nenhum pedido encontrado</p>
           <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
-            {statusFilter !== "all"
-              ? "Nenhum pedido com esse status no filtro atual. Tente outro status ou ajuste a busca."
-              : orderSearch.trim()
-                ? "Nenhum pedido encontrado com esse termo. Tente outro termo de busca."
-                : "Ainda não há pedidos registrados no sistema."}
+            {onlyPendingErp
+              ? "Nenhum pedido pendente no ERP com os filtros atuais. Tudo que passou por aqui chegou ao Proxis."
+              : statusFilter !== "all"
+                ? "Nenhum pedido com esse status no filtro atual. Tente outro status ou ajuste a busca."
+                : orderSearch.trim()
+                  ? "Nenhum pedido encontrado com esse termo. Tente outro termo de busca."
+                  : "Ainda não há pedidos registrados no sistema."}
           </p>
         </div>
       ) : (
@@ -240,6 +278,9 @@ export function AdminOrdersSection({
             } as const;
             const resendPayload: ProxisResendPayload = {
               id: order.id,
+              // Reaproveitar a chave faz o reenvio reivindicar o mesmo documento
+              // no ERP, entao apertar o botao de novo nunca cria um segundo pedido.
+              submission_key: order.submission_key ?? null,
               customer_name: order.customer_name,
               customer_cnpj: order.customer_cnpj ?? "",
               customer_company: order.customer_company || order.customer_name,
@@ -268,6 +309,11 @@ export function AdminOrdersSection({
                   status: order.status,
                   total_items: order.total_items,
                   proxis_import_id: order.proxis_import_id,
+                  proxis_status: order.proxis_status,
+                  proxis_error: order.proxis_error,
+                  proxis_doc_ped_web: order.proxis_doc_ped_web,
+                  proxis_attempts: order.proxis_attempts,
+                  proxis_last_attempt_at: order.proxis_last_attempt_at,
                   items: order.items,
                 }}
                 displayOrderNumber={displayOrderNumber}

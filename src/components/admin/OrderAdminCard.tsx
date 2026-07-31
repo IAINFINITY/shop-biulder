@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { ChevronDown, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, RotateCcw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -8,6 +8,14 @@ import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderTableLine } from "@/lib/orders";
+import {
+  PROXIS_SYNC_ERROR,
+  PROXIS_SYNC_LABELS,
+  PROXIS_SYNC_LEGACY,
+  PROXIS_SYNC_PENDING,
+  PROXIS_SYNC_SENT,
+  normalizeProxisSyncStatus,
+} from "@/lib/proxisOrderStatus";
 import { cn } from "@/lib/utils";
 
 export type OrderAdminCardPayload = {
@@ -21,8 +29,20 @@ export type OrderAdminCardPayload = {
   status: string;
   total_items: number;
   proxis_import_id: number | null;
+  proxis_status?: string | null;
+  proxis_error?: string | null;
+  proxis_doc_ped_web?: string | null;
+  proxis_attempts?: number | null;
+  proxis_last_attempt_at?: string | null;
   items: unknown;
 };
+
+const PROXIS_SYNC_BADGE = {
+  [PROXIS_SYNC_SENT]: { icon: CheckCircle2, className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  [PROXIS_SYNC_PENDING]: { icon: Clock, className: "border-amber-200 bg-amber-50 text-amber-800" },
+  [PROXIS_SYNC_ERROR]: { icon: AlertTriangle, className: "border-red-200 bg-red-50 text-red-700" },
+  [PROXIS_SYNC_LEGACY]: { icon: Clock, className: "border-border/70 bg-muted/30 text-muted-foreground" },
+} as const;
 
 const ORDER_STATUSES = [
   "NOVO CARRINHO",
@@ -86,6 +106,11 @@ export function OrderAdminCard({
 }: Props) {
   const [open, setOpen] = useState(false);
   const itemLabel = lines.length === 1 ? "1 item" : `${lines.length} itens`;
+  const syncStatus = normalizeProxisSyncStatus(order.proxis_status);
+  const syncBadge = PROXIS_SYNC_BADGE[syncStatus];
+  const SyncIcon = syncBadge.icon;
+  const syncError = order.proxis_error?.trim() ?? "";
+  const syncAttempts = typeof order.proxis_attempts === "number" ? order.proxis_attempts : 0;
 
   return (
     <Collapsible
@@ -137,6 +162,20 @@ export function OrderAdminCard({
                     {formatOrderStatus(order.status)}
                   </Badge>
                 )}
+                <Badge
+                  className={cn(
+                    "gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                    syncBadge.className,
+                  )}
+                  title={
+                    syncError
+                      ? `${PROXIS_SYNC_LABELS[syncStatus]}: ${syncError}`
+                      : PROXIS_SYNC_LABELS[syncStatus]
+                  }
+                >
+                  <SyncIcon className="h-3 w-3" />
+                  {PROXIS_SYNC_LABELS[syncStatus]}
+                </Badge>
                 {order.proxis_import_id != null ? (
                   <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
                     Pedido {displayOrderNumber}
@@ -204,6 +243,45 @@ export function OrderAdminCard({
           <p className="text-[11px] text-muted-foreground">
             Telefone: <span className="text-foreground">{order.customer_phone || "—"}</span>
           </p>
+
+          {syncStatus !== PROXIS_SYNC_SENT && syncStatus !== PROXIS_SYNC_LEGACY ? (
+            <div
+              className={cn(
+                "rounded-2xl border p-3",
+                syncStatus === PROXIS_SYNC_ERROR
+                  ? "border-red-200 bg-red-50/60"
+                  : "border-amber-200 bg-amber-50/60",
+              )}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Sincronia com o Proxis
+              </p>
+              <p className="mt-1 text-[13px] leading-6 text-foreground">
+                {syncStatus === PROXIS_SYNC_ERROR
+                  ? "O ERP recusou este pedido. Corrija o motivo abaixo antes de reenviar."
+                  : "Este pedido ainda não foi confirmado no ERP. Use “Reenviar Proxis” — o reenvio não duplica."}
+              </p>
+              {syncError ? (
+                <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-background/70 p-2 font-mono text-[11px] leading-5 text-muted-foreground">
+                  {syncError}
+                </p>
+              ) : null}
+              {syncAttempts > 0 ? (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {syncAttempts} tentativa(s)
+                  {order.proxis_last_attempt_at
+                    ? ` · última em ${formatDate(order.proxis_last_attempt_at)}`
+                    : ""}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {order.proxis_doc_ped_web ? (
+            <p className="text-[11px] text-muted-foreground">
+              Documento no ERP: <span className="font-mono text-foreground">{order.proxis_doc_ped_web}</span>
+            </p>
+          ) : null}
           {order.customer_observation?.trim() ? (
             <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

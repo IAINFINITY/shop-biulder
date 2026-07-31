@@ -37,6 +37,13 @@ export type AdminDashboardOrder = {
 export type AdminOrderRow = {
   id: string;
   created_at: string;
+  submission_key?: string | null;
+  proxis_status?: string | null;
+  proxis_error?: string | null;
+  proxis_doc_ped_web?: string | null;
+  proxis_attempts?: number | null;
+  proxis_last_attempt_at?: string | null;
+  proxis_synced_at?: string | null;
   customer_user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;

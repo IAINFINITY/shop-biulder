@@ -27,6 +27,7 @@ import { formatCep } from "@/lib/address";
 import { profileAddressToForm, saveCustomerProfileAddress } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
+import { newSubmissionKey } from "@/lib/proxisOrderStatus";
 import { ORDER_TEXT_LIMITS } from "@/lib/orderTextLimits";
 import { CheckoutProgress } from "@/components/pedido/CheckoutProgress";
 import { CatalogOrderNotice } from "@/components/catalogo/CatalogOrderNotice";
@@ -350,7 +351,14 @@ export default function OrderForm() {
       const orderItems = toOrderItems(cart, priceResolver);
       const orderSubtotal = calculateCartSubtotal(cart, customerPriceMap);
 
+      // Gerada aqui, e nao no banco, porque o RLS de orders nao deixa o cliente
+      // ler a linha de volta apos o insert (funcionario compra com o CNPJ da
+      // empresa vinculada, que nao bate com o do proprio perfil). Com a chave em
+      // maos, a rota do Proxis localiza o pedido para registrar o desfecho.
+      const submissionKey = newSubmissionKey();
+
       const payload = {
+        submission_key: submissionKey,
         customer_name: form.name.trim(),
         customer_phone: form.phone.trim(),
         customer_company: form.company.trim(),
@@ -376,13 +384,17 @@ export default function OrderForm() {
         unit_price: row.unit_price,
         name: row.name,
       }));
-      let proxisWarning: string | null = null;
 
+      // O envio ao ERP nao decide o desfecho do checkout: o pedido ja esta
+      // gravado e valido. Se falhar, a propria rota marca o pedido como pendente
+      // e ele aparece na fila de reconciliacao do painel. Por isso a falha e
+      // apenas registrada no console, sem alarmar quem esta comprando.
       try {
         const proxisRes = await fetch("/api/proxis-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            submission_key: submissionKey,
             customer_name: form.name.trim(),
             customer_cnpj: effectiveCnpj,
             customer_company: form.company.trim(),
@@ -395,13 +407,14 @@ export default function OrderForm() {
 
         if (!proxisRes.ok) {
           const errBody = await proxisRes.json().catch(() => ({}));
-          proxisWarning =
-            typeof errBody.error === "string" && errBody.error.trim()
-              ? errBody.error
-              : `status ${proxisRes.status}`;
+          console.error("[OrderForm] Pedido pendente de envio ao Proxis", {
+            submissionKey,
+            status: proxisRes.status,
+            body: errBody,
+          });
         }
       } catch (err) {
-        proxisWarning = err instanceof Error ? err.message : "erro desconhecido";
+        console.error("[OrderForm] Falha de rede ao enviar pedido ao Proxis", { submissionKey, err });
       }
 
       try {
@@ -473,10 +486,6 @@ export default function OrderForm() {
         });
       } catch (err) {
         console.warn("Falha ao enviar webhook do pedido", err);
-      }
-
-      if (proxisWarning) {
-        toast.warning(`O pedido foi salvo, mas o Proxsys não recebeu o envio. Motivo: ${proxisWarning}`);
       }
 
       const submittedCart: SubmittedCartLine[] = cart.map((item) => {

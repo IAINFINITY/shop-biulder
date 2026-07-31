@@ -17,6 +17,12 @@ export type ProxisOrderItem = {
 };
 
 export type ProxisOrderRequest = {
+  /**
+   * Chave de idempotencia do pedido (orders.submission_key). Sem ela o envio
+   * ainda funciona, mas perde a protecao contra duplicar o pedido no ERP e o
+   * registro do desfecho no banco.
+   */
+  submission_key?: string | null;
   customer_name: string;
   customer_cnpj: string;
   customer_company: string;
@@ -31,6 +37,8 @@ export type ProxisOrderRequest = {
 export type ProxisOrderResponse = {
   success?: boolean;
   doc_ped_web?: string;
+  /** O pedido ja constava no ERP com este doc_ped_web; nada foi criado de novo. */
+  already_sent?: boolean;
   pes_id?: number;
   items_count?: number;
   failed_products?: string[];

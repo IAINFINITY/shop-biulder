@@ -4,6 +4,16 @@ import {
   resolveConfiguredProxisTprId,
   resolveCustomerProxisTpr,
 } from "../src/lib/proxisTpr.js";
+import {
+  PROXIS_SYNC_ERROR,
+  PROXIS_SYNC_PENDING,
+  PROXIS_SYNC_SENT,
+  buildProxisDocPedWeb,
+} from "../src/lib/proxisOrderStatus.js";
+import {
+  recordProxisOrderSync,
+  resolveProxisSyncCredentials,
+} from "../src/lib/proxisOrderStatusStore.js";
 
 const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
@@ -24,6 +34,28 @@ const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
 const PROXSIS_DEFAULT_EST_SIGLA = (process.env.PROXSIS_DEFAULT_EST_SIGLA ?? "").trim() || "SC";
 const PROXSIS_DOC_MARCADOR = (process.env.PROXSIS_DOC_MARCADOR ?? "").trim() || "PEDIDO B2B";
+
+const SYNC_CREDENTIALS = resolveProxisSyncCredentials(process.env);
+
+// Falhas de rede e 5xx do ProManager sao quase sempre passageiras; uma segunda
+// tentativa poucos segundos depois resolve a maioria delas sem que o cliente
+// perceba. Os limites sao baixos de proposito: o checkout esta esperando esta
+// resposta, e o que nao resolver aqui cai na fila de pendentes do painel.
+const TRANSIENT_RETRY_DELAYS_MS = [400, 1200];
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientHttpStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function isTransientFailure(error: unknown): boolean {
+  if (error instanceof ProxisRequestError) return isTransientHttpStatus(error.status);
+  // Sem status HTTP a falha foi de conexao (DNS, recusa, timeout): vale repetir.
+  return error instanceof Error;
+}
 
 class ProxisRequestError extends Error {
   status: number;
@@ -73,6 +105,12 @@ interface OrderRequestBody {
   customer_cnpj: string;
   customer_company: string;
   address: CustomerAddressInput;
+  /**
+   * Chave de idempotencia do pedido (coluna orders.submission_key). Define o
+   * doc_ped_web e identifica a linha onde o desfecho do envio e registrado.
+   * Ausente em clientes antigos em cache: o envio segue sem essas garantias.
+   */
+  submission_key?: string | null;
   pes_id_ven: number | string | null;
   representative_id: number | string | null;
   items: Array<{
@@ -217,12 +255,57 @@ async function proxsisRequest(
   } catch {
     // Keep the raw response text when Proxis does not return JSON.
   }
-    throw new Error(`Proxsis API error (${res.status}): ${detail}`);
+    throw new ProxisRequestError(
+      res.status,
+      {
+        endpoint: endpointName,
+        method,
+        proxy_http_status: res.status,
+        status: res.status,
+        body: text || null,
+        error: null,
+        debug: null,
+      },
+      `Proxsis API error (${res.status}): ${detail}`,
+    );
   }
 
   const text = await res.text();
   if (!text.trim()) return null;
   return JSON.parse(text);
+}
+
+/**
+ * Repete leituras que falharam por motivo passageiro.
+ *
+ * Restrito a GET de proposito: sao as unicas chamadas seguras de repetir as
+ * cegas. Escritas como SalvarParticipante e SalvarPedidoVenda podem ter sido
+ * aplicadas mesmo quando a resposta se perde, entao a repeticao delas passa pela
+ * verificacao de existencia em criarPedidoIdempotente.
+ */
+async function proxsisGetComRetry(
+  endpointName: string,
+  options: { body: unknown; extraHeaders: Record<string, string> },
+): Promise<unknown> {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= TRANSIENT_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) {
+      console.warn(
+        `[proxis-order] Repetindo ${endpointName} (tentativa ${attempt + 1}) apos falha passageira.`,
+      );
+      await delay(TRANSIENT_RETRY_DELAYS_MS[attempt - 1]);
+    }
+
+    try {
+      return await proxsisRequest("GET", endpointName, options);
+    } catch (error) {
+      lastError = error;
+      if (!isTransientFailure(error)) throw error;
+    }
+  }
+
+  throw lastError;
 }
 
 function cnpjFromRecord(record: Record<string, unknown>): string {
@@ -259,6 +342,8 @@ async function buscarUltimaConfiguracaoPedido(
   pesId: number,
   tprId: number | null,
 ): Promise<{ fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null> {
+  // Sem retry de proposito: a configuracao anterior e opcional (o chamador
+  // trata a falha) e nao vale gastar o orcamento de tempo do checkout com ela.
   const result = await proxsisRequest("GET", "ObterPedidos", {
     body: null,
     extraHeaders: {
@@ -295,7 +380,7 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   const candidates: Record<string, unknown>[] = [];
 
   for (const filterValue of filters) {
-    const result = await proxsisRequest("GET", "ObterParticipantes", {
+    const result = await proxsisGetComRetry("ObterParticipantes", {
       body: null,
       extraHeaders: {
         "X-ProManager-Pagina-Inicio": "0",
@@ -357,7 +442,7 @@ async function buscarMunIdPorIbge(ibge: string): Promise<number> {
   const ibgeDigits = onlyDigits(ibge);
   if (ibgeDigits.length < 7) return PROXSIS_DEFAULT_MUN_ID;
 
-  const result = await proxsisRequest("GET", "ObterMunicipios", {
+  const result = await proxsisGetComRetry("ObterMunicipios", {
     body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
@@ -454,7 +539,7 @@ async function criarCliente(
 async function buscarProdutoPorNumero(numero: string): Promise<Record<string, unknown> | null> {
   const filtro = `item.ite_numero = '${numero}'`;
 
-  const result = await proxsisRequest("GET", "ObterItens", {
+  const result = await proxsisGetComRetry("ObterItens", {
     body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
@@ -489,6 +574,97 @@ async function criarPedido(pedido: Record<string, unknown>): Promise<unknown> {
   return proxsisRequest("POST", "SalvarPedidoVenda", { body: pedido, extraHeaders: {} });
 }
 
+/**
+ * Procura no ERP um pedido ja gravado com este doc_ped_web.
+ *
+ * Best effort: se a consulta falhar devolve null, e o fluxo segue como se o
+ * pedido nao existisse. O filtro do ProManager nem sempre e exato (o mesmo vale
+ * para a busca de participantes), entao o valor e conferido na resposta.
+ */
+async function buscarPedidoPorDocPedWeb(docPedWeb: string): Promise<Record<string, unknown> | null> {
+  try {
+    const result = await proxsisGetComRetry("ObterPedidos", {
+      body: null,
+      extraHeaders: {
+        "X-ProManager-Pagina-Inicio": "0",
+        "X-ProManager-Pagina-Quant": "5",
+        "X-ProManager-Busca-Filtro": `doc_ped_web = '${docPedWeb}'`,
+      },
+    });
+
+    const rows = Array.isArray(result) ? result : result ? [result as Record<string, unknown>] : [];
+    const alvo = docPedWeb.trim().toUpperCase();
+    const match = rows.find((row) => {
+      if (!row || typeof row !== "object") return false;
+      const value = String((row as Record<string, unknown>).doc_ped_web ?? "").trim().toUpperCase();
+      return value === alvo;
+    });
+
+    return (match as Record<string, unknown>) ?? null;
+  } catch (error) {
+    console.warn("[proxis-order] Nao foi possivel consultar pedido por doc_ped_web:", error);
+    return null;
+  }
+}
+
+/**
+ * Grava o pedido no ERP sem risco de duplicar.
+ *
+ * O `doc_ped_web` e derivado do submission_key do pedido, entao e o mesmo em
+ * toda tentativa. Isso permite tres protecoes:
+ *  1. antes de gravar, verifica se o documento ja existe (caso do reenvio pelo
+ *     painel de um pedido que na verdade tinha chegado);
+ *  2. se a gravacao falhar, verifica de novo — um POST pode ter sido aplicado
+ *     mesmo quando a resposta se perde no caminho;
+ *  3. so entao repete, e apenas para falhas passageiras.
+ */
+async function criarPedidoIdempotente(
+  pedido: Record<string, unknown>,
+  docPedWeb: string,
+  podeVerificarDuplicidade: boolean,
+): Promise<{ resultado: unknown; jaExistia: boolean }> {
+  if (podeVerificarDuplicidade) {
+    const existente = await buscarPedidoPorDocPedWeb(docPedWeb);
+    if (existente) {
+      console.log("[proxis-order] Pedido ja existe no ERP, envio ignorado:", docPedWeb);
+      return { resultado: existente, jaExistia: true };
+    }
+  }
+
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= TRANSIENT_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) await delay(TRANSIENT_RETRY_DELAYS_MS[attempt - 1]);
+
+    try {
+      return { resultado: await criarPedido(pedido), jaExistia: false };
+    } catch (error) {
+      lastError = error;
+
+      if (podeVerificarDuplicidade) {
+        const aposFalha = await buscarPedidoPorDocPedWeb(docPedWeb);
+        if (aposFalha) {
+          console.warn(
+            "[proxis-order] SalvarPedidoVenda falhou, mas o pedido consta no ERP:",
+            docPedWeb,
+          );
+          return { resultado: aposFalha, jaExistia: true };
+        }
+      }
+
+      // Sem confirmacao de que chegou, repetir so e seguro quando o documento
+      // pode ser verificado; caso contrario a repeticao poderia duplicar.
+      if (!podeVerificarDuplicidade || !isTransientFailure(error)) throw error;
+
+      console.warn(
+        `[proxis-order] Repetindo SalvarPedidoVenda (tentativa ${attempt + 2}) apos falha passageira.`,
+      );
+    }
+  }
+
+  throw lastError;
+}
+
 function parseRepresentativeId(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   const numeric = Number(value);
@@ -520,24 +696,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
-    return res.status(500).json({ error: "Proxsis API not configured on server" });
+  const body = (req.body ?? {}) as OrderRequestBody;
+
+  // O doc_ped_web sai do submission_key do pedido, entao e identico em toda
+  // tentativa e permite reconhecer um envio que ja chegou ao ERP. Sem a chave
+  // (cliente antigo em cache) volta o formato por timestamp: funciona, mas sem
+  // protecao contra duplicidade e sem registro de status.
+  const submissionKey = typeof body.submission_key === "string" ? body.submission_key.trim() : null;
+  const docPedWebIdempotente = buildProxisDocPedWeb(submissionKey);
+  const podeVerificarDuplicidade = docPedWebIdempotente !== null;
+  const docPedWeb = docPedWebIdempotente ?? `INFINITY-${Date.now().toString(36).toUpperCase()}`;
+
+  if (!podeVerificarDuplicidade) {
+    console.warn("[proxis-order] Envio sem submission_key: sem protecao contra duplicidade no ERP.");
   }
 
-  const body = req.body as OrderRequestBody;
+  const registrarDesfecho = (status: typeof PROXIS_SYNC_SENT | typeof PROXIS_SYNC_PENDING | typeof PROXIS_SYNC_ERROR, error?: string | null) =>
+    recordProxisOrderSync(SYNC_CREDENTIALS, {
+      submissionKey,
+      status,
+      error: error ?? null,
+      docPedWeb: podeVerificarDuplicidade ? docPedWeb : null,
+    });
+
+  if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
+    await registrarDesfecho(PROXIS_SYNC_PENDING, "Proxsis API not configured on server");
+    return res.status(500).json({ error: "Proxsis API not configured on server" });
+  }
 
   console.log("[proxis-order] POST recebido", {
     customer_cnpj: body.customer_cnpj,
     customer_name: body.customer_name,
     items_count: body.items?.length,
+    doc_ped_web: docPedWeb,
   });
 
-  if (!body.customer_cnpj || !body.customer_name || !body.items.length) {
-    return res.status(400).json({ error: "Missing required fields: customer_cnpj, customer_name, items" });
+  if (!body.customer_cnpj || !body.customer_name || !body.items?.length) {
+    const detail = "Missing required fields: customer_cnpj, customer_name, items";
+    await registrarDesfecho(PROXIS_SYNC_ERROR, detail);
+    return res.status(400).json({ error: detail });
   }
 
   const customerCnpjDigits = onlyDigits(body.customer_cnpj);
   if (customerCnpjDigits.length !== 14) {
+    await registrarDesfecho(PROXIS_SYNC_ERROR, "CNPJ inválido: o fluxo B2B só aceita compras com CNPJ cadastrado.");
     return res.status(400).json({
       error: "CNPJ obrigatório para finalizar o pedido",
       detail: "O fluxo B2B só aceita compras com CNPJ cadastrado.",
@@ -546,6 +748,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const normalizedAddress = normalizeAddressInput(body.address ?? null);
   if (!normalizedAddress) {
+    const detail = "Endereço incompleto: preencha CEP, rua, número, bairro, cidade, UF e IBGE.";
+    await registrarDesfecho(PROXIS_SYNC_ERROR, detail);
     return res.status(400).json({
       error: "Endereço obrigatório para finalizar o pedido",
       detail: "Preencha CEP, rua, número, bairro, cidade, UF e IBGE antes de enviar ao Proxsys.",
@@ -613,9 +817,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         cliente = await buscarClientePorCnpj(body.customer_cnpj);
         const clientePesId = parsePesId(cliente?.pes_id);
         if (!clientePesId) {
+          const detail = "Proxsis returned a create response without pes_id and the follow-up lookup also failed.";
+          await registrarDesfecho(PROXIS_SYNC_PENDING, `Falha ao criar cliente no Proxis: ${detail}`);
           return res.status(500).json({
             error: "Failed to create customer in Proxsis",
-            detail: "Proxsis returned a create response without pes_id and the follow-up lookup also failed.",
+            detail,
           });
         }
         pesId = clientePesId;
@@ -623,16 +829,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!pesId) {
+      const detail = "Proxsis customer lookup did not return a valid pes_id.";
+      await registrarDesfecho(PROXIS_SYNC_PENDING, `Falha ao identificar cliente no Proxis: ${detail}`);
       return res.status(500).json({
         error: "Failed to resolve customer in Proxsis",
-        detail: "Proxsis customer lookup did not return a valid pes_id.",
+        detail,
       });
     }
 
     if (!cliente) {
+      const detail = "Proxsis customer lookup did not return customer data.";
+      await registrarDesfecho(PROXIS_SYNC_PENDING, `Falha ao identificar cliente no Proxis: ${detail}`);
       return res.status(500).json({
         error: "Failed to resolve customer in Proxsis",
-        detail: "Proxsis customer lookup did not return customer data.",
+        detail,
       });
     }
 
@@ -720,6 +930,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("[proxis-order] Produtos resolvidos:", documentoItens.length, "falhas:", failedProducts.length);
     diagnostic.items_resolved = documentoItens.length;
     if (documentoItens.length === 0) {
+      // Produto sem cadastro no ERP nao se resolve com nova tentativa: e dado
+      // a corrigir no catalogo, entao o pedido fica marcado como recusado.
+      await registrarDesfecho(
+        PROXIS_SYNC_ERROR,
+        `Nenhum produto do pedido existe no Proxis: ${failedProducts.join(", ")}`,
+      );
       return res.status(400).json({
         error: "No valid products found in Proxsis",
         failed_products: failedProducts,
@@ -728,7 +944,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const now = new Date();
     const docDtEmissao = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
-    const docPedWeb = `INFINITY-${Date.now().toString(36).toUpperCase()}`;
     const representativeId = resolveRepresentativeId(body);
     diagnostic.pes_id_ven = representativeId;
 
@@ -765,13 +980,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       total_itens: documentoItens.length,
     });
 
-    const resultado = await criarPedido(pedido);
+    const { resultado, jaExistia } = await criarPedidoIdempotente(
+      pedido,
+      docPedWeb,
+      podeVerificarDuplicidade,
+    );
 
     console.log("[proxis-order] Resposta do SalvarPedidoVenda:", JSON.stringify(resultado));
+
+    await registrarDesfecho(PROXIS_SYNC_SENT);
 
     return res.status(200).json({
       success: true,
       doc_ped_web: docPedWeb,
+      already_sent: jaExistia,
       pes_id: pesId,
       items_count: documentoItens.length,
       failed_products: failedProducts.length > 0 ? failedProducts : undefined,
@@ -792,9 +1014,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error("[proxis-order] Proxsis integration error:", error);
     const upstream = error instanceof ProxisRequestError ? error.upstream : null;
+    const detail = error instanceof Error ? error.message : String(error);
+    // Falha de integracao fica pendente, nao recusada: o pedido continua valido
+    // e o reenvio pelo painel tende a resolver assim que o ERP normalizar.
+    await registrarDesfecho(PROXIS_SYNC_PENDING, detail);
     return res.status(500).json({
       error: "Proxsis integration failed",
-      detail: error instanceof Error ? error.message : String(error),
+      detail,
       upstream: upstream ?? undefined,
       debug: diagnostic,
     });

@@ -45,6 +45,13 @@ export interface Order {
   status: string;
   created_at: string;
   proxis_import_id?: number | null;
+  /** Desfecho da sincronia com o ERP; ver @/lib/proxisOrderStatus. */
+  proxis_status?: string | null;
+  proxis_error?: string | null;
+  proxis_doc_ped_web?: string | null;
+  proxis_attempts?: number | null;
+  proxis_last_attempt_at?: string | null;
+  proxis_synced_at?: string | null;
 }
 
 export type OrderTableLine = {

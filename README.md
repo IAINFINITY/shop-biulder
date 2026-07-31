@@ -12,6 +12,31 @@ Projeto de catalogo, carrinho e pedido para a Clinic+, construido com Vite, Reac
 - Exportacao FOCCO em TXT com TPR do cliente em `tabVenda` e condicao de pagamento a vista (`356`)
 - Resend Proxis validado para a filial `5`
 
+## Sincronia do pedido com o Proxis
+O pedido e gravado no Supabase antes de ir ao ERP, entao o site e a fonte de
+verdade e nenhuma venda se perde quando o Proxis esta instavel. O desfecho do
+envio fica registrado no proprio pedido (`proxis_status`), e nao so num aviso de
+tela:
+
+- `pendente` — ainda nao confirmado no ERP; aparece no filtro **Pendentes no ERP**
+- `enviado` — confirmado pelo `SalvarPedidoVenda`
+- `erro` — o ERP recusou; o motivo fica em `proxis_error`
+- `legado` — pedidos anteriores a essa mudanca, sem registro de desfecho
+
+Quem grava esse status e a propria rota serverless, usando `SUPABASE_SERVICE_ROLE_KEY`
+(o RLS de `orders` so permite UPDATE para admin, e o cliente pode fechar a aba no
+meio do envio).
+
+O `doc_ped_web` e derivado do `submission_key` do pedido, entao toda tentativa
+reivindica o mesmo documento. Antes de gravar, a rota consulta o `ObterPedidos`
+por esse documento: reenviar pelo painel nunca duplica o pedido no ERP. Falhas
+passageiras (rede, 5xx) sao repetidas automaticamente; o que sobrar cai na fila
+de pendentes.
+
+Aplique `supabase/APLICAR_NO_SUPABASE_orders_proxis_sync.sql` antes de subir esta
+versao — sem a funcao `record_proxis_order_sync` o envio continua funcionando,
+mas sem registro de status.
+
 ## Estrutura principal
 - `src/pages/` para rotas e orquestracao
 - `src/components/catalogo/` para a experiencia do catalogo

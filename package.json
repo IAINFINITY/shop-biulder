@@ -13,7 +13,9 @@
     "preview": "vite preview --config vite.config.js",
     "pricing:seed-joao": "node scripts/import-joao-price-tables.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc -b --noEmit",
+    "gen:types": "npx supabase gen types typescript --project-id jpkdgpkkyhibihawkhjw > src/integrations/supabase/types.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

@@ -1,7 +1,13 @@
 import http from "node:http";
 import path from "node:path";
+import { register } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { config as loadDotenv } from "dotenv";
+
+// As rotas em `api/` importam `src/lib` com extensao `.js`, que e o que a Vercel
+// exige. Localmente so existe o `.ts`, entao sem este gancho o carregamento
+// falha e nenhuma rota sobe. Precisa vir antes de qualquer `import()` de rota.
+register("./tsResolveHook.mjs", import.meta.url);
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -20,6 +26,8 @@ const handlers = new Map(
       ["/api/proxis-health", "api/proxis-health.ts"],
       ["/api/proxis-customer", "api/proxis-customer.ts"],
       ["/api/bitrix-deal", "api/bitrix-deal.ts"],
+      ["/api/proxis-price-tables", "api/proxis-price-tables.ts"],
+      ["/api/proxis-item-check", "api/proxis-item-check.ts"],
     ].map(async ([route, file]) => [route, (await import(pathToFileURL(path.join(rootDir, file)).href)).default]),
   ),
 );

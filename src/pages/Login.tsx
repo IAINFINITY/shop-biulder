@@ -63,7 +63,7 @@ function AuthField({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+      <Label htmlFor={id} className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </Label>
       <div className="relative">
@@ -286,8 +286,8 @@ export default function Login() {
           </div>
 
           <div className="mt-5 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-primary">Acesso cliente</p>
-            <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-black leading-[1] tracking-[-0.05em] text-foreground">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Acesso cliente</p>
+            <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-semibold leading-[1] tracking-tight text-foreground">
               {authTab === "entrar" ? "Entrar na conta" : "Criar conta corporativa"}
             </h2>
             <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-muted-foreground">
@@ -306,13 +306,13 @@ export default function Login() {
             <TabsList className="grid h-12 w-full grid-cols-2 items-stretch rounded-full border border-border/70 bg-muted/60 p-1">
               <TabsTrigger
                 value="entrar"
-                className="flex h-10 w-full items-center justify-center rounded-full px-5 text-[13px] font-medium leading-none text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="flex h-10 w-full items-center justify-center rounded-full px-5 text-[0.8125rem] font-medium leading-none text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 Entrar
               </TabsTrigger>
               <TabsTrigger
                 value="cadastro"
-                className="flex h-10 w-full items-center justify-center rounded-full px-5 text-[13px] font-medium leading-none text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
+                className="flex h-10 w-full items-center justify-center rounded-full px-5 text-[0.8125rem] font-medium leading-none text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground"
               >
                 Criar conta
               </TabsTrigger>
@@ -351,8 +351,8 @@ export default function Login() {
                   icon={LockKeyhole}
                 />
 
-                <div className="flex items-center justify-between gap-4 text-[12.5px]">
-                  <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
+                <div className="flex items-center justify-between gap-4 text-xs">
+                  <label className="flex cursor-pointer items-center gap-2 text-[0.8125rem] text-muted-foreground">
                     <Checkbox className="h-4 w-4 border-primary data-[state=checked]:bg-primary" />
                     Lembrar acesso
                   </label>
@@ -361,11 +361,11 @@ export default function Login() {
                   </a>
                 </div>
 
-                <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={submitting}>
+                <Button type="submit" className="h-12 w-full rounded-2xl text-sm font-semibold" disabled={submitting}>
                   {submitting ? "Autenticando..." : "Entrar"}
                 </Button>
 
-                <div className="flex items-center justify-center gap-2 pt-1 text-[12px] text-muted-foreground">
+                <div className="flex items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Ambiente seguro - seus dados estÃ£o protegidos
                 </div>
@@ -449,7 +449,7 @@ export default function Login() {
                 </div>
 
                 <div className="pt-1">
-                  <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-semibold" disabled={submitting}>
+                  <Button type="submit" className="h-12 w-full rounded-2xl text-sm font-semibold" disabled={submitting}>
                     {submitting ? "Criando conta..." : "Criar conta"}
                   </Button>
                 </div>

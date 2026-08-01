@@ -1,6 +1,5 @@
 import { createContext, createElement, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import { useLocation } from "react-router-dom";
 import {
   CUSTOMER_PROFILES_TABLE,
   type CustomerProfile,
@@ -143,7 +142,6 @@ function translateAuthErrorMessage(message: string): string {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const location = useLocation();
   const bootstrapSnapshot = readAuthBootstrap();
   const [user, setUser] = useState<User | null>(bootstrapSnapshot?.user ?? null);
   const [isAdmin, setIsAdmin] = useState(bootstrapSnapshot?.isAdmin ?? false);
@@ -290,15 +288,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    const isPublicHome = location.pathname === "/";
 
-    if (isPublicHome) {
-      setLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
-
+    // O catalogo tambem inicializa a sessao.
+    //
+    // Antes a home era pulada para ganhar carregamento, e o estado vinha apenas
+    // do snapshot em sessionStorage. Como sessionStorage e por aba, um cliente
+    // logado que abrisse o catalogo numa aba nova era tratado como visitante:
+    // via o preco de tabela base em vez do preco negociado dele, e os produtos
+    // restritos ao seu tipo de cliente sumiam da listagem. Num catalogo B2B em
+    // que o preco por cliente e o ponto central, o custo disso e maior que o da
+    // consulta de sessao — que nem bloqueia a renderizacao, ja que o catalogo
+    // pinta a partir do cache e o cliente Supabase ja e carregado aqui para
+    // buscar os produtos.
     if (authInitializedRef.current) {
       setLoading(false);
       return () => {
@@ -339,7 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [location.pathname, resolveAuthState]);
+  }, [resolveAuthState]);
 
   useEffect(() => {
     return () => {

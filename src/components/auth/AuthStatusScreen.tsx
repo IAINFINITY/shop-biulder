@@ -16,8 +16,8 @@ export function AuthStatusScreen({ eyebrow, title, description, actions }: AuthS
             <span className="h-6 w-6 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{eyebrow}</p>
-            <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] text-foreground">{title}</h1>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
           </div>
         </div>
 

@@ -52,15 +52,15 @@ export function AdminAuthStage({ children, className }: AdminAuthStageProps) {
         <aside className="relative hidden overflow-y-auto bg-background lg:flex">
           <div className="relative z-10 flex h-full w-full flex-col justify-center px-12 py-10 xl:px-[72px] xl:py-12">
             <div className="w-full max-w-[900px]">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-primary">
+              <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
                 Área administrativa
               </p>
-              <h1 className="max-w-[14ch] text-[clamp(2.4rem,4vw,3.8rem)] font-bold leading-[1.04] tracking-[-0.04em] text-foreground">
+              <h1 className="max-w-[14ch] text-[clamp(2.4rem,4vw,3.8rem)] font-semibold leading-[1.04] tracking-tight text-foreground">
                 Acesse o painel
                 <br />
                 Clinic+
               </h1>
-              <p className="mt-3 max-w-[66ch] text-[15px] leading-6 text-muted-foreground">
+              <p className="mt-3 max-w-[66ch] text-sm leading-6 text-muted-foreground">
                 Entre para gerenciar produtos, pedidos e operações internas do Clinic+ com segurança e agilidade.
               </p>
             </div>
@@ -77,8 +77,8 @@ export function AdminAuthStage({ children, className }: AdminAuthStageProps) {
                     <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition-all duration-300 motion-safe:group-hover:scale-110 motion-safe:group-hover:animate-pulse">
                       <Icon className="h-4 w-4" />
                     </div>
-                    <p className="text-[15px] font-medium leading-5 text-foreground">{item.title}</p>
-                    <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{item.text}</p>
+                    <p className="text-sm font-medium leading-5 text-foreground">{item.title}</p>
+                    <p className="mt-2 text-[0.8125rem] leading-6 text-muted-foreground">{item.text}</p>
                   </div>
                 );
               })}
@@ -101,7 +101,7 @@ export function AdminAuthBackLink() {
     <Link
       to="/"
       viewTransition
-      className="inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+      className="inline-flex items-center gap-2 text-[0.8125rem] font-medium text-muted-foreground transition-colors hover:text-foreground"
     >
       <ArrowLeft className="h-3.5 w-3.5" />
       Voltar ao catálogo

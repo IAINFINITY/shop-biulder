@@ -131,7 +131,7 @@ export function ClientWorkspaceShell({
           {navGroups.map((group) => (
             <div key={group.label} className="mb-3 sm:mb-4">
 {!collapsed ? (
-                <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="px-3 pb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
                 </p>
               ) : null}
@@ -165,7 +165,7 @@ export function ClientWorkspaceShell({
                       {item.id === "notificacoes" && unreadNotificationCount > 0 ? (
                         <span
                           className={cn(
-                            "absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border border-background bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground shadow-sm",
+                            "absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border border-background bg-primary px-1 text-[0.625rem] font-semibold leading-none text-primary-foreground shadow-sm",
                             unreadNotificationCount > 9 && "min-w-6",
                           )}
                           aria-label={`${unreadNotificationCount} notificações não lidas`}
@@ -177,8 +177,8 @@ export function ClientWorkspaceShell({
 
                       {!collapsed ? (
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[13px] sm:text-[14px] font-medium leading-5">{item.label}</span>
-                          <span className="block text-[10px] sm:text-[11px] leading-4 opacity-75">{item.description}</span>
+                          <span className="block text-[0.8125rem] sm:text-sm font-medium leading-5">{item.label}</span>
+                          <span className="block text-[0.625rem] sm:text-[0.6875rem] leading-4 opacity-75">{item.description}</span>
                         </span>
                       ) : null}
                     </button>
@@ -200,7 +200,7 @@ export function ClientWorkspaceShell({
               {userLabel.slice(0, 1).toUpperCase()}
               {unreadNotificationCount > 0 ? (
                 <span
-                  className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border border-background bg-primary px-1 text-[9px] font-semibold leading-none text-primary-foreground shadow-sm"
+                  className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border border-background bg-primary px-1 text-[0.625rem] font-semibold leading-none text-primary-foreground shadow-sm"
                   aria-label={`${unreadNotificationCount} notificações não lidas`}
                 >
                   {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
@@ -210,7 +210,7 @@ export function ClientWorkspaceShell({
             {!collapsed ? (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">{userLabel}</p>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Cliente</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
               </div>
             ) : null}
             <ConfirmActionDialog
@@ -255,10 +255,10 @@ export function ClientWorkspaceShell({
               </Button>
 
               <div className="min-w-0 hidden sm:block">
-                <h1 className="text-[clamp(0.95rem,1.2vw,1.2rem)] font-black leading-[1.05] tracking-[-0.05em] text-foreground">
+                <h1 className="text-[clamp(0.95rem,1.2vw,1.2rem)] font-semibold leading-[1.05] tracking-tight text-foreground">
                   {title}
                 </h1>
-                <p className="mt-1 max-w-2xl text-[11px] text-muted-foreground sm:text-[12px]">
+                <p className="mt-1 max-w-2xl text-[0.6875rem] text-muted-foreground sm:text-xs">
                   Confira seus dados, endereço e pedidos em um espaço só seu
                 </p>
               </div>
@@ -268,7 +268,7 @@ export function ClientWorkspaceShell({
               <Link to="/" viewTransition>
                 <Button
                   variant="outline"
-                  className="h-10 w-auto sm:w-auto gap-1 sm:gap-2 rounded-full border-border/70 bg-background text-[13px] text-foreground hover:bg-muted/40 px-3 sm:px-3.5"
+                  className="h-10 w-auto sm:w-auto gap-1 sm:gap-2 rounded-full border-border/70 bg-background text-[0.8125rem] text-foreground hover:bg-muted/40 px-3 sm:px-3.5"
                   aria-label="Voltar ao catálogo"
                 >
                   <ArrowLeft className="h-4 w-4 sm:h-4 sm:w-4" />

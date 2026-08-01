@@ -55,6 +55,17 @@ function AuthProbe() {
 }
 
 const hydratedProfile: CustomerProfile = {
+  // Os campos abaixo nao interessam a este teste, mas fazem parte do perfil real.
+  // Preencher em vez de afrouxar o tipo: assim, se o perfil ganhar campo novo, o
+  // teste avisa em vez de passar por cima.
+  email: null,
+  observation: null,
+  representante_id: null,
+  proxis_pes_id: null,
+  proxis_tpr_id: null,
+  proxis_found: null,
+  proxis_synced_at: null,
+  linked_company_cnpj: null,
   user_id: "admin-1",
   name: "Admin",
   phone: "11999999999",
@@ -158,7 +169,19 @@ describe("useAuth", () => {
 
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
     expect(authMocks.getSession).toHaveBeenCalledTimes(1);
-    expect(authMocks.rpc).toHaveBeenCalledTimes(1);
+
+    // Uma hidratacao de admin consulta dois papeis: admin e, so entao,
+    // superadmin. Duas chamadas significam que ela rodou uma vez — se o
+    // TOKEN_REFRESHED tivesse disparado outra resolucao, seriam quatro.
+    expect(authMocks.rpc).toHaveBeenCalledTimes(2);
+    expect(authMocks.rpc).toHaveBeenNthCalledWith(1, "has_role", {
+      _user_id: sessionUser.id,
+      _role: "admin",
+    });
+    expect(authMocks.rpc).toHaveBeenNthCalledWith(2, "has_role", {
+      _user_id: sessionUser.id,
+      _role: "superadmin",
+    });
   });
 
   it("ignores transient auth null states while a session is already active", async () => {

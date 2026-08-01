@@ -19,6 +19,9 @@ export function useAdminCustomerProfiles(enabled: boolean) {
       if (error) throw error;
       return (data ?? []) as CustomerProfile[];
     },
-    initialData: [] as CustomerProfile[],
+  // Sem `initialData`: o react-query o trata como recem-chegado do servidor, e
+  // com `staleTime` acima de zero um array vazio ficaria "fresco" ate expirar —
+  // a consulta nunca dispararia e a tela mostraria a lista vazia esse tempo todo.
+  // Quem chama ja destrutura com `= []`, entao nao falta valor de partida.
   });
 }

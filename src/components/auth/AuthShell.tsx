@@ -59,19 +59,19 @@ export function AuthShell({
                 <ClinicPlusLogo />
                 <Badge
                   variant="secondary"
-                  className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em]"
+                  className="rounded-full px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em]"
                 >
                   {badge}
                 </Badge>
               </div>
 
               <div className="max-w-2xl space-y-5">
-                <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-primary">
+                <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
                   <Sparkles className="h-3.5 w-3.5" />
                   acesso guiado
                 </div>
                 <div className="space-y-3">
-                  <h1 className="max-w-[11ch] text-5xl font-semibold tracking-[-0.04em] text-foreground xl:text-6xl">
+                  <h1 className="max-w-[11ch] text-5xl font-semibold tracking-tight text-foreground xl:text-6xl">
                     {title}
                   </h1>
                   <p className="max-w-2xl text-base leading-7 text-muted-foreground xl:text-lg">
@@ -79,13 +79,13 @@ export function AuthShell({
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-medium text-foreground">
+                  <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[0.6875rem] font-medium text-foreground">
                     Cadastro B2B
                   </Badge>
-                  <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-medium text-foreground">
+                  <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[0.6875rem] font-medium text-foreground">
                     Pedido rápido
                   </Badge>
-                  <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[11px] font-medium text-foreground">
+                  <Badge variant="secondary" className="rounded-full border border-primary/15 bg-primary/5 px-3 py-1 text-[0.6875rem] font-medium text-foreground">
                     Acesso seguro
                   </Badge>
                 </div>
@@ -112,19 +112,19 @@ export function AuthShell({
 
             <div className="relative mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-border/80 bg-background/95 p-4 shadow-sm">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Compra rápida
                 </p>
                 <p className="mt-2 text-sm text-foreground">Acesso mais curto e claro para o usuário B2B.</p>
               </div>
               <div className="rounded-2xl border border-border/80 bg-background/95 p-4 shadow-sm">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Conta segura
                 </p>
                 <p className="mt-2 text-sm text-foreground">Entrada com foco em confiança e organização.</p>
               </div>
               <div className="rounded-2xl border border-border/80 bg-background/95 p-4 shadow-sm">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Fluxo único
                 </p>
                 <p className="mt-2 text-sm text-foreground">Cliente e ADM seguem a mesma base visual.</p>
@@ -143,14 +143,14 @@ export function AuthShell({
                 <ClinicPlusLogo />
                 <Badge
                   variant="secondary"
-                  className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em]"
+                  className="rounded-full px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em]"
                 >
                   {badge}
                 </Badge>
               </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {badge}
                 </p>
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">

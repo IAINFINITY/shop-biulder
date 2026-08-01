@@ -126,10 +126,10 @@ function AdminAccessNotice({
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Acesso administrativo
               </p>
-              <h1 className="mt-1 text-2xl font-black tracking-[-0.04em] text-foreground">
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
                 Você está logado como admin
               </h1>
             </div>
@@ -163,7 +163,7 @@ function AdminAccessNotice({
             <Link to="/" viewTransition className="text-muted-foreground transition-colors hover:text-foreground">
               Ir ao catálogo
             </Link>
-            <span className="text-[12px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               Se precisar da área de clientes, faça login com um usuário B2B.
             </span>
           </div>
@@ -187,7 +187,7 @@ function InfoTile({ label, value, hint, icon: Icon }: InfoTileProps) {
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       </div>
       <p className="mt-3 text-sm font-medium text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p> : null}
@@ -216,23 +216,23 @@ function CustomerNotificationPreview({ notification }: { notification: CustomerC
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={notification.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[11px]">
+            <Badge variant={notification.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[0.6875rem]">
               {notification.isRead ? "Lida" : "Nova"}
             </Badge>
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem]">
               Campanha do catálogo
             </Badge>
           </div>
           {notificationDateTime ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[0.6875rem] text-muted-foreground">
               {notification.starts_at ? "Início" : "Publicado"} {notificationDateTime.datePart} às {notificationDateTime.timePart}
             </p>
           ) : null}
         </div>
 
         <div className="space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</p>
-          <p className="text-[1.03rem] font-semibold text-foreground">{notification.title}</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</p>
+          <p className="text-base font-semibold text-foreground">{notification.title}</p>
           {notification.summary ? <p className="text-sm text-muted-foreground">{notification.summary}</p> : null}
         </div>
 
@@ -243,7 +243,7 @@ function CustomerNotificationPreview({ notification }: { notification: CustomerC
         {ctaLabel || ctaUrl ? (
           <div className="mt-auto flex flex-wrap items-center gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Ação</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Ação</p>
               <p className="truncate text-sm font-medium text-foreground">{ctaLabel || "Abrir link"}</p>
               <p className="truncate text-xs text-muted-foreground">{ctaUrl || "Sem link configurado"}</p>
             </div>
@@ -490,7 +490,7 @@ export default function Account() {
                 setEditCnpj(customerProfile.cnpj);
                 setEditingProfile(!editingProfile);
               }}
-              className="h-8 rounded-full px-4 text-[12px]"
+              className="h-8 rounded-full px-4 text-xs"
             >
               {editingProfile ? <Save className="mr-1.5 h-3.5 w-3.5" /> : <Pencil className="mr-1.5 h-3.5 w-3.5" />}
               {editingProfile ? "Cancelar" : "Editar"}
@@ -535,11 +535,11 @@ export default function Account() {
             className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6 space-y-4"
           >
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Telefone</Label>
+              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</Label>
               <Input
                 value={editPhone}
                 onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
-                className="h-10 rounded-2xl text-[13px]"
+                className="h-10 rounded-2xl text-[0.8125rem]"
                 inputMode="numeric"
                 type="tel"
                 placeholder="(00) 00000-0000"
@@ -562,25 +562,25 @@ export default function Account() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Empresa</Label>
-              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
+              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</Label>
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[0.8125rem]" />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Documento</Label>
+              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Documento</Label>
               <Input
                 value={formatDocumentId(editCnpj)}
                 onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
-                className="h-10 rounded-2xl text-[13px]"
+                className="h-10 rounded-2xl text-[0.8125rem]"
                 inputMode="numeric"
                 maxLength={18}
                 placeholder="00.000.000/0000-00"
               />
             </div>
-            <p className="text-[11px] leading-5 text-muted-foreground">
+            <p className="text-[0.6875rem] leading-5 text-muted-foreground">
               O nome da conta pode ser alterado na seção de configurações. Aqui ficam os dados comerciais do cadastro.
             </p>
             <div className="flex justify-end">
-              <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[13px]">
+              <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[0.8125rem]">
                 {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
                 Salvar
               </Button>
@@ -690,11 +690,11 @@ export default function Account() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Telefone</Label>
+              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</Label>
               <Input
                 value={editPhone}
                 onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
-                className="h-10 rounded-2xl text-[13px]"
+                className="h-10 rounded-2xl text-[0.8125rem]"
                 inputMode="numeric"
                 type="tel"
                 placeholder="(00) 00000-0000"
@@ -717,15 +717,15 @@ export default function Account() {
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Empresa</Label>
-              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[13px]" />
+              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</Label>
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[0.8125rem]" />
             </div>
             <div className="space-y-2">
-              <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Documento</Label>
+              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Documento</Label>
               <Input
                 value={formatDocumentId(editCnpj)}
                 onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
-                className="h-10 rounded-2xl text-[13px]"
+                className="h-10 rounded-2xl text-[0.8125rem]"
                 inputMode="numeric"
                 maxLength={18}
                 placeholder="00.000.000/0000-00"
@@ -733,13 +733,13 @@ export default function Account() {
             </div>
           </div>
 
-          <p className="text-[11px] leading-5 text-muted-foreground">
+          <p className="text-[0.6875rem] leading-5 text-muted-foreground">
             Depois de salvar, você poderá editar os endereços na aba própria e acompanhar pedidos vinculados ao mesmo documento.
             O nome da conta é ajustado em <strong>Dados da conta</strong>.
           </p>
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[13px]">
+            <Button type="submit" disabled={savingProfile} className="h-9 rounded-full px-5 text-[0.8125rem]">
               {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
               Salvar cadastro
             </Button>
@@ -757,7 +757,7 @@ export default function Account() {
         eyebrow="Pedidos"
         title="Meus pedidos"
         description="Visualize os pedidos vinculados ao mesmo CNPJ do seu cadastro."
-        actions={<Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">{orderViews.length} encontrado(s)</Badge>}
+        actions={<Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">{orderViews.length} encontrado(s)</Badge>}
       />
 
       {ordersLoading ? (
@@ -871,19 +871,19 @@ export default function Account() {
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1.6fr)_auto] sm:items-end">
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Nome
             </Label>
             <Input
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               placeholder="Seu nome"
-              className="h-10 rounded-2xl text-[13px]"
+              className="h-10 rounded-2xl text-[0.8125rem]"
             />
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={savingAccountName} className="h-10 rounded-full px-5 text-[13px]">
+            <Button type="submit" disabled={savingAccountName} className="h-10 rounded-full px-5 text-[0.8125rem]">
               {savingAccountName ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
               Salvar nome
             </Button>
@@ -929,7 +929,7 @@ export default function Account() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Senha atual</Label>
+          <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Senha atual</Label>
           <div className="relative">
             <Input
               type={showCurrentPassword ? "text" : "password"}
@@ -937,7 +937,7 @@ export default function Account() {
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="Sua senha atual"
               maxLength={64}
-              className="h-10 rounded-2xl pr-10 text-[13px]"
+              className="h-10 rounded-2xl pr-10 text-[0.8125rem]"
             />
             <button
               type="button"
@@ -951,7 +951,7 @@ export default function Account() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nova senha</Label>
+          <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nova senha</Label>
           <div className="relative">
             <Input
               type={showNewPassword ? "text" : "password"}
@@ -959,7 +959,7 @@ export default function Account() {
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mínimo 8 caracteres"
               maxLength={64}
-              className="h-10 rounded-2xl pr-10 text-[13px]"
+              className="h-10 rounded-2xl pr-10 text-[0.8125rem]"
             />
             <button
               type="button"
@@ -986,12 +986,12 @@ export default function Account() {
                     )}
                   />
                 </div>
-                <span className="text-[11px] font-medium text-muted-foreground">{passwordStrength(newPassword).label}</span>
-                <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
+                <span className="text-[0.6875rem] font-medium text-muted-foreground">{passwordStrength(newPassword).label}</span>
+                <span className="ml-auto text-[0.6875rem] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {passwordStrength(newPassword).checks.map((c) => (
-                  <span key={c.label} className={cn("text-[11px]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}>
+                  <span key={c.label} className={cn("text-[0.6875rem]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}>
                     {c.ok ? "✓" : "○"} {c.label}
                   </span>
                 ))}
@@ -1001,7 +1001,7 @@ export default function Account() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Confirmar nova senha</Label>
+          <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Confirmar nova senha</Label>
           <div className="relative">
             <Input
               type={showConfirmPassword ? "text" : "password"}
@@ -1009,7 +1009,7 @@ export default function Account() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repita a nova senha"
               maxLength={64}
-              className="h-10 rounded-2xl pr-10 text-[13px]"
+              className="h-10 rounded-2xl pr-10 text-[0.8125rem]"
             />
             <button
               type="button"
@@ -1023,7 +1023,7 @@ export default function Account() {
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={savingPassword} className="h-9 rounded-full px-5 text-[13px]">
+          <Button type="submit" disabled={savingPassword} className="h-9 rounded-full px-5 text-[0.8125rem]">
             {savingPassword ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
             Alterar senha
           </Button>
@@ -1075,11 +1075,11 @@ export default function Account() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {unreadNotificationCount > 0 ? (
-              <Badge variant="default" className="rounded-full px-3 py-1 text-[11px] font-medium">
+              <Badge variant="default" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
                 {unreadNotificationCount} nova(s)
               </Badge>
             ) : null}
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
               {notificationsWithState.length} ativa(s)
             </Badge>
           </div>
@@ -1128,12 +1128,12 @@ export default function Account() {
 
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={item.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[11px] font-medium">
+                    <Badge variant={item.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
                       {item.isRead ? "Lida" : "Nova"}
                     </Badge>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</span>
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</span>
                     {notificationDateTime ? (
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-[0.6875rem] text-muted-foreground">
                         {item.starts_at ? "Início" : "Publicado"} {notificationDateTime.datePart} às {notificationDateTime.timePart}
                       </span>
                     ) : null}
@@ -1146,11 +1146,11 @@ export default function Account() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-[12px] font-medium text-primary transition-colors group-hover:text-primary/80">
+                    <span className="text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
                       Ver detalhes
                     </span>
                     {item.cta_label ? (
-                      <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+                      <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
                         {item.cta_label}
                       </Badge>
                     ) : null}
@@ -1177,10 +1177,10 @@ export default function Account() {
           {selectedNotification ? (
             <div className="flex max-h-[92vh] flex-col overflow-hidden">
               <DialogHeader className="border-b border-border/70 px-5 py-4">
-                <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
                   Detalhes da notificação
                 </DialogTitle>
-                <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
                   Visualização completa da campanha enviada pelo catálogo.
                 </DialogDescription>
               </DialogHeader>

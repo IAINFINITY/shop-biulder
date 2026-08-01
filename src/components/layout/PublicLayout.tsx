@@ -1,43 +1,23 @@
-import { createContext, useContext, useState, useEffect, useMemo, type ReactNode, useCallback } from "react";
+import { useState, useEffect, useMemo, type ReactNode, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDebounce } from "@/hooks/useDebounce";
 import { StoreHeader, type StoreHeaderSearchSuggestion } from "@/components/catalogo/StoreHeader";
-import { CategoryTopNav, type CategoryTopNavProps } from "@/components/catalogo/CategoryTopNav";
+import type { CategoryTopNavProps } from "@/components/catalogo/CategoryTopNav";
+import {
+  PublicLayoutContext,
+  type PublicLayoutContextValue,
+} from "@/components/layout/publicLayoutContext";
 import { CartDrawer } from "@/components/carrinho/CartDrawer";
 import { StoreFooter } from "@/components/layout/StoreFooter";
 import { MobileBottomNav } from "@/components/mobile";
 import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { useProducts } from "@/hooks/useProducts";
-import { resolveProductPrice } from "@/lib/pricing";
+import { EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
 import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richTextPure";
-import { readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
-import { readAuthBootstrapSnapshot } from "@/lib/customerProfileSnapshot";
-
-type PublicLayoutContextValue = {
-  search: string;
-  setSearch: (value: string) => void;
-  searchSuggestions: StoreHeaderSearchSuggestion[];
-  setSearchSuggestions: (suggestions: StoreHeaderSearchSuggestion[]) => void;
-  searchHistory: string[];
-  addToSearchHistory: (term: string) => void;
-  removeFromSearchHistory: (term: string) => void;
-  clearSearchHistory: () => void;
-  isCartOpen: boolean;
-  setIsCartOpen: (open: boolean) => void;
-  categoryTopNavProps: CategoryTopNavProps | null;
-  setCategoryTopNavProps: (props: CategoryTopNavProps | null) => void;
-};
-
-const PublicLayoutContext = createContext<PublicLayoutContextValue | null>(null);
-
-export function usePublicLayout() {
-  const ctx = useContext(PublicLayoutContext);
-  if (!ctx) throw new Error("usePublicLayout must be used within PublicLayout");
-  return ctx;
-}
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -51,11 +31,12 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const [categoryTopNavProps, setCategoryTopNavProps] = useState<CategoryTopNavProps | null>(null);
 
   const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart } = useCart();
-  const authSnapshot = readAuthBootstrapSnapshot();
-  const customerProfile = readCachedCustomerProfile(authSnapshot?.user.id ?? null);
+  // Mesma fonte do catalogo: a sessao real, e nao o snapshot por aba. E o
+  // carrinho do layout tambem precisa do preco certo do cliente.
+  const { customerProfile } = useAuth();
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
-  const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(customerType, customerTprId);
+  const { data: customerPriceMap = EMPTY_PRICE_MAP } = useCustomerPricing(customerType, customerTprId);
 
   useEffect(() => {
     if (debouncedSearch.trim().length > 0) {
@@ -149,11 +130,6 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                 onOpenChange={setIsCartOpen}
                 resolveUnitPrice={(product) => resolveProductPrice(product, customerPriceMap)}
               />
-            }
-            filterNav={
-              isIndexRoute && categoryTopNavProps ? (
-                <CategoryTopNav {...categoryTopNavProps} />
-              ) : undefined
             }
           />
         ) : null}

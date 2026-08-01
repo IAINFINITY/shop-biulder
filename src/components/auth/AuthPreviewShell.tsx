@@ -47,16 +47,16 @@ export function AuthPreviewShell({
           <div className="relative z-10 flex h-full flex-col">
             <div className="mb-12 flex items-center gap-3">
               <ClinicPlusLogo />
-              <span className="rounded-full border border-border/70 bg-muted/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              <span className="rounded-full border border-border/70 bg-muted/60 px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {badge}
               </span>
             </div>
 
             <div className="max-w-[520px]">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">
+              <p className="mb-3 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {badge}
               </p>
-              <h1 className="max-w-[12ch] text-[clamp(2.8rem,5vw,4.15rem)] font-semibold leading-[1.06] tracking-[-0.04em] text-foreground">
+              <h1 className="max-w-[12ch] text-[clamp(2.8rem,5vw,4.15rem)] font-semibold leading-[1.06] tracking-tight text-foreground">
                 {title}
               </h1>
               <p className="mt-4 max-w-[44ch] text-[17px] leading-7 text-muted-foreground">
@@ -75,15 +75,15 @@ export function AuthPreviewShell({
                     <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <Icon className="h-4 w-4" />
                     </div>
-                    <p className="text-[15px] font-medium leading-5 text-foreground">{item.title}</p>
-                    <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{item.text}</p>
+                    <p className="text-sm font-medium leading-5 text-foreground">{item.title}</p>
+                    <p className="mt-2 text-[0.8125rem] leading-6 text-muted-foreground">{item.text}</p>
                   </div>
                 );
               })}
             </div>
 
             <div className="mt-auto pt-10">
-              <div className="flex items-center justify-between border-t border-border/60 pt-4 text-[13px] text-muted-foreground">
+              <div className="flex items-center justify-between border-t border-border/60 pt-4 text-[0.8125rem] text-muted-foreground">
                 <Link to={footerHref} viewTransition className="inline-flex items-center gap-2 transition-colors hover:text-foreground">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M19 12H5" />

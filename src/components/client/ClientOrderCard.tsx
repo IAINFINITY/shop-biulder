@@ -43,31 +43,31 @@ export function ClientOrderCard({ order, lines, totalItems, totalValue }: Client
     <article className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm transition-shadow hover:shadow-[0_10px_30px_rgba(16,24,40,0.08)] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Pedido</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedido</p>
           <p className="text-sm text-foreground">{createdAt}</p>
         </div>
-        <Badge className={cn("rounded-full border px-3 py-1 text-[11px] font-medium", getStatusClassName(order.status))}>
+        <Badge className={cn("rounded-full border px-3 py-1 text-[0.6875rem] font-medium", getStatusClassName(order.status))}>
           {statusLabel}
         </Badge>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Itens</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens</p>
           <p className="mt-2 text-sm font-medium text-foreground">{totalItems}</p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Valor total</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Valor total</p>
           <p className="mt-2 text-sm font-semibold text-foreground">{formatBRL(totalValue)}</p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Empresa</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</p>
           <p className="mt-2 truncate text-sm font-medium text-foreground">{order.customer_company}</p>
         </div>
       </div>
 
       <div className="mt-4 rounded-2xl border border-border/70 bg-background p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Itens do pedido</p>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens do pedido</p>
         <div className="mt-3 space-y-2">
           {visibleLines.map((line) => (
             <div key={`${line.code}-${line.name}`} className="flex flex-wrap items-center justify-between gap-3">

@@ -75,7 +75,7 @@ export function MobileBottomNav() {
               <div className="relative flex h-6 w-6 items-center justify-center">
                 <item.icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
               </div>
-              <span className={cn("text-[11px] font-medium leading-none", active && "font-semibold")}>
+              <span className={cn("text-[0.6875rem] font-medium leading-none", active && "font-semibold")}>
                 {item.label}
               </span>
             </button>

@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 import { useCart } from "@/hooks/useCart";
+import { cn } from "@/lib/utils";
 import {
   Phone,
   Mail,
@@ -54,17 +55,24 @@ const QUICK_LINKS = [
   { label: "Ajuda", href: "/ajuda", icon: HelpCircle },
 ];
 
+// Rótulos com o destino explícito: sem isso, "Catálogo" aqui e "Catálogo" nos
+// links rápidos pareciam o mesmo link indo para lugares diferentes.
 const HELP_LINKS = [
   { label: "Como funciona", href: "/ajuda#como-funciona" },
-  { label: "Pedidos", href: "/ajuda#pedidos" },
-  { label: "Conta", href: "/ajuda#conta" },
-  { label: "Catálogo", href: "/ajuda#catalogo" },
+  { label: "Dúvidas sobre pedidos", href: "/ajuda#pedidos" },
+  { label: "Dúvidas sobre a conta", href: "/ajuda#conta" },
+  { label: "Dúvidas sobre o catálogo", href: "/ajuda#catalogo" },
 ];
+
+// 44px é o alvo mínimo confortável para toque; os itens do rodapé tinham a
+// altura do próprio texto (~20px), o que fazia o clique errar com frequência.
+const FOOTER_LINK_CLASS =
+  "group -mx-2 flex min-h-[44px] items-center gap-2 rounded-xl px-2 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground active:bg-muted/60 sm:min-h-[40px]";
 
 function FooterSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-foreground/60">
+      <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-foreground/60">
         {title}
       </h3>
       {children}
@@ -81,7 +89,7 @@ function InfinityBrandMark() {
       className="group inline-flex flex-col gap-2 transition-opacity hover:opacity-90"
       aria-label="Abrir site da IA Infinity"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70 group-hover:text-primary/90">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary/70 group-hover:text-primary/90">
         Site desenvolvido pela
       </p>
       <img
@@ -156,28 +164,20 @@ export function StoreFooter() {
           {/* Quick links */}
           <div className="lg:justify-self-center lg:max-w-[240px]">
             <FooterSection title="Links rápidos">
-              <ul className="space-y-2.5">
+              <ul className="space-y-0.5">
                 {QUICK_LINKS.map(({ label, href, icon: Icon }) => (
                   <li key={label}>
                     {label === "Meus pedidos" ? (
-                      <button
-                        type="button"
-                        onClick={handleMyOrdersClick}
-                        className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <Icon className="h-3.5 w-3.5 text-primary/50 transition-colors group-hover:text-primary/80" />
+                      <button type="button" onClick={handleMyOrdersClick} className={cn(FOOTER_LINK_CLASS, "w-full text-left")}>
+                        <Icon className="h-4 w-4 shrink-0 text-primary/50 transition-colors group-hover:text-primary/80" />
                         {label}
-                        <ChevronRight className="h-3 w-3 -translate-x-1 text-primary/30 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+                        <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/30 transition-colors group-hover:text-primary/70" />
                       </button>
                     ) : (
-                      <Link
-                        to={href}
-                        viewTransition
-                        className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <Icon className="h-3.5 w-3.5 text-primary/50 transition-colors group-hover:text-primary/80" />
+                      <Link to={href} viewTransition className={FOOTER_LINK_CLASS}>
+                        <Icon className="h-4 w-4 shrink-0 text-primary/50 transition-colors group-hover:text-primary/80" />
                         {label}
-                        <ChevronRight className="h-3 w-3 -translate-x-1 text-primary/30 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+                        <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/30 transition-colors group-hover:text-primary/70" />
                       </Link>
                     )}
                   </li>
@@ -212,16 +212,13 @@ export function StoreFooter() {
           {/* Help */}
           <div className="lg:justify-self-end lg:max-w-[240px]">
             <FooterSection title="Ajuda rápida">
-              <ul className="space-y-2.5">
+              <ul className="space-y-0.5">
                 {HELP_LINKS.map(({ label, href }) => (
                   <li key={label}>
-                    <Link
-                      to={href}
-                      viewTransition
-                      className="group inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <ChevronRight className="h-3.5 w-3.5 text-primary/50 transition-colors group-hover:text-primary/80" />
+                    <Link to={href} viewTransition className={FOOTER_LINK_CLASS}>
+                      <HelpCircle className="h-4 w-4 shrink-0 text-primary/50 transition-colors group-hover:text-primary/80" />
                       {label}
+                      <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/30 transition-colors group-hover:text-primary/70" />
                     </Link>
                   </li>
                 ))}
@@ -235,7 +232,7 @@ export function StoreFooter() {
 
       {/* Bottom bar */}
       <div className="border-t border-border/40 bg-muted/30">
-        <div className="mx-auto flex w-full flex-col items-center justify-between gap-2 px-4 py-4 text-[11px] text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full flex-col items-center justify-between gap-2 px-4 py-4 text-[0.6875rem] text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
           <p>
             &copy; {new Date().getFullYear()} {COMPANY.legalName}. Todos os direitos reservados.
           </p>

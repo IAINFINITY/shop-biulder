@@ -37,9 +37,9 @@ function AddressCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-lg font-black tracking-[-0.04em] text-foreground">{address.label}</p>
+            <p className="text-lg font-semibold tracking-tight text-foreground">{address.label}</p>
             {address.is_default ? (
-              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                 Padrão
               </Badge>
             ) : null}
@@ -55,19 +55,19 @@ function AddressCard({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={() => onEdit(address)}>
+          <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={() => onEdit(address)}>
             <Pencil className="h-4 w-4" />
             Editar
           </Button>
           {!address.is_default ? (
-            <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={() => onSetDefault(address)}>
+            <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={() => onSetDefault(address)}>
               <Star className="h-4 w-4" />
               Padrão
             </Button>
           ) : null}
           <ConfirmActionDialog
             trigger={
-              <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px] text-destructive">
+              <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs text-destructive">
                 <Trash2 className="h-4 w-4" />
                 Excluir
               </Button>
@@ -114,10 +114,10 @@ function AddressEditor({
       <DialogContent className="max-h-[92vh] w-[min(98vw,980px)] max-w-[980px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
         <div className="flex max-h-[92vh] flex-col overflow-hidden">
           <DialogHeader className="border-b border-border/70 px-5 py-4">
-            <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+            <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
               {editingId ? "Editar endereço" : "Novo endereço"}
             </DialogTitle>
-            <DialogDescription className="text-left text-[13px] text-muted-foreground">
+            <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
               {initialLabelHint}
             </DialogDescription>
           </DialogHeader>
@@ -125,7 +125,7 @@ function AddressEditor({
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
               <div className="space-y-2">
-                <Label htmlFor="address-label" className="text-[13px] font-medium">
+                <Label htmlFor="address-label" className="text-[0.8125rem] font-medium">
                   Nome do endereço
                 </Label>
                 <Input
@@ -144,7 +144,7 @@ function AddressEditor({
 
               <div className="flex items-center justify-between rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Endereço padrão
                   </p>
                   <p className="text-sm text-foreground">Usar este endereço por padrão nas compras</p>
@@ -274,7 +274,7 @@ export function ClientAddressesSection() {
         description="Cadastre até cinco endereços e escolha o mais adequado na hora da compra."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] font-medium">
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
               {addresses.length}/5
             </Badge>
             <Button type="button" className="h-10 rounded-2xl px-4 text-sm" onClick={openNew}>
@@ -310,7 +310,7 @@ export function ClientAddressesSection() {
               <MapPinned className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-lg font-black tracking-[-0.04em] text-foreground">Nenhum endereço salvo ainda</p>
+              <p className="text-lg font-semibold tracking-tight text-foreground">Nenhum endereço salvo ainda</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Use o endereço do cadastro como ponto de partida e salve os outros quando precisar.
               </p>

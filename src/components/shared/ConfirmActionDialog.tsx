@@ -60,10 +60,10 @@ export function ConfirmActionDialog({
 
       <AlertDialogContent className="max-w-[28rem] rounded-[1.5rem] border-border/70">
         <AlertDialogHeader className="text-left">
-          <AlertDialogTitle className="text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+          <AlertDialogTitle className="text-base font-semibold tracking-tight text-foreground">
             {title}
           </AlertDialogTitle>
-          <AlertDialogDescription className="text-[13px] leading-6 text-muted-foreground">
+          <AlertDialogDescription className="text-[0.8125rem] leading-6 text-muted-foreground">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>

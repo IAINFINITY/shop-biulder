@@ -1,5 +1,25 @@
 ﻿import { coercePrice } from "./formatMoney";
 
+/**
+ * Como a foto ocupa a moldura 1:1 do catalogo.
+ *
+ * `contain` serve o packshot (produto recortado sobre fundo branco ou
+ * transparente). `cover` serve a foto ambientada, que ja traz cenario proprio e
+ * ficaria com faixas vazias nas laterais se fosse encaixada por dentro.
+ */
+export type ProductImageFit = "contain" | "cover";
+
+export const PRODUCT_IMAGE_FIT_DEFAULT: ProductImageFit = "contain";
+
+export function normalizeProductImageFit(value: unknown): ProductImageFit {
+  return value === "cover" ? "cover" : PRODUCT_IMAGE_FIT_DEFAULT;
+}
+
+export const PRODUCT_IMAGE_FIT_LABELS: Record<ProductImageFit, string> = {
+  contain: "Packshot (fundo branco ou transparente)",
+  cover: "Ambientada (a foto já tem fundo próprio)",
+};
+
 export const PRODUCTS_TABLE = "Clinic+ - Catálogo Front B2B";
 export const PRODUCT_TYPES_TABLE = "product_types";
 
@@ -7,13 +27,28 @@ export interface Product {
   id: string;
   name: string;
   description: string;
+  /** Marca que assina o produto (Chá Mais, Clinic Mais). Ver product_brands. */
+  brand: string | null;
+  /** Categoria = formato de consumo (Chá, Cápsula, Solúvel). Ver product_types. */
   type: string;
+  /** Subcategoria = o que o produto e (Camomila, Creatina). Global desde 2026-07-31. */
   family: string;
   image_url: string | null;
   image_urls: string[] | null;
+  /** Descricao de cada imagem, alinhada por indice com a galeria resolvida. */
+  image_alts: string[] | null;
+  /** contain = packshot sobre fundo neutro · cover = foto com cenario proprio. */
+  image_fit: ProductImageFit;
+  /** Dimensoes da capa, para o admin apontar o que esta fora do padrao. */
+  image_width: number | null;
+  image_height: number | null;
   active: boolean;
   is_promotion: boolean;
+  /** Escolha editorial, independente de preco. Ver o carrossel "Em destaque". */
+  is_featured: boolean;
   price: number | null;
+  /** Preco anterior, exibido riscado quando maior que price. */
+  compare_at_price: number | null;
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
@@ -70,79 +105,107 @@ export function resolveProductImageUrls(
   return urls;
 }
 
+/**
+ * Selos da linha do titulo, sem repetir valor.
+ *
+ * Marca, categoria e subcategoria repetem com frequencia — ha produtos cuja
+ * subcategoria e o proprio nome da marca, e ai o selo apareceria duas vezes.
+ */
+export function buildProductTags(product: Pick<Product, "brand" | "type" | "family">): string[] {
+  const seen = new Set<string>();
+  const tags: string[] = [];
+  for (const value of [product.brand, product.type, product.family]) {
+    const clean = (value ?? "").trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(clean);
+  }
+  return tags;
+}
+
 export function getProductImageUrls(product: Pick<Product, "image_url" | "image_urls">): string[] {
   return resolveProductImageUrls(product.image_url, product.image_urls);
 }
 
-const PRODUCT_SELECT_BASE =
-  "id,name,description,type,family,image_url,active,is_promotion,price,stock,average_rating,review_count,created_at,updated_at" as const;
-const PRODUCT_SELECT_BASE_NO_PROMOTION =
-  "id,name,description,type,family,image_url,active,price,stock,average_rating,review_count,created_at,updated_at" as const;
+// Colunas sempre presentes desde o schema original.
+const PRODUCT_SELECT_REQUIRED = [
+  "id",
+  "name",
+  "description",
+  "type",
+  "family",
+  "image_url",
+  "active",
+  "price",
+  "average_rating",
+  "review_count",
+  "created_at",
+  "updated_at",
+] as const;
 
-export const PRODUCT_SELECT_COLUMNS =
-  `${PRODUCT_SELECT_BASE},image_urls,product_code,visible_to` as const;
+/**
+ * Colunas adicionadas por migrations posteriores.
+ *
+ * O banco de producao e o de quem roda local nem sempre estao no mesmo ponto da
+ * fila de migrations, entao a consulta comeca pedindo tudo e vai derrubando a
+ * coluna que o Postgres reclamar. Antes isso era feito com oito constantes
+ * combinando as variacoes na mao — o que dobraria a cada coluna nova.
+ */
+export const PRODUCT_OPTIONAL_COLUMNS = [
+  "image_urls",
+  "product_code",
+  "visible_to",
+  "is_promotion",
+  "is_featured",
+  "stock",
+  "brand",
+  "image_fit",
+  "image_alts",
+  "image_width",
+  "image_height",
+  "compare_at_price",
+] as const;
 
-export const PRODUCT_SELECT_COLUMNS_NO_PROMOTION =
-  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls,product_code,visible_to` as const;
+export type ProductOptionalColumn = (typeof PRODUCT_OPTIONAL_COLUMNS)[number];
 
-export const PRODUCT_SELECT_COLUMNS_NO_GALLERY =
-  `${PRODUCT_SELECT_BASE},product_code,visible_to` as const;
+export function buildProductSelectColumns(omit: readonly string[] = []): string {
+  const optional = PRODUCT_OPTIONAL_COLUMNS.filter((column) => !omit.includes(column));
+  return [...PRODUCT_SELECT_REQUIRED, ...optional].join(",");
+}
 
-export const PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION =
-  `${PRODUCT_SELECT_BASE_NO_PROMOTION},product_code,visible_to` as const;
-
-export const PRODUCT_SELECT_COLUMNS_NO_CODE =
-  `${PRODUCT_SELECT_BASE},image_urls,visible_to` as const;
-
-export const PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION =
-  `${PRODUCT_SELECT_BASE_NO_PROMOTION},image_urls,visible_to` as const;
-
-export const PRODUCT_SELECT_COLUMNS_LEGACY = PRODUCT_SELECT_BASE;
-export const PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION = PRODUCT_SELECT_BASE_NO_PROMOTION;
+export const PRODUCT_SELECT_COLUMNS = buildProductSelectColumns();
 
 export function isMissingColumnError(message: string, column: string): boolean {
   return new RegExp(column, "i").test(message) && /(column|schema cache)/i.test(message);
 }
 
-export function isMissingImageUrlsColumnError(message: string): boolean {
-  return isMissingColumnError(message, "image_urls");
+/** Qual coluna opcional o Postgres reclamou, se alguma. */
+export function detectMissingProductColumn(message: string): ProductOptionalColumn | null {
+  return PRODUCT_OPTIONAL_COLUMNS.find((column) => isMissingColumnError(message, column)) ?? null;
 }
 
-export function isMissingProductCodeColumnError(message: string): boolean {
-  return isMissingColumnError(message, "product_code");
-}
-
-export function isMissingPromotionColumnError(message: string): boolean {
-  return isMissingColumnError(message, "is_promotion");
-}
-
-export function isMissingVisibleToColumnError(message: string): boolean {
-  return isMissingColumnError(message, "visible_to");
-}
-
-export function omitProductCode<T extends { product_code: string | null }>(
-  row: T,
-): Omit<T, "product_code"> {
-  const { product_code: _code, ...rest } = row;
-  return rest;
-}
-
-export function omitProductPromotion<T extends { is_promotion: boolean }>(
-  row: T,
-): Omit<T, "is_promotion"> {
-  const { is_promotion: _promotion, ...rest } = row;
-  return rest;
+export function omitProductColumn<T extends Record<string, unknown>>(row: T, column: string): T {
+  const { [column]: _removed, ...rest } = row;
+  return rest as T;
 }
 
 export type ProductDbPayloadInput = {
   name: string;
   description: string;
+  brand: string;
   type: string;
   family: string;
   image_urls: string[];
+  image_alts: string[];
+  image_fit: ProductImageFit;
   active: boolean;
   is_promotion: boolean;
+  /** Escolha editorial, independente de preco. Ver o carrossel "Em destaque". */
+  is_featured: boolean;
   price: number;
+  compare_at_price: number | null;
   stock: number | null;
   product_code: string;
   visible_to: string[] | null;
@@ -151,41 +214,75 @@ export type ProductDbPayloadInput = {
 type ProductDbRow = {
   name: string;
   description: string;
+  brand: string | null;
   type: string;
   family: string;
   image_url: string | null;
+  /** Texto alternativo por foto, na mesma ordem de `image_urls`. */
+  image_alts: string[] | null;
+  image_fit: ProductImageFit;
   active: boolean;
   is_promotion: boolean;
+  /** Escolha editorial, independente de preco. Ver o carrossel "Em destaque". */
+  is_featured: boolean;
   price: number;
+  compare_at_price: number | null;
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
 };
 
+/**
+ * Monta a linha completa do produto.
+ *
+ * Sempre inclui todas as colunas opcionais: quem grava usa
+ * `detectMissingProductColumn` + `omitProductColumn` para derrubar as que o
+ * banco ainda nao tiver, em vez de existir uma variante "legada" pronta.
+ */
 export function buildProductDbPayload(input: ProductDbPayloadInput): {
   withGallery: ProductDbRow & { image_urls: string[] };
-  legacyOnly: ProductDbRow;
 } {
   const urls = input.image_urls.filter((u) => u.trim() !== "");
   const visibleTo = input.visible_to && input.visible_to.length > 0 ? input.visible_to : null;
 
-  const base: ProductDbRow & { visible_to: string[] | null } = {
+  // `image_alts` entra so no `withGallery`, junto com as URLs: as duas listas
+  // precisam ter o mesmo tamanho, e o tamanho so se conhece depois de filtrar as
+  // URLs vazias. Por isso o `base` e o tipo sem ela.
+  const base: Omit<ProductDbRow, "image_alts"> & { visible_to: string[] | null } = {
     name: input.name,
     description: input.description,
+    brand: (input.brand ?? "").trim() || null,
     type: input.type,
     family: input.family,
     active: input.active,
     is_promotion: input.is_promotion,
+    is_featured: input.is_featured,
     price: input.price,
+    // So grava desconto real; valor menor ou igual ao preco nao e comparacao.
+    compare_at_price:
+      input.compare_at_price !== null && input.compare_at_price > input.price ? input.compare_at_price : null,
     stock: input.stock,
     image_url: urls[0] ?? null,
+    image_fit: normalizeProductImageFit(input.image_fit),
     product_code: (input.product_code ?? "").trim() || null,
     visible_to: visibleTo,
   };
+  // As descricoes acompanham a mesma quantidade de imagens salvas, para os
+  // indices continuarem casando depois de reordenar ou remover fotos.
+  const alts = urls.map((_, index) => (input.image_alts[index] ?? "").trim());
+
   return {
-    withGallery: { ...base, image_urls: urls },
-    legacyOnly: base,
+    withGallery: { ...base, image_urls: urls, image_alts: alts },
   };
+}
+
+/** Descricao da imagem para o atributo alt, com o nome do produto como reserva. */
+export function getProductImageAlt(
+  product: Pick<Product, "name" | "image_alts">,
+  index: number,
+): string {
+  const alt = product.image_alts?.[index]?.trim();
+  return alt || product.name;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -204,6 +301,11 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
       ? record.product_code.trim()
       : null;
 
+  // Alinha as descricoes com a galeria ja resolvida: se faltar alt para alguma
+  // posicao, ela fica vazia em vez de deslocar as demais.
+  const storedAlts = parseSupabaseTextArray(record.image_alts);
+  const galleryAlts = gallery.map((_, index) => (storedAlts[index] ?? "").trim());
+
   const visibleToRaw = record.visible_to;
   const visibleTo =
     Array.isArray(visibleToRaw) && visibleToRaw.length > 0
@@ -214,13 +316,23 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     id: typeof record.id === "string" ? record.id : "",
     name: typeof record.name === "string" ? record.name : "",
     description: typeof record.description === "string" ? record.description : "",
+    brand: typeof record.brand === "string" && record.brand.trim() ? record.brand.trim() : null,
     type: typeof record.type === "string" ? record.type : "",
     family: typeof record.family === "string" ? record.family : "",
     image_url: gallery[0] ?? null,
     image_urls: gallery.length > 0 ? gallery : null,
+    image_alts: galleryAlts.some((alt) => alt !== "") ? galleryAlts : null,
+    image_fit: normalizeProductImageFit(record.image_fit),
+    image_width: typeof record.image_width === "number" && record.image_width > 0 ? record.image_width : null,
+    image_height: typeof record.image_height === "number" && record.image_height > 0 ? record.image_height : null,
     active: Boolean(record.active),
     is_promotion: Boolean(record.is_promotion),
+    is_featured: Boolean(record.is_featured),
     price: coercePrice(record.price),
+    compare_at_price: coercePrice(record.compare_at_price) || null,
+    // stock vinha no SELECT mas nao era mapeado aqui: o admin abria o campo
+    // Estoque vazio e salvava null por cima do valor real.
+    stock: typeof record.stock === "number" && Number.isFinite(record.stock) ? record.stock : null,
     product_code: productCode,
     visible_to: visibleTo,
     average_rating: typeof record.average_rating === "number" ? record.average_rating : 0,
@@ -228,6 +340,18 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     created_at: typeof record.created_at === "string" ? record.created_at : "",
     updated_at: typeof record.updated_at === "string" ? record.updated_at : "",
   };
+}
+
+/** Desconto valido para exibir "de/por", ou null. */
+export function getProductDiscount(
+  product: Pick<Product, "price" | "compare_at_price">,
+  currentPrice?: number,
+): { from: number; to: number; percent: number } | null {
+  const to = currentPrice ?? coercePrice(product.price);
+  const from = coercePrice(product.compare_at_price);
+  if (!from || !to || from <= to) return null;
+
+  return { from, to, percent: Math.round(((from - to) / from) * 100) };
 }
 
 export function getProductCode(product: Pick<Product, "product_code" | "id">): string {

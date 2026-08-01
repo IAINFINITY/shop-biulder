@@ -13,7 +13,12 @@
   products: {
     name: 80,
     code: 24,
-    description: 1200,
+    // As descricoes novas, escritas pelo time de design, passam de 5.000
+    // caracteres — a maior tem 5.889. Com o limite antigo de 1.200 o contador
+    // aparecia em "4820/1200", como se o texto estivesse errado. O numero aqui
+    // e um teto de sanidade, nao uma regra de estilo: o que segura o tamanho e
+    // a revisao de quem escreve.
+    description: 8000,
   },
 } as const;
 

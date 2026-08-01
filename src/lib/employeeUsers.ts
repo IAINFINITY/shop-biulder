@@ -32,6 +32,22 @@ export async function listEmployees(): Promise<EmployeeUserRecord[]> {
   return (data ?? []) as EmployeeUserRecord[];
 }
 
+/**
+ * Traduz o erro do banco para quem esta olhando a tela.
+ *
+ * O CPF e barrado pelo indice unico `customer_profiles_cnpj_unique`, e a mensagem
+ * chega crua: "duplicate key value violates unique constraint...". Numa
+ * importacao de 50 linhas isso apareceria repetido, sem dizer o que fazer. O
+ * e-mail ja vinha tratado pela funcao; o CPF nao.
+ */
+function mensagemDeErroLegivel(erro: unknown): string {
+  const texto = typeof erro === "string" && erro.trim() ? erro : "Erro ao criar funcionário";
+  if (/customer_profiles_cnpj_unique|duplicate key.*cnpj/i.test(texto)) {
+    return "Este CPF já está cadastrado para outro funcionário";
+  }
+  return texto;
+}
+
 export async function createEmployeeUser(payload: EmployeeUserCreatePayload): Promise<{ userId: string }> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -51,7 +67,7 @@ export async function createEmployeeUser(payload: EmployeeUserCreatePayload): Pr
   });
 
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? "Erro ao criar funcionário");
+  if (!res.ok) throw new Error(mensagemDeErroLegivel(body.error));
 
   const userId = body?.user?.id;
   if (!userId) throw new Error("Resposta inválida ao criar funcionário");

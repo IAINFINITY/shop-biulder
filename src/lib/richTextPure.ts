@@ -16,11 +16,15 @@ const ALLOWED_TAGS = [
   "ol",
   "li",
   "span",
+  "h4",
+  "a",
+  "blockquote",
+  "hr",
 ];
 
-const ALLOWED_ATTR = ["style"];
+const ALLOWED_ATTR = ["style", "href", "target", "rel"];
 const LEGACY_DESCRIPTION_LABELS = new Set(["descricao", "conteudo", "cod", "codigo"]);
-const LEGACY_BULLET_LINE_RE = /^(?::?[-*â€¢]+|\d+[.)])\s+/;
+const LEGACY_BULLET_LINE_RE = /^(?::?[-*•]+|\d+[.)])\s+/;
 
 function normalizeLegacyKey(value: string): string {
   return value
@@ -101,8 +105,9 @@ export function splitLegacyDescriptionBlocks(text: string): LegacyDescriptionBlo
   flushList();
 
   if (blocks.length === 1 && blocks[0].type === "paragraph") {
-    const sentences =
-      blocks[0].text.match(/[^.!]+[.!]*(:\s+|$)/g).map((part) => part.trim()).filter(Boolean) ?? [];
+    const sentences = (blocks[0].text.match(/[^.!]+[.!]*(:\s+|$)/g) ?? [])
+      .map((part) => part.trim())
+      .filter(Boolean);
     if (sentences.length > 1 && blocks[0].text.length >= 140) {
       return sentences.map((text) => ({ type: "paragraph", text }));
     }
@@ -111,13 +116,78 @@ export function splitLegacyDescriptionBlocks(text: string): LegacyDescriptionBlo
   return blocks;
 }
 
+/**
+ * Paragrafos vazios no fim do texto, que o editor deixa quando se aperta Enter
+ * antes de sair do campo. No meio do texto a linha em branco e intencional e
+ * fica; no fim e so sobra, e agora que paragrafo vazio ocupa uma linha ela
+ * apareceria como espaco solto embaixo da descricao.
+ */
+const TRAILING_EMPTY_PARAGRAPHS = /(?:<p>(?:\s|<br\s*\/?>)*<\/p>)+$/i;
+
 export function sanitizeRichText(html: string): string {
   if (!html) return "";
   if (!html.includes("<")) return html;
-  return DOMPurify.sanitize(html, {
+  const clean = DOMPurify.sanitize(html, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
   });
+  return clean.replace(TRAILING_EMPTY_PARAGRAPHS, "");
+}
+
+/**
+ * A descricao ja veio formatada, ou e texto corrido de sistema antigo?
+ *
+ * Duas origens convivem no catalogo:
+ *
+ * - texto cru vindo do ERP, sem marcacao nenhuma ou embrulhado num unico <p>:
+ *   ai vale inferir paragrafos e listas a partir das quebras de linha, que e o
+ *   que `extractDescriptionBlocks` faz;
+ * - HTML escrito no editor do admin, com titulo, negrito e lista numerada. Esse
+ *   nao pode passar pela inferencia: ela le so o `textContent`, entao apaga
+ *   titulo, negrito e numeracao, e ainda quebra paragrafo longo em uma frase
+ *   por bloco. O texto sai inteiro, mas sem hierarquia — parece "todo separado".
+ *
+ * Dois sinais denunciam o editor. O primeiro e marcacao que so ele produz —
+ * `<br>` incluido, porque quebra de linha dentro do paragrafo e decisao de quem
+ * escreveu e a inferencia descartaria.
+ *
+ * O segundo e a quantidade de blocos: o dump do ERP vem como um paragrafo unico,
+ * enquanto quem escreve no editor separa em varios. Sem esse segundo sinal, uma
+ * descricao so de paragrafos — sem titulo e sem negrito — caia na inferencia e
+ * perdia as linhas em branco que a pessoa tinha acabado de colocar.
+ */
+export function hasAuthoredStructure(html: string): boolean {
+  if (!html || !html.includes("<")) return false;
+
+  const sanitized = sanitizeRichText(html);
+  if (/<(h[1-4]|ul|ol|li|strong|b|em|i|u|s|blockquote|hr|a|br)\b/i.test(sanitized)) return true;
+
+  return (sanitized.match(/<p\b/gi)?.length ?? 0) > 1;
+}
+
+/**
+ * Primeiro paragrafo de verdade, para a previa do card.
+ *
+ * Pula titulo: numa descricao formatada o primeiro bloco costuma ser um <h2>
+ * como "O QUE E A VITAMINA D3?", que na previa nao informa nada.
+ */
+export function extractDescriptionPreview(html: string): string {
+  if (!html) return "";
+  if (!html.includes("<")) return stripHtml(html);
+
+  const sanitized = sanitizeRichText(html);
+  if (typeof document === "undefined") return stripHtml(sanitized);
+
+  const root = document.createElement("div");
+  root.innerHTML = sanitized;
+
+  for (const node of Array.from(root.children)) {
+    if (/^h[1-4]$/i.test(node.tagName)) continue;
+    const text = normalizeLegacyDescriptionText(node.textContent ?? "");
+    if (text) return text;
+  }
+
+  return stripHtml(sanitized);
 }
 
 export function extractDescriptionBlocks(content: string): LegacyDescriptionBlock[] {
@@ -163,14 +233,36 @@ export function extractDescriptionBlocks(content: string): LegacyDescriptionBloc
   }
 
   if (blocks.length === 1 && blocks[0].type === "paragraph") {
-    const sentences =
-      blocks[0].text.match(/[^.!]+[.!]*(:\s+|$)/g).map((part) => part.trim()).filter(Boolean) ?? [];
+    const sentences = (blocks[0].text.match(/[^.!]+[.!]*(:\s+|$)/g) ?? [])
+      .map((part) => part.trim())
+      .filter(Boolean);
     if (sentences.length > 1 && blocks[0].text.length >= 140) {
       return sentences.map((text) => ({ type: "paragraph", text }));
     }
   }
 
   return blocks;
+}
+
+/** Quantas frases cabem no card de resumo sem virar uma segunda descricao. */
+const SUMMARY_SENTENCES = 3;
+
+/**
+ * Primeiras frases da descricao, para o card "Resumo" ao lado do preco.
+ *
+ * Nao ha campo separado a preencher: sai da propria descricao, entao um produto
+ * bem descrito ganha o resumo de graca. Mora aqui, e nao junto do componente,
+ * porque arquivo que exporta componente e funcao junto quebra o Fast Refresh e
+ * duplica o modulo.
+ */
+export function summarizeDescription(html: string): string[] {
+  const plain = stripHtml(html).replace(/\s+/g, " ").trim();
+  if (!plain) return [];
+  return plain
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, SUMMARY_SENTENCES);
 }
 
 export function isRichTextEmpty(html: string): boolean {

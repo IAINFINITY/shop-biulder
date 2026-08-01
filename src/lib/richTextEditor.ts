@@ -37,6 +37,23 @@ export const FontSize = Extension.create({
   },
 });
 
+/**
+ * Declara os comandos da extensao para o TipTap.
+ *
+ * Sem este bloco o `editor.chain()` nao conhece `setTextAlign` nem
+ * `unsetTextAlign` — a extensao funcionava em runtime, mas cada uso na barra de
+ * ferramentas acusava "propriedade nao existe". E o mecanismo padrao do TipTap
+ * para comandos proprios.
+ */
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    textAlign: {
+      setTextAlign: (alignment: "left" | "center" | "right" | "justify") => ReturnType;
+      unsetTextAlign: () => ReturnType;
+    };
+  }
+}
+
 export const TextAlign = Extension.create({
   name: "textAlign",
   addOptions() {

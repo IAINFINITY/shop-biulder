@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { AdminSection } from "@/components/admin/adminTypes";
 
 export type AdminPermissions = Record<AdminSection, boolean>;
@@ -80,12 +81,30 @@ export async function createAdminUser(payload: AdminUserCreatePayload): Promise<
 export async function updateAdminPermissions(userId: string, permissions: AdminPermissions): Promise<void> {
   const { error } = await supabase.rpc("update_admin_permissions", {
     p_user_id: userId,
-    p_permissions: permissions as unknown as Record<string, unknown>,
+    // `AdminPermissions` e `Record<AdminSection, boolean>`, que e Json valido.
+    // O cast anterior era para `Record<string, unknown>`, que o tipo `Json` recusa.
+    p_permissions: permissions as unknown as Json,
   });
   if (error) throw error;
 }
 
-export async function updateAdminRole(userId: string, role: string): Promise<void> {
+/**
+ * Renomeia o usuario no painel.
+ *
+ * Pedido do dono do site: o email pode trocar de dono, e a pessoa pode mudar de
+ * setor ou sair da empresa. Sem poder editar o nome, a lista envelhece e deixa
+ * de dizer quem e quem — e o email deixa de ser um identificador confiavel.
+ */
+export async function updateAdminDisplayName(userId: string, displayName: string): Promise<void> {
+  const { error } = await supabase.rpc("update_admin_display_name", {
+    p_user_id: userId,
+    p_display_name: displayName,
+  });
+  if (error) throw error;
+}
+
+/** O papel sai de `ADMIN_ROLES`, entao o tipo e fechado — `string` deixava passar qualquer coisa. */
+export async function updateAdminRole(userId: string, role: AdminUserRecord["role"]): Promise<void> {
   const { error } = await supabase.rpc("update_admin_role", {
     p_user_id: userId,
     p_role: role,

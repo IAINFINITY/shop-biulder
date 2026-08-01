@@ -9,7 +9,9 @@ export async function ensureProxisImportId(
     return existingProxisImportId;
   }
 
-  const { data, error } = await supabase.rpc("allocate_proxis_import_id" as never, {
+  const { data, error } = await // Sem `as never`: a RPC ja consta nos tipos gerados. O escape existia de
+  // quando ela nao constava, e era ele que fazia o argumento virar `never`.
+  supabase.rpc("allocate_proxis_import_id", {
     p_order_id: orderId,
   });
 

@@ -21,6 +21,19 @@ export interface OrderItem {
   notes?: string;
 }
 
+/**
+ * Converte a coluna `items` (jsonb) para a lista que a interface espera.
+ *
+ * O tipo gerado do banco e `Json` — que inclui string, numero e nulo. O codigo
+ * sempre tratou como lista e ate hoje foi o que veio, mas era uma aposta: um
+ * pedido com `items` gravado torto quebraria a tela na hora de percorrer. Aqui a
+ * aposta vira checagem, e o que nao for objeto simplesmente nao entra.
+ */
+export function normalizeOrderItems(items: unknown): OrderItem[] {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item): item is OrderItem => typeof item === "object" && item !== null);
+}
+
 export type SubmittedCartLine = {
   imageUrl?: string | null;
   name: string;

@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
-import { normalizeProductImageFile } from "@/lib/productImageNormalization";
+import {
+  normalizeProductImageFile,
+  PRODUCT_IMAGE_FRAME,
+  type ImageFrame,
+} from "@/lib/productImageNormalization";
 
 const BUCKET = "product-images";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -14,9 +18,19 @@ function safeExtension(file: File): string {
   return "webp";
 }
 
+/**
+ * O campo do outro ramo aparece como opcional de proposito.
+ *
+ * O projeto compila com `strict: false` e `strictNullChecks: false`, e nesse modo
+ * o TypeScript nao estreita uniao discriminada por booleano: mesmo dentro de
+ * `if (!result.ok)` ele continua enxergando a uniao inteira, e ler `.message`
+ * vira erro. Declarar os dois campos nos dois ramos resolve sem depender do
+ * estreitamento — e `?: undefined` mantem a checagem util, porque atribuir
+ * `message` num resultado de sucesso continua sendo erro.
+ */
 export type UploadProductImageResult =
-  | { ok: true; publicUrl: string }
-  | { ok: false; message: string };
+  | { ok: true; publicUrl: string; message?: undefined }
+  | { ok: false; publicUrl?: undefined; message: string };
 
 function isImageFile(file: File): boolean {
   if (file.type.startsWith("image/")) return true;
@@ -24,20 +38,46 @@ function isImageFile(file: File): boolean {
   return ALLOWED_EXT.has(ext);
 }
 
-export async function uploadBlobPreviewUrl(blobUrl: string): Promise<UploadProductImageResult> {
+export async function uploadBlobPreviewUrl(
+  blobUrl: string,
+  shape: UploadImageShape = { frame: PRODUCT_IMAGE_FRAME },
+): Promise<UploadProductImageResult> {
   try {
     const res = await fetch(blobUrl);
     const blob = await res.blob();
     const file = new File([blob], `produto-${Date.now()}.jpg`, {
       type: blob.type && blob.type.startsWith("image/") ? blob.type : "image/jpeg",
     });
-    return uploadProductImageFile(file);
+    return uploadProductImageFile(file, shape);
   } catch {
     return { ok: false, message: "Não foi possível processar a imagem selecionada." };
   }
 }
 
-export async function uploadProductImageFile(file: File): Promise<UploadProductImageResult> {
+/**
+ * @param frame Moldura de destino. O padrao e a foto de produto; banner e
+ * notificacao precisam declarar a sua, senao saem esticadas para 4:5 retrato.
+ */
+export type UploadImageShape =
+  /** Moldura fixa: a imagem preenche exatamente esse tamanho (foto de produto). */
+  | { frame: ImageFrame; quality?: number; nome?: string }
+  /** Sem moldura: mantem a proporcao entregue, so reduz (banner, notificacao). */
+  | { maxSize: number; quality?: number; nome?: string };
+
+/** Nome pedido pelo chamador, limpo do que nao pode ir para um caminho. */
+function nomeDeArquivo(shape: UploadImageShape): string | null {
+  const bruto = "nome" in shape ? shape.nome : undefined;
+  if (typeof bruto !== "string") return null;
+  // Barra viraria pasta; espaco e acento viram escape na URL e quebram a
+  // comparacao por nome que a biblioteca de imagens faz.
+  const limpo = bruto.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
+  return limpo || null;
+}
+
+export async function uploadProductImageFile(
+  file: File,
+  shape: UploadImageShape = { frame: PRODUCT_IMAGE_FRAME },
+): Promise<UploadProductImageResult> {
   if (!isImageFile(file)) {
     return { ok: false, message: "Arquivo inválido. Selecione uma imagem (JPG, PNG ou WebP)." };
   }
@@ -45,7 +85,12 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
     return { ok: false, message: "Imagem muito grande. Máximo 8 MB." };
   }
 
-  const normalizedFile = await normalizeProductImageFile(file);
+  const normalizedFile = await normalizeProductImageFile(
+    file,
+    "frame" in shape
+      ? { targetWidth: shape.frame.width, targetHeight: shape.frame.height, quality: shape.quality }
+      : { maxSize: shape.maxSize, quality: shape.quality },
+  );
 
   await supabase.auth.refreshSession();
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -54,7 +99,18 @@ export async function uploadProductImageFile(file: File): Promise<UploadProductI
   }
 
   const ext = safeExtension(normalizedFile);
-  const path = `${crypto.randomUUID()}.${ext}`;
+  /**
+   * Nome do arquivo no bucket.
+   *
+   * Com `nome`, vira `12336.webp` — o codigo do produto. Sem ele, sobra o UUID.
+   *
+   * O UUID era o unico caminho, e o resultado era uma biblioteca inteira de
+   * arquivos que ninguem conseguia identificar pelo nome. Pior: o envio em lote
+   * casa arquivo com produto justamente pelo nome, entao o que ja estava no
+   * storage era invisivel para ele. Ver
+   * `scripts/rename-images-to-product-codes.mjs`, que arrumou o acervo antigo.
+   */
+  const path = `${nomeDeArquivo(shape) ?? crypto.randomUUID()}.${ext}`;
 
   let { error } = await supabase.storage.from(BUCKET).upload(path, normalizedFile, {
     cacheControl: "31536000",
@@ -118,8 +174,9 @@ export function isProductImageStorageUrl(publicUrl: string | null | undefined): 
   return extractStoragePath(publicUrl) !== null;
 }
 
+/** Mesmo motivo de `UploadProductImageResult`. */
 export type DeleteImageResult =
-  | { ok: true }
+  | { ok: true; message?: undefined }
   | { ok: false; message: string };
 
 export async function deleteStorageImage(publicUrl: string | null | undefined): Promise<DeleteImageResult> {

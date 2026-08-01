@@ -1,4 +1,6 @@
-﻿import { useMemo, useState } from "react";
+﻿import { cn } from "@/lib/utils";
+import { PAGE_CONTAINER } from "@/lib/pageLayout";
+import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ArrowRight, ImageIcon, PackageCheck, Phone, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -109,18 +111,18 @@ export default function OrderSuccess() {
         <div className="absolute right-[-120px] top-20 h-80 w-80 rounded-full bg-accent/15 blur-3xl" />
       </div>
 
-      <main className="relative w-full px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-safe">
+      <main className={cn(PAGE_CONTAINER, "relative py-4 pb-safe sm:py-6 lg:py-8")}>
         <section className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm">
           <div className="flex flex-col gap-4 sm:gap-5">
             <div className="max-w-4xl space-y-2 sm:space-y-3">
               <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
                 Obrigado, seu pedido foi enviado.
               </h2>
-              <p className="max-w-2xl text-[13px] sm:text-sm leading-6 sm:leading-7 text-muted-foreground sm:text-base">
+              <p className="max-w-2xl text-[0.8125rem] sm:text-sm leading-6 sm:leading-7 text-muted-foreground sm:text-base">
                 Nosso time já recebeu sua solicitação e vai seguir com a validação do pedido. Se algo estiver
                 faltando, retornamos pelo contato cadastrado.
               </p>
-              <div className="space-y-1 text-[13px] sm:text-sm leading-6 sm:leading-7 text-muted-foreground">
+              <div className="space-y-1 text-[0.8125rem] sm:text-sm leading-6 sm:leading-7 text-muted-foreground">
                 <p>Se precisar falar com o consultor, use o WhatsApp:</p>
                 <a
                   className="inline-flex min-h-[44px] items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
@@ -139,7 +141,7 @@ export default function OrderSuccess() {
 
             <div className="grid gap-2.5 sm:gap-3 sm:grid-cols-2 xl:max-w-[520px]">
               <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Status</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Status</p>
                 <div className="mt-2 sm:mt-3 flex items-center gap-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <PackageCheck className="h-5 w-5" />
@@ -152,7 +154,7 @@ export default function OrderSuccess() {
               </div>
 
               <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Itens</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Itens</p>
                 <p className="mt-2 sm:mt-3 text-xl sm:text-2xl font-semibold tracking-tight text-foreground">{totalItems || 0}</p>
                 <p className="text-xs text-muted-foreground">Item(ns) no pedido</p>
               </div>
@@ -160,10 +162,10 @@ export default function OrderSuccess() {
 
             {orderNote ? (
               <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Observação do pedido
                 </p>
-                <p className="mt-2 sm:mt-3 whitespace-pre-wrap break-words text-[13px] sm:text-sm leading-6 sm:leading-7 text-foreground">{orderNote}</p>
+                <p className="mt-2 sm:mt-3 whitespace-pre-wrap break-words text-[0.8125rem] sm:text-sm leading-6 sm:leading-7 text-foreground">{orderNote}</p>
               </div>
             ) : null}
 
@@ -188,28 +190,28 @@ export default function OrderSuccess() {
           <section className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">Resumo</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Resumo</p>
                 <h3 className="text-lg font-semibold text-foreground">Dados do pedido</h3>
               </div>
             </div>
 
             <div className="mt-4 sm:mt-5 grid gap-2.5 sm:gap-3">
               <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Cliente</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Cliente</p>
                 <p className="mt-1.5 sm:mt-2 text-sm font-semibold text-foreground">
                   {resolvedCustomerName}
                 </p>
                 <p className="mt-1.5 sm:mt-2 text-xs text-muted-foreground">{resolvedCustomerPhone}</p>
               </div>
               <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">Empresa</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</p>
                 <p className="mt-1.5 sm:mt-2 text-sm font-semibold text-foreground">
                   {resolvedCustomerCompany}
                 </p>
                 <p className="mt-1.5 sm:mt-2 text-xs text-muted-foreground">{resolvedCustomerCnpj}</p>
               </div>
               <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Endereço de entrega
                 </p>
                 {addressLines ? (
@@ -226,13 +228,13 @@ export default function OrderSuccess() {
               </div>
               <div className="grid gap-2.5 sm:gap-3 grid-cols-2">
                 <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Itens enviados
                   </p>
                   <p className="mt-1.5 sm:mt-2 text-sm font-semibold text-foreground">{formatStepCount(totalItems)}</p>
                 </div>
                 <div className="rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Total estimado
                   </p>
                   <p className="mt-1.5 sm:mt-2 text-lg sm:text-xl font-semibold tracking-tight text-foreground">
@@ -245,7 +247,7 @@ export default function OrderSuccess() {
 
           <section className="rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm">
             <div className="space-y-2.5 sm:space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">Próximos passos</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Próximos passos</p>
               <h3 className="text-base sm:text-lg font-semibold text-foreground">Como o atendimento segue</h3>
               <div className="space-y-2.5 sm:space-y-3 pt-1 sm:pt-2">
                 <div className="flex gap-3 rounded-2xl border border-border/70 bg-background/80 p-3 sm:p-4">
@@ -322,7 +324,7 @@ export default function OrderSuccess() {
 
                         <div className="flex items-center justify-between gap-3">
                           <div className="space-y-0.5">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                               Unitário
                             </p>
                             <p className="text-sm font-semibold tabular-nums text-foreground">
@@ -330,7 +332,7 @@ export default function OrderSuccess() {
                             </p>
                           </div>
                           <div className="space-y-0.5 text-right">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                               Subtotal
                             </p>
                             <p className="text-sm font-semibold tabular-nums text-foreground">
@@ -343,7 +345,7 @@ export default function OrderSuccess() {
 
                     {String(line.notes ?? "").trim() ? (
                       <div className="rounded-xl bg-muted/50 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                           Observações
                         </p>
                         <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
@@ -353,7 +355,7 @@ export default function OrderSuccess() {
                     ) : null}
 
                     <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         Quantidade
                       </p>
                       <div className="flex min-w-20 items-center justify-center rounded-full border border-border px-4 py-1.5 text-sm font-medium tabular-nums text-foreground">

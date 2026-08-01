@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import type { Order } from "@/lib/orders";
-import { ORDERS_TABLE } from "@/lib/orders";
+import { ORDERS_TABLE, normalizeOrderItems } from "@/lib/orders";
 
 const ORDERS_CACHE_PREFIX = "clinicplus_orders_cache";
 
@@ -48,7 +48,10 @@ export function useOrders(enabled = true, queryKeySuffix = "default") {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const orders = data ?? [];
+      const orders: Order[] = (data ?? []).map((row) => ({
+        ...row,
+        items: normalizeOrderItems(row.items),
+      })) as Order[];
       writeCachedOrders(queryKeySuffix, orders);
       return orders;
     },

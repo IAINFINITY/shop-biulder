@@ -929,6 +929,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log("[proxis-order] Produtos resolvidos:", documentoItens.length, "falhas:", failedProducts.length);
     diagnostic.items_resolved = documentoItens.length;
+
+    // Falha parcial: o pedido segue, e o descarte vai junto do status final.
+    //
+    // Antes o item sem cadastro no ERP era pulado em silencio: quem pediu cinco
+    // produtos via "pedido enviado" e o Proxis recebia tres. A diferenca so
+    // aparecia no `failed_products` da resposta, que so o reenvio manual do
+    // admin chegava a ler — no envio feito pelo cliente ninguem via nada.
+    //
+    // O aviso nao pode virar status "pendente": isso jogaria o pedido na fila de
+    // reenvio e ele seria enviado de novo, duplicado. Vai como observacao no
+    // proprio registro de enviado.
+    //
+    // Recusar o pedido inteiro por causa de um item foi descartado: trava a
+    // venda dos outros quatro por um problema de cadastro. A checagem que evita
+    // isso na origem esta no admin, ao salvar o produto.
+    const avisoItensDescartados =
+      failedProducts.length > 0
+        ? `Enviado sem ${failedProducts.length} item(ns) sem cadastro no Proxis: ${failedProducts.join(", ")}`
+        : null;
+
     if (documentoItens.length === 0) {
       // Produto sem cadastro no ERP nao se resolve com nova tentativa: e dado
       // a corrigir no catalogo, entao o pedido fica marcado como recusado.
@@ -988,7 +1008,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log("[proxis-order] Resposta do SalvarPedidoVenda:", JSON.stringify(resultado));
 
-    await registrarDesfecho(PROXIS_SYNC_SENT);
+    await registrarDesfecho(PROXIS_SYNC_SENT, avisoItensDescartados);
 
     return res.status(200).json({
       success: true,

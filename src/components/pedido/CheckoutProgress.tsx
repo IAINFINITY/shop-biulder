@@ -26,7 +26,7 @@ export function CheckoutProgress({ steps, currentStep, className }: CheckoutProg
               <div className="flex items-center gap-2">
                 <div
                   className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-300",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold transition-all duration-300",
                     isCompleted && "bg-primary text-primary-foreground shadow-sm",
                     isCurrent && "bg-primary text-primary-foreground shadow-md ring-2 ring-primary/20",
                     !isCompleted && !isCurrent && "bg-muted text-muted-foreground",
@@ -36,7 +36,7 @@ export function CheckoutProgress({ steps, currentStep, className }: CheckoutProg
                 </div>
                 <span
                   className={cn(
-                    "hidden text-[12px] font-medium transition-colors duration-300 sm:inline",
+                    "hidden text-xs font-medium transition-colors duration-300 sm:inline",
                     isCurrent ? "text-foreground" : isCompleted ? "text-muted-foreground" : "text-muted-foreground/60",
                   )}
                 >

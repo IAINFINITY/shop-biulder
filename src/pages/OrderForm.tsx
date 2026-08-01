@@ -1,4 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { cn } from "@/lib/utils";
+import { PAGE_CONTAINER } from "@/lib/pageLayout";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Send, ShoppingBag, ImageIcon, User, MapPin, FileText, CreditCard, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { useCustomerAddresses } from "@/hooks/useCustomerAddresses";
-import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, resolveProductPrice } from "@/lib/pricing";
+import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
 import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
 import { profileAddressToForm, saveCustomerProfileAddress } from "@/lib/customerProfile";
@@ -73,7 +75,7 @@ export default function OrderForm() {
   const allowGuestCheckout = import.meta.env.DEV;
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
-  const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
+  const { data: customerPriceMap = EMPTY_PRICE_MAP } = useCustomerPricing(
     customerType,
     customerTprId,
   );
@@ -543,7 +545,7 @@ export default function OrderForm() {
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       </div>
-      <div className="w-full px-3 py-4 sm:px-6 lg:px-8">
+      <div className={cn(PAGE_CONTAINER, "py-4")}>
         {!user && allowGuestCheckout ? (
           <div className="mb-6 flex items-start gap-3 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-foreground">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -577,15 +579,15 @@ export default function OrderForm() {
                     <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   </div>
                   <div className="space-y-0.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-primary">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
                       Checkout
                     </p>
-                    <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-3xl">
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl lg:text-3xl">
                       Finalizar pedido
                     </h1>
                   </div>
                 </div>
-                <p className="mt-3 sm:mt-4 max-w-2xl text-[13px] sm:text-sm leading-relaxed text-muted-foreground sm:text-base">
+                <p className="mt-3 sm:mt-4 max-w-2xl text-[0.8125rem] sm:text-sm leading-relaxed text-muted-foreground sm:text-base">
                   Revise seus dados, confirme o endereço e envie tudo para o atendimento.
                 </p>
                 <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-2">
@@ -633,17 +635,17 @@ export default function OrderForm() {
                       />
                     </div>
                     {!checkoutHasValidCnpj ? (
-                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-950">
+                      <div className="mt-4 rounded-2xl border border-warm/25 bg-warm/10 p-4 text-sm text-foreground">
                         <div className="flex items-start gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warm/20 text-warm">
                             <CreditCard className="h-4 w-4" />
                           </div>
                           <div className="space-y-2">
                             <p className="font-semibold">CNPJ obrigatório para finalizar a compra</p>
-                            <p className="text-amber-900/80">
+                            <p className="text-muted-foreground">
                               {checkoutCnpjHint}
                             </p>
-                            <Button asChild variant="outline" className="rounded-full border-amber-300 bg-white text-amber-950 hover:bg-amber-100">
+                            <Button asChild variant="outline" className="rounded-full border-warm/40 bg-background text-foreground hover:bg-warm/10">
                               <Link to="/conta?section=empresa">Ir para meus dados</Link>
                             </Button>
                           </div>
@@ -704,7 +706,7 @@ export default function OrderForm() {
                                 <div className="flex flex-wrap items-center gap-2">
                                   <p className="text-sm font-semibold text-foreground">{address.label}</p>
                                   {address.is_default ? (
-                                    <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                                    <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                                       Padrão
                                     </Badge>
                                   ) : null}
@@ -718,7 +720,7 @@ export default function OrderForm() {
                                 </p>
                                 <p className="text-sm text-muted-foreground">{formatCep(address.cep)}</p>
                               </div>
-                              <span className="flex h-9 items-center rounded-full px-3 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground ring-1 ring-border/60">
+                              <span className="flex h-9 items-center rounded-full px-3 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground ring-1 ring-border/60">
                                 Usar
                               </span>
                             </div>
@@ -805,7 +807,7 @@ export default function OrderForm() {
                         <Badge variant="secondary" className="rounded-full px-3 py-1">
                           Opcional
                         </Badge>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           {orderNote.length}/{ORDER_TEXT_LIMITS.observation} caracteres
                         </p>
                       </div>
@@ -890,7 +892,7 @@ export default function OrderForm() {
                         <div className="flex gap-3 sm:gap-4">
                           <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl border border-border bg-muted/30">
                              {imageUrl ? (
-                               <img src={imageUrl} alt={item.product.name} width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full object-contain p-2" />
+                               <img src={imageUrl} alt={item.product.name} width={1600} height={1600} loading="lazy" decoding="async" className="h-full w-full object-contain p-2" />
                             ) : (
                               <ImageIcon className="h-8 w-8 text-muted-foreground/35" />
                             )}
@@ -908,7 +910,7 @@ export default function OrderForm() {
                               </div>
                               <Badge
                                 variant="outline"
-                                className="shrink-0 rounded-full border-primary/15 bg-primary/5 px-2 py-0.5 text-[11px] text-foreground"
+                                className="shrink-0 rounded-full border-primary/15 bg-primary/5 px-2 py-0.5 text-[0.6875rem] text-foreground"
                               >
                                 {item.quantity} un
                               </Badge>
@@ -928,7 +930,7 @@ export default function OrderForm() {
                               if (!notes) return null;
                               return (
                               <div className="rounded-xl bg-muted/50 p-3">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                                   Observações
                                 </p>
                                 <p className="mt-1 whitespace-pre-wrap break-words text-xs text-foreground">
@@ -947,7 +949,7 @@ export default function OrderForm() {
                 <div className="mt-4 sm:mt-5 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-5 lg:mt-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-medium text-muted-foreground">Total estimado</span>
-                    <span className="text-xl sm:text-2xl font-bold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
+                    <span className="text-xl sm:text-2xl font-semibold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
                   </div>
                 </div>
               </div>

@@ -115,7 +115,7 @@ export function CartDrawer({
           {totalItems > 0 && (
             <Badge
               key={bounceKey}
-              className="pointer-events-none absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-warm px-1.5 text-[10px] font-bold leading-none text-warm-foreground tabular-nums animate-cart-bounce"
+              className="pointer-events-none absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-warm px-1.5 text-[0.625rem] font-semibold leading-none text-warm-foreground tabular-nums animate-cart-bounce"
             >
               {formatCartBadgeCount(totalItems)}
             </Badge>
@@ -148,8 +148,8 @@ export function CartDrawer({
                         <img
                           src={getCartImage(item) ?? ""}
                           alt={item.product.name}
-                          width={1200}
-                          height={900}
+                          width={1600}
+                          height={1600}
                           loading="lazy"
                           decoding="async"
                           className="h-full w-full object-contain p-1.5"
@@ -185,7 +185,7 @@ export function CartDrawer({
 
                       <div className="flex items-center justify-between gap-3">
                         <div className="space-y-0.5">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                             Unitário
                           </p>
                           <p className="text-sm font-semibold tabular-nums text-foreground">
@@ -193,7 +193,7 @@ export function CartDrawer({
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                             Subtotal
                           </p>
                           <p className="text-sm font-semibold tabular-nums text-foreground">
@@ -205,7 +205,7 @@ export function CartDrawer({
                   </div>
 
                   <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Quantidade
                     </p>
                     <div className="flex items-center gap-2">

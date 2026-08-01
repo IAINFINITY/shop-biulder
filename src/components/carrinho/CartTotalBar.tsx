@@ -22,7 +22,7 @@ export function CartTotalBar({ total, visible }: CartTotalBarProps) {
             <ShoppingBag className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total do carrinho</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Total do carrinho</p>
             <p className="text-lg font-semibold tracking-tight text-foreground tabular-nums sm:text-xl">
               {formatBRL(total)}
             </p>

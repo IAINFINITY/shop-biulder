@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { LogOut, ShieldCheck } from "lucide-react";
+import { Images, LogOut, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,11 +17,8 @@ import {
   getProductImageUrls,
   buildOrderEnrichmentMaps,
   buildProductDbPayload,
-  isMissingImageUrlsColumnError,
-  isMissingProductCodeColumnError,
-  isMissingPromotionColumnError,
-  omitProductCode,
-  omitProductPromotion,
+  detectMissingProductColumn,
+  omitProductColumn,
   type Product,
 } from "@/lib/products";
 import {
@@ -31,7 +28,13 @@ import {
   parsePriceInput,
   priceToAdminInput,
 } from "@/lib/formatMoney";
-import { uploadProductImageFile } from "@/lib/productImageStorage";
+import { uploadProductImageFile, deleteStorageImage } from "@/lib/productImageStorage";
+import {
+  PRODUCT_IMAGE_MIN_SIZE,
+  PRODUCT_IMAGE_TARGET_WIDTH,
+  PRODUCT_IMAGE_TARGET_HEIGHT,
+  checkProductImage,
+} from "@/lib/productImageNormalization";
 import { ORDERS_TABLE } from "@/lib/orders";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
 import { toast } from "sonner";
@@ -43,6 +46,9 @@ import { AdminBannersSection } from "@/components/admin/AdminBannersSection";
 import { AdminNotificationsSection } from "@/components/admin/AdminNotificationsSection";
 import { AdminEmployeesSection } from "@/components/admin/AdminEmployeesSection";
 import { AdminProductsSection } from "@/components/admin/AdminProductsSection";
+import { AdminBulkImagesSection } from "@/components/admin/AdminBulkImagesSection";
+import { AdminMediaLibrarySection } from "@/components/admin/AdminMediaLibrarySection";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminPricingSection } from "@/components/admin/AdminPricingSection";
 import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
@@ -403,11 +409,13 @@ export default function AdminWorkspace() {
     banners: "Banners do catálogo",
     notificacoes: "Notificações",
     produtos: "Produtos",
+    imagens: "Imagens",
     precos: "Preços",
     pedidos: "Pedidos",
     clientes: "Clientes",
     mensagens: "Mensagens",
     usuarios: "Usuários",
+    funcionarios: "Funcionários",
     configuracoes: "Configurações",
   };
   const typeOptions = adminTypes.length
@@ -502,12 +510,17 @@ export default function AdminWorkspace() {
     setEditing({
       name: "",
       description: "",
+      brand: "",
       type: "Chá",
       family: "",
       image_urls: [],
+      image_alts: [],
+      image_fit: "contain",
       active: true,
       is_promotion: false,
+      is_featured: false,
       priceInput: "",
+      compareAtPriceInput: "",
       stockInput: "",
       productCode: "",
       visible_to: [],
@@ -520,12 +533,17 @@ export default function AdminWorkspace() {
       id: p.id,
       name: p.name,
       description: p.description,
+      brand: p.brand ?? "",
       type: p.type,
       family: p.family.trim(),
       image_urls: getProductImageUrls(p),
+      image_alts: getProductImageUrls(p).map((_, index) => p.image_alts?.[index] ?? ""),
+      image_fit: p.image_fit,
       active: p.active,
       is_promotion: p.is_promotion,
+      is_featured: p.is_featured,
       priceInput: priceToAdminInput(coercePrice(p.price)),
+      compareAtPriceInput: p.compare_at_price ? priceToAdminInput(coercePrice(p.compare_at_price)) : "",
       stockInput: typeof p.stock === "number" && Number.isFinite(p.stock) ? String(Math.max(0, Math.trunc(p.stock))) : "",
       productCode: p.product_code ?? "",
       visible_to: p.visible_to ?? [],
@@ -544,6 +562,25 @@ export default function AdminWorkspace() {
     if (!file) return;
 
     setUploading(true);
+    // Avisa antes de subir, mas nao bloqueia: a foto fora do padrao ainda e
+    // melhor do que produto sem imagem nenhuma no catalogo.
+    const check = await checkProductImage(file);
+    if (check.dimensions) {
+      const { width, height } = check.dimensions;
+      if (check.isTooSmall) {
+        toast.warning(
+          `Foto de ${width}×${height}px: abaixo do mínimo de ${PRODUCT_IMAGE_MIN_SIZE}×${PRODUCT_IMAGE_MIN_SIZE}px, vai ficar borrada ao ampliar.`,
+        );
+      } else if (check.isOffAspectRatio) {
+        // Nao e erro: o upload estende a borda da propria foto para fechar o
+        // quadro. O aviso existe porque quem fotografou consegue enquadrar
+        // melhor do que qualquer estender automatico.
+        toast.info(
+          `Foto de ${width}×${height}px fora de 4:5: o fundo vai ser estendido para fechar a moldura. O ideal é entregar em ${PRODUCT_IMAGE_TARGET_WIDTH}×${PRODUCT_IMAGE_TARGET_HEIGHT}px.`,
+        );
+      }
+    }
+
     const result = await uploadProductImageFile(file);
     setUploading(false);
 
@@ -561,11 +598,17 @@ export default function AdminWorkspace() {
         toast.error("Máximo de 5 imagens por produto.");
         return prev;
       }
-      return { ...prev, image_urls: [...prev.image_urls, result.publicUrl] };
+      return {
+        ...prev,
+        image_urls: [...prev.image_urls, result.publicUrl],
+        image_alts: [...prev.image_alts, ""],
+      };
     });
     toast.success("Foto adicionada!");
   };
 
+  // Reordenar ou remover precisa mover a descricao junto com a foto, senao os
+  // alt textos passam a descrever a imagem errada.
   const moveImageAt = (from: number, to: number) => {
     setEditing((prev) => {
       if (!prev) return prev;
@@ -573,10 +616,25 @@ export default function AdminWorkspace() {
       if (from < 0 || from >= prev.image_urls.length) return prev;
       if (to < 0 || to >= prev.image_urls.length) return prev;
 
-      const next = [...prev.image_urls];
-      const [item] = next.splice(from, 1);
-      next.splice(to, 0, item);
-      return { ...prev, image_urls: next };
+      const nextUrls = [...prev.image_urls];
+      const [movedUrl] = nextUrls.splice(from, 1);
+      nextUrls.splice(to, 0, movedUrl);
+
+      const nextAlts = [...prev.image_alts];
+      const [movedAlt] = nextAlts.splice(from, 1);
+      nextAlts.splice(to, 0, movedAlt ?? "");
+
+      return { ...prev, image_urls: nextUrls, image_alts: nextAlts };
+    });
+  };
+
+  const setImageAltAt = (index: number, alt: string) => {
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const nextAlts = prev.image_urls.map((_, position) =>
+        position === index ? alt : prev.image_alts[position] ?? "",
+      );
+      return { ...prev, image_alts: nextAlts };
     });
   };
 
@@ -593,6 +651,13 @@ export default function AdminWorkspace() {
       return;
     }
 
+    const compareAtRaw = editing.compareAtPriceInput.trim();
+    const normalizedCompareAt = compareAtRaw === "" ? null : Math.max(0, parsePriceInput(compareAtRaw));
+    if (normalizedCompareAt !== null && normalizedCompareAt <= normalizedPrice) {
+      toast.error('O preço "de" precisa ser maior que o preço atual.');
+      return;
+    }
+
     const stockInput = editing.stockInput.trim();
     const stock = stockInput === "" ? null : Number.parseInt(stockInput, 10);
     if (stockInput !== "" && (!Number.isInteger(stock) || stock < 0)) {
@@ -600,43 +665,55 @@ export default function AdminWorkspace() {
       return;
     }
 
-    const { withGallery, legacyOnly } = buildProductDbPayload({
+    const { withGallery } = buildProductDbPayload({
       name: editing.name,
       description,
+      brand: editing.brand,
       type: editing.type,
       family: editing.family.trim(),
       image_urls: editing.image_urls.filter((u) => u.trim() !== ""),
+      image_alts: editing.image_alts,
+      image_fit: editing.image_fit,
       active: editing.active,
       is_promotion: editing.is_promotion,
+      is_featured: editing.is_featured,
       price: normalizedPrice,
+      compare_at_price: normalizedCompareAt,
       stock,
       product_code: editing.productCode,
       visible_to: editing.visible_to.length > 0 ? editing.visible_to.map((t) => t.trim().toLowerCase()) : null,
     });
 
-    const persist = async (body: typeof withGallery | typeof legacyOnly) => {
-      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(body as never);
-      return supabase.from(PRODUCTS_TABLE).update(body as never).eq("id", editing.id!);
+    const persist = async (payload: Record<string, unknown>) => {
+      if (isNew) return supabase.from(PRODUCTS_TABLE).insert(payload as never);
+      return supabase.from(PRODUCTS_TABLE).update(payload as never).eq("id", editing.id!);
     };
 
-    const imageCount = editing.image_urls.filter((u) => u.trim() !== "").length;
-    let body: typeof withGallery | typeof legacyOnly = withGallery;
+    // Mesma degradacao progressiva da leitura: descarta a coluna que o banco
+    // ainda nao tem e tenta de novo, avisando o que ficou de fora.
+    const MISSING_COLUMN_WARNINGS: Record<string, string> = {
+      image_urls: "Só a primeira foto foi salva. Execute supabase/APLICAR_NO_SUPABASE_image_urls.sql no Supabase para várias imagens.",
+      is_promotion: "Promoção não salva. Execute a migração da coluna is_promotion no Supabase e tente de novo.",
+      is_featured: "Destaque não salvo. Execute supabase/migrations/20260801160000_product_is_featured.sql no Supabase e tente de novo.",
+      product_code: "Código não salvo. Execute supabase/APLICAR_NO_SUPABASE_product_code.sql no Supabase e tente de novo.",
+      brand: "Marca não salva. Execute supabase/APLICAR_NO_SUPABASE_product_taxonomy_brands.sql no Supabase e tente de novo.",
+      visible_to: "Visibilidade não salva. Execute supabase/APLICAR_NO_SUPABASE_visible_to.sql no Supabase e tente de novo.",
+      stock: "Estoque não salvo. Execute a migração da coluna stock no Supabase e tente de novo.",
+    };
+
+    let body: Record<string, unknown> = withGallery;
+    const dropped: string[] = [];
     let { error } = await persist(body);
-    if (error && isMissingImageUrlsColumnError(error.message)) {
-      if (imageCount > 1) {
-        toast.warning("Só a primeira foto foi salva. Execute supabase/APLICAR_NO_SUPABASE_image_urls.sql no Supabase para várias imagens.");
-      }
-      body = legacyOnly;
-      ({ error } = await persist(body));
-    }
-    if (error && isMissingPromotionColumnError(error.message)) {
-      toast.warning("Promoção não salva. Execute a migração da coluna is_promotion no Supabase e tente de novo.");
-      body = omitProductPromotion(body) as typeof withGallery;
-      ({ error } = await persist(body));
-    }
-    if (error && isMissingProductCodeColumnError(error.message)) {
-      toast.warning("Código não salvo. Execute supabase/APLICAR_NO_SUPABASE_product_code.sql no Supabase e tente de novo.");
-      body = omitProductCode(body) as typeof withGallery;
+
+    while (error) {
+      const missingColumn = detectMissingProductColumn(error.message);
+      if (!missingColumn || dropped.includes(missingColumn)) break;
+
+      const warning = MISSING_COLUMN_WARNINGS[missingColumn];
+      if (warning) toast.warning(warning);
+
+      dropped.push(missingColumn);
+      body = omitProductColumn(body, missingColumn);
       ({ error } = await persist(body));
     }
 
@@ -886,6 +963,7 @@ export default function AdminWorkspace() {
           onDeleteType={deleteType}
           onFileChange={handleImageFile}
           onMoveImageAt={moveImageAt}
+          onImageAltChange={setImageAltAt}
           onRemoveImageAt={async (index) => {
             const currentUrl = editing?.image_urls[index];
             setEditing((prev) => {
@@ -893,6 +971,9 @@ export default function AdminWorkspace() {
               return {
                 ...prev,
                 image_urls: prev.image_urls.filter((_, i) => i !== index),
+                image_alts: prev.image_urls
+                  .map((_, position) => prev.image_alts[position] ?? "")
+                  .filter((_, i) => i !== index),
               };
             });
 
@@ -908,6 +989,31 @@ export default function AdminWorkspace() {
           onSave={save}
           onCancel={cancel}
         />
+      )}
+
+      {/* Duas tarefas diferentes, em duas abas: enviar fotos novas e cuidar do
+          que ja esta la. Empilhadas numa pagina so, quem vinha subir um lote
+          rolava por toda a biblioteca antes de achar a area de envio. */}
+      {section === "imagens" && (
+        <Tabs defaultValue="enviar" className="space-y-6">
+          <TabsList className="h-auto w-full justify-start gap-1 rounded-full bg-muted/60 p-1 sm:w-auto">
+            <TabsTrigger value="enviar" className="gap-2 rounded-full px-4 py-2 text-[0.8125rem]">
+              <Upload className="h-4 w-4" />
+              Enviar fotos
+            </TabsTrigger>
+            <TabsTrigger value="biblioteca" className="gap-2 rounded-full px-4 py-2 text-[0.8125rem]">
+              <Images className="h-4 w-4" />
+              Biblioteca
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="enviar" className="mt-0">
+            <AdminBulkImagesSection products={products} />
+          </TabsContent>
+          <TabsContent value="biblioteca" className="mt-0">
+            <AdminMediaLibrarySection products={products} />
+          </TabsContent>
+        </Tabs>
       )}
 
       {section === "precos" && (

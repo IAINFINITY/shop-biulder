@@ -3,6 +3,7 @@ import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import { JoinAsLineBreak } from "@/components/shared/joinAsLineBreak";
 import {
   Bold,
   AlignLeft,
@@ -15,6 +16,7 @@ import {
   Heading3,
   List,
   ListOrdered,
+  CornerDownLeft,
   Undo2,
   Redo2,
   RemoveFormatting,
@@ -37,6 +39,8 @@ type RichTextEditorProps = {
   onChange: (html: string) => void;
   placeholder: string;
   className?: string;
+  /** Tipografia do conteudo. Deve ser a mesma que a vitrine usa para exibi-lo. */
+  contentClassName?: string;
 };
 
 function Toolbar({ editor }: { editor: Editor | null }) {
@@ -125,6 +129,21 @@ function Toolbar({ editor }: { editor: Editor | null }) {
           ))}
         </SelectContent>
       </Select>
+
+      {/* Quebra de linha dentro do mesmo paragrafo. O atalho (Shift+Enter) ja
+          existia, mas nada na tela dizia isso: quem queria duas linhas coladas
+          dava Enter, criava outro paragrafo e levava o espacamento junto. */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0"
+        onClick={() => editor.chain().focus().setHardBreak().run()}
+        aria-label="Quebra de linha (Shift+Enter)"
+        title="Quebra de linha — mantém no mesmo parágrafo (Shift+Enter)"
+      >
+        <CornerDownLeft className="h-4 w-4" />
+      </Button>
 
       <span className="mx-1 hidden h-6 w-px bg-border sm:inline" aria-hidden />
 
@@ -224,12 +243,13 @@ function Toolbar({ editor }: { editor: Editor | null }) {
   );
 }
 
-export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder, className, contentClassName }: RichTextEditorProps) {
   const editor = useEditor({
       extensions: [
         StarterKit.configure({
           heading: { levels: [2, 3] },
         }),
+        JoinAsLineBreak,
         Underline,
         TextAlign,
         TextStyle,
@@ -241,8 +261,9 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
     content: value || "",
     editorProps: {
       attributes: {
-        class:
-          "tiptap prose prose-sm max-w-none min-h-[140px] px-3 py-3 focus:outline-none text-foreground [&_p]:my-1.5",
+        // Sem tipografia propria: o que o editor mostra tem de ser o que a
+        // vitrine mostra, entao quem edita ve o resultado real enquanto formata.
+        class: cn("tiptap min-h-[140px] px-3 py-3 focus:outline-none", contentClassName),
         ...(placeholder ? { "data-placeholder": placeholder } : {}),
       },
     },

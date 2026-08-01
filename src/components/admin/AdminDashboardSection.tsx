@@ -219,7 +219,7 @@ export function AdminDashboardSection({
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)] h-full">
         <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
             <p className="text-sm text-foreground">Acompanhe a operação sem sair da visão geral</p>
           </div>
           <Button
@@ -243,28 +243,28 @@ export function AdminDashboardSection({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="truncate font-mono text-[13px] text-foreground" title={`Pedido ${order.id}`}>
+                    <p className="truncate font-mono text-[0.8125rem] text-foreground" title={`Pedido ${order.id}`}>
                       {shortOrderId}
                     </p>
-                    <p className="truncate text-[14px] font-medium text-foreground" title={order.customer_company || order.customer_name}>
+                    <p className="truncate text-sm font-medium text-foreground" title={order.customer_company || order.customer_name}>
                       {order.customer_company || order.customer_name}
                     </p>
                   </div>
                   <Badge
                     variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
-                    className="rounded-full px-2.5 py-0.5 text-[11px]"
+                    className="rounded-full px-2.5 py-0.5 text-[0.6875rem]"
                   >
                     {order.status}
                   </Badge>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                   <div className="rounded-2xl bg-muted/20 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Data</p>
+                    <p className="text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">Data</p>
                     <p className="mt-1 text-foreground">{formatDate(order.created_at)}</p>
                   </div>
                   <div className="rounded-2xl bg-muted/20 px-3 py-2 text-right">
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Valor</p>
+                    <p className="text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">Valor</p>
                     <p className="mt-1 font-mono text-foreground">{formatBRL(total)}</p>
                   </div>
                 </div>
@@ -275,7 +275,7 @@ export function AdminDashboardSection({
 
         <div className="flex-1 hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
           <table className="w-full table-fixed border-collapse text-sm h-full">
-            <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <thead className="bg-muted/30 text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
               <tr>
                 <th className="w-[21%] whitespace-nowrap px-4 py-3 text-left font-semibold">Pedido</th>
                 <th className="w-[29%] whitespace-nowrap px-4 py-3 text-left font-semibold">Cliente</th>
@@ -301,7 +301,7 @@ export function AdminDashboardSection({
                     <td className="whitespace-nowrap px-4 py-3 pr-4">
                       <Badge
                         variant={order.status === "Entregue" ? "default" : order.status === "Cancelado" ? "destructive" : "secondary"}
-                        className="inline-flex min-w-[7.75rem] max-w-full justify-center rounded-full px-3 py-1 text-[10px] leading-none"
+                        className="inline-flex min-w-[7.75rem] max-w-full justify-center rounded-full px-3 py-1 text-[0.625rem] leading-none"
                       >
                         {order.status}
                       </Badge>
@@ -318,10 +318,10 @@ export function AdminDashboardSection({
         <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Clientes recentes</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Clientes recentes</p>
               <p className="text-sm text-foreground">Cadastros que acabaram de entrar no sistema</p>
             </div>
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
               {recentCustomers.length} registro(s)
             </Badge>
           </div>
@@ -332,11 +332,11 @@ export function AdminDashboardSection({
                 className="flex items-start justify-between gap-3 rounded-[1.1rem] border border-border/70 bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
               >
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="truncate text-[15px] font-semibold text-foreground">{customer.name}</p>
-                  <p className="truncate text-[12px] text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
-                  <p className="break-words text-[12px] text-muted-foreground">Documento {formatDocumentId(customer.cnpj)}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                  <p className="break-words text-xs text-muted-foreground">Documento {formatDocumentId(customer.cnpj)}</p>
                 </div>
-                <Badge variant={customer.proxis_found ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px]">
+                <Badge variant={customer.proxis_found ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                   {customer.proxis_found ? "Proxsys ok" : "Sem vínculo"}
                 </Badge>
               </div>
@@ -347,10 +347,10 @@ export function AdminDashboardSection({
         <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Funcionários recentes</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Funcionários recentes</p>
               <p className="text-sm text-foreground">Equipe vinculada à Clinic+</p>
             </div>
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
               {recentEmployees.length} registro(s)
             </Badge>
           </div>
@@ -361,14 +361,14 @@ export function AdminDashboardSection({
                 className="flex items-start justify-between gap-3 rounded-[1.1rem] border border-border/70 bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
               >
                 <div className="min-w-0 flex-1 space-y-1">
-                  <p className="truncate text-[15px] font-semibold text-foreground">{employee.name}</p>
-                  <p className="truncate text-[12px] text-muted-foreground">{employee.phone || "Sem telefone cadastrado"}</p>
-                  <p className="break-words text-[12px] text-muted-foreground">Documento {formatDocumentId(employee.cnpj)}</p>
-                  <p className="break-words text-[12px] text-muted-foreground">
+                  <p className="truncate text-sm font-semibold text-foreground">{employee.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{employee.phone || "Sem telefone cadastrado"}</p>
+                  <p className="break-words text-xs text-muted-foreground">Documento {formatDocumentId(employee.cnpj)}</p>
+                  <p className="break-words text-xs text-muted-foreground">
                     Vinculado a {employee.linked_company_cnpj ? formatDocumentId(employee.linked_company_cnpj) : "—"}
                   </p>
                 </div>
-                <Badge variant={employee.linked_company_cnpj ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px]">
+                <Badge variant={employee.linked_company_cnpj ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                   Funcionário
                 </Badge>
               </div>
@@ -380,7 +380,7 @@ export function AdminDashboardSection({
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Produtos</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Produtos</p>
             <p className="text-sm text-foreground">Resumo rápido dos itens mais recentes</p>
           </div>
           <Button
@@ -407,18 +407,18 @@ export function AdminDashboardSection({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
+                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[0.625rem] text-primary">
                     {product.type}
                   </Badge>
-                  <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">
+                  <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[0.625rem]">
                     {product.family}
                   </Badge>
                 </div>
-                <p className="mt-1 truncate text-[15px] font-medium text-foreground">{product.name}</p>
+                <p className="mt-1 truncate text-sm font-medium text-foreground">{product.name}</p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="font-mono text-[13px] text-foreground">{formatBRL(coercePrice(product.price))}</p>
-                <Badge variant={product.active ? "secondary" : "destructive"} className="mt-1 rounded-full px-2.5 py-0.5 text-[11px]">
+                <p className="font-mono text-[0.8125rem] text-foreground">{formatBRL(coercePrice(product.price))}</p>
+                <Badge variant={product.active ? "secondary" : "destructive"} className="mt-1 rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                   {product.active ? "Ativo" : "Inativo"}
                 </Badge>
               </div>
@@ -430,10 +430,10 @@ export function AdminDashboardSection({
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Comunicação do catálogo</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Comunicação do catálogo</p>
             <p className="text-sm text-foreground">Notificações e banners publicados no mesmo padrão visual</p>
           </div>
-          <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+          <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
             {liveNotifications.length + activeBanners.length} ativos
           </Badge>
         </div>
@@ -473,10 +473,10 @@ export function AdminDashboardSection({
           <div className="rounded-[1.25rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Últimas notificações</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Últimas notificações</p>
                 <p className="text-sm text-foreground">Resumo rápido do que foi publicado</p>
               </div>
-              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                 {notifications.length} total
               </Badge>
             </div>
@@ -492,16 +492,16 @@ export function AdminDashboardSection({
                     <div key={notification.id} className="rounded-[1rem] border border-border/70 bg-background p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-semibold text-foreground">{notification.title}</p>
-                          <p className="mt-1 max-h-10 overflow-hidden text-[12px] leading-5 text-muted-foreground">
+                          <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
+                          <p className="mt-1 max-h-10 overflow-hidden text-xs leading-5 text-muted-foreground">
                             {notification.summary || "Sem resumo"}
                           </p>
                         </div>
-                        <Badge variant={badgeVariant as never} className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px]">
+                        <Badge variant={badgeVariant as never} className="shrink-0 rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                           {badgeLabel}
                         </Badge>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.6875rem] text-muted-foreground">
                         <span className="rounded-full border border-border/70 px-2 py-0.5">Prioridade {notification.priority}</span>
                         <span>{formatCompactDateTime(notification.created_at)}</span>
                       </div>
@@ -517,10 +517,10 @@ export function AdminDashboardSection({
           <div className="rounded-[1.25rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Últimos banners</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Últimos banners</p>
                 <p className="text-sm text-foreground">Controle do hero principal do catálogo</p>
               </div>
-              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+              <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                 {banners.length} total
               </Badge>
             </div>
@@ -531,18 +531,18 @@ export function AdminDashboardSection({
                   <div key={banner.id} className="rounded-[1rem] border border-border/70 bg-background p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-foreground">{banner.label}</p>
-                        <p className="mt-1 text-[12px] text-muted-foreground">
+                        <p className="truncate text-sm font-semibold text-foreground">{banner.label}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {banner.visible_to && banner.visible_to.length > 0
                             ? `${banner.visible_to.length} público(s) definido(s)`
                             : "Visível para todos os públicos"}
                         </p>
                       </div>
-                      <Badge variant={banner.active ? "default" : "secondary"} className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px]">
+                      <Badge variant={banner.active ? "default" : "secondary"} className="shrink-0 rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                         {banner.active ? "Ativo" : "Inativo"}
                       </Badge>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-[0.6875rem] text-muted-foreground">
                       <span className="rounded-full border border-border/70 px-2 py-0.5">Ordem {banner.sort_order}</span>
                       <span>{formatCompactDate(banner.created_at)}</span>
                     </div>
@@ -559,10 +559,10 @@ export function AdminDashboardSection({
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Integração / Proxsys</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Integração / Proxsys</p>
             <p className="text-sm text-foreground">Resumo do vínculo dos clientes e dos pedidos exportados</p>
           </div>
-          <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+          <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
             {linkedCustomers.length} vinculados
           </Badge>
         </div>
@@ -601,10 +601,10 @@ export function AdminDashboardSection({
         <div className="mt-5 rounded-[1.25rem] border border-border/70 bg-card p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Últimos clientes sincronizados</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Últimos clientes sincronizados</p>
               <p className="text-sm text-foreground">Quem teve o vínculo revisado mais recentemente</p>
             </div>
-            <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+            <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
               {recentlySyncedCustomers.length} exibidos
             </Badge>
           </div>
@@ -615,14 +615,14 @@ export function AdminDashboardSection({
                 <div key={customer.user_id} className="flex h-full flex-col rounded-[1rem] border border-border/70 bg-background p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-semibold text-foreground">{customer.name}</p>
-                      <p className="truncate text-[12px] text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                      <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
                     </div>
-                    <Badge variant={customer.proxis_found ? "default" : "secondary"} className="shrink-0 rounded-full px-2.5 py-0.5 text-[11px]">
+                    <Badge variant={customer.proxis_found ? "default" : "secondary"} className="shrink-0 rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                       {customer.proxis_found ? "OK" : "Sem vínculo"}
                     </Badge>
                   </div>
-                  <div className="mt-3 space-y-1 text-[12px] leading-5 text-muted-foreground">
+                  <div className="mt-3 space-y-1 text-xs leading-5 text-muted-foreground">
                     <p className="break-words">Documento {formatDocumentId(customer.cnpj)}</p>
                     <p>Sincronizado em {formatCompactDateTime(customer.proxis_synced_at)}</p>
                   </div>

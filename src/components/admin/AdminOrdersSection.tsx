@@ -148,14 +148,14 @@ export function AdminOrdersSection({
           description="Filtre pedidos por cliente, empresa, telefone, CNPJ ou status."
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
                 {visibleOrders.length} pedido(s)
               </Badge>
-              <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px]">
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem]">
                 {pendingOrdersCount} em andamento
               </Badge>
               {pendingErpCount > 0 ? (
-                <Badge className="gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium text-amber-800">
+                <Badge className="gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[0.6875rem] font-medium text-amber-800">
                   <AlertTriangle className="h-3 w-3" />
                   {pendingErpCount} fora do ERP
                 </Badge>
@@ -167,7 +167,7 @@ export function AdminOrdersSection({
           placeholder="Pesquisar pedido (nome, empresa, telefone, CNPJ, status, observação)"
           value={orderSearch}
           onChange={(e) => onOrderSearchChange(e.target.value)}
-          className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+          className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]"
         />
       </div>
 
@@ -177,11 +177,11 @@ export function AdminOrdersSection({
             key={filter.id}
             type="button"
             variant={statusFilter === filter.id ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
             onClick={() => setStatusFilter(filter.id)}
           >
             {filter.label}
-            <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[10px] leading-none">
+            <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.625rem] leading-none">
               {statusCounts[filter.id]}
             </Badge>
           </Button>
@@ -191,7 +191,7 @@ export function AdminOrdersSection({
           type="button"
           variant={onlyPendingErp ? "default" : "outline"}
           className={cn(
-            "h-10 gap-1 rounded-full px-3 text-[13px] sm:h-9 sm:text-[12px]",
+            "h-10 gap-1 rounded-full px-3 text-[0.8125rem] sm:h-9 sm:text-xs",
             !onlyPendingErp && pendingErpCount > 0 && "border-amber-300 text-amber-800 hover:bg-amber-50",
           )}
           onClick={() => setOnlyPendingErp((value) => !value)}
@@ -199,14 +199,14 @@ export function AdminOrdersSection({
         >
           <AlertTriangle className="h-3.5 w-3.5" />
           Pendentes no ERP
-          <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[10px] leading-none">
+          <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.625rem] leading-none">
             {pendingErpCount}
           </Badge>
         </Button>
       </div>
 
       {visibleOrders.length > 0 && (
-        <div className="rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 sm:px-4 py-3 text-[12px] sm:text-[13px] leading-5 sm:leading-6 text-foreground">
+        <div className="rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 sm:px-4 py-3 text-xs sm:text-[0.8125rem] leading-5 sm:leading-6 text-foreground">
           <span className="font-semibold">{visibleOrders.length} pedido(s)</span> no filtro atual · Total:{" "}
           <span className="font-semibold">{formatBRL(summaryTotal)}</span>
         </div>
@@ -234,8 +234,8 @@ export function AdminOrdersSection({
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-border/70 bg-muted/20">
             <ShoppingBag className="h-7 w-7 text-muted-foreground/40" />
           </div>
-          <p className="mt-4 text-[15px] font-semibold text-foreground">Nenhum pedido encontrado</p>
-          <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
+          <p className="mt-4 text-sm font-semibold text-foreground">Nenhum pedido encontrado</p>
+          <p className="mt-1 text-[0.8125rem] leading-6 text-muted-foreground">
             {onlyPendingErp
               ? "Nenhum pedido pendente no ERP com os filtros atuais. Tudo que passou por aqui chegou ao Proxis."
               : statusFilter !== "all"

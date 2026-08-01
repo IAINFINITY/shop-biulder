@@ -23,11 +23,11 @@ export function AdminStatCard({ icon: Icon, label, value, tone, note }: AdminSta
         <div className={cn("inline-flex h-9 w-9 items-center justify-center rounded-full border", toneClasses)}>
           <Icon className="h-4 w-4" />
         </div>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
+        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
       </div>
       <div className="mt-3">
-        <div className="text-[1.2rem] font-black tracking-[-0.04em] text-foreground">{value}</div>
-        <p className="mt-1 text-[12px] leading-5 text-muted-foreground">{note}</p>
+        <div className="text-lg font-semibold tracking-tight text-foreground">{value}</div>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{note}</p>
       </div>
     </div>
   );

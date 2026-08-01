@@ -1,4 +1,4 @@
-import { Eye, EyeOff, ImageIcon, Pencil, Plus, Sparkles, TrendingUp, Trash2 } from "lucide-react";
+import { Eye, EyeOff, ImageIcon, Pencil, Plus, Sparkles, Star, TrendingUp, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -26,17 +26,55 @@ import {
 import { formatBRL, coercePrice } from "@/lib/formatMoney";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImageUrls } from "@/lib/products";
+import { PRODUCT_IMAGE_MIN_SIZE } from "@/lib/productImageNormalization";
 import { PRODUCT_FAMILIES_TABLE, makeProductFamilyKey, type ProductFamily } from "@/lib/productFamilies";
+import { PRODUCT_BRANDS_TABLE, type ProductBrand } from "@/lib/productBrands";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { AdminProductForm } from "./AdminProductForm";
 import { AdminProductPreview } from "./AdminProductPreview";
 import { useProductFamilies } from "@/hooks/useProductFamilies";
+import { useProductBrands } from "@/hooks/useProductBrands";
 import { toast } from "sonner";
 import type { AdminProductFormState, AdminProduct } from "./adminTypes";
 
 type PreviewMode = "catalog" | "details";
+
+/**
+ * Pendencias de cadastro de um produto.
+ *
+ * A ideia vem do score de completude dos PIM: em vez de descobrir o problema
+ * abrindo produto por produto, a lista mostra quantos estao incompletos e
+ * filtra direto para eles. Sem isso ninguem conseguia responder "quanto falta?".
+ */
+type ProductIssue = "sem-imagem" | "imagem-pequena" | "sem-marca" | "sem-codigo" | "sem-descricao-imagem";
+
+const ISSUE_FILTERS: Array<{ id: ProductIssue; label: string }> = [
+  { id: "sem-imagem", label: "Sem foto" },
+  { id: "imagem-pequena", label: "Foto abaixo do padrão" },
+  { id: "sem-descricao-imagem", label: "Sem descrição de imagem" },
+  { id: "sem-marca", label: "Sem marca" },
+  { id: "sem-codigo", label: "Sem código" },
+];
+
+function productIssues(product: AdminProduct): ProductIssue[] {
+  const issues: ProductIssue[] = [];
+  const images = getProductImageUrls(product);
+
+  if (images.length === 0) issues.push("sem-imagem");
+  else {
+    const menorLado = Math.min(product.image_width ?? 0, product.image_height ?? 0);
+    // Dimensao ausente significa imagem antiga ainda nao medida — nao acusa.
+    if (menorLado > 0 && menorLado < PRODUCT_IMAGE_MIN_SIZE) issues.push("imagem-pequena");
+    if (!product.image_alts?.some((alt) => alt.trim())) issues.push("sem-descricao-imagem");
+  }
+
+  if (!(product.brand ?? "").trim()) issues.push("sem-marca");
+  if (!(product.product_code ?? "").trim()) issues.push("sem-codigo");
+
+  return issues;
+}
 
 type AdminProductsSectionProps = {
   isLoading: boolean;
@@ -64,6 +102,7 @@ type AdminProductsSectionProps = {
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   onRemoveImageAt: (index: number) => Promise<void>;
   onMoveImageAt: (from: number, to: number) => void;
+  onImageAltChange: (index: number, alt: string) => void;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -94,21 +133,22 @@ export function AdminProductsSection({
   onFileChange,
   onRemoveImageAt,
   onMoveImageAt,
+  onImageAltChange,
   onSave,
   onCancel,
 }: AdminProductsSectionProps) {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("catalog");
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [productListFilter, setProductListFilter] = useState<"all" | "promotions" | "best_sellers">("all");
+  const [productListFilter, setProductListFilter] = useState<"all" | "promotions" | "featured" | "best_sellers" | ProductIssue>("all");
   const [newFamily, setNewFamily] = useState("");
-  const [newFamilyTypeId, setNewFamilyTypeId] = useState("");
+  const [newBrand, setNewBrand] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
   const [initialEditing, setInitialEditing] = useState<AdminProductFormState | null>(null);
   const editingRef = useRef<AdminProductFormState | null>(null);
   const queryClient = useQueryClient();
   const editingKey = editing ? editing.id ?? "__new__" : "__none__";
   const { data: productFamilies = [] } = useProductFamilies();
-  const typeNameById = useMemo(() => new Map(adminTypes.map((type) => [type.id, type.name])), [adminTypes]);
+  const { data: productBrands = [] } = useProductBrands();
   const typeUsage = useMemo(() => {
     const usage = new Map<string, number>();
     for (const product of allProducts) {
@@ -121,57 +161,59 @@ export function AdminProductsSection({
     for (const product of allProducts) {
       const family = product.family.trim();
       if (!family) continue;
-      const key = makeProductFamilyKey(product.type, family);
+      const key = makeProductFamilyKey(family);
       usage.set(key, (usage.get(key) ?? 0) + 1);
     }
     return usage;
   }, [allProducts]);
-  const familyGroups = useMemo(() => {
-    const grouped = new Map<string, ProductFamily[]>();
-    for (const family of productFamilies) {
-      const typeId = family.type_id || "__unlinked__";
-      if (!grouped.has(typeId)) grouped.set(typeId, []);
-      grouped.get(typeId)!.push(family);
+  const brandUsage = useMemo(() => {
+    const usage = new Map<string, number>();
+    for (const product of allProducts) {
+      const brand = (product.brand ?? "").trim().toLowerCase();
+      if (!brand) continue;
+      usage.set(brand, (usage.get(brand) ?? 0) + 1);
     }
-
-    return adminTypes
-      .map((type) => ({
-        type,
-        families: (grouped.get(type.id) ?? []).sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
-      }))
-      .filter((group) => group.families.length > 0);
-  }, [adminTypes, productFamilies]);
-  const familyOptionsByTypeName = useMemo(() => {
-    const grouped = new Map<string, string[]>();
-
-    for (const type of adminTypes) {
-      grouped.set(
-        type.name,
-        productFamilies
-          .filter((family) => family.type_id === type.id)
-          .map((family) => family.name.trim())
-          .filter(Boolean)
-          .sort((left, right) => left.localeCompare(right, "pt-BR")),
-      );
-    }
-
-    return grouped;
-  }, [adminTypes, productFamilies]);
-  const familyOptionsForEditing = useMemo(() => {
-    if (!editing) return [];
-    const currentFamily = editing.family.trim();
-    const familyOptions = [...(familyOptionsByTypeName.get(editing.type) ?? [])];
-
-    if (currentFamily && !familyOptions.includes(currentFamily)) {
-      familyOptions.unshift(currentFamily);
-    }
-
-    return familyOptions;
-  }, [editing, familyOptionsByTypeName]);
-  const unlinkedFamilies = useMemo(
-    () => productFamilies.filter((family) => !family.type_id || !typeNameById.has(family.type_id)),
-    [productFamilies, typeNameById],
+    return usage;
+  }, [allProducts]);
+  const productsWithoutBrand = useMemo(
+    () => allProducts.filter((product) => !(product.brand ?? "").trim()).length,
+    [allProducts],
   );
+  const issueCounts = useMemo(() => {
+    const counts = new Map<ProductIssue, number>();
+    for (const product of allProducts) {
+      for (const issue of productIssues(product)) {
+        counts.set(issue, (counts.get(issue) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [allProducts]);
+  const totalIssueCount = useMemo(
+    () => [...issueCounts.values()].reduce((sum, count) => sum + count, 0),
+    [issueCounts],
+  );
+  const familyOptions = useMemo(
+    () => productFamilies.map((family) => family.name.trim()).filter(Boolean),
+    [productFamilies],
+  );
+  const familyOptionsForEditing = useMemo(() => {
+    if (!editing) return familyOptions;
+    const currentFamily = editing.family.trim();
+    // Mantem visivel a subcategoria ja gravada no produto mesmo que ela nao
+    // esteja mais no cadastro, para editar o produto nao apagar o valor.
+    if (currentFamily && !familyOptions.includes(currentFamily)) {
+      return [currentFamily, ...familyOptions];
+    }
+    return familyOptions;
+  }, [editing, familyOptions]);
+  const brandOptionsForEditing = useMemo(() => {
+    const options = productBrands.map((brand) => brand.name.trim()).filter(Boolean);
+    const currentBrand = editing?.brand.trim() ?? "";
+    if (currentBrand && !options.includes(currentBrand)) {
+      return [currentBrand, ...options];
+    }
+    return options;
+  }, [editing, productBrands]);
 
   useEffect(() => {
     editingRef.current = editing;
@@ -186,11 +228,6 @@ export function AdminProductsSection({
       setPreviewOpen(false);
     }
   }, [editing, editingKey]);
-
-  useEffect(() => {
-    if (newFamilyTypeId) return;
-    if (adminTypes.length > 0) setNewFamilyTypeId(adminTypes[0].id);
-  }, [adminTypes, newFamilyTypeId]);
 
   useEffect(() => {
     const currentEditing = editingRef.current;
@@ -212,10 +249,13 @@ export function AdminProductsSection({
     return (
       editing.name !== initialEditing.name ||
       editing.description !== initialEditing.description ||
+      editing.brand !== initialEditing.brand ||
       editing.type !== initialEditing.type ||
       editing.family !== initialEditing.family ||
+      editing.stockInput !== initialEditing.stockInput ||
       editing.active !== initialEditing.active ||
       editing.priceInput !== initialEditing.priceInput ||
+      editing.compareAtPriceInput !== initialEditing.compareAtPriceInput ||
       editing.productCode !== initialEditing.productCode ||
       editing.image_urls.join("\u0001") !== initialEditing.image_urls.join("\u0001")
     );
@@ -225,6 +265,12 @@ export function AdminProductsSection({
     const products = [...filteredProducts];
     if (productListFilter === "promotions") {
       return products.filter((product) => product.is_promotion);
+    }
+    if (productListFilter === "featured") {
+      return products.filter((product) => product.is_featured);
+    }
+    if (productListFilter !== "all" && productListFilter !== "best_sellers") {
+      return products.filter((product) => productIssues(product).includes(productListFilter));
     }
     if (productListFilter === "best_sellers") {
       return products
@@ -251,19 +297,23 @@ export function AdminProductsSection({
     await queryClient.invalidateQueries({ queryKey: ["product-families"] });
   };
 
+  const refreshBrands = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["product-brands"] });
+  };
+
   const addFamily = async () => {
     const name = newFamily.trim();
-    const typeId = newFamilyTypeId.trim();
-    if (!name || !typeId) {
-      toast.error("Informe a categoria principal e o nome da subcategoria.");
+    if (!name) {
+      toast.error("Informe o nome da subcategoria.");
       return;
     }
 
-    const { data, error } = await supabase
-      .from(PRODUCT_FAMILIES_TABLE)
-      .insert({ name, type_id: typeId } as never)
-      .select("id,name,type_id,created_at,updated_at")
-      .single();
+    if (familyOptions.some((option) => option.toLowerCase() === name.toLowerCase())) {
+      toast.error("Já existe uma subcategoria com esse nome.");
+      return;
+    }
+
+    const { error } = await supabase.from(PRODUCT_FAMILIES_TABLE).insert({ name } as never);
     if (error) {
       console.error("Erro ao adicionar subcategoria", error);
       toast.error("Erro ao adicionar subcategoria.");
@@ -271,26 +321,12 @@ export function AdminProductsSection({
     }
 
     setNewFamily("");
-    setNewFamilyTypeId(typeId);
     toast.success("Subcategoria adicionada.");
-    queryClient.setQueryData<ProductFamily[]>(["product-families"], (current = []) => {
-      const next = [
-        ...current.filter((family) => family.id !== (data?.id ?? "")),
-        data ?? {
-          id: name,
-          name,
-          type_id: typeId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      return next.sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
-    });
     await refreshFamilies();
   };
 
   const deleteFamily = async (family: ProductFamily) => {
-    const usage = familyUsage.get(makeProductFamilyKey(typeNameById.get(family.type_id) ?? "", family.name)) ?? 0;
+    const usage = familyUsage.get(makeProductFamilyKey(family.name)) ?? 0;
     if (usage > 0) {
       toast.error("Reatribua os produtos dessa subcategoria antes de removê-la.");
       return;
@@ -304,10 +340,51 @@ export function AdminProductsSection({
     }
 
     toast.success("Subcategoria removida.");
-    queryClient.setQueryData<ProductFamily[]>(["product-families"], (current = []) =>
-      current.filter((item) => item.id !== family.id),
-    );
     await refreshFamilies();
+  };
+
+  const addBrand = async () => {
+    const name = newBrand.trim();
+    if (!name) {
+      toast.error("Informe o nome da marca.");
+      return;
+    }
+
+    if (productBrands.some((brand) => brand.name.toLowerCase() === name.toLowerCase())) {
+      toast.error("Já existe uma marca com esse nome.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from(PRODUCT_BRANDS_TABLE)
+      .insert({ name, sort_order: productBrands.length + 1 } as never);
+    if (error) {
+      console.error("Erro ao adicionar marca", error);
+      toast.error("Erro ao adicionar marca.");
+      return;
+    }
+
+    setNewBrand("");
+    toast.success("Marca adicionada.");
+    await refreshBrands();
+  };
+
+  const deleteBrand = async (brand: ProductBrand) => {
+    const usage = brandUsage.get(brand.name.toLowerCase()) ?? 0;
+    if (usage > 0) {
+      toast.error("Reatribua os produtos dessa marca antes de removê-la.");
+      return;
+    }
+
+    const { error } = await supabase.from(PRODUCT_BRANDS_TABLE).delete().eq("id", brand.id);
+    if (error) {
+      console.error("Erro ao remover marca", error);
+      toast.error("Erro ao remover marca.");
+      return;
+    }
+
+    toast.success("Marca removida.");
+    await refreshBrands();
   };
 
   return (
@@ -317,7 +394,7 @@ export function AdminProductsSection({
         title={title}
         description="Pesquise, atualize e cadastre produtos sem sair da mesma tela."
         actions={
-          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
+          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
             {visibleProducts.length} produto(s)
           </Badge>
         }
@@ -326,7 +403,7 @@ export function AdminProductsSection({
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Categorias do catálogo
             </p>
             <p className="text-sm text-foreground">Crie e remova as categorias principais usadas no seletor dos produtos.</p>
@@ -336,7 +413,7 @@ export function AdminProductsSection({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
               {adminTypes.length} categoria(s)
             </Badge>
             <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={onAddType}>
@@ -362,9 +439,9 @@ export function AdminProductsSection({
                   <ConfirmActionDialog
                     key={type.id}
                     trigger={
-                      <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[13px] sm:text-[12px]">
+                      <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
                         <span className="max-w-[14rem] truncate">{type.name}</span>
-                        <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[10px]">
+                        <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
                           {count}
                         </Badge>
                       </Button>
@@ -385,7 +462,7 @@ export function AdminProductsSection({
                 );
               })
             ) : (
-              <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-[12px] text-muted-foreground">
+              <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
                 Nenhuma categoria cadastrada
               </div>
             )}
@@ -396,25 +473,26 @@ export function AdminProductsSection({
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Subcategorias do catálogo
             </p>
             <p className="text-sm text-foreground">
-              Vincule cada subcategoria a uma categoria principal para deixar a estrutura mais clara.
+              Descrevem o que o produto é: Camomila, Creatina, Whey.
             </p>
             <p className="text-xs text-muted-foreground">
-              Se a subcategoria ainda estiver em uso, remova-a apenas depois de reatribuir os produtos.
+              A mesma subcategoria serve qualquer categoria — cadastre uma vez só. Remova apenas
+              depois de reatribuir os produtos que ainda a usam.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[11px] font-medium">
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
               {productFamilies.length} subcategoria(s)
             </Badge>
           </div>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)_auto] lg:items-center">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <Input
             placeholder="Nova subcategoria"
             value={newFamily}
@@ -422,91 +500,128 @@ export function AdminProductsSection({
             className="h-11 rounded-2xl border-border/70 bg-background"
           />
 
-          <Select value={newFamilyTypeId} onValueChange={setNewFamilyTypeId}>
-            <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[13px]">
-              <SelectValue placeholder="Categoria principal" />
-            </SelectTrigger>
-            <SelectContent>
-              {adminTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={addFamily}>
             <Plus className="h-4 w-4" />
             Adicionar
           </Button>
         </div>
 
-        <div className="mt-4 space-y-3">
-          {familyGroups.length > 0 ? (
-            familyGroups.map(({ type, families }) => (
-              <div key={type.id} className="rounded-[1.35rem] border border-border/70 bg-muted/15 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {type.name}
-                    </p>
-                    <p className="text-sm text-foreground">{families.length} subcategoria(s) vinculada(s)</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {families.map((family) => {
-                    const count = familyUsage.get(makeProductFamilyKey(type.name, family.name)) ?? 0;
-                    return (
-                      <ConfirmActionDialog
-                        key={family.id}
-                        trigger={
-                          <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[13px] sm:text-[12px]">
-                            <span className="max-w-[14rem] truncate">{family.name}</span>
-                            <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[10px]">
-                              {count}
-                            </Badge>
-                          </Button>
-                        }
-                        title="Remover subcategoria"
-                        description={
-                          <>
-                            <span className="block">
-                              Deseja remover a subcategoria "{family.name}" da categoria "{type.name}"?
-                            </span>
-                            <span className="mt-2 block text-muted-foreground">
-                              {count > 0
-                                ? "Ela ainda está em uso. Reatribua os produtos antes de excluir."
-                                : "Essa ação remove apenas a opção da lista administrativa."}
-                            </span>
-                          </>
-                        }
-                        confirmLabel="Remover"
-                        destructive
-                        onConfirm={() => deleteFamily(family)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            ))
+        <div className="mt-4 flex flex-wrap gap-2">
+          {productFamilies.length > 0 ? (
+            productFamilies.map((family) => {
+              const count = familyUsage.get(makeProductFamilyKey(family.name)) ?? 0;
+              return (
+                <ConfirmActionDialog
+                  key={family.id}
+                  trigger={
+                    <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
+                      <span className="max-w-[14rem] truncate">{family.name}</span>
+                      <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
+                        {count}
+                      </Badge>
+                    </Button>
+                  }
+                  title="Remover subcategoria"
+                  description={
+                    <>
+                      <span className="block">Deseja remover a subcategoria "{family.name}"?</span>
+                      <span className="mt-2 block text-muted-foreground">
+                        {count > 0
+                          ? `Ela está em uso por ${count} produto(s). Reatribua antes de excluir.`
+                          : "Essa ação remove apenas a opção da lista administrativa."}
+                      </span>
+                    </>
+                  }
+                  confirmLabel="Remover"
+                  destructive
+                  onConfirm={() => deleteFamily(family)}
+                />
+              );
+            })
           ) : (
-            <div className="rounded-[1.35rem] border border-dashed border-border/70 px-4 py-5 text-[12px] text-muted-foreground">
+            <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
               Nenhuma subcategoria cadastrada
             </div>
           )}
         </div>
+      </div>
 
-        {unlinkedFamilies.length > 0 ? (
-          <div className="mt-3 rounded-[1.35rem] border border-amber-200 bg-amber-50/70 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
-              Subcategorias sem vínculo
+      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Marcas do catálogo
             </p>
-            <p className="mt-1 text-sm text-amber-900">
-              Estas subcategorias ainda não estão ligadas a uma categoria principal.
+            <p className="text-sm text-foreground">Quem assina o produto: Chá Mais, Clinic Mais.</p>
+            <p className="text-xs text-muted-foreground">
+              A marca é independente da categoria — a mesma marca pode ter chá, cápsula e solúvel.
             </p>
           </div>
-        ) : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
+              {productBrands.length} marca(s)
+            </Badge>
+            {productsWithoutBrand > 0 ? (
+              <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[0.6875rem] font-medium text-amber-800">
+                {productsWithoutBrand} produto(s) sem marca
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <Input
+            placeholder="Nova marca"
+            value={newBrand}
+            onChange={(e) => setNewBrand(e.target.value)}
+            className="h-11 rounded-2xl border-border/70 bg-background"
+          />
+
+          <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={addBrand}>
+            <Plus className="h-4 w-4" />
+            Adicionar
+          </Button>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {productBrands.length > 0 ? (
+            productBrands.map((brand) => {
+              const count = brandUsage.get(brand.name.toLowerCase()) ?? 0;
+              return (
+                <ConfirmActionDialog
+                  key={brand.id}
+                  trigger={
+                    <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
+                      <span className="max-w-[14rem] truncate">{brand.name}</span>
+                      <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
+                        {count}
+                      </Badge>
+                    </Button>
+                  }
+                  title="Remover marca"
+                  description={
+                    <>
+                      <span className="block">Deseja remover a marca "{brand.name}"?</span>
+                      <span className="mt-2 block text-muted-foreground">
+                        {count > 0
+                          ? `Ela está em uso por ${count} produto(s). Reatribua antes de excluir.`
+                          : "Essa ação remove apenas a opção da lista administrativa."}
+                      </span>
+                    </>
+                  }
+                  confirmLabel="Remover"
+                  destructive
+                  onConfirm={() => deleteBrand(brand)}
+                />
+              );
+            })
+          ) : (
+            <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
+              Nenhuma marca cadastrada
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
@@ -516,9 +631,9 @@ export function AdminProductsSection({
               placeholder="Pesquisar produto (nome, família, tipo)"
               value={productSearch}
               onChange={(e) => onProductSearchChange(e.target.value)}
-              className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[13px]"
+              className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[0.8125rem]"
             />
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[11px] font-medium text-muted-foreground">
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.6875rem] font-medium text-muted-foreground">
               {filteredProducts.length} itens
             </div>
           </div>
@@ -533,7 +648,7 @@ export function AdminProductsSection({
           <Button
             type="button"
             variant={productListFilter === "all" ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
             onClick={() => setProductListFilter("all")}
           >
             Todos
@@ -541,7 +656,7 @@ export function AdminProductsSection({
           <Button
             type="button"
             variant={productListFilter === "best_sellers" ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
             onClick={() => setProductListFilter("best_sellers")}
           >
             <TrendingUp className="h-4 w-4" />
@@ -550,19 +665,62 @@ export function AdminProductsSection({
           <Button
             type="button"
             variant={productListFilter === "promotions" ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]"
+            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
             onClick={() => setProductListFilter("promotions")}
           >
             <Sparkles className="h-4 w-4" />
             Promoções
           </Button>
+          <Button
+            type="button"
+            variant={productListFilter === "featured" ? "default" : "outline"}
+            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
+            onClick={() => setProductListFilter("featured")}
+          >
+            <Star className="h-4 w-4" />
+            Em destaque
+          </Button>
+        </div>
+
+        {/* Fila de pendencias: mostra o que falta e leva direto para a lista. */}
+        <div className="mt-3 border-t border-border/70 pt-3">
+          <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Pendências de cadastro
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {ISSUE_FILTERS.map((filter) => {
+              const count = issueCounts.get(filter.id) ?? 0;
+              const isActive = productListFilter === filter.id;
+              return (
+                <Button
+                  key={filter.id}
+                  type="button"
+                  variant={isActive ? "default" : "outline"}
+                  disabled={count === 0 && !isActive}
+                  className={cn(
+                    "h-10 gap-1.5 rounded-full px-3 text-[0.8125rem] sm:h-9 sm:text-xs",
+                    !isActive && count > 0 && "border-amber-300 text-amber-800 hover:bg-amber-50",
+                  )}
+                  onClick={() => setProductListFilter(isActive ? "all" : filter.id)}
+                >
+                  {filter.label}
+                  <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.625rem] leading-none">
+                    {count}
+                  </Badge>
+                </Button>
+              );
+            })}
+            {totalIssueCount === 0 ? (
+              <span className="text-xs text-muted-foreground">Nenhuma pendência no catálogo.</span>
+            ) : null}
+          </div>
         </div>
       </div>
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="text-sm text-foreground">Atualize status, fotos e dados internos com rapidez.</p>
-          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
+          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
             {visibleProducts.length} produto(s)
           </Badge>
         </div>
@@ -618,31 +776,31 @@ export function AdminProductsSection({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-[14px] sm:text-[15px] font-semibold text-foreground">{p.name}</p>
+                        <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
                         {isEditing ? (
-                          <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                          <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                             Em edição
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mt-1 text-[12px] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {p.type} · {p.family}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {p.product_code ? (
-                          <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
+                          <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[0.6875rem]">
                             {p.product_code}
                           </Badge>
                         ) : null}
                         {p.is_promotion ? (
-                          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
+                          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[0.6875rem] text-primary">
                             Promoção
                           </Badge>
                         ) : null}
                         <Badge
                           variant="outline"
                           className={cn(
-                            "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                            "rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium",
                             typeof p.stock === "number" && p.stock > 0
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                               : "border-red-200 bg-red-50 text-red-700",
@@ -650,10 +808,10 @@ export function AdminProductsSection({
                         >
                           {typeof p.stock === "number" && p.stock > 0 ? "Em estoque" : "Sem estoque"}
                         </Badge>
-                        <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                        <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                           {p.active ? "Ativo" : "Inativo"}
                         </Badge>
-                        <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[11px]">
+                        <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                           {formatBRL(coercePrice(p.price))}
                         </Badge>
                       </div>
@@ -698,10 +856,10 @@ export function AdminProductsSection({
             <DialogHeader className="border-b border-border/70 px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3 pr-10 sm:pr-12">
                 <div className="space-y-1 text-left">
-                  <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                  <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
                     {isNew ? "Novo Produto" : "Editar Produto"}
                   </DialogTitle>
-                  <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                  <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
                     Ajuste os dados do produto sem ocupar a tela inteira do admin
                   </DialogDescription>
                 </div>
@@ -725,12 +883,14 @@ export function AdminProductsSection({
                   editing={editing}
                   typeOptions={typeOptions}
                   familyOptions={familyOptionsForEditing}
+                  brandOptions={brandOptionsForEditing}
                   uploading={uploading}
                   fileInputRef={fileInputRef}
                   onChange={onEditChange}
                   onFileChange={onFileChange}
                   onRemoveImageAt={onRemoveImageAt}
                   onMoveImageAt={onMoveImageAt}
+                  onImageAltChange={onImageAltChange}
                   onSave={onSave}
                   onCancel={requestClose}
                   className="border-0 bg-transparent p-0 shadow-none"
@@ -750,10 +910,10 @@ export function AdminProductsSection({
             <DialogHeader className="border-b border-border/70 px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3 pr-10 sm:pr-12">
                 <div className="space-y-1 text-left">
-                  <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+                  <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
                     Pré-visualização do produto
                   </DialogTitle>
-                  <DialogDescription className="text-left text-[13px] text-muted-foreground">
+                  <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
                     Veja como o produto fica no catálogo e na página aberta.
                   </DialogDescription>
                 </div>
@@ -791,10 +951,10 @@ export function AdminProductsSection({
       <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <AlertDialogContent className="rounded-[1.5rem] border-border/70">
           <AlertDialogHeader className="text-left">
-            <AlertDialogTitle className="text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+            <AlertDialogTitle className="text-base font-semibold tracking-tight text-foreground">
               Sair sem salvar
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-[13px] leading-6 text-muted-foreground">
+            <AlertDialogDescription className="text-[0.8125rem] leading-6 text-muted-foreground">
               Você tem alterações não salvas neste produto. Se sair agora, tudo o que foi editado será perdido.
             </AlertDialogDescription>
           </AlertDialogHeader>

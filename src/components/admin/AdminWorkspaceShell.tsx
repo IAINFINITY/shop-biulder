@@ -57,7 +57,7 @@ function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
             <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
           ) : null}
         </span>
-        <span className="text-[12px] font-medium text-muted-foreground">
+        <span className="text-xs font-medium text-muted-foreground">
           {connected ? "Proxis conectado" : checking ? "Verificando..." : "Erro no Proxis"}
         </span>
         <span className="ml-auto">
@@ -94,6 +94,7 @@ export function AdminWorkspaceShell({
         ...(hasPermission("banners") ? [{ id: "banners" as const, label: "Banners", icon: Image, description: "Hero do catálogo" }] : []),
         ...(hasPermission("notificacoes") ? [{ id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" }] : []),
         ...(hasPermission("produtos") ? [{ id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" }] : []),
+        ...(hasPermission("imagens") ? [{ id: "imagens" as const, label: "Imagens", icon: Image, description: "Envio em lote" }] : []),
         ...(hasPermission("precos") ? [{ id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" }] : []),
         ...(hasPermission("pedidos") ? [{ id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" }] : []),
       ].filter(Boolean),
@@ -171,7 +172,7 @@ export function AdminWorkspaceShell({
           {navGroups.map((group) => (
             <div key={group.label} className="mb-3 sm:mb-4">
               {!collapsed ? (
-                <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="px-3 pb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
                 </p>
               ) : null}
@@ -206,8 +207,8 @@ export function AdminWorkspaceShell({
 
                       {!collapsed ? (
                         <span className="min-w-0 flex-1">
-                          <span className="block text-[13px] sm:text-[14px] font-medium leading-5">{item.label}</span>
-                          <span className="block text-[10px] sm:text-[11px] leading-4 opacity-75">{item.description}</span>
+                          <span className="block text-[0.8125rem] sm:text-sm font-medium leading-5">{item.label}</span>
+                          <span className="block text-[0.625rem] sm:text-[0.6875rem] leading-4 opacity-75">{item.description}</span>
                         </span>
                       ) : null}
                     </button>
@@ -233,7 +234,7 @@ export function AdminWorkspaceShell({
             {!collapsed ? (
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">{userLabel}</p>
-                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Admin</p>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Admin</p>
               </div>
             ) : null}
             <ConfirmActionDialog
@@ -278,10 +279,10 @@ export function AdminWorkspaceShell({
               </Button>
 
               <div className="min-w-0 hidden sm:block">
-                <h1 className="text-[clamp(0.95rem,1.2vw,1.2rem)] font-black leading-[1.05] tracking-[-0.05em] text-foreground">
+                <h1 className="text-[clamp(0.95rem,1.2vw,1.2rem)] font-semibold leading-[1.05] tracking-tight text-foreground">
                   {title}
                 </h1>
-                <p className="mt-1 max-w-2xl text-[11px] text-muted-foreground sm:text-[12px]">
+                <p className="mt-1 max-w-2xl text-[0.6875rem] text-muted-foreground sm:text-xs">
                   Gerencie produtos, pedidos e clientes em uma interface mais leve.
                 </p>
               </div>
@@ -291,7 +292,7 @@ export function AdminWorkspaceShell({
               <Link to="/" viewTransition>
                 <Button
                   variant="outline"
-                  className="h-10 w-auto sm:w-auto gap-1 sm:gap-2 rounded-full border-border/70 bg-background text-[13px] text-foreground hover:bg-muted/40 px-3 sm:px-3.5"
+                  className="h-10 w-auto sm:w-auto gap-1 sm:gap-2 rounded-full border-border/70 bg-background text-[0.8125rem] text-foreground hover:bg-muted/40 px-3 sm:px-3.5"
                   aria-label="Voltar ao catálogo"
                 >
                   <ArrowLeft className="h-4 w-4" />

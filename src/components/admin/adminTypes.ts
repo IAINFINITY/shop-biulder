@@ -1,4 +1,4 @@
-import type { Product } from "@/lib/products";
+import type { Product, ProductImageFit } from "@/lib/products";
 import type { Json } from "@/integrations/supabase/types";
 
 export type AdminSection =
@@ -6,6 +6,7 @@ export type AdminSection =
   | "banners"
   | "notificacoes"
   | "produtos"
+  | "imagens"
   | "precos"
   | "pedidos"
   | "clientes"
@@ -68,12 +69,20 @@ export type AdminProductFormState = {
   id?: string;
   name: string;
   description: string;
+  /** Marca (Chá Mais, Clinic Mais). Vazio = sem marca definida. */
+  brand: string;
   type: string;
   family: string;
   image_urls: string[];
+  /** Descricao de cada foto, alinhada por indice com image_urls. */
+  image_alts: string[];
+  image_fit: ProductImageFit;
   active: boolean;
   is_promotion: boolean;
+  is_featured: boolean;
   priceInput: string;
+  /** Preco "de" exibido riscado. Vazio = sem promocao com desconto. */
+  compareAtPriceInput: string;
   stockInput: string;
   productCode: string;
   visible_to: string[];
@@ -114,9 +123,16 @@ export type AdminBanner = {
   id: string;
   label: string;
   image_url: string;
+  /** Versao AVIF, servida antes do WebP. Nulo = banner so com WebP. */
+  image_url_avif?: string | null;
+  /** Arte 800x320 para telas pequenas. Nulo = usa a de desktop, cortada. */
+  image_url_mobile?: string | null;
+  image_url_mobile_avif?: string | null;
   link_url: string | null;
   sort_order: number;
   active: boolean;
+  /** Area do site — ver `bannerSlots.ts`. Linha antiga cai em "topo". */
+  slot: string;
   visible_to: string[] | null;
   created_at: string;
   updated_at: string;

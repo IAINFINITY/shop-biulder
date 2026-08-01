@@ -134,15 +134,15 @@ export function OrderAdminCard({
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-foreground">{order.customer_name}</p>
-                <p className="truncate text-[12px] text-muted-foreground">{order.customer_company || "Sem empresa"}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{order.customer_name}</p>
+                <p className="truncate text-xs text-muted-foreground">{order.customer_company || "Sem empresa"}</p>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                 {onStatusChange ? (
                   <Select value={order.status} onValueChange={(value) => onStatusChange(order.id, value)}>
                     <SelectTrigger
                       className={cn(
-                        "h-7 w-auto gap-1 rounded-full border px-2.5 py-0 text-[11px] font-medium",
+                        "h-7 w-auto gap-1 rounded-full border px-2.5 py-0 text-[0.6875rem] font-medium",
                         statusClassName(order.status),
                         "[&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-50",
                       )}
@@ -151,20 +151,20 @@ export function OrderAdminCard({
                     </SelectTrigger>
                     <SelectContent align="end">
                       {ORDER_STATUSES.map((status) => (
-                        <SelectItem key={status} value={status} className="text-[13px]">
+                        <SelectItem key={status} value={status} className="text-[0.8125rem]">
                           {formatOrderStatus(status)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Badge className={cn("rounded-full border px-2.5 py-0.5 text-[11px] font-medium", statusClassName(order.status))}>
+                  <Badge className={cn("rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium", statusClassName(order.status))}>
                     {formatOrderStatus(order.status)}
                   </Badge>
                 )}
                 <Badge
                   className={cn(
-                    "gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
+                    "gap-1 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium",
                     syncBadge.className,
                   )}
                   title={
@@ -177,15 +177,15 @@ export function OrderAdminCard({
                   {PROXIS_SYNC_LABELS[syncStatus]}
                 </Badge>
                 {order.proxis_import_id != null ? (
-                  <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[11px]">
+                  <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[0.6875rem]">
                     Pedido {displayOrderNumber}
                   </Badge>
                 ) : null}
-                <span className="whitespace-nowrap text-[11px] text-muted-foreground">{formatDate(order.created_at)}</span>
+                <span className="whitespace-nowrap text-[0.6875rem] text-muted-foreground">{formatDate(order.created_at)}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.8125rem]">
               <span className="tabular-nums">
                 <span className="text-muted-foreground">Qtd:</span>{" "}
                 <span className="font-medium text-foreground">{orderQty}</span>
@@ -196,11 +196,11 @@ export function OrderAdminCard({
                 <span className="font-semibold text-foreground">{formatBRL(orderTotal)}</span>
               </span>
               <span className="text-muted-foreground hidden sm:inline">·</span>
-              <span className="text-[11px] text-muted-foreground">{itemLabel}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">{itemLabel}</span>
               {order.customer_cnpj ? (
                 <>
                   <span className="text-muted-foreground hidden sm:inline">·</span>
-                  <span className="text-[11px] tabular-nums text-muted-foreground">CNPJ: {order.customer_cnpj}</span>
+                  <span className="text-[0.6875rem] tabular-nums text-muted-foreground">CNPJ: {order.customer_cnpj}</span>
                 </>
               ) : null}
             </div>
@@ -208,18 +208,18 @@ export function OrderAdminCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pl-10 sm:pl-11">
-          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" disabled={isProxisExporting} onClick={onExportProxis}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisExporting} onClick={onExportProxis}>
             <img src="/icons/txt-file.png" alt="" className="h-3.5 w-3.5" />
             {isProxisExporting ? "Gerando..." : "FOCCO .txt"}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" disabled={isProxisResending} onClick={onResendProxis}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisResending} onClick={onResendProxis}>
             <RotateCcw className="h-3.5 w-3.5" />
             {isProxisResending ? "Enviando..." : "Reenviar Proxis"}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={onExportXlsx}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={onExportXlsx}>
             <img src="/icons/xls.png" alt="" className="h-3.5 w-3.5" /> Excel
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={onExportPdf}>
+          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={onExportPdf}>
             <img src="/icons/pdf.png" alt="" className="h-3.5 w-3.5" /> PDF
           </Button>
           <ConfirmActionDialog
@@ -240,7 +240,7 @@ export function OrderAdminCard({
 
       <CollapsibleContent className="border-t border-border/70">
         <div className="space-y-3 p-3 pt-3 sm:p-4">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[0.6875rem] text-muted-foreground">
             Telefone: <span className="text-foreground">{order.customer_phone || "—"}</span>
           </p>
 
@@ -253,21 +253,21 @@ export function OrderAdminCard({
                   : "border-amber-200 bg-amber-50/60",
               )}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Sincronia com o Proxis
               </p>
-              <p className="mt-1 text-[13px] leading-6 text-foreground">
+              <p className="mt-1 text-[0.8125rem] leading-6 text-foreground">
                 {syncStatus === PROXIS_SYNC_ERROR
                   ? "O ERP recusou este pedido. Corrija o motivo abaixo antes de reenviar."
                   : "Este pedido ainda não foi confirmado no ERP. Use “Reenviar Proxis” — o reenvio não duplica."}
               </p>
               {syncError ? (
-                <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-background/70 p-2 font-mono text-[11px] leading-5 text-muted-foreground">
+                <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-background/70 p-2 font-mono text-[0.6875rem] leading-5 text-muted-foreground">
                   {syncError}
                 </p>
               ) : null}
               {syncAttempts > 0 ? (
-                <p className="mt-2 text-[11px] text-muted-foreground">
+                <p className="mt-2 text-[0.6875rem] text-muted-foreground">
                   {syncAttempts} tentativa(s)
                   {order.proxis_last_attempt_at
                     ? ` · última em ${formatDate(order.proxis_last_attempt_at)}`
@@ -278,13 +278,13 @@ export function OrderAdminCard({
           ) : null}
 
           {order.proxis_doc_ped_web ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[0.6875rem] text-muted-foreground">
               Documento no ERP: <span className="font-mono text-foreground">{order.proxis_doc_ped_web}</span>
             </p>
           ) : null}
           {order.customer_observation?.trim() ? (
             <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Observação do pedido
               </p>
               <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
@@ -294,7 +294,7 @@ export function OrderAdminCard({
           ) : null}
           <OrderItemsTable lines={lines} maxBodyHeight="max-h-52" />
           {order.total_items !== orderQty ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[0.6875rem] text-muted-foreground">
               Quantidade registrada no envio: {order.total_items}
             </p>
           ) : null}

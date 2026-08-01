@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, ImageIcon, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  PRODUCT_IMAGE_MIN_SIZE,
+  PRODUCT_IMAGE_TARGET_HEIGHT,
+  PRODUCT_IMAGE_TARGET_WIDTH,
+} from "@/lib/productImageNormalization";
+import { PRODUCT_IMAGE_FIT_LABELS, type ProductImageFit } from "@/lib/products";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import {
   Carousel,
@@ -11,22 +19,40 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 
+/** Fotos por produto. O numero estava fixo em 5, repetido no botao e no aviso. */
+const MAX_IMAGENS = 7;
+
+// Tamanhos aproximados dos tres lugares onde a capa aparece no catalogo.
+const CONTEXT_PREVIEWS = [
+  { label: "Card do catálogo", className: "h-[11rem] w-[8.8rem]" },
+  { label: "Miniatura", className: "h-20 w-16" },
+  { label: "Busca", className: "h-[3.4rem] w-11" },
+] as const;
+
 type Props = {
   urls: string[];
+  alts: string[];
+  imageFit: ProductImageFit;
   uploading: boolean;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveAt: (index: number) => Promise<void>;
   onMoveAt: (from: number, to: number) => void;
+  onAltChange: (index: number, alt: string) => void;
+  onImageFitChange: (fit: ProductImageFit) => void;
 };
 
 export function ProductImageCarouselEditor({
   urls,
+  alts,
+  imageFit,
   uploading,
   fileInputRef,
   onFileChange,
   onRemoveAt,
   onMoveAt,
+  onAltChange,
+  onImageFitChange,
 }: Props) {
   const [api, setApi] = useState<CarouselApi>();
   const [slideIndex, setSlideIndex] = useState(0);
@@ -62,30 +88,86 @@ export function ProductImageCarouselEditor({
         <span className="text-xs text-muted-foreground">{urls.length}/5 imagens</span>
       </div>
 
+      {/* A especificacao fica na tela, e nao num documento a parte: quem sobe a
+          foto precisa saber o que entregar no momento em que esta entregando. */}
+      <div className="rounded-2xl border border-border/70 bg-muted/20 p-3">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Como enviar a foto
+        </p>
+        <ul className="mt-2 space-y-1 text-xs leading-5 text-foreground">
+          <li>
+            <span className="font-medium">
+              {PRODUCT_IMAGE_TARGET_WIDTH} × {PRODUCT_IMAGE_TARGET_HEIGHT} px
+            </span>{" "}
+            (4:5 retrato) · mínimo {PRODUCT_IMAGE_MIN_SIZE} px no menor lado
+          </li>
+          <li>
+            <span className="font-medium">Capa sempre em fundo branco puro</span> ou PNG transparente — é ela que
+            aparece na grade e na busca
+          </li>
+          <li>
+            Produto ocupando <span className="font-medium">~85% do quadro</span>: margem sobrando faz o produto
+            parecer pequeno no card
+          </li>
+          <li>Fotos com cenário entram a partir da foto 2, dentro da página do produto</li>
+        </ul>
+      </div>
+
+      {/* Decide entre encaixar a foto por dentro da moldura ou preenche-la: e o
+          que impede a foto ambientada de aparecer com faixas vazias em volta. */}
+      <div className="rounded-2xl border border-border/70 bg-background p-3">
+        <Label className="text-[0.8125rem] font-medium">Como esta foto deve preencher a moldura</Label>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {(Object.keys(PRODUCT_IMAGE_FIT_LABELS) as ProductImageFit[]).map((fit) => (
+            <button
+              key={fit}
+              type="button"
+              onClick={() => onImageFitChange(fit)}
+              aria-pressed={imageFit === fit}
+              className={cn(
+                "rounded-xl border px-3 py-2.5 text-left text-xs leading-5 transition-colors",
+                imageFit === fit
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border/70 bg-background text-muted-foreground hover:border-primary/40",
+              )}
+            >
+              <span className="block font-medium text-foreground">
+                {fit === "contain" ? "Packshot" : "Ambientada"}
+              </span>
+              <span className="block">
+                {fit === "contain"
+                  ? "Produto recortado, fundo branco ou transparente."
+                  : "A foto já tem cenário e deve preencher todo o quadro."}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="relative mx-auto w-full max-w-[32rem] overflow-hidden rounded-xl border border-border bg-background">
         {urls.length === 0 ? (
-          <div className="flex aspect-[5/4] items-center justify-center bg-background p-4">
+          <div className="flex aspect-[4/5] items-center justify-center bg-background p-4">
             <ImageIcon className="h-10 w-10 text-muted-foreground/40" />
           </div>
         ) : urls.length === 1 ? (
-          <div className="relative aspect-[5/4] bg-background p-3">
-            <span className="absolute left-2 top-2 z-10 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[10px] font-semibold text-background shadow-sm">
+          <div className="relative aspect-[4/5] bg-background p-1.5">
+            <span className="absolute left-2 top-2 z-10 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[0.625rem] font-semibold text-background shadow-sm">
               Capa
             </span>
-            <img src={urls[0]} alt="" className="h-full w-full object-contain p-1" />
+            <img src={urls[0]} alt="" className={cn("h-full w-full", imageFit === "cover" ? "object-cover" : "object-contain p-1")} />
           </div>
         ) : (
           <Carousel className="w-full" opts={{ loop: true }} setApi={setApi}>
             <CarouselContent className="-ml-0">
               {urls.map((src, i) => (
                 <CarouselItem key={`${src}-${i}`} className="basis-full pl-0">
-                  <div className="relative aspect-[5/4] bg-background p-3">
+                  <div className="relative aspect-[4/5] bg-background p-1.5">
                     {i === 0 && (
-                      <span className="absolute left-2 top-2 z-10 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[10px] font-semibold text-background shadow-sm">
+                      <span className="absolute left-2 top-2 z-10 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[0.625rem] font-semibold text-background shadow-sm">
                         Capa
                       </span>
                     )}
-                    <img src={src} alt="" className="h-full w-full object-contain p-1" />
+                    <img src={src} alt="" className={cn("h-full w-full", imageFit === "cover" ? "object-cover" : "object-contain p-1")} />
                   </div>
                 </CarouselItem>
               ))}
@@ -107,6 +189,38 @@ export function ProductImageCarouselEditor({
         )}
       </div>
 
+      {/* A capa nos tres tamanhos reais em que o cliente vai encontra-la. Ver o
+          recorte no contexto evita descobrir o problema so depois de publicar. */}
+      {urls.length > 0 ? (
+        <div className="rounded-2xl border border-border/70 bg-muted/20 p-3">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Como a capa vai aparecer
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-4">
+            {CONTEXT_PREVIEWS.map((preview) => (
+              <div key={preview.label} className="space-y-1.5">
+                <div
+                  className={cn(
+                    "overflow-hidden rounded-lg border border-border/70 bg-background",
+                    preview.className,
+                  )}
+                >
+                  <img
+                    src={urls[0]}
+                    alt=""
+                    className={cn(
+                      "h-full w-full",
+                      imageFit === "cover" ? "object-cover" : "object-contain p-1",
+                    )}
+                  />
+                </div>
+                <p className="text-center text-[0.625rem] leading-4 text-muted-foreground">{preview.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {urls.length > 0 && (
         <div className="mx-auto flex w-full justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           {urls.map((src, index) => {
@@ -116,11 +230,26 @@ export function ProductImageCarouselEditor({
             return (
               <div key={`${src}-${index}`} className="w-[9.5rem] shrink-0 overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm sm:w-[10.5rem] lg:w-[11.5rem]">
                 <div className="relative aspect-square bg-muted/20">
-                  <img src={src} alt="" className="h-full w-full object-contain p-1.5" />
+                  <img
+                    src={src}
+                    alt=""
+                    className={cn("h-full w-full p-1.5", imageFit === "cover" ? "object-cover p-0" : "object-contain")}
+                  />
 
-                  <div className="absolute left-2 top-2 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[10px] font-semibold text-background shadow-sm">
+                  <div className="absolute left-2 top-2 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[0.625rem] font-semibold text-background shadow-sm">
                     {isFirst ? "Capa" : `Foto ${index + 1}`}
                   </div>
+                </div>
+
+                <div className="border-t border-border/70 bg-background p-1.5">
+                  <Input
+                    value={alts[index] ?? ""}
+                    onChange={(event) => onAltChange(index, event.target.value)}
+                    maxLength={120}
+                    placeholder={isFirst ? "Descreva a capa" : `Descreva a foto ${index + 1}`}
+                    className="h-8 rounded-lg border-border/70 bg-background text-[0.6875rem]"
+                    aria-label={`Descrição da foto ${index + 1}`}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between gap-1 border-t border-border/70 bg-background p-1.5">
@@ -177,12 +306,14 @@ export function ProductImageCarouselEditor({
           size="sm"
           className="gap-1"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || urls.length >= 5}
+          disabled={uploading || urls.length >= MAX_IMAGENS}
         >
           <Upload className="h-3.5 w-3.5" />
           {uploading ? "Enviando..." : "Adicionar foto"}
         </Button>
-        {urls.length >= 5 && <span className="text-xs text-muted-foreground">Máximo de 5 imagens</span>}
+        {urls.length >= MAX_IMAGENS && (
+          <span className="text-xs text-muted-foreground">Máximo de {MAX_IMAGENS} imagens</span>
+        )}
         {urls.length > 0 && (
           <Button
             type="button"

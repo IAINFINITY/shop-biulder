@@ -62,7 +62,14 @@ function formatTime(value: string) {
   }).format(date);
 }
 
-function internalStaffRoleLabel(role: InternalStaffRole | null | undefined) {
+/**
+ * Aceita `string` porque o papel chega do banco como texto livre.
+ *
+ * Tipar so como `InternalStaffRole` obrigava um `as` em cada chamada — e o `as`
+ * mentiria: o valor vindo de `message.sender_role` pode ser qualquer coisa. O
+ * `switch` ja tem ramo de reserva, entao valor desconhecido nao quebra nada.
+ */
+function internalStaffRoleLabel(role: InternalStaffRole | string | null | undefined) {
   switch (role) {
     case "consultor":
       return "Consultor";
@@ -108,9 +115,9 @@ function MessageBubble({
             : "border-border/70 bg-background text-foreground",
         )}
       >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">{senderLabel}</p>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">{senderLabel}</p>
         <p className="whitespace-pre-wrap break-words leading-6">{body}</p>
-        <p className={cn("mt-2 text-[11px]", isSelf ? "text-primary-foreground/70" : "text-muted-foreground")}>
+        <p className={cn("mt-2 text-[0.6875rem]", isSelf ? "text-primary-foreground/70" : "text-muted-foreground")}>
           {formatTime(createdAt)}
         </p>
       </div>
@@ -151,13 +158,13 @@ function ConversationCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-semibold text-foreground">{formatSupportConversationTitle(conversation)}</span>
-          <span className="flex-shrink-0 text-[10px] tabular-nums text-muted-foreground">{formatTime(conversation.last_message_at)}</span>
+          <span className="flex-shrink-0 text-[0.625rem] tabular-nums text-muted-foreground">{formatTime(conversation.last_message_at)}</span>
         </div>
         <p className="mt-1 truncate text-xs text-muted-foreground">
           {formatSupportLastMessagePreview(conversation)}
         </p>
         <div className="mt-2 flex items-center gap-2">
-          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
             {conversation.status === "open" ? "Aberta" : conversation.status === "closed" ? "Fechada" : "Arquivada"}
           </span>
         </div>
@@ -176,13 +183,13 @@ function CustomerConversationSummary({ conversation }: { conversation: SupportCo
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-semibold text-foreground">{formatSupportConversationTitle(conversation)}</span>
-          <span className="flex-shrink-0 text-[10px] tabular-nums text-muted-foreground">{formatTime(conversation.last_message_at)}</span>
+          <span className="flex-shrink-0 text-[0.625rem] tabular-nums text-muted-foreground">{formatTime(conversation.last_message_at)}</span>
         </div>
         <p className="mt-1 truncate text-xs text-muted-foreground">
           {formatSupportLastMessagePreview(conversation)}
         </p>
         <div className="mt-2 flex items-center gap-2">
-          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
             {conversation.status === "open" ? "Aberta" : conversation.status === "closed" ? "Fechada" : "Arquivada"}
           </span>
         </div>
@@ -212,7 +219,7 @@ function InternalStaffManager({ compact = false }: { compact?: boolean }) {
             Defina quem entra como consultor, representante ou admin de atendimento.
           </p>
         </div>
-        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[11px] text-primary">
+        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[0.6875rem] text-primary">
           Admin
         </Badge>
       </div>
@@ -462,10 +469,10 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
       >
         <section className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/70 pb-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {isCustomerMode ? "Chat interno" : "Inbox interno"}
             </p>
-            <h2 className="truncate text-[1.05rem] font-bold leading-tight tracking-[-0.03em] text-foreground">
+            <h2 className="truncate text-base font-semibold leading-tight tracking-tight text-foreground">
               {isCustomerMode ? "Fale com seu consultor" : "Conversas com clientes"}
             </h2>
           </div>
@@ -551,17 +558,17 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
         {selectedConversation ? (
           <>
             <div className="flex items-center justify-between gap-3 px-1 pt-1">
-              <Badge variant={selectedConversation.status === "open" ? "default" : "secondary"} className="rounded-full px-3 py-1 text-[11px]">
+              <Badge variant={selectedConversation.status === "open" ? "default" : "secondary"} className="rounded-full px-3 py-1 text-[0.6875rem]">
                 {selectedConversation.status === "open" ? "Aberta" : selectedConversation.status === "closed" ? "Fechada" : "Arquivada"}
               </Badge>
-              <span className="text-[11px] text-muted-foreground">{mobileConversationTime}</span>
+              <span className="text-[0.6875rem] text-muted-foreground">{mobileConversationTime}</span>
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
               <div className="flex min-h-0 flex-1 flex-col space-y-3 overflow-y-auto bg-muted/20 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="truncate text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {mobileConversationTitle}
                     </p>
                   </div>
@@ -604,7 +611,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                 {isOtherTyping ? (
                   <div className="mt-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                     <Avatar className="h-9 w-9 border border-border/70 bg-background">
-                      <AvatarFallback className="bg-primary/5 text-[10px] font-semibold text-primary">
+                      <AvatarFallback className="bg-primary/5 text-[0.625rem] font-semibold text-primary">
                         {isCustomerMode ? "C" : "U"}
                       </AvatarFallback>
                     </Avatar>
@@ -660,14 +667,14 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
     >
       <section className="flex shrink-0 flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {isCustomerMode ? "Chat interno" : "Inbox interno"}
           </p>
-          <h2 className="truncate text-[1.05rem] font-bold leading-tight tracking-[-0.03em] text-foreground">
+          <h2 className="truncate text-base font-semibold leading-tight tracking-tight text-foreground">
             {isCustomerMode ? "Fale com seu consultor" : "Conversas com clientes"}
           </h2>
         </div>
-        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
+        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
           {isCustomerMode ? "Representante interno" : "Equipe administrativa"}
         </Badge>
       </section>
@@ -687,7 +694,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </div>
                   <Badge
                     variant="outline"
-                    className="flex h-10 sm:h-8 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border-border/70 bg-background px-2 text-[10px] font-medium tabular-nums text-muted-foreground"
+                    className="flex h-10 sm:h-8 min-w-[4.5rem] shrink-0 items-center justify-center rounded-full border-border/70 bg-background px-2 text-[0.625rem] font-medium tabular-nums text-muted-foreground"
                   >
                     {customerConversationLoading ? "..." : selectedConversation ? "1 conversa" : "0 conversa"}
                   </Badge>
@@ -712,14 +719,14 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
               <div className="flex h-full min-h-0 flex-col rounded-xl border border-border/70 bg-card shadow-sm">
                 <div className="flex items-start justify-between gap-3 border-b border-border/70 px-4 pb-3 sm:px-5 sm:pb-4">
                   <div className="pt-4 sm:pt-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {selectedConversation ? formatSupportConversationTitle(selectedConversation) : "Selecione uma conversa"}
                     </p>
                     <h3 className="mt-1 text-lg font-semibold text-foreground">
                       {selectedConversation?.subject || "Nenhum atendimento selecionado"}
                     </h3>
                   </div>
-                  <span className="pt-4 sm:pt-5 text-[11px] text-muted-foreground">
+                  <span className="pt-4 sm:pt-5 text-[0.6875rem] text-muted-foreground">
                     {selectedConversation ? formatTime(selectedConversation.last_message_at) : "Sem atividade"}
                   </span>
                 </div>
@@ -753,7 +760,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                       {isOtherTyping ? (
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                           <Avatar className="h-10 w-10 sm:h-8 sm:w-8 border border-border/70 bg-background">
-                            <AvatarFallback className="bg-primary/5 text-[10px] font-semibold text-primary">
+                            <AvatarFallback className="bg-primary/5 text-[0.625rem] font-semibold text-primary">
                               C
                             </AvatarFallback>
                           </Avatar>
@@ -814,7 +821,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                       type="button"
                       onClick={() => setInboxScope("mine")}
                       className={cn(
-                        "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors",
+                        "rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] transition-colors",
                         inboxScope === "mine"
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground",
@@ -826,7 +833,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                       type="button"
                       onClick={() => setInboxScope("all")}
                       className={cn(
-                        "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-colors",
+                        "rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] transition-colors",
                         inboxScope === "all"
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground",
@@ -882,7 +889,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
               <div className="flex h-full min-h-0 flex-col rounded-xl border border-border/70 bg-card shadow-sm">
                 <div className="flex items-start justify-between gap-3 border-b border-border/70 px-4 pb-3 sm:px-5 sm:pb-4">
                   <div className="pt-4 sm:pt-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       {selectedConversation ? formatSupportConversationTitle(selectedConversation) : "Selecione uma conversa"}
                     </p>
                     <h3 className="mt-1 text-lg font-semibold text-foreground">
@@ -891,7 +898,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                   </div>
                   <div className="pt-4 sm:pt-5 flex flex-col items-end gap-2">
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                      <Badge variant={selectedConversation?.status === "open" ? "default" : "secondary"} className="rounded-full px-3 py-1 text-[11px]">
+                      <Badge variant={selectedConversation?.status === "open" ? "default" : "secondary"} className="rounded-full px-3 py-1 text-[0.6875rem]">
                         {selectedConversation ? (selectedConversation.status === "open" ? "Aberta" : selectedConversation.status === "closed" ? "Fechada" : "Arquivada") : "—"}
                       </Badge>
                       <Button
@@ -903,7 +910,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                         Papéis internos
                       </Button>
                     </div>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-[0.6875rem] text-muted-foreground">
                       {selectedConversation ? formatTime(selectedConversation.last_message_at) : "Sem atividade"}
                     </span>
                   </div>
@@ -946,7 +953,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
                       {isOtherTyping ? (
                         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                           <Avatar className="h-10 w-10 sm:h-8 sm:w-8 border border-border/70 bg-background">
-                            <AvatarFallback className="bg-primary/5 text-[10px] font-semibold text-primary">
+                            <AvatarFallback className="bg-primary/5 text-[0.625rem] font-semibold text-primary">
                               {isCustomerMode ? "C" : "U"}
                             </AvatarFallback>
                           </Avatar>
@@ -994,10 +1001,10 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
       <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
         <DialogContent className="max-w-[34rem] rounded-[1.5rem] border-border/70">
           <DialogHeader>
-            <DialogTitle className="text-[1.05rem] font-black tracking-[-0.04em]">
+            <DialogTitle className="text-base font-semibold tracking-tight">
               Nova conversa
             </DialogTitle>
-            <DialogDescription className="text-[13px] leading-6 text-muted-foreground">
+            <DialogDescription className="text-[0.8125rem] leading-6 text-muted-foreground">
               Selecione um cliente para iniciar uma conversa.
             </DialogDescription>
           </DialogHeader>

@@ -26,7 +26,8 @@ import { CATALOG_NOTIFICATIONS_TABLE, type CatalogNotification } from "@/lib/cat
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useAdminCustomerProfiles } from "@/hooks/useAdminCustomerProfiles";
 import { useAuth } from "@/hooks/useAuth";
-import { deleteStorageImage, uploadProductImageFile } from "@/lib/productImageStorage";
+import { deleteStorageImage, isProductImageStorageUrl, uploadProductImageFile } from "@/lib/productImageStorage";
+import { NOTIFICATION_IMAGE_MAX_SIZE } from "@/lib/productImageNormalization";
 import { cn } from "@/lib/utils";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 
@@ -153,7 +154,7 @@ function DateTimeSelector({
 
   return (
     <div className="space-y-2 min-w-0">
-      <Label className="text-[13px] font-medium">{label}</Label>
+      <Label className="text-[0.8125rem] font-medium">{label}</Label>
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <Input
           id={dateTriggerId}
@@ -180,7 +181,7 @@ function DateTimeSelector({
           className="h-11 w-full rounded-2xl border-border/70 bg-background text-sm tabular-nums"
         />
       </div>
-      <p className="text-[11px] leading-5 text-muted-foreground">{helperText} O formato fica como 08:30.</p>
+      <p className="text-[0.6875rem] leading-5 text-muted-foreground">{helperText} O formato fica como 08:30.</p>
     </div>
   );
 }
@@ -251,8 +252,8 @@ function NotificationCard({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-[14px] sm:text-[15px] font-semibold text-foreground">{notification.title}</p>
-              <Badge variant={notification.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[11px]">
+              <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
+              <Badge variant={notification.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                 {notification.active ? "Ativa" : "Inativa"}
               </Badge>
             </div>
@@ -262,7 +263,7 @@ function NotificationCard({
           </div>
 
           <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1">
-            <p className="text-[11px] font-medium text-muted-foreground">Visível</p>
+            <p className="text-[0.6875rem] font-medium text-muted-foreground">Visível</p>
             <Switch
               checked={notification.active}
               onCheckedChange={() => onToggleActive(notification)}
@@ -273,7 +274,7 @@ function NotificationCard({
 
         {targetUserLabel ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[11px]">
+            <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
               Para: {targetUserLabel}
             </Badge>
           </div>
@@ -285,14 +286,14 @@ function NotificationCard({
         </div>
 
         <div className="mt-auto flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[13px] sm:text-[12px]" onClick={() => onEdit(notification)}>
+          <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={() => onEdit(notification)}>
             <Pencil className="h-4 w-4" />
             Editar
           </Button>
 
           <ConfirmActionDialog
             trigger={
-              <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-[12px] text-destructive">
+              <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-xs text-destructive">
                 <Trash2 className="h-4 w-4" />
                 Excluir
               </Button>
@@ -327,7 +328,7 @@ function NotificationPreview({
   return (
     <div className="flex h-full min-h-[540px] flex-col gap-5">
       <div className="space-y-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pré-visualização</p>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pré-visualização</p>
         <p className="text-sm text-foreground/80">Veja como a notificação vai aparecer para o cliente antes de salvar.</p>
       </div>
 
@@ -336,21 +337,21 @@ function NotificationPreview({
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Badge variant={draft?.active ? "secondary" : "outline"} className="rounded-full px-3 py-1 text-[11px]">
+            <Badge variant={draft?.active ? "secondary" : "outline"} className="rounded-full px-3 py-1 text-[0.6875rem]">
               {draft?.active ? "Ativa" : "Inativa"}
             </Badge>
-            <p className="text-[11px] text-muted-foreground">Prioridade {priority}</p>
+            <p className="text-[0.6875rem] text-muted-foreground">Prioridade {priority}</p>
           </div>
 
           {targetUserLabel ? (
-            <Badge variant="outline" className="w-fit rounded-full px-3 py-1 text-[11px]">
+            <Badge variant="outline" className="w-fit rounded-full px-3 py-1 text-[0.6875rem]">
               Para: {targetUserLabel}
             </Badge>
           ) : null}
 
           <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</p>
-            <p className="text-[1.03rem] font-semibold text-foreground">{title}</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</p>
+            <p className="text-base font-semibold text-foreground">{title}</p>
             <p className="text-sm text-muted-foreground">{summary}</p>
           </div>
 
@@ -358,7 +359,7 @@ function NotificationPreview({
 
           <div className="mt-auto flex flex-wrap items-center gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Ação</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Ação</p>
               <p className="truncate text-sm font-medium text-foreground">{ctaLabel}</p>
               <p className="truncate text-xs text-muted-foreground">{ctaUrl || "Sem link configurado"}</p>
             </div>
@@ -402,10 +403,10 @@ function NotificationEditor({
       <DialogContent className="max-h-[92vh] w-[min(98vw,1320px)] max-w-[1320px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
         <div className="flex max-h-[92vh] flex-col overflow-hidden">
           <DialogHeader className="border-b border-border/70 px-5 py-4">
-            <DialogTitle className="text-left text-[1.1rem] font-black tracking-[-0.04em] text-foreground">
+            <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
               {draft?.id ? "Editar notificação" : "Nova notificação"}
             </DialogTitle>
-            <DialogDescription className="text-left text-[13px] text-muted-foreground">
+            <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
               Ajuste a mensagem e veja o preview antes de publicar para os clientes.
             </DialogDescription>
           </DialogHeader>
@@ -417,10 +418,10 @@ function NotificationEditor({
           <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-title" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-title" className="text-[0.8125rem] font-medium">
                           Título
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           {draft.title.length}/{ADMIN_TEXT_LIMITS.notifications.title} caracteres
                         </p>
                       </div>
@@ -436,10 +437,10 @@ function NotificationEditor({
 
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-summary" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-summary" className="text-[0.8125rem] font-medium">
                           Resumo
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           {draft.summary.length}/{ADMIN_TEXT_LIMITS.notifications.summary} caracteres
                         </p>
                       </div>
@@ -455,10 +456,10 @@ function NotificationEditor({
 
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-body" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-body" className="text-[0.8125rem] font-medium">
                           Mensagem
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           {draft.body.length}/{ADMIN_TEXT_LIMITS.notifications.body} caracteres
                         </p>
                       </div>
@@ -476,7 +477,7 @@ function NotificationEditor({
                   <div className="space-y-2 rounded-[1.35rem] border border-border/70 bg-muted/15 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <Label htmlFor="notification-image-url" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-image-url" className="text-[0.8125rem] font-medium">
                           Imagem
                         </Label>
                         <p className="text-xs text-muted-foreground">Você pode colar uma URL ou enviar um arquivo do computador.</p>
@@ -485,7 +486,7 @@ function NotificationEditor({
                         <Button
                           type="button"
                           variant="ghost"
-                          className="h-9 rounded-full px-3 text-[12px] text-destructive"
+                          className="h-9 rounded-full px-3 text-xs text-destructive"
                           onClick={async () => {
                             const currentImage = draft.imageUrl.trim();
                             if (currentImage && isProductImageStorageUrl(currentImage)) {
@@ -528,10 +529,10 @@ function NotificationEditor({
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-cta-label" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-cta-label" className="text-[0.8125rem] font-medium">
                           Texto do botão
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           {draft.ctaLabel.length}/{ADMIN_TEXT_LIMITS.notifications.ctaLabel} caracteres
                         </p>
                       </div>
@@ -547,10 +548,10 @@ function NotificationEditor({
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-cta-url" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-cta-url" className="text-[0.8125rem] font-medium">
                           Link do botão
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           {draft.ctaUrl.length}/{ADMIN_TEXT_LIMITS.notifications.ctaUrl} caracteres
                         </p>
                       </div>
@@ -566,10 +567,10 @@ function NotificationEditor({
 
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-priority" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-priority" className="text-[0.8125rem] font-medium">
                           Prioridade de exibição
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           Ordem interna do envio. É útil para campanhas pontuais e ajustes de exibição.
                         </p>
                       </div>
@@ -584,16 +585,16 @@ function NotificationEditor({
 
                     <div className="space-y-2 md:col-span-2">
                       <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor="notification-target-user" className="text-[13px] font-medium">
+                        <Label htmlFor="notification-target-user" className="text-[0.8125rem] font-medium">
                           Usuário específico
                         </Label>
-                        <p className="text-[11px] text-muted-foreground">Deixe em branco para enviar para todos.</p>
+                        <p className="text-[0.6875rem] text-muted-foreground">Deixe em branco para enviar para todos.</p>
                       </div>
                       <Select
                         value={draft.targetUserId || "__all__"}
                         onValueChange={(value) => onDraftChange({ targetUserId: value === "__all__" ? "" : value })}
                       >
-                        <SelectTrigger id="notification-target-user" className="h-11 rounded-2xl border-border/70 bg-background text-[13px]">
+                        <SelectTrigger id="notification-target-user" className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]">
                           <SelectValue placeholder="Todos os clientes" />
                         </SelectTrigger>
                         <SelectContent>
@@ -606,11 +607,11 @@ function NotificationEditor({
                         </SelectContent>
                       </Select>
                       {targetUserLabel ? (
-                        <p className="text-[11px] leading-5 text-muted-foreground">
+                        <p className="text-[0.6875rem] leading-5 text-muted-foreground">
                           Essa notificação será exibida apenas para <span className="font-medium text-foreground">{targetUserLabel}</span>.
                         </p>
                       ) : (
-                        <p className="text-[11px] leading-5 text-muted-foreground">Modo padrão: todos os clientes ativos enxergam essa notificação.</p>
+                        <p className="text-[0.6875rem] leading-5 text-muted-foreground">Modo padrão: todos os clientes ativos enxergam essa notificação.</p>
                       )}
                     </div>
 
@@ -775,7 +776,7 @@ export function AdminNotificationsSection() {
     if (!file) return;
 
     setUploading(true);
-    const result = await uploadProductImageFile(file);
+    const result = await uploadProductImageFile(file, { maxSize: NOTIFICATION_IMAGE_MAX_SIZE });
     setUploading(false);
 
     if (!result.ok) {
@@ -907,7 +908,7 @@ export function AdminNotificationsSection() {
         description="Publique mensagens para aparecer na área de notificações do cliente e organize a prioridade de exibição."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[11px] text-primary">
+            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
               {activeCount} ativa(s)
             </Badge>
             <Button type="button" className="h-10 rounded-2xl px-4 text-sm" onClick={openNew}>
@@ -924,7 +925,7 @@ export function AdminNotificationsSection() {
             <p className="text-sm text-foreground">O cliente vê apenas as notificações ativas e dentro da janela de início/fim, quando configurada.</p>
             <p className="text-xs text-muted-foreground">Use prioridade maior para empurrar uma campanha para o topo da lista.</p>
           </div>
-          <Badge variant="outline" className="rounded-full border-border/70 px-3 py-1 text-[11px] font-medium">
+          <Badge variant="outline" className="rounded-full border-border/70 px-3 py-1 text-[0.6875rem] font-medium">
             {sortedNotifications.length} notificação(ões)
           </Badge>
         </div>

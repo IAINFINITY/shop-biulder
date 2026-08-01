@@ -39,7 +39,7 @@ function InfoTile({ label, value, hint, icon: Icon }: InfoTileProps) {
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">{label}</p>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       </div>
       <p className="mt-3 text-sm font-medium text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p> : null}
@@ -199,34 +199,34 @@ export function AdminSettingsSection() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nome</Label>
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nome</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Seu nome"
-              className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+              className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">E-mail</Label>
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">E-mail</Label>
             <Input
               value={user?.email ?? ""}
               disabled
-              className="h-11 rounded-2xl border-border/70 bg-muted/30 text-[13px] opacity-60"
+              className="h-11 rounded-2xl border-border/70 bg-muted/30 text-[0.8125rem] opacity-60"
             />
           </div>
         </div>
 
         {currentRole ? (
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Função</Label>
-            <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-[13px]">
-              <span className="inline-flex items-center rounded-full border bg-destructive/10 px-3 py-0.5 text-[12px] font-semibold text-destructive">
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Função</Label>
+            <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-[0.8125rem]">
+              <span className="inline-flex items-center rounded-full border bg-destructive/10 px-3 py-0.5 text-xs font-semibold text-destructive">
                 {getRoleLabel(currentRole)}
               </span>
             </div>
-            <p className="text-[12px] text-muted-foreground">Apenas o superadmin pode alterar funções de outros usuários.</p>
+            <p className="text-xs text-muted-foreground">Apenas o superadmin pode alterar funções de outros usuários.</p>
           </div>
         ) : null}
 
@@ -249,7 +249,7 @@ export function AdminSettingsSection() {
 
         <div className="grid gap-4">
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Senha atual</Label>
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Senha atual</Label>
             <div className="relative">
               <Input
                 type={showCurrentPassword ? "text" : "password"}
@@ -257,7 +257,7 @@ export function AdminSettingsSection() {
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Sua senha atual"
                 maxLength={64}
-                className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
               />
               <button
                 type="button"
@@ -271,7 +271,7 @@ export function AdminSettingsSection() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Nova senha</Label>
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Nova senha</Label>
             <div className="relative">
               <Input
                 type={showNewPassword ? "text" : "password"}
@@ -279,7 +279,7 @@ export function AdminSettingsSection() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Mínimo 8 caracteres"
                 maxLength={64}
-                className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
               />
               <button
                 type="button"
@@ -306,12 +306,12 @@ export function AdminSettingsSection() {
                       )}
                     />
                   </div>
-                  <span className="text-[11px] font-medium text-muted-foreground">{strength.label}</span>
-                  <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
+                  <span className="text-[0.6875rem] font-medium text-muted-foreground">{strength.label}</span>
+                  <span className="ml-auto text-[0.6875rem] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {strength.checks.map((c) => (
-                    <span key={c.label} className={cn("text-[11px]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}>
+                    <span key={c.label} className={cn("text-[0.6875rem]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}>
                       {c.ok ? "✓" : "○"} {c.label}
                     </span>
                   ))}
@@ -321,7 +321,7 @@ export function AdminSettingsSection() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Confirmar nova senha</Label>
+            <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Confirmar nova senha</Label>
             <div className="relative">
               <Input
                 type={showConfirmPassword ? "text" : "password"}
@@ -329,7 +329,7 @@ export function AdminSettingsSection() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repita a nova senha"
                 maxLength={64}
-                className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
               />
               <button
                 type="button"

@@ -45,6 +45,7 @@ import {
   updateAdminRole,
   toggleAdminActive,
   deleteAdminUser,
+  updateAdminDisplayName,
   updateAdminPermissions,
   type AdminPermissions,
   type AdminUserCreatePayload,
@@ -58,6 +59,7 @@ const PERMISSION_OPTIONS: { id: AdminSection; label: string }[] = [
   { id: "banners", label: "Banners" },
   { id: "notificacoes", label: "Notificações" },
   { id: "produtos", label: "Produtos" },
+  { id: "imagens", label: "Imagens" },
   { id: "precos", label: "Preços" },
   { id: "pedidos", label: "Pedidos" },
   { id: "clientes", label: "Clientes" },
@@ -101,7 +103,7 @@ function PermissionChecklist({ value, onChange }: PermissionChecklistProps) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Permissões
       </p>
       <div className="grid grid-cols-2 gap-2">
@@ -118,7 +120,7 @@ function PermissionChecklist({ value, onChange }: PermissionChecklistProps) {
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[0.6875rem] text-muted-foreground">
         {SUPERADMIN_ONLY_OPTIONS.map((o) => o.label).join(" e ")} — apenas visível para superadmin
       </p>
     </div>
@@ -159,6 +161,7 @@ export function AdminUsersSection() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null);
   const [editPermissions, setEditPermissions] = useState<AdminPermissions>(defaultPermissions());
+  const [editName, setEditName] = useState("");
   const [savingPermissions, setSavingPermissions] = useState(false);
 
   const { data: users = [], isLoading } = useQuery({
@@ -236,6 +239,7 @@ export function AdminUsersSection() {
   function openEdit(user: AdminUserRecord) {
     setEditingUser(user);
     setEditPermissions(user.permissions ?? allPermissions());
+    setEditName(user.display_name ?? "");
     setEditOpen(true);
   }
 
@@ -243,8 +247,14 @@ export function AdminUsersSection() {
     if (!editingUser) return;
     setSavingPermissions(true);
     try {
+      // Nome primeiro: se ele falhar, nao adianta ter gravado permissao — o
+      // superadmin fecharia o dialogo achando que salvou as duas coisas.
+      const nome = editName.trim();
+      if (nome !== (editingUser.display_name ?? "")) {
+        await updateAdminDisplayName(editingUser.user_id, nome);
+      }
       await updateAdminPermissions(editingUser.user_id, editPermissions);
-      toast.success("Permissões atualizadas");
+      toast.success("Usuário atualizado");
       setEditOpen(false);
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
@@ -282,22 +292,22 @@ export function AdminUsersSection() {
             placeholder="Pesquisar por e-mail, nome ou papel..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-11 rounded-2xl border-border/70 bg-background pl-9 text-[13px]"
+            className="h-11 rounded-2xl border-border/70 bg-background pl-9 text-[0.8125rem]"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {ADMIN_ROLES.map((r) => (
-            <Badge key={r.value} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+            <Badge key={r.value} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[0.6875rem] text-primary">
               {r.label}: {roleCounts[r.value] ?? 0}
             </Badge>
           ))}
-          <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px] text-muted-foreground">
+          <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[0.6875rem] text-muted-foreground">
             Superadmin: {roleCounts["superadmin"] ?? 0}
           </Badge>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant={roleFilter === null ? "default" : "outline"} className="h-10 rounded-full px-3 text-[13px]" onClick={() => setRoleFilter(null)}>
+          <Button type="button" variant={roleFilter === null ? "default" : "outline"} className="h-10 rounded-full px-3 text-[0.8125rem]" onClick={() => setRoleFilter(null)}>
             Todos
           </Button>
           {ADMIN_ROLES.map((r) => (
@@ -305,7 +315,7 @@ export function AdminUsersSection() {
               key={r.value}
               type="button"
               variant={roleFilter === r.value ? "default" : "outline"}
-              className="h-10 rounded-full px-3 text-[13px]"
+              className="h-10 rounded-full px-3 text-[0.8125rem]"
               onClick={() => setRoleFilter(roleFilter === r.value ? null : r.value)}
             >
               {r.label}
@@ -314,7 +324,7 @@ export function AdminUsersSection() {
           <Button
             type="button"
             variant={roleFilter === "superadmin" ? "default" : "outline"}
-            className="h-10 rounded-full px-3 text-[13px]"
+            className="h-10 rounded-full px-3 text-[0.8125rem]"
             onClick={() => setRoleFilter(roleFilter === "superadmin" ? null : "superadmin")}
           >
             Superadmin
@@ -341,23 +351,23 @@ export function AdminUsersSection() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-bold text-primary">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-semibold text-primary">
                         {(u.display_name || u.email).slice(0, 1).toUpperCase()}
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">
                           {u.display_name || u.email.split("@")[0]}
                         </p>
-                        <p className="truncate text-[12px] text-muted-foreground">{u.email}</p>
+                        <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                       </div>
                     </div>
                   </div>
                   {u.is_active ? (
-                    <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-600">
+                    <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[0.6875rem] text-emerald-600">
                       Ativo
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-2.5 py-1 text-[11px] text-red-500">
+                    <Badge variant="outline" className="rounded-full border-red-200 bg-red-50 px-2.5 py-1 text-[0.6875rem] text-red-500">
                       Inativo
                     </Badge>
                   )}
@@ -365,9 +375,9 @@ export function AdminUsersSection() {
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Papel</p>
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Papel</p>
                     {u.role === "superadmin" ? (
-                      <span className={cn("inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-[13px] font-semibold", getRoleVariant(u.role))}>
+                      <span className={cn("inline-flex w-full items-center justify-center rounded-full border px-4 py-2 text-[0.8125rem] font-semibold", getRoleVariant(u.role))}>
                         {getRoleLabel(u.role)}
                       </span>
                     ) : (
@@ -375,7 +385,7 @@ export function AdminUsersSection() {
                         value={u.role}
                         onValueChange={async (val) => {
                           try {
-                            await updateAdminRole(u.user_id, val);
+                            await updateAdminRole(u.user_id, val as AdminUserRecord["role"]);
                             toast.success("Papel atualizado");
                             queryClient.invalidateQueries({ queryKey: ["admin_users"] });
                           } catch (err) {
@@ -383,10 +393,10 @@ export function AdminUsersSection() {
                           }
                         }}
                       >
-                        <SelectTrigger className={cn("h-11 w-full rounded-2xl border bg-background px-4 text-[13px]", getRoleVariant(u.role))}>
+                        <SelectTrigger className={cn("h-11 w-full rounded-2xl border bg-background px-4 text-[0.8125rem]", getRoleVariant(u.role))}>
                           <SelectValue>{getRoleLabel(u.role)}</SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="rounded-xl border-border/70 text-[13px]">
+                        <SelectContent className="rounded-xl border-border/70 text-[0.8125rem]">
                           {ADMIN_ROLES.filter((r) => r.value !== u.role).map((r) => (
                             <SelectItem key={r.value} value={r.value} className="rounded-lg">
                               {r.label}
@@ -398,7 +408,7 @@ export function AdminUsersSection() {
                   </div>
 
                   <div className="space-y-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Criado em</p>
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Criado em</p>
                     <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-sm text-foreground">
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
                     </div>
@@ -406,7 +416,7 @@ export function AdminUsersSection() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-between gap-3">
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[0.6875rem] text-muted-foreground">
                     ID: <span className="font-mono text-foreground">{u.user_id.slice(0, 8)}...</span>
                   </p>
                   <div className="flex items-center gap-2">
@@ -415,7 +425,7 @@ export function AdminUsersSection() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-10 rounded-full px-4 text-[13px]"
+                        className="h-10 rounded-full px-4 text-[0.8125rem]"
                         onClick={() => openEdit(u)}
                       >
                         <Edit className="h-4 w-4" />
@@ -427,7 +437,7 @@ export function AdminUsersSection() {
                             type="button"
                             variant="outline"
                             className={cn(
-                              "h-10 rounded-full px-4 text-[13px]",
+                              "h-10 rounded-full px-4 text-[0.8125rem]",
                               u.is_active
                                 ? "border-destructive/20 text-destructive hover:bg-destructive/10"
                                 : "border-emerald-200 text-emerald-600 hover:bg-emerald-50",
@@ -461,7 +471,7 @@ export function AdminUsersSection() {
                           <Button
                             type="button"
                             variant="outline"
-                            className="h-10 rounded-full border-destructive/40 px-4 text-[13px] text-destructive hover:bg-destructive/10"
+                            className="h-10 rounded-full border-destructive/40 px-4 text-[0.8125rem] text-destructive hover:bg-destructive/10"
                           >
                             <Trash2 className="h-4 w-4" />
                             Excluir
@@ -492,7 +502,7 @@ export function AdminUsersSection() {
 
           <div className="hidden overflow-hidden rounded-[1.25rem] border border-border/70 lg:block">
           <table className="w-full table-fixed border-collapse text-sm">
-            <thead className="bg-muted/30 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            <thead className="bg-muted/30 text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">
               <tr>
                 <th className="w-[24%] whitespace-nowrap px-5 py-3.5 text-left font-semibold">Usuário</th>
                 <th className="w-[22%] whitespace-nowrap px-5 py-3.5 text-left font-semibold">E-mail</th>
@@ -507,7 +517,7 @@ export function AdminUsersSection() {
                 <tr key={`${u.user_id}-${u.role}`} className="border-t border-border/60 hover:bg-muted/20">
                   <td className="truncate px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-bold text-primary">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-semibold text-primary">
                         {(u.display_name || u.email).slice(0, 1).toUpperCase()}
                       </span>
                       <span className="truncate text-sm font-semibold text-foreground">
@@ -518,7 +528,7 @@ export function AdminUsersSection() {
                   <td className="truncate px-5 py-3.5 text-muted-foreground">{u.email}</td>
                   <td className="truncate px-5 py-3.5">
                     {u.role === "superadmin" ? (
-                          <span className={cn("inline-flex w-36 items-center justify-center rounded-full border px-5 py-2 text-[13px] font-semibold", getRoleVariant(u.role))}>
+                          <span className={cn("inline-flex w-36 items-center justify-center rounded-full border px-5 py-2 text-[0.8125rem] font-semibold", getRoleVariant(u.role))}>
                         {getRoleLabel(u.role)}
                       </span>
                     ) : (
@@ -526,7 +536,7 @@ export function AdminUsersSection() {
                         value={u.role}
                         onValueChange={async (val) => {
                           try {
-                            await updateAdminRole(u.user_id, val);
+                            await updateAdminRole(u.user_id, val as AdminUserRecord["role"]);
                             toast.success("Papel atualizado");
                             queryClient.invalidateQueries({ queryKey: ["admin_users"] });
                           } catch (err) {
@@ -536,14 +546,14 @@ export function AdminUsersSection() {
                       >
                         <SelectTrigger
                           className={cn(
-                            "inline-flex h-9 w-36 items-center gap-1.5 rounded-full border bg-background px-5 text-[13px]",
+                            "inline-flex h-9 w-36 items-center gap-1.5 rounded-full border bg-background px-5 text-[0.8125rem]",
                             getRoleVariant(u.role),
                             "hover:bg-muted/60 [&>svg]:h-3.5 [&>svg]:w-3.5",
                           )}
                         >
                           <SelectValue>{getRoleLabel(u.role)}</SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="rounded-xl border-border/70 text-[13px]">
+                        <SelectContent className="rounded-xl border-border/70 text-[0.8125rem]">
                           {ADMIN_ROLES.filter((r) => r.value !== u.role).map((r) => (
                             <SelectItem key={r.value} value={r.value} className="rounded-lg">
                               {r.label}
@@ -555,12 +565,12 @@ export function AdminUsersSection() {
                   </td>
                   <td className="truncate px-5 py-3.5">
                     {u.is_active ? (
-                      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-emerald-600">
+                      <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-emerald-600">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Ativo
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-red-500">
+                      <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-red-500">
                         <XCircle className="h-3.5 w-3.5" />
                         Inativo
                       </span>
@@ -672,7 +682,7 @@ export function AdminUsersSection() {
       >
         <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[58rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <UserPlus className="h-5 w-5" />
               Novo usuário administrativo
             </DialogTitle>
@@ -681,19 +691,19 @@ export function AdminUsersSection() {
           <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-2">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Nome de exibição
                 </Label>
                 <Input
                   value={newDisplayName}
                   onChange={(e) => setNewDisplayName(e.target.value)}
                   placeholder="João Silva"
-                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   E-mail
                 </Label>
                 <Input
@@ -702,19 +712,19 @@ export function AdminUsersSection() {
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="admin@exemplo.com"
                   required
-                  className="h-11 rounded-2xl border-border/70 bg-background text-[13px]"
+                  className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Papel
                 </Label>
                 <Select value={newRole} onValueChange={(val) => setNewRole(val as AdminUserRecord["role"])}>
-                  <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[13px]">
+                  <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border/70 text-[13px]">
+                  <SelectContent className="rounded-xl border-border/70 text-[0.8125rem]">
                     {ADMIN_ROLES.map((r) => (
                       <SelectItem key={r.value} value={r.value} className="rounded-lg">
                         {r.label}
@@ -727,7 +737,7 @@ export function AdminUsersSection() {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Senha
                   </Label>
                   <div className="relative">
@@ -738,7 +748,7 @@ export function AdminUsersSection() {
                     placeholder="Mínimo 8 caracteres"
                     maxLength={64}
                     required
-                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
                   />
                   <button
                     type="button"
@@ -765,14 +775,14 @@ export function AdminUsersSection() {
                           )}
                         />
                       </div>
-                      <span className="text-[11px] font-medium text-muted-foreground">{strength.label}</span>
-                      <span className="ml-auto text-[11px] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
+                      <span className="text-[0.6875rem] font-medium text-muted-foreground">{strength.label}</span>
+                      <span className="ml-auto text-[0.6875rem] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1">
                       {strength.checks.map((c) => (
                         <span
                           key={c.label}
-                          className={cn("text-[11px]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}
+                          className={cn("text-[0.6875rem]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}
                         >
                           {c.ok ? "✓" : "○"} {c.label}
                         </span>
@@ -783,7 +793,7 @@ export function AdminUsersSection() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Confirmar senha
                 </Label>
                 <div className="relative">
@@ -794,7 +804,7 @@ export function AdminUsersSection() {
                     placeholder="Repita a senha"
                     maxLength={64}
                     required
-                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[13px]"
+                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
                   />
                   <button
                     type="button"
@@ -851,13 +861,34 @@ export function AdminUsersSection() {
       }}>
         <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[42rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[1.05rem] font-black tracking-[-0.04em] text-foreground">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <Edit className="h-5 w-5" />
-              Editar permissões — {editingUser?.display_name || editingUser?.email?.split("@")[0] || "..."}
+              Editar usuário — {editingUser?.email?.split("@")[0] || "..."}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="py-4">
+          <div className="space-y-5 py-4">
+            {/* Pedido do dono: o email pode trocar de dono, e a pessoa pode mudar
+                de setor ou sair. Sem editar o nome, a lista envelhece e deixa de
+                dizer quem e quem. O email fica de fora daqui — quem troca email
+                e a propria pessoa, e mudar por aqui trocaria o login dela. */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-display-name" className="text-[0.8125rem] font-medium">
+                Nome exibido
+              </Label>
+              <Input
+                id="edit-display-name"
+                value={editName}
+                onChange={(event) => setEditName(event.target.value)}
+                placeholder={editingUser?.email?.split("@")[0] ?? "Nome da pessoa"}
+                maxLength={80}
+                className="h-11 rounded-2xl border-border/70 bg-background"
+              />
+              <p className="text-[0.6875rem] text-muted-foreground">
+                Vazio faz a lista voltar a mostrar o início do e-mail. O login não muda.
+              </p>
+            </div>
+
             <PermissionChecklist value={editPermissions} onChange={setEditPermissions} />
           </div>
 
@@ -880,7 +911,7 @@ export function AdminUsersSection() {
               className="h-11 rounded-2xl px-5 text-sm"
             >
               {savingPermissions ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
-              {savingPermissions ? "Salvando..." : "Salvar permissões"}
+              {savingPermissions ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>

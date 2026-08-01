@@ -10,11 +10,16 @@ type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
 type CarouselOptions = UseCarouselParameters[0];
 type CarouselPlugin = UseCarouselParameters[1];
 
+/**
+ * Todas opcionais: o componente ja tem padrao para cada uma, e nenhum uso no
+ * projeto passa `plugins` ou `orientation`. Exigi-las no tipo obrigava cada
+ * chamada a repetir o proprio padrao — ou, como estava, a conviver com erro.
+ */
 type CarouselProps = {
-  opts: CarouselOptions;
-  plugins: CarouselPlugin;
-  orientation: "horizontal" | "vertical";
-  setApi: (api: CarouselApi) => void;
+  opts?: CarouselOptions;
+  plugins?: CarouselPlugin;
+  orientation?: "horizontal" | "vertical";
+  setApi?: (api: CarouselApi) => void;
 };
 
 type CarouselContextProps = {

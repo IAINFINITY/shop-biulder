@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 const filtersHeightVariable = "--catalog-filters-bar-height";
 
-type CatalogFiltersBarV2Props = {
+export type CatalogFiltersBarV2Props = {
   categoryFamilies: string[];
   familyTypesByFamily: Map<string, string[]>;
   typeCounts: Map<string, number>;
@@ -48,6 +48,15 @@ type SharedFilterProps = Pick<
   | "onSortChange"
 >;
 
+/**
+ * A lista de familias nao ordena nada — so filtra.
+ *
+ * Exigir `sortMode`/`onSortChange` obrigava os dois usos a repassar props que a
+ * lista nunca leria, e nenhum dos dois repassava. Tirar do tipo e mais honesto
+ * que preencher com valor de mentira.
+ */
+type FiltroSemOrdenacao = Omit<SharedFilterProps, "sortMode" | "onSortChange">;
+
 function getSortedFamilies(categoryFamilies: string[], familyCounts: Map<string, number>) {
   return [...categoryFamilies].sort((left, right) => {
     const rightCount = familyCounts.get(right) ?? 0;
@@ -65,10 +74,10 @@ function SortModeControl({
 }) {
   return (
     <div className="rounded-xl border border-border/70 bg-background/90 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Ordenar por</p>
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Ordenar por</p>
       <div className="mt-3">
         <Select value={value} onValueChange={(next) => onChange(next as CatalogSortMode)}>
-          <SelectTrigger className="h-10 rounded-lg border-border/70 bg-background">
+          <SelectTrigger className="h-10 rounded-full border-border/70 bg-background">
             <SelectValue placeholder="Selecione a ordenação" />
           </SelectTrigger>
           <SelectContent>
@@ -98,7 +107,7 @@ function ActiveFilterSummary({
 
   return (
     <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Filtro atual</p>
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Filtro atual</p>
       <div className="mt-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">{activeKind}</p>
@@ -129,7 +138,7 @@ function FamilyCollapsibleList({
   onTypeChange,
   onFamilyChange,
   onClose,
-}: SharedFilterProps & {
+}: FiltroSemOrdenacao & {
   onClose?: () => void;
 }) {
   const sortedFamilies = useMemo(() => getSortedFamilies(categoryFamilies, familyCounts), [categoryFamilies, familyCounts]);
@@ -170,7 +179,7 @@ function FamilyCollapsibleList({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <Badge variant="outline" className="rounded-full border-border/70 bg-background px-2.5 py-0 text-[11px] font-medium">
+                <Badge variant="outline" className="rounded-full border-border/70 bg-background px-2.5 py-0 text-[0.6875rem] font-medium">
                   {types.length} tipo(s)
                 </Badge>
                 <ChevronRight className={cn("h-4 w-4 transition-transform", active && "rotate-90")} />
@@ -206,7 +215,7 @@ function FamilyCollapsibleList({
                       onClick={() => selectType(family, type)}
                     >
                       <span className="max-w-[11rem] truncate">{type}</span>
-                      <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.68rem]">
+                      <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.6875rem]">
                         {countByType}
                       </Badge>
                     </Button>
@@ -228,6 +237,7 @@ export function CatalogFiltersBarV2({
   typeCounts,
   familyCounts,
   isLoading,
+  resultCount,
   selectedType,
   selectedFamily,
   onTypeChange,
@@ -293,7 +303,7 @@ export function CatalogFiltersBarV2({
           className="rounded-xl border border-border/70 bg-background/80 px-4 py-4 shadow-sm backdrop-blur sm:px-6"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium">
+            <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[0.6875rem] font-medium">
               Carregando catalogo
             </Badge>
           </div>
@@ -303,13 +313,12 @@ export function CatalogFiltersBarV2({
       <div className="flex flex-wrap gap-2 lg:hidden">
         <Button
           type="button"
-          variant="destructive"
           className="h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
           onClick={clearFilters}
         >
           <Menu className="h-4 w-4" strokeWidth={2.25} />
           <span className="normal-case">Todos os produtos</span>
-          <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.7rem]">
+          <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.6875rem]">
             {totalProducts}
           </Badge>
         </Button>
@@ -322,7 +331,7 @@ export function CatalogFiltersBarV2({
         >
           <Filter className="h-4 w-4" />
           <span className="normal-case">Categorias</span>
-          <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.7rem]">
+          <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[0.6875rem]">
             {sortedFamilies.length}
           </Badge>
         </Button>
@@ -382,7 +391,7 @@ export function CatalogFiltersBarV2({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 rounded-full px-2.5 text-[11px] text-muted-foreground hover:text-foreground"
+              className="h-7 shrink-0 rounded-full px-2.5 text-[0.6875rem] text-muted-foreground hover:text-foreground"
               onClick={clearFilters}
             >
               Limpar
@@ -390,7 +399,7 @@ export function CatalogFiltersBarV2({
           )}
 
           <div className="ml-auto">
-            <Badge variant="outline" className="rounded-full border-border/60 bg-background/80 px-2.5 py-0 h-6 text-[11px] font-medium tabular-nums text-muted-foreground">
+            <Badge variant="outline" className="rounded-full border-border/60 bg-background/80 px-2.5 py-0 h-6 text-[0.6875rem] font-medium tabular-nums text-muted-foreground">
               {selectedFamily || selectedType
                 ? `${resultCount} de ${totalProducts}`
                 : `${totalProducts} produtos`}
@@ -423,7 +432,7 @@ export function CatalogFiltersBarV2({
                   <Button
                     type="button"
                     variant={selectedFamily == null ? "default" : "outline"}
-                    className="h-9 w-full justify-start rounded-2xl px-4"
+                    className="h-9 w-full justify-start rounded-full px-4"
                     onClick={() => {
                       clearFilters();
                       setFamiliesOpen(false);
@@ -490,13 +499,12 @@ export function CatalogFiltersSidebar({
           <ActiveFilterSummary selectedType={selectedType} selectedFamily={selectedFamily} onClear={onShowAllProducts} />
           <Button
             type="button"
-            variant="destructive"
             className="h-9 w-full justify-start gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
             onClick={onShowAllProducts}
           >
             <Menu className="h-4 w-4" strokeWidth={2.25} />
             <span className="normal-case">Todos os produtos</span>
-            <Badge variant="secondary" className="ml-auto rounded-full px-1.5 py-0 text-[0.7rem]">
+            <Badge variant="secondary" className="ml-auto rounded-full px-1.5 py-0 text-[0.6875rem]">
               {totalProducts}
             </Badge>
           </Button>

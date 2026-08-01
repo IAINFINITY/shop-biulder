@@ -3,19 +3,10 @@ import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import {
   type Product,
   PRODUCTS_TABLE,
-  PRODUCT_SELECT_COLUMNS,
-  PRODUCT_SELECT_COLUMNS_LEGACY,
-  PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION,
-  PRODUCT_SELECT_COLUMNS_NO_CODE,
-  PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION,
-  PRODUCT_SELECT_COLUMNS_NO_GALLERY,
-  PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION,
-  PRODUCT_SELECT_COLUMNS_NO_PROMOTION,
+  PRODUCT_OPTIONAL_COLUMNS,
+  buildProductSelectColumns,
+  detectMissingProductColumn,
   normalizeProductFromSupabaseRow,
-  isMissingImageUrlsColumnError,
-  isMissingProductCodeColumnError,
-  isMissingPromotionColumnError,
-  isMissingVisibleToColumnError,
 } from "@/lib/products";
 
 export type UseProductsOptions = {
@@ -72,33 +63,24 @@ export function useProducts(options?: UseProductsOptions) {
         return q;
       };
 
-      const columnSets = [
-        PRODUCT_SELECT_COLUMNS,
-        PRODUCT_SELECT_COLUMNS_NO_GALLERY,
-        PRODUCT_SELECT_COLUMNS_NO_CODE,
-        PRODUCT_SELECT_COLUMNS_LEGACY,
-        PRODUCT_SELECT_COLUMNS_NO_PROMOTION,
-        PRODUCT_SELECT_COLUMNS_NO_GALLERY_NO_PROMOTION,
-        PRODUCT_SELECT_COLUMNS_NO_CODE_NO_PROMOTION,
-        PRODUCT_SELECT_COLUMNS_LEGACY_NO_PROMOTION,
-      ] as const;
-
+      // Pede tudo e vai derrubando a coluna que o banco nao tiver ainda, uma por
+      // tentativa. Cobre qualquer combinacao de migrations pendentes sem
+      // precisar enumerar as variacoes na mao.
+      const omitted: string[] = [];
       let data: unknown[] | null = null;
       let lastError: Error | null = null;
 
-      for (const columns of columnSets) {
-        const result = await runQuery(columns);
+      for (let attempt = 0; attempt <= PRODUCT_OPTIONAL_COLUMNS.length; attempt++) {
+        const result = await runQuery(buildProductSelectColumns(omitted));
         if (!result.error) {
           data = result.data ?? [];
           break;
         }
+
         lastError = result.error;
-        const missingColumn =
-          isMissingImageUrlsColumnError(result.error.message) ||
-          isMissingProductCodeColumnError(result.error.message) ||
-          isMissingPromotionColumnError(result.error.message) ||
-          isMissingVisibleToColumnError(result.error.message);
-        if (!missingColumn) throw result.error;
+        const missingColumn = detectMissingProductColumn(result.error.message);
+        if (!missingColumn || omitted.includes(missingColumn)) throw result.error;
+        omitted.push(missingColumn);
       }
 
       if (!data) throw lastError ?? new Error("Não foi possível carregar produtos.");

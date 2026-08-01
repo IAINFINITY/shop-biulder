@@ -103,7 +103,7 @@ export function CategoryTopNav({
               )}
             >
               Todos
-              <span className="text-[10px] opacity-70">({totalProducts})</span>
+              <span className="text-[0.625rem] opacity-70">({totalProducts})</span>
             </button>
           </div>
 
@@ -130,7 +130,7 @@ export function CategoryTopNav({
                   )}
                 >
                   {family}
-                  <span className="text-[10px] opacity-70">({count})</span>
+                  <span className="text-[0.625rem] opacity-70">({count})</span>
                 </button>
               );
             })}
@@ -163,7 +163,7 @@ export function CategoryTopNav({
                 sideOffset={8}
                 className="w-72 rounded-xl border-border/60 p-3 shadow-lg"
               >
-                <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="mb-2 px-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Todas as categorias
                 </p>
                 <div className="max-h-72 space-y-0.5 overflow-y-auto">
@@ -180,14 +180,14 @@ export function CategoryTopNav({
                             onTypeChange(null);
                           }}
                           className={cn(
-                            "flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-left text-sm transition-colors",
+                            "flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition-colors",
                             isActive
                               ? "bg-primary/10 font-medium text-primary"
                               : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                           )}
                         >
                           <span>{family}</span>
-                          <span className="text-[11px] text-muted-foreground/60">{count}</span>
+                          <span className="text-[0.6875rem] text-muted-foreground/60">{count}</span>
                         </button>
                         {types.length > 1 ? (
                           <div className="ml-3 flex flex-wrap gap-1 pb-1">
@@ -200,7 +200,7 @@ export function CategoryTopNav({
                                   onTypeChange(selectedType === type ? null : type);
                                 }}
                                 className={cn(
-                                  "rounded-md px-2 py-0.5 text-[11px] transition-colors",
+                                  "rounded-full px-2 py-0.5 text-[0.6875rem] transition-colors",
                                   selectedFamily === family && selectedType === type
                                     ? "bg-primary/10 text-primary"
                                     : "text-muted-foreground hover:bg-muted/40",
@@ -227,7 +227,7 @@ export function CategoryTopNav({
               type="button"
               onClick={() => onTypeChange(null)}
               className={cn(
-                "flex shrink-0 items-center rounded-full px-3 py-1 text-[11px] font-medium transition-all",
+                "flex shrink-0 items-center rounded-full px-3 py-1 text-[0.6875rem] font-medium transition-all",
                 !selectedType
                   ? "bg-muted/80 text-foreground"
                   : "text-muted-foreground hover:text-foreground border border-border/40",
@@ -243,14 +243,14 @@ export function CategoryTopNav({
                   type="button"
                   onClick={() => onTypeChange(selectedType === type ? null : type)}
                   className={cn(
-                    "flex shrink-0 items-center rounded-full px-3 py-1 text-[11px] font-medium transition-all whitespace-nowrap",
+                    "flex shrink-0 items-center rounded-full px-3 py-1 text-[0.6875rem] font-medium transition-all whitespace-nowrap",
                     selectedType === type
                       ? "bg-muted/80 text-foreground"
                       : "text-muted-foreground hover:text-foreground border border-border/40",
                   )}
                 >
                   {type}
-                  <span className="ml-1 text-[10px] opacity-70">({typeCount})</span>
+                  <span className="ml-1 text-[0.625rem] opacity-70">({typeCount})</span>
                 </button>
               );
             })}

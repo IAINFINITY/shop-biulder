@@ -37,6 +37,9 @@ export function useCatalogNotifications(options?: UseCatalogNotificationsOptions
       if (error) throw error;
       return (data ?? []).map((row) => normalizeCatalogNotificationFromSupabaseRow(row)) as CatalogNotification[];
     },
-    initialData: [] as CatalogNotification[],
+  // Sem `initialData`: o react-query o trata como recem-chegado do servidor, e
+  // com `staleTime` acima de zero um array vazio ficaria "fresco" ate expirar —
+  // a consulta nunca dispararia e a tela mostraria a lista vazia esse tempo todo.
+  // Quem chama ja destrutura com `= []`, entao nao falta valor de partida.
   });
 }

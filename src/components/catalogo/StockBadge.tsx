@@ -13,14 +13,17 @@ export function StockBadge({ stock, className }: StockBadgeProps) {
   const isLow = stock <= 10 && stock > 0;
   const isOut = stock <= 0;
 
+  // Vermelho, ambar e verde do **tema** (`destructive`, `warm`, `success`), e nao
+  // da paleta crua do Tailwind. A semantica de estoque continua a mesma; o que
+  // muda e a cor acompanhar o projeto em vez de ser um tom proprio.
   return (
     <Badge
       variant="secondary"
       className={cn(
-        "gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-        isOut && "border-red-200 bg-red-50 text-red-700",
-        isLow && "border-amber-200 bg-amber-50 text-amber-700",
-        !isLow && !isOut && "border-emerald-200 bg-emerald-50 text-emerald-700",
+        "gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium",
+        isOut && "border-destructive/20 bg-destructive/5 text-destructive",
+        isLow && "border-warm/25 bg-warm/10 text-warm",
+        !isLow && !isOut && "border-success/20 bg-success/5 text-success",
         className,
       )}
     >

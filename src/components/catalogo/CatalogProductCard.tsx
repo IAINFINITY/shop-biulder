@@ -1,13 +1,17 @@
 ﻿import { type LucideIcon, Plus, Heart, Eye, Star, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@/lib/products";
-import { getProductImageUrls, getProductUnitPrice } from "@/lib/products";
+import { getProductDiscount, getProductImageAlt, getProductImageUrls, getProductUnitPrice } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProductDescription } from "@/components/catalogo/ProductDescription";
 import { cn } from "@/lib/utils";
 import { StockBadge } from "@/components/catalogo/StockBadge";
+import { useTopSellers } from "@/hooks/useTopSellers";
+import { highlightBadgeClassName, highlightForProduct } from "@/lib/productHighlights";
+import { ProductImageFrame } from "@/components/catalogo/ProductImageFrame";
+import { ProductPriceTag } from "@/components/catalogo/ProductPriceTag";
 
 const typeIcons: Record<string, LucideIcon> = {
   Chá: Leaf,
@@ -33,9 +37,15 @@ export type CatalogProductCardProps = {
 };
 
 export function CatalogProductCard({ product, price, onAdd, inCart, compact, isWishlisted, onToggleWishlist, onQuickView }: CatalogProductCardProps) {
+  // O card busca o proprio selo em vez de receber por prop: ele e usado em cinco
+  // lugares diferentes, e cada um teria de lembrar de repassar a informacao.
+  // A consulta e uma so, cacheada por meia hora e compartilhada entre todos.
+  const { idsMaisVendidos } = useTopSellers();
+  const highlight = highlightForProduct(product, idsMaisVendidos);
   const Icon = typeIcons[product.type] || Leaf;
   const coverUrl = getProductImageUrls(product)[0];
   const displayPrice = Number.isFinite(price ?? Number.NaN) ? (price as number) : getProductUnitPrice(product);
+  const discount = getProductDiscount(product, displayPrice);
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)] active:scale-[0.985]">
@@ -45,7 +55,16 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >
         {coverUrl ? (
-          <div className={cn("relative overflow-hidden bg-gradient-to-b from-muted/30 via-background to-background p-2 sm:p-3", compact ? "aspect-square" : "aspect-[4/3]")}>
+          <ProductImageFrame
+            src={coverUrl}
+            alt={getProductImageAlt(product, 0)}
+            fit={product.image_fit}
+            width={1280}
+            height={1600}
+            loading="lazy"
+            className="aspect-[4/5]"
+            imageClassName="transition-transform duration-300 group-hover:scale-[1.03]"
+          >
             <div className="absolute right-1.5 top-1.5 z-10 flex gap-1">
               {onQuickView && (
                 <button
@@ -73,30 +92,44 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
                 </button>
               )}
             </div>
-            <img
-              src={coverUrl}
-              alt={product.name}
-              width={1200}
-              height={900}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-            />
-          </div>
+          </ProductImageFrame>
         ) : (
-          <div className={cn("flex items-center justify-center border-b border-border/70 bg-background p-3", compact ? "aspect-square" : "aspect-[4/3]")}>
+          <div className="flex aspect-[4/5] items-center justify-center bg-muted/20">
             <ImageIcon className={cn("text-muted-foreground/30", compact ? "h-8 w-8" : "h-12 w-12")} />
           </div>
         )}
 
         <div className="flex flex-1 flex-col px-3 pb-3 pt-2 sm:px-5 sm:pb-5 sm:pt-3">
+          {/* O selo aparece nas duas versoes do card.
+              
+              Estava so no ramo `!compact`, e **todo** lugar que usa este card
+              passa `compact`: grade, favoritos, vistos recentemente e
+              relacionados. Na pratica o selo nao aparecia em lugar nenhum. */}
+          {compact && highlight ? (
+            <Badge
+              variant="outline"
+              className={cn(
+                "mb-1 w-fit rounded-full px-2 py-0 text-[0.625rem] font-semibold uppercase leading-4 tracking-[0.14em]",
+                highlightBadgeClassName(highlight.tone),
+              )}
+            >
+              {highlight.label}
+            </Badge>
+          ) : null}
+
           {compact ? (
-            <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{product.type}</p>
+            <p className="mb-0.5 truncate text-[0.6875rem] font-medium text-muted-foreground">
+              {product.brand ? `${product.brand} · ${product.type}` : product.type}
+            </p>
           ) : null}
 
           {!compact ? (
             <div className="mb-2 space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Tipo</p>
+              {product.brand ? (
+                <p className="truncate text-xs font-semibold text-primary">{product.brand}</p>
+              ) : (
+                <p className="text-xs font-medium text-muted-foreground">Tipo</p>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className={`${typeColors[product.type] || ""} text-xs font-medium`}>
                   <Icon className="mr-1 h-3 w-3" />
@@ -105,16 +138,26 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
                 <Badge variant="secondary" className="shrink-0 text-xs">
                   {product.family}
                 </Badge>
-                {product.is_promotion ? (
-                  <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] text-primary">
-                    Promoção
+                {/* O selo acompanha o produto para onde ele for: grade,
+                    favoritos, vistos recentemente, relacionados. Antes so a
+                    prateleira dele desenhava o selo, entao o mesmo produto
+                    aparecia como "Promocao" no carrossel e sem nada na grade. */}
+                {highlight ? (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-[0.14em]",
+                      highlightBadgeClassName(highlight.tone),
+                    )}
+                  >
+                    {highlight.label}
                   </Badge>
                 ) : null}
               </div>
             </div>
           ) : null}
 
-          <h3 className={cn("font-semibold leading-tight text-card-foreground", compact ? "line-clamp-2 text-xs sm:text-[0.95rem] sm:font-bold" : "line-clamp-2 min-h-[3.25rem] text-base sm:text-[1.05rem]")}>
+          <h3 className={cn("font-semibold leading-tight text-card-foreground", compact ? "line-clamp-2 text-xs sm:text-sm sm:font-semibold" : "line-clamp-2 min-h-[3.25rem] text-base sm:text-base")}>
             {product.name}
           </h3>
 
@@ -127,13 +170,13 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
                     className={cn(
                       "h-3 w-3",
                       s <= Math.round(product.average_rating)
-                        ? "fill-amber-400 text-amber-400"
+                        ? "fill-warm text-warm"
                         : "fill-muted text-muted",
                     )}
                   />
                 ))}
               </div>
-              <span className="text-[11px] tabular-nums text-muted-foreground">
+              <span className="text-[0.6875rem] tabular-nums text-muted-foreground">
                 {product.average_rating.toFixed(1)}
                 {!compact && <span className="ml-0.5">({product.review_count})</span>}
               </span>
@@ -145,7 +188,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
               html={product.description}
               plainPreview
               lineClamp={1}
-              className="mt-0.5 text-[11px] leading-4 text-muted-foreground/80 sm:text-sm sm:leading-6"
+              className="mt-0.5 text-[0.6875rem] leading-4 text-muted-foreground/80 sm:text-sm sm:leading-6"
             />
           ) : (
             <div className="mt-2 min-h-[3.5rem]">
@@ -158,29 +201,25 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
             </div>
           )}
 
-          <p className={cn("mt-auto font-semibold tabular-nums text-foreground", compact ? "pt-1.5 text-sm sm:text-base" : "mt-3 mb-1 text-base sm:text-lg")}>
-            {formatBRL(displayPrice)}
-          </p>
+          <div className={cn("mt-auto", compact ? "pt-1.5" : "mt-3 mb-1")}>
+            <ProductPriceTag product={product} price={displayPrice} size={compact ? "sm" : "md"} />
+          </div>
 
           <StockBadge stock={product.stock} className="mt-1.5" />
         </div>
       </Link>
 
-      <div className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5">
+      <div className="px-3 pb-3 pt-0 sm:px-5 sm:pb-5">
         <Button
           type="button"
           onClick={() => onAdd(product)}
           variant={inCart ? "secondary" : "default"}
           aria-label={inCart ? "Já no carrinho" : "Adicionar ao carrinho"}
-          className={cn(
-            "w-full gap-1 px-1.5 transition-all active:scale-95 [&_svg]:size-3.5 min-[375px]:gap-1.5 min-[375px]:px-3 min-[375px]:[&_svg]:size-4",
-            compact ? "h-8 text-xs sm:h-10 sm:text-sm" : "h-10 text-xs sm:text-sm",
-          )}
+          className="h-10 w-full gap-1.5 rounded-full px-2 text-[0.8125rem] font-medium transition-all active:scale-95 [&_svg]:size-4"
           size="sm"
         >
-          <Plus className="h-4 w-4" />
-          <span className="min-[360px]:hidden">{inCart ? "No carrinho" : "Adicionar"}</span>
-          <span className="hidden min-[360px]:inline">{inCart ? "Já no carrinho" : "Adicionar ao carrinho"}</span>
+          <Plus className="shrink-0" />
+          <span className="truncate">{inCart ? "No carrinho" : "Adicionar"}</span>
         </Button>
       </div>
     </article>

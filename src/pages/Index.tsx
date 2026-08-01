@@ -1,14 +1,19 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, memo } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { type CatalogSortMode } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
-import { CatalogThemeSections } from "@/components/catalogo/CatalogThemeSections";
+import { CatalogThemeSections, type CatalogThemeSection } from "@/components/catalogo/CatalogThemeSections";
+import { CatalogSectionHeader } from "@/components/catalogo/CatalogSectionHeader";
+import { PromoDuo, PromoTrio, PromoUnico } from "@/components/catalogo/PromoBanners";
+import { CatalogFilterPanel, type CatalogFilterOption } from "@/components/catalogo/CatalogFilterPanel";
+import { CatalogActiveFilters, type CatalogActiveFilter } from "@/components/catalogo/CatalogActiveFilters";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { QuickView } from "@/components/catalogo/QuickView";
 import { cn } from "@/lib/utils";
+import { PAGE_CONTAINER } from "@/lib/pageLayout";
 import {
   Carousel,
   CarouselContent,
@@ -22,7 +27,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
-import { resolveProductPrice } from "@/lib/pricing";
+import { EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
 import {
   Select,
   SelectContent,
@@ -30,25 +35,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowUpDown, ChevronUp, Heart } from "lucide-react";
-import { readAuthBootstrapSnapshot, readCachedCustomerProfile } from "@/lib/customerProfileSnapshot";
+import { ArrowUpDown, ChevronUp, Flame,
+  Sparkles, Heart, History, LayoutGrid, SlidersHorizontal, Tag } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useDebounce } from "@/hooks/useDebounce";
-import { useComparison } from "@/hooks/useComparison";
-import { CompareBar } from "@/components/catalogo/CompareBar";
-import { CompareModal } from "@/components/catalogo/CompareModal";
-import { usePublicLayout } from "@/components/layout/PublicLayout";
+import { usePublicLayout } from "@/components/layout/publicLayoutContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useCustomerTypes } from "@/hooks/useCustomerTypes";
+import { useTopSellers } from "@/hooks/useTopSellers";
+import { completarFileira, useGridColumns } from "@/hooks/useGridColumns";
+import { podeVer } from "@/lib/visibilidade";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { resolveProductsByIdOrder } from "@/lib/productIdList";
+import { SectionAnchorNav, type SectionAnchor } from "@/components/shared/SectionAnchorNav";
 import type { Product } from "@/lib/products";
 
-const INITIAL_PRODUCTS_VISIBLE = 6;
-const PRODUCTS_VISIBLE_STEP = 12;
+const INITIAL_PRODUCTS_VISIBLE = 24;
+
+const ANCORA_ICONES: Record<string, typeof Flame> = {
+  promocoes: Tag,
+  "em-destaque": Sparkles,
+  "mais-vendidos": Flame,
+};
+const PRODUCTS_VISIBLE_STEP = 24;
 const CATALOG_VIEW_STORAGE_KEY = "clinicplus_catalog_view";
 
 type CatalogViewState = {
   search: string;
   selectedType: string | null;
   selectedFamily: string | null;
+  selectedBrand: string | null;
+  onlyPromotions: boolean;
   visibleProducts: number;
   scrollY: number;
   sortMode: CatalogSortMode;
@@ -63,6 +81,8 @@ function readCatalogViewState(): CatalogViewState | null {
       search: typeof parsed.search === "string" ? parsed.search : "",
       selectedType: typeof parsed.selectedType === "string" ? parsed.selectedType : null,
       selectedFamily: typeof parsed.selectedFamily === "string" ? parsed.selectedFamily : null,
+      selectedBrand: typeof parsed.selectedBrand === "string" ? parsed.selectedBrand : null,
+      onlyPromotions: parsed.onlyPromotions === true,
       visibleProducts: INITIAL_PRODUCTS_VISIBLE,
       scrollY:
         typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY) ? Math.max(0, parsed.scrollY) : 0,
@@ -124,33 +144,43 @@ const SortModeControl = memo(function SortModeControl({
 export default function Index() {
   const location = useLocation();
   const { data: products = [], isLoading } = useProducts();
-  const authSnapshot = readAuthBootstrapSnapshot();
-  const customerProfile = readCachedCustomerProfile(authSnapshot?.user.id ?? null);
+  // Com o auth ligado na home, o perfil vem da sessao real. O provider ja
+  // inicializa a partir do mesmo cache que era lido aqui, entao a primeira
+  // pintura continua imediata — mas agora ele tambem revalida.
+  const { customerProfile, isAdmin } = useAuth();
+  const { options: tiposDeCliente } = useCustomerTypes();
+  const todosOsTipos = useMemo(() => tiposDeCliente.map((tipo) => tipo.name), [tiposDeCliente]);
   const { data: orderHistory = [] } = useOrders(Boolean(customerProfile), "catalog");
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
-  const { data: customerPriceMap = new Map<string, number>() } = useCustomerPricing(
+  const { data: customerPriceMap = EMPTY_PRICE_MAP } = useCustomerPricing(
     customerType,
     customerTprId,
   );
   const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart } = useCart();
   const { ids: recentlyViewedIds } = useRecentlyViewed();
-  const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
-  const { search, setSearch, setIsCartOpen, setCategoryTopNavProps } = usePublicLayout();
+  const { ids: wishlistIds, toggle: toggleWishlist, clear: clearWishlist } = useWishlist();
+  const { search, setSearch, setIsCartOpen } = usePublicLayout();
   const [searchParams, setSearchParams] = useSearchParams();
   const debouncedSearch = useDebounce(search, 250);
   const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
-  const { ids: compareIds, toggle: toggleCompare, remove: removeCompare, clear: clearCompare, max: compareMax } = useComparison();
-  const [compareOpen, setCompareOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
   const [selectedFamily, setSelectedFamily] = useState<string | null>(
     () => readCatalogViewState()?.selectedFamily ?? null,
   );
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(
+    () => readCatalogViewState()?.selectedBrand ?? null,
+  );
+  const [onlyPromotions, setOnlyPromotions] = useState<boolean>(
+    () => readCatalogViewState()?.onlyPromotions ?? false,
+  );
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortMode, setSortMode] = useState<CatalogSortMode>(() => readCatalogViewState()?.sortMode ?? "relevance");
   const [visibleProducts, setVisibleProducts] = useState(
     () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
   );
   const catalogRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const showFavoritesView = searchParams.get("view") === "favoritos";
@@ -182,7 +212,25 @@ export default function Index() {
 
   useEffect(() => {
     setVisibleProducts(INITIAL_PRODUCTS_VISIBLE);
-  }, [search, selectedType, selectedFamily, sortMode]);
+  }, [search, selectedType, selectedFamily, selectedBrand, onlyPromotions, sortMode]);
+
+  /**
+   * Leva a visao para o topo dos resultados quando um filtro muda.
+   *
+   * O reset da lista para 24 itens encolhe a pagina, e o navegador respondia
+   * jogando a rolagem para cima sozinho — parecia um salto sem motivo. Rolar de
+   * proposito para o inicio dos resultados e o comportamento esperado ao filtrar,
+   * e fica suave. Fora da lista de dependencias: `search`, que dispararia a cada
+   * tecla digitada.
+   */
+  const skipFilterScrollRef = useRef(true);
+  useEffect(() => {
+    if (skipFilterScrollRef.current) {
+      skipFilterScrollRef.current = false;
+      return;
+    }
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedType, selectedFamily, selectedBrand, onlyPromotions, sortMode]);
 
   useEffect(() => {
     return () => {
@@ -190,12 +238,14 @@ export default function Index() {
         search,
         selectedType,
         selectedFamily,
+        selectedBrand,
+        onlyPromotions,
         visibleProducts,
         scrollY: typeof window === "undefined" ? 0 : window.scrollY,
         sortMode,
       });
     };
-  }, [search, selectedType, selectedFamily, visibleProducts, sortMode]);
+  }, [search, selectedType, selectedFamily, selectedBrand, onlyPromotions, visibleProducts, sortMode]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -212,32 +262,6 @@ export default function Index() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const categoryFamilies = useMemo(() => [...new Set(products.map((p) => p.family))].sort(), [products]);
-  const familyTypesByFamily = useMemo(() => {
-    const grouped = new Map<string, Map<string, number>>();
-
-    for (const product of products) {
-      if (!grouped.has(product.family)) grouped.set(product.family, new Map());
-      const familyTypes = grouped.get(product.family)!;
-      familyTypes.set(product.type, (familyTypes.get(product.type) ?? 0) + 1);
-    }
-
-    return new Map(
-      [...grouped.entries()].map(([family, typeMap]) => [
-        family,
-        [...typeMap.entries()]
-          .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "pt-BR"))
-          .map(([type]) => type),
-      ]),
-    );
-  }, [products]);
-  const typeCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const product of products) {
-      counts.set(product.type, (counts.get(product.type) ?? 0) + 1);
-    }
-    return counts;
-  }, [products]);
   const familyCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const product of products) {
@@ -258,15 +282,98 @@ export default function Index() {
       }
       if (selectedType && p.type !== selectedType) return false;
       if (selectedFamily && p.family !== selectedFamily) return false;
-      if (p.visible_to && p.visible_to.length > 0 && customerType && !p.visible_to.includes(customerType)) {
-        return false;
-      }
-      if (p.visible_to && p.visible_to.length > 0 && !customerType) {
-        return false;
-      }
-      return true;
+      if (selectedBrand && (p.brand ?? "") !== selectedBrand) return false;
+      if (onlyPromotions && !p.is_promotion) return false;
+      // Mesma regra de `visibleCatalog`. Estava reescrita aqui em duas condicoes
+      // separadas, sem "marcou tudo" e sem a excecao do admin — entao a grade
+      // escondia o que a prateleira mostrava.
+      return podeVer(p, { customerType, todosOsTipos, isAdmin });
     });
-  }, [products, debouncedSearch, selectedType, selectedFamily, customerType]);
+  }, [products, debouncedSearch, selectedType, selectedFamily, selectedBrand, onlyPromotions, customerType, todosOsTipos, isAdmin]);
+
+  /**
+   * Produtos que o cliente pode ver, antes de qualquer filtro.
+   *
+   * As contagens de cada opcao saem daqui, e nao de `filtered`: se saissem do
+   * resultado ja filtrado, escolher "Chá" zeraria a contagem de todas as outras
+   * categorias e o painel pareceria vazio.
+   */
+  const visibleCatalog = useMemo(
+    () => products.filter((product) => podeVer(product, { customerType, todosOsTipos, isAdmin })),
+    [products, customerType, isAdmin, todosOsTipos],
+  );
+
+  const countBy = useCallback((getKey: (product: Product) => string) => {
+    return (source: Product[]): CatalogFilterOption[] => {
+      const counts = new Map<string, number>();
+      for (const product of source) {
+        const key = getKey(product).trim();
+        if (!key) continue;
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      return [...counts.entries()]
+        .map(([value, count]) => ({ value, count }))
+        .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value, "pt-BR"));
+    };
+  }, []);
+
+  const brandOptions = useMemo(
+    () => countBy((product) => product.brand ?? "")(visibleCatalog),
+    [countBy, visibleCatalog],
+  );
+  const typeOptions = useMemo(
+    () => countBy((product) => product.type)(visibleCatalog),
+    [countBy, visibleCatalog],
+  );
+  const familyOptions = useMemo(
+    () => countBy((product) => product.family)(visibleCatalog),
+    [countBy, visibleCatalog],
+  );
+  const promotionCount = useMemo(
+    () => visibleCatalog.filter((product) => product.is_promotion).length,
+    [visibleCatalog],
+  );
+
+  const activeFilters = useMemo<CatalogActiveFilter[]>(() => {
+    const list: CatalogActiveFilter[] = [];
+    if (onlyPromotions) {
+      list.push({ id: "promo", label: "Destaque", value: "Promoção", onRemove: () => setOnlyPromotions(false) });
+    }
+    if (selectedBrand) {
+      list.push({ id: "brand", label: "Marca", value: selectedBrand, onRemove: () => setSelectedBrand(null) });
+    }
+    if (selectedType) {
+      list.push({ id: "type", label: "Categoria", value: selectedType, onRemove: () => setSelectedType(null) });
+    }
+    if (selectedFamily) {
+      list.push({
+        id: "family",
+        label: "Subcategoria",
+        value: selectedFamily,
+        onRemove: () => setSelectedFamily(null),
+      });
+    }
+    return list;
+  }, [onlyPromotions, selectedBrand, selectedType, selectedFamily]);
+
+  const clearAllFilters = useCallback(() => {
+    setSelectedBrand(null);
+    setSelectedType(null);
+    setSelectedFamily(null);
+    setOnlyPromotions(false);
+  }, []);
+
+  /**
+   * Duas nocoes de "vende bem", de proposito.
+   *
+   * `posicaoDeVenda` e a loja inteira, agregada no banco — e o que a prateleira
+   * "Mais vendidos" e o selo usam, porque e uma afirmacao sobre a loja.
+   *
+   * `orderPopularity` sao os pedidos de **quem esta olhando** (o RLS so entrega
+   * os proprios). Serve a ordenacao por relevancia, onde o que a pessoa costuma
+   * comprar e justamente o mais relevante para ela.
+   */
+  const { posicaoDeVenda } = useTopSellers();
 
   const orderPopularity = useMemo(() => {
     const quantityCounts = new Map<string, number>();
@@ -289,8 +396,10 @@ export default function Index() {
     switch (sortMode) {
       case "best_sellers":
         return list.sort((left, right) => {
-          const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
-          const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
+          // `?? Infinity` joga para o fim quem nunca foi vendido, em vez de
+          // empatar em zero com todo o resto.
+          const leftQty = posicaoDeVenda.get(left.id) ?? Infinity;
+          const rightQty = posicaoDeVenda.get(right.id) ?? Infinity;
           const leftPromo = left.is_promotion ? 1 : 0;
           const rightPromo = right.is_promotion ? 1 : 0;
           return rightQty - leftQty || rightPromo - leftPromo || left.name.localeCompare(right.name, "pt-BR");
@@ -314,31 +423,56 @@ export default function Index() {
         return list.sort((left, right) => {
           const leftPromo = left.is_promotion ? 1 : 0;
           const rightPromo = right.is_promotion ? 1 : 0;
+          // Historico da propria pessoa: em relevancia, o que ela ja comprou vale
+          // mais que o que a loja vende no agregado.
           const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
           const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
 
           return rightPromo - leftPromo || rightQty - leftQty || left.name.localeCompare(right.name, "pt-BR");
         });
     }
-  }, [filtered, sortMode, orderPopularity, customerPriceMap]);
+  }, [filtered, sortMode, orderPopularity, posicaoDeVenda, customerPriceMap]);
 
-  const visibleFiltered = useMemo(() => sortedFiltered.slice(0, visibleProducts), [sortedFiltered, visibleProducts]);
+  /**
+   * Corta a lista num multiplo de colunas.
+   *
+   * `visibleProducts` e quantos o usuario pediu; o que aparece e isso arredondado
+   * para cima ate fechar a fileira. Sem esse arredondamento, o passo de 24 —
+   * divisivel por 2, 3 e 4 — deixava sobra em 5 colunas, e cada "carregar mais"
+   * terminava com uma fileira pela metade ainda havendo produto de sobra.
+   *
+   * No fim da lista o total vale como esta: sobra na ultima fileira so confunde
+   * quando ainda ha o que carregar.
+   */
+  const gridRef = useRef<HTMLDivElement>(null);
+  const gridColumns = useGridColumns(gridRef);
+
+  const visibleFiltered = useMemo(
+    () => sortedFiltered.slice(0, completarFileira(visibleProducts, gridColumns, sortedFiltered.length)),
+    [sortedFiltered, visibleProducts, gridColumns],
+  );
+  // Compara o que **esta na tela**, e nao o numero pedido: o arredondamento por
+  // fileira mostra alguns a mais, e com a comparacao antiga o botao continuaria
+  // aparecendo depois que o ultimo produto ja tivesse entrado.
+  const hasMoreProducts = visibleFiltered.length < sortedFiltered.length;
+
+  const showMoreProducts = useCallback(() => {
+    // Parte do que ja esta visivel, pelo mesmo motivo: somar sobre o numero
+    // pedido faria o proximo lote vir menor do que o passo.
+    setVisibleProducts(() => Math.min(visibleFiltered.length + PRODUCTS_VISIBLE_STEP, sortedFiltered.length));
+  }, [visibleFiltered.length, sortedFiltered.length]);
+
+  /**
+   * O carregamento e por botao, de proposito.
+   *
+   * Cheguei a deixar o proximo lote entrar sozinho na rolagem, mas rolagem
+   * infinita e justamente o padrao que os testes de usabilidade reprovam em
+   * lista de produto: quem abre um item e volta perde a posicao, comparar fica
+   * dificil e o rodape vira inalcancavel. "Carregar mais" explicito e o padrao
+   * recomendado — o usuario decide quando continuar.
+   */
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.product.id)), [cart]);
-
-  useEffect(() => {
-    setCategoryTopNavProps({
-      families: categoryFamilies,
-      familyTypesByFamily: familyTypesByFamily,
-      typeCounts: typeCounts,
-      familyCounts: familyCounts,
-      selectedFamily: selectedFamily,
-      selectedType: selectedType,
-      onFamilyChange: setSelectedFamily,
-      onTypeChange: setSelectedType,
-      totalProducts: filtered.length,
-    });
-  }, [categoryFamilies, familyTypesByFamily, typeCounts, familyCounts, selectedFamily, selectedType, filtered.length, setCategoryTopNavProps]);
 
   const showAllProducts = useCallback(() => {
     setSearch("");
@@ -348,101 +482,225 @@ export default function Index() {
     catalogRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  // Percorre os ids, e nao o catalogo: filtrar `products` devolvia a lista em
+  // ordem alfabetica (o banco ordena por nome), o que anulava o sentido de
+  // "vistos recentemente" e a ordem de favoritagem.
   const recentlyViewedProducts = useMemo(
-    () => products.filter((p) => recentlyViewedIds.includes(p.id)).slice(0, 10),
+    () => resolveProductsByIdOrder(recentlyViewedIds, products, 10),
     [products, recentlyViewedIds],
   );
 
+  /** Lista completa: a pagina de favoritos precisa de todos, sem corte. */
   const wishlistProducts = useMemo(
-    () => products.filter((p) => wishlistIds.includes(p.id)).slice(0, 10),
+    () => resolveProductsByIdOrder(wishlistIds, products),
     [products, wishlistIds],
   );
 
-  const catalogThemeSections = useMemo(() => {
-    if (filtered.length === 0) return [];
+  /** Recorte usado apenas no trilho da home. */
+  const wishlistHighlights = useMemo(() => wishlistProducts.slice(0, 10), [wishlistProducts]);
 
-    const baseProducts = [...filtered];
-    const promotedProducts = [...baseProducts]
+
+  /**
+   * Prateleiras do topo: apenas curadoria.
+   *
+   * Antes havia tambem uma prateleira por categoria (Chá, Solúvel, Cápsula).
+   * Com os filtros na lateral elas viraram repeticao — a sidebar mostra as
+   * categorias inteiras, enquanto a prateleira mostrava 8 itens escolhidos por
+   * nada em especial. E cinco carrosseis empurravam o catalogo uns 2.500px para
+   * baixo.
+   *
+   * Sobram os dois recortes que respondem "o que vale a pena olhar?", coisa que
+   * filtro nenhum responde: preco reduzido e o que mais sai.
+   */
+  const catalogThemeSections = useMemo(() => {
+    // Com filtro ativo o cliente ja disse o que quer: curadoria vira ruido entre
+    // ele e o resultado.
+    if (activeFilters.length > 0 || debouncedSearch.trim()) return [];
+    if (visibleCatalog.length === 0) return [];
+
+    const promotedProducts = visibleCatalog
       .filter((product) => product.is_promotion)
       .sort(
         (left, right) =>
-          resolveProductPrice(left, customerPriceMap) -
-            resolveProductPrice(right, customerPriceMap) ||
+          resolveProductPrice(left, customerPriceMap) - resolveProductPrice(right, customerPriceMap) ||
           new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime() ||
           left.name.localeCompare(right.name, "pt-BR"),
       );
-    const withPopularSignal = [...baseProducts].sort((left, right) => {
-      const leftQty = orderPopularity.quantityCounts.get(left.id) ?? 0;
-      const rightQty = orderPopularity.quantityCounts.get(right.id) ?? 0;
-      const leftFallback = familyCounts.get(left.family) ?? 0;
-      const rightFallback = familyCounts.get(right.family) ?? 0;
 
-      return rightQty - leftQty || rightFallback - leftFallback || left.name.localeCompare(right.name, "pt-BR");
-    });
+    /**
+     * So quem realmente vendeu, na ordem de venda.
+     *
+     * Antes a lista era `visibleCatalog` inteiro ordenado por um sinal fraco:
+     * quem nao tinha pedido caia num desempate por tamanho da familia e depois
+     * por ordem alfabetica. Como o `.slice(0, 8)` vinha logo em seguida, a
+     * prateleira se enchia de produto que nunca foi vendido — parecia sorteio.
+     *
+     * Agora o sinal vem de `top_selling_products()`, agregado no banco sobre os
+     * pedidos de **todos** os clientes. Sem venda nenhuma, a prateleira nao
+     * aparece, o que e mais honesto que preenche-la com qualquer coisa.
+     */
+    const withPopularSignal = visibleCatalog
+      .filter((product) => posicaoDeVenda.has(product.id))
+      .sort((left, right) => posicaoDeVenda.get(left.id)! - posicaoDeVenda.get(right.id)!);
 
-    const typeNames = [...new Set(baseProducts.map((p) => p.type))].sort(
-      (a, b) => a.localeCompare(b, "pt-BR"),
-    );
-    const typeSections = !selectedType
-      ? typeNames.map((type) => ({
-          id: `tipo-${type}`,
-          title: type.charAt(0).toUpperCase() + type.slice(1),
-          products: baseProducts
-            .filter((p) => p.type === type)
-            .slice(0, 8),
-        }))
-      : [];
+    const featuredProducts = visibleCatalog
+      .filter((product) => product.is_featured)
+      .sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
 
-    return [
-      {
-        id: "promocoes",
-        title: "Promoções",
-        highlightLabel: "Promoção",
-        highlightTone: "destructive" as const,
-        products: promotedProducts.slice(0, 8),
-      },
-      {
+    /**
+     * A ordem: destaque, mais vendidos, promocao.
+     *
+     * A primeira posicao e a mais vista, entao vai para a prateleira que rende
+     * mais por estar la. Promocao nao rende: preco e o gancho mais forte que
+     * existe, e quem caca desconto rola a pagina ate achar — colocar na frente e
+     * gastar o melhor espaco com a unica que se vende sozinha. Pior, ancora a
+     * loja no desconto: tudo que vem depois parece caro por comparacao.
+     *
+     * Destaque e a unica prateleira que a equipe controla de ponta a ponta —
+     * promocao depende de ter margem para queimar, mais vendidos depende do que
+     * o mercado ja decidiu. E a de maior alavancagem, e por isso abre.
+     *
+     * Mais vendidos vem em seguida como prova social: "a equipe destaca isto, e
+     * olha o que todo mundo leva". Num B2B de recompra e a que melhor responde
+     * "o que o meu segmento costuma pedir".
+     */
+    const sections: CatalogThemeSection[] = [];
+
+    if (featuredProducts.length > 0) {
+      sections.push({
+        id: "em-destaque",
+        title: "Em destaque",
+        subtitle:
+          featuredProducts.length === 1
+            ? "1 produto escolhido pela equipe"
+            : `${featuredProducts.length} produtos escolhidos pela equipe`,
+        highlightLabel: "Destaque",
+        // Ambar, e nao a cor da marca: o vermelho ja e da promocao e o verde dos
+        // mais vendidos. Tres prateleiras seguidas precisam de tres cores.
+        highlightTone: "warm",
+        products: featuredProducts.slice(0, 8),
+      });
+    }
+
+    if (withPopularSignal.length > 0) {
+      sections.push({
         id: "mais-vendidos",
         title: "Mais vendidos",
+        subtitle: "Os itens que mais saem nos pedidos",
         highlightLabel: "Mais vendido",
-        highlightTone: "success" as const,
+        highlightTone: "success",
         products: withPopularSignal.slice(0, 8),
-      },
-      ...typeSections,
-    ];
-  }, [customerPriceMap, familyCounts, filtered, orderHistory, orderPopularity, selectedType]);
+      });
+    }
+
+    if (promotedProducts.length > 0) {
+      sections.push({
+        id: "promocoes",
+        title: "Promoções",
+        subtitle:
+          promotedProducts.length === 1
+            ? "1 produto com preço reduzido"
+            : `${promotedProducts.length} produtos com preço reduzido`,
+        highlightLabel: "Promoção",
+        highlightTone: "destructive",
+        products: promotedProducts.slice(0, 8),
+      });
+    }
+
+    return sections;
+  }, [activeFilters.length, customerPriceMap, debouncedSearch, posicaoDeVenda, visibleCatalog]);
+
+  /**
+   * Ancoras da pagina, montadas a partir do que existe de fato.
+   *
+   * Promocao pode nao ter produto, favoritos podem estar vazios e as
+   * prateleiras somem quando ha filtro — um indice fixo levaria a secao
+   * inexistente.
+   */
+  const pageAnchors = useMemo<SectionAnchor[]>(() => {
+    const anchors: SectionAnchor[] = catalogThemeSections.map((section) => ({
+      id: section.id,
+      label: section.title,
+      // Um icone por prateleira. Com "Em destaque" no meio, o par
+      // promocao/resto deixou de dar conta: destaque e mais vendidos ficariam
+      // com a mesma chama e a barra perderia a funcao de orientar.
+      icon: ANCORA_ICONES[section.id] ?? Flame,
+    }));
+
+    anchors.push({ id: "catalogo-completo", label: "Catálogo", icon: LayoutGrid });
+
+    if (wishlistHighlights.length > 0) {
+      anchors.push({ id: "favoritos", label: "Favoritos", icon: Heart });
+    }
+    if (recentlyViewedProducts.length > 0) {
+      anchors.push({ id: "vistos-recentemente", label: "Vistos recentemente", icon: History });
+    }
+
+    return anchors;
+  }, [catalogThemeSections, recentlyViewedProducts.length, wishlistHighlights.length]);
 
   return (
-    <div id="top" className="min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]">
+    <div id="top" className="min-h-screen bg-muted/40">
       <StoreHeroBanner customerType={customerType} />
 
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className="w-full px-3 pt-1 sm:px-6 sm:pt-3 lg:px-8"
+        className={cn(PAGE_CONTAINER, "pt-1 pb-32 sm:pt-3 sm:pb-[10rem]")}
       >
-        <div className="space-y-6">
+        {!showFavoritesView ? (
+          <SectionAnchorNav
+            sections={pageAnchors}
+            className="mb-6"
+          />
+        ) : null}
+
+        <div className="space-y-10 sm:space-y-12">
           {showFavoritesView ? (
             <section className="space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary">Favoritos</p>
-                  <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">Meus favoritos</h2>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 rounded-full border-border/60 px-4 text-sm"
-                  onClick={() => setSearchParams({})}
-                >
-                  Ver catálogo
-                </Button>
-              </div>
+              <CatalogSectionHeader
+                title="Meus favoritos"
+                subtitle={
+                  wishlistProducts.length === 1
+                    ? "1 produto salvo neste dispositivo"
+                    : `${wishlistProducts.length} produtos salvos neste dispositivo`
+                }
+                actions={
+                  <>
+                    {wishlistProducts.length > 0 ? (
+                      <ConfirmActionDialog
+                        trigger={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-10 rounded-full px-4 text-sm text-destructive"
+                          >
+                            Limpar favoritos
+                          </Button>
+                        }
+                        title="Limpar favoritos"
+                        description="Isso remove todos os produtos salvos nos seus favoritos neste dispositivo."
+                        confirmLabel="Limpar"
+                        destructive
+                        onConfirm={clearWishlist}
+                      />
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-10 rounded-full border-border/60 px-4 text-sm"
+                      onClick={() => setSearchParams({})}
+                    >
+                      Ver catálogo
+                    </Button>
+                  </>
+                }
+              />
 
               {wishlistProducts.length === 0 ? (
                 <div className="rounded-[1.35rem] border border-dashed border-border/70 bg-background/80 px-6 py-14 text-center shadow-sm">
                   <Heart className="mx-auto h-10 w-10 text-muted-foreground/35" />
-                  <p className="mt-4 text-lg font-semibold text-foreground">Vc n tem itens favoritos</p>
+                  <p className="mt-4 text-lg font-semibold text-foreground">Você ainda não tem favoritos</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Marque produtos com o coração para salvar aqui e acessar depois.
                   </p>
@@ -451,46 +709,152 @@ export default function Index() {
                   </Button>
                 </div>
               ) : (
-                <ProductCarouselSection
-                  title="Meus favoritos"
-                  products={wishlistProducts}
-                  resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                  onAdd={handleRequestAdd}
-                  inCartIds={cartIds}
-                  wishlistIds={wishlistIds}
-                  toggleWishlist={toggleWishlist}
-                />
+                // Grade, e nao carrossel: pagina dedicada mostra tudo de uma vez.
+                //
+                // Para em 4 colunas, sem abrir uma quinta no 2xl. Com a barra de
+                // filtros ocupando 15rem, a quinta coluna espremia o card para
+                // 203px enquanto o mesmo produto aparecia com 257px nos
+                // carrosseis logo acima — a mesma foto 21% menor em duas secoes
+                // da mesma pagina. Em 4 colunas os dois batem.
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5">
+                  {wishlistProducts.map((product) => (
+                    <CatalogProductCard
+                      key={product.id}
+                      product={product}
+                      price={resolveProductPrice(product, customerPriceMap)}
+                      onAdd={handleRequestAdd}
+                      inCart={cartIds.has(product.id)}
+                      compact
+                      isWishlisted
+                      onToggleWishlist={() => toggleWishlist(product.id)}
+                    />
+                  ))}
+                </div>
               )}
             </section>
           ) : (
             <>
+              {/* 2o bloco da pagina (o 1o e o banner do topo): 3 do mesmo
+                  tamanho, na mesma reta.
+
+                  Fica acima das secoes tematicas, e nao colado em
+                  `#catalogo-completo`. Estava logo antes da grade, encostado na
+                  coluna de filtros — que e o caso documentado pela Baymard na
+                  Toys'R'Us, onde varios participantes tomaram um banner acima da
+                  lista por ferramenta de filtro. Aqui em cima nao ha lista nem
+                  filtro por perto para confundir, e a ordem 1/3/1/2/1 da pagina
+                  continua igual. */}
+              <PromoTrio label="Catálogo · 3" customerType={customerType} />
+
               <CatalogThemeSections
                 sections={catalogThemeSections}
                 resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
                 onAdd={handleRequestAdd}
                 inCartIds={cartIds}
+                wishlistIds={wishlistIds}
+                onToggleWishlist={toggleWishlist}
               />
 
-              <section className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="max-sm:text-base max-sm:font-semibold tracking-tight text-foreground sm:text-2xl sm:font-bold">
-                    {selectedFamily || selectedType
-                      ? `Resultados para "${selectedFamily || selectedType}"`
-                      : "Catálogo completo"}
-                  </h2>
-                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-                    <SortModeControl value={sortMode} onChange={setSortMode} />
-                    <Badge variant="outline" className="w-full justify-center rounded-full border-border/70 bg-background/80 px-3 py-1 text-[11px] font-medium whitespace-nowrap sm:w-auto">
-                      {filtered.length} item(ns)
-                    </Badge>
+              <section
+                id="catalogo-completo"
+                className="grid gap-6 scroll-mt-[calc(var(--page-header-shell-height,88px)+4rem)] lg:grid-cols-[15rem_minmax(0,1fr)] xl:gap-8"
+              >
+                {/* Coluna fixa no desktop: todos os filtros visiveis de uma vez,
+                    que e o que a barra horizontal nao conseguia entregar com 48
+                    subcategorias. */}
+                <aside className="hidden lg:block">
+                  <div className="sticky top-[calc(var(--page-header-shell-height,88px)+1rem)] max-h-[calc(100dvh-var(--page-header-shell-height,88px)-2rem)] overflow-y-auto rounded-xl bg-background/80 p-4 ring-1 ring-black/5 [scrollbar-width:thin]">
+                    <CatalogFilterPanel
+                      brands={brandOptions}
+                      types={typeOptions}
+                      families={familyOptions}
+                      selectedBrand={selectedBrand}
+                      selectedType={selectedType}
+                      selectedFamily={selectedFamily}
+                      onlyPromotions={onlyPromotions}
+                      promotionCount={promotionCount}
+                      onBrandChange={setSelectedBrand}
+                      onTypeChange={setSelectedType}
+                      onFamilyChange={setSelectedFamily}
+                      onOnlyPromotionsChange={setOnlyPromotions}
+                      onClearAll={clearAllFilters}
+                      activeFilterCount={activeFilters.length}
+                    />
                   </div>
-                </div>
+                </aside>
+
+                <div
+                  ref={resultsRef}
+                  className="min-w-0 space-y-4 scroll-mt-[calc(var(--page-header-shell-height,88px)+1rem)]"
+                >
+                <CatalogSectionHeader
+                  title={selectedFamily || selectedBrand || selectedType || "Catálogo"}
+                  subtitle={
+                    activeFilters.length > 0
+                      ? `${filtered.length} de ${visibleCatalog.length} produtos`
+                      : `${filtered.length} produtos disponíveis`
+                  }
+                  actions={
+                    <>
+                      {/* No celular o painel vira gaveta, com o numero de filtros
+                          ativos no proprio botao. */}
+                      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+                        <SheetTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 gap-1.5 rounded-full border-border/60 px-3 text-xs font-medium lg:hidden"
+                          >
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            Filtros
+                            {activeFilters.length > 0 ? (
+                              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[0.6875rem] font-semibold text-primary-foreground">
+                                {activeFilters.length}
+                              </span>
+                            ) : null}
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-[min(88vw,20rem)] overflow-y-auto p-4">
+                          <SheetHeader className="mb-2 text-left">
+                            <SheetTitle className="text-base">Filtrar produtos</SheetTitle>
+                          </SheetHeader>
+                          <CatalogFilterPanel
+                            brands={brandOptions}
+                            types={typeOptions}
+                            families={familyOptions}
+                            selectedBrand={selectedBrand}
+                            selectedType={selectedType}
+                            selectedFamily={selectedFamily}
+                            onlyPromotions={onlyPromotions}
+                            promotionCount={promotionCount}
+                            onBrandChange={setSelectedBrand}
+                            onTypeChange={setSelectedType}
+                            onFamilyChange={setSelectedFamily}
+                            onOnlyPromotionsChange={setOnlyPromotions}
+                            onClearAll={clearAllFilters}
+                            activeFilterCount={activeFilters.length}
+                          />
+                          <Button
+                            type="button"
+                            className="mt-4 h-11 w-full rounded-full"
+                            onClick={() => setFiltersOpen(false)}
+                          >
+                            Ver {filtered.length} produto(s)
+                          </Button>
+                        </SheetContent>
+                      </Sheet>
+                      <SortModeControl value={sortMode} onChange={setSortMode} />
+                    </>
+                  }
+                />
+
+                <CatalogActiveFilters filters={activeFilters} onClearAll={clearAllFilters} />
 
                 {isLoading ? (
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5">
                     {Array.from({ length: 10 }).map((_, index) => (
                       <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
-                        <Skeleton className="aspect-square w-full rounded-none" />
+                        <Skeleton className="aspect-[4/5] w-full rounded-none" />
                       </div>
                     ))}
                   </div>
@@ -498,16 +862,24 @@ export default function Index() {
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
                     <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
                     <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+                    {activeFilters.length > 0 ? (
+                      <Button type="button" variant="outline" className="mt-5 rounded-full" onClick={clearAllFilters}>
+                        Limpar filtros
+                      </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                    <div
+                      ref={gridRef}
+                      className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5"
+                    >
                       {visibleFiltered.map((product) => (
                         <CatalogProductCard
                           key={product.id}
                           product={product}
                           price={resolveProductPrice(product, customerPriceMap)}
-                           onAdd={handleRequestAdd}
+                          onAdd={handleRequestAdd}
                           inCart={cartIds.has(product.id)}
                           compact
                           isWishlisted={wishlistIds.includes(product.id)}
@@ -515,31 +887,39 @@ export default function Index() {
                         />
                       ))}
                     </div>
-                    {visibleProducts < filtered.length ? (
-                      <div className="flex items-center justify-center py-8">
+                    {hasMoreProducts ? (
+                      <div className="flex flex-col items-center gap-2 py-8">
                         <Button
                           type="button"
                           variant="outline"
                           size="lg"
                           className="h-11 rounded-full border-border/60 px-8 text-sm font-medium shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5"
-                          onClick={() =>
-                            setVisibleProducts((current) =>
-                              Math.min(current + PRODUCTS_VISIBLE_STEP, sortedFiltered.length),
-                            )
-                          }
+                          onClick={showMoreProducts}
                         >
                           Carregar mais produtos
                         </Button>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {visibleFiltered.length} de {filtered.length}
+                        </p>
                       </div>
-                    ) : null}
+                    ) : (
+                      <p className="py-6 text-center text-[0.8125rem] text-muted-foreground">
+                        {filtered.length === 1
+                          ? "1 produto no catálogo."
+                          : `Todos os ${filtered.length} produtos foram exibidos.`}
+                      </p>
+                    )}
                   </div>
                 )}
+                </div>
               </section>
 
-              {wishlistProducts.length > 0 && (
+              {wishlistHighlights.length > 0 && (
                 <ProductCarouselSection
+                  id="favoritos"
                   title="Meus favoritos"
-                  products={wishlistProducts}
+                  subtitle="Produtos que você salvou para voltar depois"
+                  products={wishlistHighlights}
                   resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
                   onAdd={handleRequestAdd}
                   inCartIds={cartIds}
@@ -548,9 +928,14 @@ export default function Index() {
                 />
               )}
 
+              {/* 2 lado a lado, antes de "Vistos recentemente". */}
+              <PromoDuo label="Catálogo · 2" customerType={customerType} />
+
               {recentlyViewedProducts.length > 0 && (
                 <ProductCarouselSection
+                  id="vistos-recentemente"
                   title="Vistos recentemente"
+                  subtitle="Os últimos produtos que você abriu"
                   products={recentlyViewedProducts}
                   resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
                   onAdd={handleRequestAdd}
@@ -564,22 +949,24 @@ export default function Index() {
         </div>
       </div>
 
-      {compareIds.length > 0 ? (
-        <CompareBar
-          products={products}
-          compareIds={compareIds}
-          max={compareMax}
-          onRemove={removeCompare}
-          onClear={clearCompare}
-          onCompare={() => setCompareOpen(true)}
-        />
-      ) : null}
+      {/* Fora do container de proposito, e ultimo elemento da pagina: encosta no
+          rodape sem folga nenhuma. O respiro de baixo foi para o container acima,
+          senao ele entraria justamente entre o banner e o rodape.
 
-      <CompareModal
-        open={compareOpen}
-        onOpenChange={setCompareOpen}
-        products={products.filter((p) => compareIds.includes(p.id))}
-      />
+          `-mb-16 lg:mb-0` anula o `pb-16` que o `<main>` do PublicLayout usa no
+          celular para liberar a barra de navegacao fixa. Sem isso sobraria uma
+          faixa de 64px entre o banner e a borda superior do rodape. */}
+      {!showFavoritesView ? (
+        <div className="-mb-16 lg:mb-0">
+          <PromoUnico
+            format="destaque"
+            label="Catálogo · destaque final"
+           
+            bleed
+            customerType={customerType}
+          />
+        </div>
+      ) : null}
 
       {showBackToTop ? (
         <Button
@@ -609,7 +996,9 @@ export default function Index() {
 }
 
 function ProductCarouselSection({
+  id,
   title,
+  subtitle,
   products,
   resolvePrice,
   onAdd,
@@ -617,7 +1006,9 @@ function ProductCarouselSection({
   wishlistIds,
   toggleWishlist,
 }: {
+  id?: string;
   title: string;
+  subtitle?: string;
   products: Product[];
   resolvePrice: (product: Product) => number;
   onAdd: (product: Product) => void;
@@ -666,8 +1057,8 @@ function ProductCarouselSection({
   const totalSnaps = api ? api.scrollSnapList().length : 1;
 
   return (
-    <section>
-      <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground sm:text-xl">{title}</h2>
+    <section id={id} className="scroll-mt-[calc(var(--page-header-shell-height,88px)+4rem)]">
+      <CatalogSectionHeader title={title} subtitle={subtitle} />
       <div className="group relative">
         <Carousel opts={{ align: "start", dragFree: false }} setApi={setApi}>
           <div className="mb-3 flex items-center justify-end gap-1.5">
@@ -687,7 +1078,7 @@ function ProductCarouselSection({
           </div>
           <CarouselContent className="-ml-2 sm:-ml-3">
             {products.map((product) => (
-              <CarouselItem key={product.id} className="basis-1/2 pl-2 sm:pl-3 md:basis-1/3 lg:basis-1/4 xl:basis-1/5 2xl:basis-1/6">
+              <CarouselItem key={product.id} className="basis-1/2 pl-2 sm:pl-2.5 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 min-[1680px]:basis-1/6">
                 <CatalogProductCard
                   product={product}
                   price={resolvePrice(product)}

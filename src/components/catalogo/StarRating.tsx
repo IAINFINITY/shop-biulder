@@ -24,7 +24,7 @@ export function StarRating({ rating, size = "md", interactive, onChange }: StarR
           className={cn(
             "transition-colors",
             interactive ? "cursor-pointer hover:scale-110" : "cursor-default",
-            star <= rating ? "text-amber-400" : "text-muted-foreground/25",
+            star <= rating ? "text-warm" : "text-muted-foreground/25",
           )}
           role={interactive ? "radio" : undefined}
           aria-checked={interactive ? star <= rating : undefined}

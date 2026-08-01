@@ -1,0 +1,47 @@
+import { useMemo } from "react";
+import { useCatalogBanners } from "@/hooks/useCatalogBanners";
+import { useAuth } from "@/hooks/useAuth";
+import { useCustomerTypes } from "@/hooks/useCustomerTypes";
+import { podeVer } from "@/lib/visibilidade";
+
+/**
+ * Artes ativas de uma area do site, na ordem em que devem aparecer.
+ *
+ * Devolve lista, e nao uma arte so, porque o trio mostra tres quadros e o par
+ * mostra dois. Quem chama corta no tamanho do proprio bloco e completa o que
+ * faltar com o exemplo — assim uma area meio preenchida continua com o desenho
+ * certo em vez de abrir buraco na pagina.
+ *
+ * O recorte por tipo de cliente e o mesmo do banner do topo: sem `visible_to` a
+ * arte vale para todo mundo; com ele, so para quem esta na lista. Sem isso uma
+ * campanha restrita a um tipo de cliente vazaria para os demais.
+ *
+ * Devolve as duas artes, e nao so a de desktop. `image_url_mobile` era
+ * descartado aqui, entao trio, par, destaque e faixa ignoravam a arte de celular
+ * mesmo quando ela existia no cadastro — e a faixa, a 5:1, ficava com 78px de
+ * altura num celular de 390px. Uma tarja, nao um banner.
+ */
+export type ArteDeBanner = {
+  desktop: string;
+  /** Nulo = usa a de desktop, cortada no centro. */
+  celular: string | null;
+};
+
+export function useBannerArtBySlot(slot: string, customerType: string | null): ArteDeBanner[] {
+  const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
+  const { isAdmin } = useAuth();
+  const { options: tiposDeCliente } = useCustomerTypes();
+  const todosOsTipos = useMemo(() => tiposDeCliente.map((tipo) => tipo.name), [tiposDeCliente]);
+
+  return useMemo(() => {
+    return banners
+      .filter((banner) => banner.slot === slot)
+      .filter((banner) => podeVer(banner, { customerType, todosOsTipos, isAdmin }))
+      .filter((banner) => banner.image_url.trim() !== "")
+      .sort((left, right) => left.sort_order - right.sort_order || left.created_at.localeCompare(right.created_at))
+      .map((banner) => ({
+        desktop: banner.image_url,
+        celular: banner.image_url_mobile?.trim() || null,
+      }));
+  }, [banners, slot, customerType, todosOsTipos, isAdmin]);
+}

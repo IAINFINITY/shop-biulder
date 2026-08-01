@@ -69,7 +69,7 @@ export function CatalogOrderNotice({ variant = "banner", className }: CatalogOrd
           <div
             className={cn(
               "mt-1 space-y-3 text-muted-foreground leading-relaxed",
-              isBanner ? "text-sm sm:text-[0.9375rem]" : "text-xs leading-snug",
+              isBanner ? "text-sm sm:text-sm" : "text-xs leading-snug",
             )}
           >
             {isBanner ? (

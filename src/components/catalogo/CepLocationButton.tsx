@@ -78,7 +78,7 @@ export function CepLocationButton({
         <button
           type="button"
           className={cn(
-            "flex items-center gap-2.5 rounded-lg px-4 py-2 text-left transition-colors hover:bg-muted/60",
+            "flex items-center gap-2.5 rounded-full px-4 py-2 text-left transition-colors hover:bg-muted/60",
             currentCep ? "text-foreground" : "text-muted-foreground",
             className,
           )}
@@ -88,7 +88,7 @@ export function CepLocationButton({
             currentCep ? "text-primary" : "text-muted-foreground",
           )} />
           <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight whitespace-nowrap xl:whitespace-normal">
-            <span className="inline text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground/80 xl:block">Informações do CEP:</span>{" "}
+            <span className="inline text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80 xl:block">Informações do CEP:</span>{" "}
             <span className="inline xl:block">{label}</span>
           </span>
         </button>
@@ -119,7 +119,8 @@ export function CepLocationButton({
               }}
               className={cn(
                 "h-11 rounded-xl border-border/70 bg-background pl-4 pr-10 text-sm tracking-[0.1em] transition-all",
-                status === "found" && "border-emerald-400/60 ring-1 ring-emerald-400/20",
+                // Espelha o ramo de erro logo abaixo, que ja usa o token do tema.
+                status === "found" && "border-success/60 ring-1 ring-success/20",
                 status === "error" && "border-destructive/60 ring-1 ring-destructive/20",
               )}
               aria-label="CEP"
@@ -128,7 +129,7 @@ export function CepLocationButton({
               {status === "loading" ? (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               ) : status === "found" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                <CheckCircle2 className="h-4 w-4 text-success" />
               ) : status === "error" || status === "not_found" ? (
                 <XCircle className="h-4 w-4 text-destructive" />
               ) : null}
@@ -136,9 +137,9 @@ export function CepLocationButton({
           </div>
 
           {status === "found" && currentCep ? (
-            <div className="rounded-xl border border-emerald-400/20 bg-emerald-50/50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300">
+            <div className="rounded-xl border border-success/20 bg-success/5 px-3 py-2 text-xs text-success">
               <p className="font-medium">CEP confirmado</p>
-              <p className="mt-0.5 text-emerald-600 dark:text-emerald-400">
+              <p className="mt-0.5 text-success/80">
                 {currentCep.city}, {currentCep.state} — {currentCep.cep}
               </p>
             </div>
@@ -151,7 +152,7 @@ export function CepLocationButton({
           <Button
             type="button"
             size="sm"
-            className="w-full rounded-xl text-xs font-semibold"
+            className="w-full rounded-full text-xs font-semibold"
             onClick={() => setOpen(false)}
           >
             {currentCep ? "Confirmar" : "Buscar"}

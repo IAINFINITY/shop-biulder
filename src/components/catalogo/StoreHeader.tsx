@@ -9,6 +9,8 @@ import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 import { cn } from "@/lib/utils";
 import { CepLocationButton } from "@/components/catalogo/CepLocationButton";
 import { useDeliveryCep } from "@/hooks/useDeliveryCep";
+import { buildLoginPath } from "@/lib/navigation";
+import { useAuth } from "@/hooks/useAuth";
 
 export type StoreHeaderSearchSuggestion = {
   id: string;
@@ -53,6 +55,7 @@ type SearchPanelProps = {
 function SearchPanel({
   search,
   onSearchChange,
+  onSearchSubmit,
   searchSuggestions,
   onSearchResultSelect,
   showSuggestions,
@@ -122,7 +125,7 @@ function SearchPanel({
         {showHistory ? (
           <div id={panelId} className="border-t border-border/70 bg-card" role="listbox" aria-label="Buscas recentes">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Buscas recentes
               </p>
               <Button
@@ -140,7 +143,7 @@ function SearchPanel({
                 <button
                   key={term}
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
                   onClick={() => onSearchChange(term)}
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/60">
@@ -168,7 +171,7 @@ function SearchPanel({
           <div id={panelId} className="border-t border-border/70 bg-card" role="listbox" aria-label="Sugestões de produtos">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Resultados
                 </p>
                 <p className="text-sm text-foreground">
@@ -203,7 +206,7 @@ function SearchPanel({
                   >
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} width={1200} height={900} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
+                        <img src={item.imageUrl} alt={item.name} width={1600} height={1600} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
                       ) : (
                         <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
                       )}
@@ -254,6 +257,7 @@ export function StoreHeader({
   const location = useLocation();
   const navigate = useNavigate();
   const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
+  const { user } = useAuth();
 
   const handleLogoClick = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -339,16 +343,38 @@ export function StoreHeader({
 
           {/* User + Cart */}
           <div className="flex items-center justify-end gap-3 sm:gap-4 shrink-0">
-            <Link to="/conta" viewTransition className="hidden lg:block">
-              <Button
-                variant="outline"
-                size="icon"
-                className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
-                aria-label="Minha conta"
+            {/* Icone sozinho nao diz o que faz nem que ha conta a criar. Quem ja
+                entrou ve o atalho da conta; quem nao, ve as duas acoes. */}
+            {user ? (
+              // h-10 e a altura do botao do carrinho ao lado: os dois precisam
+              // fechar na mesma linha de base.
+              <Link
+                to="/conta"
+                viewTransition
+                className="hidden h-10 items-center gap-2 rounded-md border border-primary/20 px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10 lg:inline-flex"
               >
                 <User className="h-5 w-5" />
-              </Button>
-            </Link>
+                Minha conta
+              </Link>
+            ) : (
+              <Link
+                to={buildLoginPath()}
+                viewTransition
+                className="hidden h-10 items-center gap-2 rounded-md border border-primary/20 px-3 leading-none transition-colors hover:bg-primary/10 lg:inline-flex"
+              >
+                <User className="h-5 w-5 shrink-0 text-primary" />
+                {/* Empilhado: duas acoes distintas, uma sobre a outra, no lugar
+                    de uma frase corrida. */}
+                <span className="flex flex-col items-start gap-0.5">
+                  <span className="text-[0.8125rem] font-semibold leading-none text-primary underline underline-offset-2">
+                    Entre
+                  </span>
+                  <span className="text-[0.8125rem] font-semibold leading-none text-primary underline underline-offset-2">
+                    Cadastre-se
+                  </span>
+                </span>
+              </Link>
+            )}
             <div className="hidden items-center lg:flex">{cartSlot}</div>
           </div>
         </div>

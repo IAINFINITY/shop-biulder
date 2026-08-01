@@ -1,4 +1,9 @@
-import { useCallback, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useCallback,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 import { ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -25,20 +30,39 @@ export function ProductGalleryModal({
 
   const selectedImage = images[selectedIndex] ?? images[0] ?? null;
 
-  const handleMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (!isZoomEnabled) return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
+  // Converte uma coordenada de tela na origem da ampliacao. Serve mouse e toque:
+  // antes so havia onMouseMove, entao o zoom simplesmente nao existia no celular.
+  const updateZoomPoint = useCallback((clientX: number, clientY: number, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
-    const nextX = ((event.clientX - rect.left) / rect.width) * 100;
-    const nextY = ((event.clientY - rect.top) / rect.height) * 100;
-
     setZoomPoint({
-      x: Math.min(100, Math.max(0, nextX)),
-      y: Math.min(100, Math.max(0, nextY)),
+      x: Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100)),
     });
-  }, [isZoomEnabled]);
+  }, []);
+
+  const handleMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isZoomEnabled) return;
+    updateZoomPoint(event.clientX, event.clientY, event.currentTarget);
+  }, [isZoomEnabled, updateZoomPoint]);
+
+  const handleTouch = useCallback((event: ReactTouchEvent<HTMLDivElement>) => {
+    if (!isZoomEnabled) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+    // Impede a pagina de rolar enquanto o dedo desloca a area ampliada.
+    event.preventDefault();
+    updateZoomPoint(touch.clientX, touch.clientY, event.currentTarget);
+  }, [isZoomEnabled, updateZoomPoint]);
+
+  // No toque nao existe hover: tocar na imagem liga e desliga a ampliacao.
+  const toggleZoom = useCallback(() => {
+    setIsZoomEnabled((value) => {
+      if (value) setZoomPoint({ x: 50, y: 50 });
+      return !value;
+    });
+  }, []);
 
   if (!selectedImage || images.length === 0) return null;
 
@@ -46,7 +70,7 @@ export function ProductGalleryModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="h-[min(88vh,760px)] w-[min(92vw,1120px)] max-w-[1120px] overflow-hidden rounded-[1.5rem] border-border/70 p-0">
         <DialogHeader className="border-b border-border/70 px-4 py-3 sm:px-5 sm:py-3.5">
-          <DialogTitle className="text-left text-[1rem] font-black tracking-[-0.04em] text-foreground sm:text-[1.1rem]">
+          <DialogTitle className="text-left text-base font-semibold tracking-tight text-foreground sm:text-lg">
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -60,7 +84,7 @@ export function ProductGalleryModal({
                   type="button"
                   onClick={() => onSelectedIndexChange(index)}
                   className={cn(
-                    "flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-2xl border bg-background p-1.5 shadow-sm transition-all xl:h-[4.75rem] xl:w-full xl:max-w-[9rem]",
+                    "flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-background p-1.5 shadow-sm transition-all xl:h-[4.75rem] xl:w-full xl:max-w-[9rem]",
                     index === selectedIndex ? "border-primary ring-2 ring-primary/20" : "border-border/70 hover:border-primary/40",
                   )}
                   aria-label={`Ver imagem ${index + 1}`}
@@ -73,17 +97,33 @@ export function ProductGalleryModal({
 
           <div className="min-h-0 bg-background p-3.5 xl:p-4">
             <div
-              className="relative flex h-full min-h-0 cursor-zoom-in items-center justify-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-background"
+              role="button"
+              tabIndex={0}
+              aria-pressed={isZoomEnabled}
+              aria-label={isZoomEnabled ? "Desativar ampliação" : "Ampliar imagem"}
+              className={cn(
+                "relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-background",
+                isZoomEnabled ? "cursor-zoom-out touch-none" : "cursor-zoom-in",
+              )}
               onMouseLeave={() => {
                 setZoomPoint({ x: 50, y: 50 });
               }}
               onMouseMove={handleMove}
+              onTouchStart={handleTouch}
+              onTouchMove={handleTouch}
+              onClick={toggleZoom}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  toggleZoom();
+                }
+              }}
             >
               <img
                 src={selectedImage}
                 alt={title}
-                width={1200}
-                height={900}
+                width={1600}
+                height={1600}
                 className="h-full w-full max-h-[68vh] object-contain p-3 transition-transform duration-200"
                 style={{
                   transform: isZoomEnabled ? "scale(1.55)" : "scale(1)",
@@ -93,8 +133,11 @@ export function ProductGalleryModal({
 
               <button
                 type="button"
-                className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/95 px-3 py-2 text-[11px] font-medium text-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
-                onClick={() => setIsZoomEnabled((value) => !value)}
+                className="absolute bottom-3 right-3 inline-flex h-11 items-center gap-2 rounded-full border border-border/70 bg-background/95 px-4 text-[0.6875rem] font-medium text-foreground shadow-sm transition-colors hover:border-primary/40 hover:text-primary"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleZoom();
+                }}
                 aria-pressed={isZoomEnabled}
                 aria-label={isZoomEnabled ? "Desativar zoom" : "Ativar zoom"}
               >
@@ -103,8 +146,9 @@ export function ProductGalleryModal({
               </button>
 
               {isZoomEnabled && (
-                <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border/70 bg-background/95 px-3 py-2 text-[11px] font-medium text-foreground shadow-sm">
-                  Mova o mouse para ajustar
+                <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border/70 bg-background/95 px-3 py-2 text-[0.6875rem] font-medium text-foreground shadow-sm">
+                  <span className="hidden sm:inline">Mova o mouse para ajustar</span>
+                  <span className="sm:hidden">Arraste para explorar</span>
                 </div>
               )}
             </div>

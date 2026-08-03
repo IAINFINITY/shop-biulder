@@ -15,6 +15,7 @@ import {
   PRODUCTS_TABLE,
   PRODUCT_TYPES_TABLE,
   getProductImageUrls,
+  PRODUCT_MAX_IMAGES,
   buildOrderEnrichmentMaps,
   buildProductDbPayload,
   detectMissingProductColumn,
@@ -568,9 +569,11 @@ export default function AdminWorkspace() {
     if (check.dimensions) {
       const { width, height } = check.dimensions;
       if (check.isTooSmall) {
-        toast.warning(
-          `Foto de ${width}×${height}px: abaixo do mínimo de ${PRODUCT_IMAGE_MIN_SIZE}×${PRODUCT_IMAGE_MIN_SIZE}px, vai ficar borrada ao ampliar.`,
+        toast.error(
+          `Foto de ${width}×${height}px: abaixo do mínimo de ${PRODUCT_IMAGE_MIN_SIZE}×${PRODUCT_IMAGE_MIN_SIZE}px. Ela não será enviada.`,
         );
+        setUploading(false);
+        return;
       } else if (check.isOffAspectRatio) {
         // Nao e erro: o upload estende a borda da propria foto para fechar o
         // quadro. O aviso existe porque quem fotografou consegue enquadrar
@@ -594,8 +597,8 @@ export default function AdminWorkspace() {
         toast.error("Abra ou crie um produto antes de enviar a foto.");
         return prev;
       }
-      if (prev.image_urls.length >= 5) {
-        toast.error("Máximo de 5 imagens por produto.");
+      if (prev.image_urls.length >= PRODUCT_MAX_IMAGES) {
+        toast.error(`Máximo de ${PRODUCT_MAX_IMAGES} imagens por produto.`);
         return prev;
       }
       return {

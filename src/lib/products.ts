@@ -10,6 +10,7 @@
 export type ProductImageFit = "contain" | "cover";
 
 export const PRODUCT_IMAGE_FIT_DEFAULT: ProductImageFit = "contain";
+export const PRODUCT_MAX_IMAGES = 7;
 
 export function normalizeProductImageFit(value: unknown): ProductImageFit {
   return value === "cover" ? "cover" : PRODUCT_IMAGE_FIT_DEFAULT;

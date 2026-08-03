@@ -6,7 +6,11 @@ import {
   PRODUCT_IMAGE_TARGET_HEIGHT,
   PRODUCT_IMAGE_TARGET_WIDTH,
 } from "@/lib/productImageNormalization";
-import { PRODUCT_IMAGE_FIT_LABELS, type ProductImageFit } from "@/lib/products";
+import {
+  PRODUCT_IMAGE_FIT_LABELS,
+  PRODUCT_MAX_IMAGES,
+  type ProductImageFit,
+} from "@/lib/products";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -19,8 +23,8 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 
-/** Fotos por produto. O numero estava fixo em 5, repetido no botao e no aviso. */
-const MAX_IMAGENS = 7;
+/** Fotos por produto. Mantido num valor compartilhado para nao divergir da tela de admin. */
+const MAX_IMAGENS = PRODUCT_MAX_IMAGES;
 
 // Tamanhos aproximados dos tres lugares onde a capa aparece no catalogo.
 const CONTEXT_PREVIEWS = [
@@ -85,7 +89,7 @@ export function ProductImageCarouselEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <Label className="text-sm font-medium">Imagens do produto</Label>
-        <span className="text-xs text-muted-foreground">{urls.length}/5 imagens</span>
+        <span className="text-xs text-muted-foreground">{urls.length}/{MAX_IMAGENS} imagens</span>
       </div>
 
       {/* A especificacao fica na tela, e nao num documento a parte: quem sobe a

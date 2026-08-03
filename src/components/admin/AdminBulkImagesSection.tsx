@@ -12,7 +12,12 @@ import {
   summarizeBulkMatches,
   type BulkImageMatch,
 } from "@/lib/bulkProductImages";
-import { PRODUCTS_TABLE, getProductImageUrls, type Product } from "@/lib/products";
+import {
+  PRODUCTS_TABLE,
+  PRODUCT_MAX_IMAGES,
+  getProductImageUrls,
+  type Product,
+} from "@/lib/products";
 import { checkProductImage, PRODUCT_IMAGE_MIN_SIZE } from "@/lib/productImageNormalization";
 import { PRODUCT_IMAGE_FRAME } from "@/lib/productImageNormalization";
 import { uploadProductImageFile } from "@/lib/productImageStorage";
@@ -54,16 +59,24 @@ export function AdminBulkImagesSection({ products }: Props) {
   const queryClient = useQueryClient();
 
   const matches = useMemo(() => matchBulkImages(files, products), [files, products]);
-  const summary = useMemo(() => summarizeBulkMatches(matches), [matches]);
-  const groups = useMemo(() => groupBulkMatchesByProduct(matches), [matches]);
-  const problems = useMemo(() => matches.filter((match) => !match.productId), [matches]);
+  const blockedFileNames = useMemo(() => new Set(smallFiles), [smallFiles]);
+  const uploadableMatches = useMemo(
+    () => matches.filter((match) => !blockedFileNames.has(match.file.name)),
+    [matches, blockedFileNames],
+  );
+  const summary = useMemo(() => summarizeBulkMatches(uploadableMatches), [uploadableMatches]);
+  const groups = useMemo(() => groupBulkMatchesByProduct(uploadableMatches), [uploadableMatches]);
+  const problems = useMemo(
+    () => uploadableMatches.filter((match) => !match.productId),
+    [uploadableMatches],
+  );
 
   const receiveFiles = useCallback(async (incoming: File[]) => {
     setFiles(incoming);
     setUpload({ running: false, done: 0, total: 0, failures: [] });
 
-    // Avisa cedo sobre resolucao: descobrir isso depois de subir 100 arquivos
-    // significa refazer o lote inteiro.
+    // Bloqueia cedo por resolucao: descobrir isso depois de subir 100 arquivos
+    // significa poluir o storage e refazer o lote inteiro.
     const undersized: string[] = [];
     for (const file of incoming) {
       const check = await checkProductImage(file);
@@ -139,7 +152,7 @@ export function AdminBulkImagesSection({ products }: Props) {
         else nextUrls.push(url);
       }
 
-      const trimmed = nextUrls.slice(0, 5);
+      const trimmed = nextUrls.slice(0, PRODUCT_MAX_IMAGES);
       const { error } = await supabase
         .from(PRODUCTS_TABLE)
         .update({ image_url: trimmed[0] ?? null, image_urls: trimmed } as never)

@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+*.tsbuildinfo
 *.local
 .env
 .env.*
@@ -36,6 +37,9 @@ design/
 
 # Supabase local temp files
 supabase/.temp/
+
+# Local database exports may contain customer and order data
+local-exports/
 
 # Vercel local project metadata
 .vercel/

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { useProxisHealth } from "@/hooks/useProxisHealth";
 import type { AdminSection } from "./adminTypes";
-import type { AdminPermissions } from "@/lib/adminUsers";
+import { canAccessAdminSection, type AdminPermissions } from "@/lib/adminUsers";
 
 type AdminWorkspaceShellProps = {
   section: AdminSection;
@@ -81,9 +81,7 @@ export function AdminWorkspaceShell({
   children,
 }: AdminWorkspaceShellProps) {
   function hasPermission(id: AdminSection): boolean {
-    if (isSuperadmin) return true;
-    if (!permissions) return true;
-    return permissions[id] === true;
+    return canAccessAdminSection(id, { isSuperadmin, permissions });
   }
 
   const navGroups = [
@@ -106,11 +104,11 @@ export function AdminWorkspaceShell({
         ...(hasPermission("mensagens") ? [{ id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" }] : []),
       ].filter(Boolean),
     },
-    ...(isSuperadmin ? [{
+    ...(hasPermission("usuarios") || hasPermission("funcionarios") ? [{
       label: "Administração",
       items: [
-        { id: "usuarios" as const, label: "Usuários", icon: Shield, description: "Contas e permissões" },
-        { id: "funcionarios" as const, label: "Funcionários", icon: Users, description: "Equipe vinculada" },
+        ...(hasPermission("usuarios") ? [{ id: "usuarios" as const, label: "Usuários", icon: Shield, description: "Contas e permissões" }] : []),
+        ...(hasPermission("funcionarios") ? [{ id: "funcionarios" as const, label: "Funcionários", icon: Users, description: "Equipe vinculada" }] : []),
       ],
     }] : []),
     {

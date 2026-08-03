@@ -58,6 +58,7 @@ import { AdminSettingsSection } from "@/components/admin/AdminSettingsSection";
 import { SupportChatPanel } from "@/components/support/SupportChatPanel";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
 import { listEmployees } from "@/lib/employeeUsers";
+import { canAccessAdminSection } from "@/lib/adminUsers";
 import {
   CUSTOMER_TYPE_OVERRIDES_TABLE,
   buildCustomerTypeOverrideMap,
@@ -93,6 +94,21 @@ function normalizeText(value: string): string {
     .toLowerCase()
     .replace(/\s+/g, " ");
 }
+
+const ADMIN_SECTION_TITLES: Record<AdminSection, string> = {
+  dashboard: "Dashboard",
+  banners: "Banners do catálogo",
+  notificacoes: "Notificações",
+  produtos: "Produtos",
+  imagens: "Imagens",
+  precos: "Preços",
+  pedidos: "Pedidos",
+  clientes: "Clientes",
+  mensagens: "Mensagens",
+  usuarios: "Usuários",
+  funcionarios: "Funcionários",
+  configuracoes: "Configurações",
+};
 
 export default function AdminWorkspace() {
   const { user, isAdmin, isSuperadmin, loading, isResolvingAccess, signOut } = useAuth();
@@ -300,7 +316,7 @@ export default function AdminWorkspace() {
             quantity: line.quantity,
           })),
           })),
-    [dashboardOrderRows],
+    [dashboardOrderRows, orderEnrichment],
   );
   const customerSummaries = useMemo<AdminCustomerSummary[]>(() => {
     const customers = new Map<
@@ -405,20 +421,6 @@ export default function AdminWorkspace() {
         .slice(0, 5),
     [employeeProfiles],
   );
-  const sectionTitle: Record<AdminSection, string> = {
-    dashboard: "Dashboard",
-    banners: "Banners do catálogo",
-    notificacoes: "Notificações",
-    produtos: "Produtos",
-    imagens: "Imagens",
-    precos: "Preços",
-    pedidos: "Pedidos",
-    clientes: "Clientes",
-    mensagens: "Mensagens",
-    usuarios: "Usuários",
-    funcionarios: "Funcionários",
-    configuracoes: "Configurações",
-  };
   const typeOptions = adminTypes.length
     ? adminTypes.map((t) => t.name)
     : derivedTypes.length
@@ -427,8 +429,11 @@ export default function AdminWorkspace() {
   const displayUserLabel = user?.user_metadata?.name?.trim() || user?.email || "Administrador";
   const allowedSections = useMemo(() => {
     if (isSuperadmin) return null;
-    if (!adminPermissions) return null;
-    const allowed = new Set(Object.entries(adminPermissions).filter(([, v]) => v).map(([k]) => k));
+    const allowed = new Set(
+      (Object.keys(ADMIN_SECTION_TITLES) as AdminSection[]).filter((sectionId) =>
+        canAccessAdminSection(sectionId, { isSuperadmin, permissions: adminPermissions ?? null }),
+      ),
+    );
     return allowed;
   }, [isSuperadmin, adminPermissions]);
 
@@ -900,7 +905,7 @@ export default function AdminWorkspace() {
   return (
     <AdminWorkspaceShell
       section={section}
-      title={sectionTitle[section]}
+      title={ADMIN_SECTION_TITLES[section]}
       onSectionChange={setSection}
       onLogout={signOut}
       userLabel={displayUserLabel}

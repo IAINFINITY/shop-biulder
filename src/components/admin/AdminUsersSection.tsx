@@ -64,12 +64,12 @@ const PERMISSION_OPTIONS: { id: AdminSection; label: string }[] = [
   { id: "pedidos", label: "Pedidos" },
   { id: "clientes", label: "Clientes" },
   { id: "mensagens", label: "Mensagens" },
+  { id: "funcionarios", label: "Funcionários" },
   { id: "configuracoes", label: "Configurações" },
 ];
 
 const SUPERADMIN_ONLY_OPTIONS: { id: AdminSection; label: string }[] = [
   { id: "usuarios", label: "Usuários" },
-  { id: "funcionarios", label: "Funcionários" },
 ];
 
 function defaultPermissions(): AdminPermissions {
@@ -238,7 +238,7 @@ export function AdminUsersSection() {
 
   function openEdit(user: AdminUserRecord) {
     setEditingUser(user);
-    setEditPermissions(user.permissions ?? allPermissions());
+    setEditPermissions(user.permissions ?? { ...allPermissions(), funcionarios: false });
     setEditName(user.display_name ?? "");
     setEditOpen(true);
   }

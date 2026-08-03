@@ -144,3 +144,27 @@ export function canManageRole(currentRole: string, targetRole: string): boolean 
   if (targetRole === "superadmin") return false;
   return true;
 }
+
+export function canAccessAdminSection(
+  section: AdminSection,
+  options: {
+    isSuperadmin: boolean;
+    permissions?: AdminPermissions | null;
+  },
+): boolean {
+  if (options.isSuperadmin) return true;
+
+  if (section === "usuarios") {
+    return false;
+  }
+
+  if (section === "funcionarios") {
+    return options.permissions?.funcionarios === true;
+  }
+
+  if (!options.permissions) {
+    return true;
+  }
+
+  return options.permissions[section] === true;
+}

@@ -243,7 +243,9 @@ type ProductDbRow = {
 export function buildProductDbPayload(input: ProductDbPayloadInput): {
   withGallery: ProductDbRow & { image_urls: string[] };
 } {
-  const urls = input.image_urls.filter((u) => u.trim() !== "");
+  const urls = input.image_urls
+    .filter((u) => u.trim() !== "")
+    .slice(0, PRODUCT_MAX_IMAGES);
   const visibleTo = input.visible_to && input.visible_to.length > 0 ? input.visible_to : null;
 
   // `image_alts` entra so no `withGallery`, junto com as URLs: as duas listas

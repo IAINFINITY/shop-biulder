@@ -562,9 +562,16 @@ export default function AdminWorkspace() {
     e.target.value = "";
     if (!file) return;
 
+    if (!editing) {
+      toast.error("Abra ou crie um produto antes de enviar a foto.");
+      return;
+    }
+    if (editing.image_urls.length >= PRODUCT_MAX_IMAGES) {
+      toast.error(`Máximo de ${PRODUCT_MAX_IMAGES} imagens por produto.`);
+      return;
+    }
+
     setUploading(true);
-    // Avisa antes de subir, mas nao bloqueia: a foto fora do padrao ainda e
-    // melhor do que produto sem imagem nenhuma no catalogo.
     const check = await checkProductImage(file);
     if (check.dimensions) {
       const { width, height } = check.dimensions;
@@ -593,14 +600,7 @@ export default function AdminWorkspace() {
     }
 
     setEditing((prev) => {
-      if (!prev) {
-        toast.error("Abra ou crie um produto antes de enviar a foto.");
-        return prev;
-      }
-      if (prev.image_urls.length >= PRODUCT_MAX_IMAGES) {
-        toast.error(`Máximo de ${PRODUCT_MAX_IMAGES} imagens por produto.`);
-        return prev;
-      }
+      if (!prev) return prev;
       return {
         ...prev,
         image_urls: [...prev.image_urls, result.publicUrl],

@@ -53,6 +53,7 @@ const STATUS_LABEL: Record<BulkImageMatch["status"], string> = {
 export function AdminBulkImagesSection({ products }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [upload, setUpload] = useState<UploadState>({ running: false, done: 0, total: 0, failures: [] });
   const [smallFiles, setSmallFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -61,8 +62,15 @@ export function AdminBulkImagesSection({ products }: Props) {
   const matches = useMemo(() => matchBulkImages(files, products), [files, products]);
   const blockedFileNames = useMemo(() => new Set(smallFiles), [smallFiles]);
   const uploadableMatches = useMemo(
-    () => matches.filter((match) => !blockedFileNames.has(match.file.name)),
+    () =>
+      matches.filter(
+        (match) => !blockedFileNames.has(match.file.name) && match.position <= PRODUCT_MAX_IMAGES,
+      ),
     [matches, blockedFileNames],
+  );
+  const overLimitMatches = useMemo(
+    () => matches.filter((match) => match.productId && match.position > PRODUCT_MAX_IMAGES),
+    [matches],
   );
   const summary = useMemo(() => summarizeBulkMatches(uploadableMatches), [uploadableMatches]);
   const groups = useMemo(() => groupBulkMatchesByProduct(uploadableMatches), [uploadableMatches]);
@@ -72,7 +80,9 @@ export function AdminBulkImagesSection({ products }: Props) {
   );
 
   const receiveFiles = useCallback(async (incoming: File[]) => {
-    setFiles(incoming);
+    setValidating(true);
+    setFiles([]);
+    setSmallFiles([]);
     setUpload({ running: false, done: 0, total: 0, failures: [] });
 
     // Bloqueia cedo por resolucao: descobrir isso depois de subir 100 arquivos
@@ -83,6 +93,8 @@ export function AdminBulkImagesSection({ products }: Props) {
       if (check.isTooSmall) undersized.push(file.name);
     }
     setSmallFiles(undersized);
+    setFiles(incoming);
+    setValidating(false);
   }, []);
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -94,6 +106,7 @@ export function AdminBulkImagesSection({ products }: Props) {
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
+    if (upload.running || validating) return;
     const dropped = Array.from(event.dataTransfer.files ?? []);
     if (dropped.length > 0) void receiveFiles(dropped);
   };
@@ -101,11 +114,12 @@ export function AdminBulkImagesSection({ products }: Props) {
   const reset = () => {
     setFiles([]);
     setSmallFiles([]);
+    setValidating(false);
     setUpload({ running: false, done: 0, total: 0, failures: [] });
   };
 
   const confirmUpload = async () => {
-    if (groups.length === 0) return;
+    if (validating || groups.length === 0) return;
 
     const total = groups.reduce((sum, group) => sum + group.matches.length, 0);
     setUpload({ running: true, done: 0, total, failures: [] });
@@ -270,10 +284,10 @@ export function AdminBulkImagesSection({ products }: Props) {
           variant="outline"
           className="mt-4 h-11 rounded-full px-5"
           onClick={() => fileInputRef.current?.click()}
-          disabled={upload.running}
+          disabled={upload.running || validating}
         >
           <Upload className="h-4 w-4" />
-          Selecionar arquivos
+          {validating ? "Analisando imagens..." : "Selecionar arquivos"}
         </Button>
       </div>
 
@@ -309,8 +323,21 @@ export function AdminBulkImagesSection({ products }: Props) {
                 {smallFiles.length} arquivo(s) abaixo de {PRODUCT_IMAGE_MIN_SIZE}px
               </p>
               <p className="mt-1 text-[0.8125rem] leading-6 text-amber-900/80">
-                Vão subir mesmo assim, mas ficam borrados ao ampliar: {smallFiles.slice(0, 6).join(", ")}
+                Não serão enviados ao storage: {smallFiles.slice(0, 6).join(", ")}
                 {smallFiles.length > 6 ? ` e mais ${smallFiles.length - 6}` : ""}.
+              </p>
+            </div>
+          ) : null}
+
+          {overLimitMatches.length > 0 ? (
+            <div className="rounded-[1.25rem] border border-amber-200 bg-amber-50/70 p-4">
+              <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                <AlertTriangle className="h-4 w-4" />
+                {overLimitMatches.length} arquivo(s) acima do limite de {PRODUCT_MAX_IMAGES} fotos
+              </p>
+              <p className="mt-1 text-[0.8125rem] leading-6 text-amber-900/80">
+                Não serão enviados ao storage: {overLimitMatches.slice(0, 6).map((match) => match.fileName).join(", ")}
+                {overLimitMatches.length > 6 ? ` e mais ${overLimitMatches.length - 6}` : ""}.
               </p>
             </div>
           ) : null}
@@ -342,7 +369,7 @@ export function AdminBulkImagesSection({ products }: Props) {
                   type="button"
                   className="h-11 rounded-full px-5"
                   onClick={confirmUpload}
-                  disabled={upload.running}
+                  disabled={upload.running || validating}
                 >
                   {upload.running ? `Enviando ${upload.done}/${upload.total}...` : "Confirmar envio"}
                 </Button>

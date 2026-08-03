@@ -1,7 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
+  checkProductImage,
   normalizeProductImageFile,
   PRODUCT_IMAGE_FRAME,
+  PRODUCT_IMAGE_MIN_SIZE,
   type ImageFrame,
 } from "@/lib/productImageNormalization";
 
@@ -83,6 +85,19 @@ export async function uploadProductImageFile(
   }
   if (file.size > MAX_BYTES) {
     return { ok: false, message: "Imagem muito grande. Máximo 8 MB." };
+  }
+
+  // Calls with a fixed frame are product photos. Keep this check next to the
+  // Storage boundary so no caller can upload an undersized product image.
+  if ("frame" in shape) {
+    const check = await checkProductImage(file);
+    if (check.dimensions && check.isTooSmall) {
+      const { width, height } = check.dimensions;
+      return {
+        ok: false,
+        message: `Foto de ${width}x${height}px: o mínimo é ${PRODUCT_IMAGE_MIN_SIZE}x${PRODUCT_IMAGE_MIN_SIZE}px. A imagem não foi enviada.`,
+      };
+    }
   }
 
   const normalizedFile = await normalizeProductImageFile(

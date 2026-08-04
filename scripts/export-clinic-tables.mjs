@@ -1,27 +1,27 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const PROJECT_REF = "jpkdgpkkyhibihawkhjw";
+const PROJECT_REF = "fjnjktrsiydrfmrzzhhm";
 const TABLES = [
-  "Clinic+ - Catálogo Front B2B",
-  "admin_users",
-  "catalog_banners",
-  "catalog_notification_reads",
-  "catalog_notifications",
-  "customer_addresses",
-  "customer_price_overrides",
-  "customer_profiles",
-  "customer_type_overrides",
-  "customer_types",
-  "orders",
-  "price_tables",
-  "product_brands",
-  "product_families",
-  "product_reviews",
-  "product_types",
-  "support_conversations",
-  "support_messages",
-  "user_roles",
+  "clinic+b2b_clinic_catalogo_front_b2b",
+  "clinic+b2b_admin_users",
+  "clinic+b2b_catalog_banners",
+  "clinic+b2b_catalog_notification_reads",
+  "clinic+b2b_catalog_notifications",
+  "clinic+b2b_customer_addresses",
+  "clinic+b2b_customer_price_overrides",
+  "clinic+b2b_customer_profiles",
+  "clinic+b2b_customer_type_overrides",
+  "clinic+b2b_customer_types",
+  "clinic+b2b_orders",
+  "clinic+b2b_price_tables",
+  "clinic+b2b_product_brands",
+  "clinic+b2b_product_families",
+  "clinic+b2b_product_reviews",
+  "clinic+b2b_product_types",
+  "clinic+b2b_support_conversations",
+  "clinic+b2b_support_messages",
+  "clinic+b2b_user_roles",
 ];
 
 function parseEnv(contents) {

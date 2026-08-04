@@ -34,6 +34,7 @@ vi.mock("@/integrations/supabase/client", () => ({
       onAuthStateChange: authMocks.onAuthStateChange,
       signInWithPassword: vi.fn(),
       signUp: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
       signOut: vi.fn(),
     },
     rpc: authMocks.rpc,
@@ -42,7 +43,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 function AuthProbe() {
-  const { loading, user, isAdmin, customerProfile } = useAuth();
+  const { loading, user, isAdmin, customerProfile, isPasswordRecovery } = useAuth();
 
   return (
     <div>
@@ -50,6 +51,7 @@ function AuthProbe() {
       <span data-testid="user">{user?.email ?? ""}</span>
       <span data-testid="admin">{String(isAdmin)}</span>
       <span data-testid="profile">{customerProfile?.company ?? ""}</span>
+      <span data-testid="password-recovery">{String(isPasswordRecovery)}</span>
     </div>
   );
 }
@@ -91,6 +93,7 @@ describe("useAuth", () => {
     authMocks.state.profileQueue = [];
     try {
       window.sessionStorage.removeItem("clinicplus_auth_bootstrap");
+      window.localStorage.removeItem("clinicplus_password_recovery");
     } catch {
       // ignore
     }
@@ -218,5 +221,39 @@ describe("useAuth", () => {
     expect(screen.getByTestId("loading")).toHaveTextContent("false");
     expect(screen.getByTestId("user")).toHaveTextContent("admin@clinic.com");
     expect(screen.getByTestId("admin")).toHaveTextContent("true");
+  });
+
+  it("keeps a recovery session blocked after subsequent auth events", async () => {
+    const sessionUser = { id: "customer-1", email: "customer@clinic.com" };
+
+    authMocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    authMocks.rpc.mockResolvedValue({ data: false, error: null });
+    authMocks.state.profileQueue.push(Promise.resolve({ data: null, error: null }));
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("false");
+      expect(authMocks.state.authCallback).not.toBeNull();
+    });
+
+    await act(async () => {
+      await authMocks.state.authCallback?.("PASSWORD_RECOVERY", { user: sessionUser });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("password-recovery")).toHaveTextContent("true");
+    });
+    expect(window.localStorage.getItem("clinicplus_password_recovery")).toBe(sessionUser.id);
+
+    await act(async () => {
+      await authMocks.state.authCallback?.("SIGNED_IN", { user: sessionUser });
+    });
+
+    expect(screen.getByTestId("password-recovery")).toHaveTextContent("true");
   });
 });

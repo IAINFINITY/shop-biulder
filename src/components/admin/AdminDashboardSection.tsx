@@ -76,9 +76,9 @@ export function AdminDashboardSection({
   const now = Date.now();
 
   const formatCompactDateTime = (value: string | null | undefined) => {
-    if (!value) return "â€”";
+    if (!value) return "—";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "â€”";
+    if (Number.isNaN(date.getTime())) return "—";
     return date.toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
@@ -88,9 +88,9 @@ export function AdminDashboardSection({
   };
 
   const formatCompactDate = (value: string | null | undefined) => {
-    if (!value) return "â€”";
+    if (!value) return "—";
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "â€”";
+    if (Number.isNaN(date.getTime())) return "—";
     return date.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",

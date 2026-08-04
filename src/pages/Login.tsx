@@ -367,7 +367,7 @@ export default function Login() {
 
                 <div className="flex items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Ambiente seguro - seus dados estÃ£o protegidos
+                  Ambiente seguro - seus dados estão protegidos
                 </div>
               </form>
             </TabsContent>

@@ -27,13 +27,22 @@ export type ArteDeBanner = {
   celular: string | null;
 };
 
-export function useBannerArtBySlot(slot: string, customerType: string | null): ArteDeBanner[] {
-  const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
+export function useBannerArtBySlot(slot: string, customerType: string | null): {
+  artes: ArteDeBanner[];
+  /**
+   * `true` enquanto o fetch dos banners ainda roda. Quem desenha o quadro deve
+   * usar isso para nao piscar o placeholder "arte aqui": com `initialData: []`
+   * o `data` chega vazio antes do servidor responder, e sem o sinal de loading
+   * a vitrine mostrava o texto por um instante mesmo tendo arte cadastrada.
+   */
+  loading: boolean;
+} {
+  const { data: banners = [], isFetching } = useCatalogBanners({ activeOnly: true });
   const { isAdmin } = useAuth();
   const { options: tiposDeCliente } = useCustomerTypes();
   const todosOsTipos = useMemo(() => tiposDeCliente.map((tipo) => tipo.name), [tiposDeCliente]);
 
-  return useMemo(() => {
+  const artes = useMemo(() => {
     return banners
       .filter((banner) => banner.slot === slot)
       .filter((banner) => podeVer(banner, { customerType, todosOsTipos, isAdmin }))
@@ -44,4 +53,6 @@ export function useBannerArtBySlot(slot: string, customerType: string | null): A
         celular: banner.image_url_mobile?.trim() || null,
       }));
   }, [banners, slot, customerType, todosOsTipos, isAdmin]);
+
+  return { artes, loading: isFetching };
 }

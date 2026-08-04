@@ -40,6 +40,7 @@ function Peca({
   arte,
   href,
   radius = "rounded-xl",
+  loading = false,
 }: {
   format: PromoFormat;
   label: string;
@@ -47,6 +48,8 @@ function Peca({
   arte: ArteDeBanner | null;
   href?: string;
   radius?: string;
+  /** Enquanto os banners ainda chegam do banco, so o quadro vazio. */
+  loading?: boolean;
 }) {
   const medida = MEDIDAS[format];
 
@@ -58,7 +61,7 @@ function Peca({
     // deitado e seria cortada nas laterais — exatamente o que ela existe para
     // evitar. Sem arte propria, a proporcao de desktop vale em toda tela.
     arte?.celular ? `${medida.arteDeCelular.aspect} sm:${medida.aspect}` : medida.aspect,
-    arte ? "bg-muted" : "border border-dashed border-border bg-muted/30",
+    arte || loading ? "bg-muted" : "border border-dashed border-border bg-muted/30",
     // O trio e o unico bloco em que as pecas competem entre si: tres quadros
     // iguais lado a lado. Levantar a peca sob o cursor diz qual delas o clique
     // vai pegar. `motion-safe` deixa a animacao de fora para quem pediu menos
@@ -67,7 +70,7 @@ function Peca({
       "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.02]",
   );
 
-  const conteudo = arte ? (
+  const conteudo = loading ? null : arte ? (
     <picture>
       {arte.celular ? <source media="(max-width: 640px)" srcSet={arte.celular} /> : null}
       <img
@@ -124,12 +127,12 @@ export function PromoUnico({
   bleed?: boolean;
   customerType?: string | null;
 }) {
-  const artes = useBannerArtBySlot(format, customerType);
+  const { artes, loading } = useBannerArtBySlot(format, customerType);
   const [arte] = completar(artes, 1);
 
   return (
     <div className={cn(bleed && SANGRA)}>
-      <Peca format={format} label={label} arte={arte} href={href} radius={bleed ? "rounded-none" : "rounded-xl"} />
+      <Peca format={format} label={label} arte={arte} href={href} radius={bleed ? "rounded-none" : "rounded-xl"} loading={loading} />
     </div>
   );
 }
@@ -141,7 +144,8 @@ export function PromoTrio({
   label: string;
   customerType?: string | null;
 }) {
-  const artes = completar(useBannerArtBySlot("trio", customerType), 3);
+  const { artes, loading } = useBannerArtBySlot("trio", customerType);
+  const quadros = completar(artes, 3);
 
   return (
     // `SANGRA` sempre, e nao so quando pedido. O trio fica dentro do container da
@@ -164,8 +168,8 @@ export function PromoTrio({
           borda — esta reservada as pecas unicas (topo e destaque final). Fileira
           de tres colada na borda perde o eixo com o resto da pagina. */}
       <div className="mx-auto grid w-full max-w-[1880px] grid-cols-1 gap-6 sm:grid-cols-3">
-        {artes.map((arte, i) => (
-          <Peca key={i} format="trio" label={`${label} · ${i + 1}`} arte={arte} />
+        {quadros.map((arte, i) => (
+          <Peca key={i} format="trio" label={`${label} · ${i + 1}`} arte={arte} loading={loading} />
         ))}
       </div>
     </div>
@@ -181,12 +185,13 @@ export function PromoDuo({
   bleed?: boolean;
   customerType?: string | null;
 }) {
-  const artes = completar(useBannerArtBySlot("par", customerType), 2);
+  const { artes, loading } = useBannerArtBySlot("par", customerType);
+  const quadros = completar(artes, 2);
 
   return (
     <div className={cn("grid gap-4 sm:grid-cols-2", bleed && SANGRA)}>
-      {artes.map((arte, i) => (
-        <Peca key={i} format="par" label={`${label} · ${i + 1}`} arte={arte} />
+      {quadros.map((arte, i) => (
+        <Peca key={i} format="par" label={`${label} · ${i + 1}`} arte={arte} loading={loading} />
       ))}
     </div>
   );

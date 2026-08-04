@@ -150,7 +150,7 @@ export function StoreHeroBanner({
   // pontinho e tudo — o visitante via um espaco vazio sem entender o que era.
   // Some da vitrine; quem administra continua vendo o registro no admin.
   const [brokenImages, setBrokenImages] = useState<ReadonlySet<string>>(() => new Set());
-  const { data: banners = [] } = useCatalogBanners({ activeOnly: true });
+  const { data: banners = [], isFetching } = useCatalogBanners({ activeOnly: true });
 
   const slides = useMemo<HeroSlide[]>(() => {
     return banners
@@ -261,17 +261,25 @@ export function StoreHeroBanner({
     >
       <div className="w-full">
         {slides.length === 0 ? (
-          // Sem arte cadastrada, o quadro se explica em vez de virar uma faixa
-          // cinza sem sentido para quem administra a loja.
-          <div className={heroPlaceholderClass}>
-            <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-            <p className="text-[0.8125rem] font-medium text-muted-foreground">Arte aqui</p>
-            {medida ? (
-              <p className="text-[0.6875rem] text-muted-foreground/70">
-                {rotulo} · {medida.proporcao} · {formatEntrega(medida)}
-              </p>
-            ) : null}
-          </div>
+          // `initialData: []` faz o `data` chegar vazio antes do fetch responder,
+          // entao so depois de `isFetching` cair o quadro explica o espaco vazio.
+          // Enquanto isso, um fundo mudo sem texto — senao o "arte aqui" piscava
+          // por um instante mesmo com arte cadastrada.
+          isFetching ? (
+            <div className={heroFrameClass} aria-hidden="true" />
+          ) : (
+            // Sem arte cadastrada, o quadro se explica em vez de virar uma faixa
+            // cinza sem sentido para quem administra a loja.
+            <div className={heroPlaceholderClass}>
+              <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
+              <p className="text-[0.8125rem] font-medium text-muted-foreground">Arte aqui</p>
+              {medida ? (
+                <p className="text-[0.6875rem] text-muted-foreground/70">
+                  {rotulo} · {medida.proporcao} · {formatEntrega(medida)}
+                </p>
+              ) : null}
+            </div>
+          )
         ) : !carrossel ? (
           <div className={heroFrameClass}>
             <HeroSlideFrame

@@ -6,16 +6,19 @@ function hasPasswordRecoveryUrlHint(): boolean {
 
   const searchParams = new URLSearchParams(window.location.search);
   const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const isRecoveryPath = window.location.pathname === "/recuperar-senha";
   const isRecoveryType =
     searchParams.get("type") === "recovery" ||
     hashParams.get("type") === "recovery" ||
     searchParams.get("mode") === "recovery";
+  const hasRecoveryToken =
+    searchParams.has("code") ||
+    searchParams.has("token_hash") ||
+    hashParams.has("access_token");
 
   return (
     isRecoveryType ||
-    searchParams.has("code") ||
-    searchParams.has("token_hash") ||
-    hashParams.has("access_token")
+    (isRecoveryPath && hasRecoveryToken)
   );
 }
 

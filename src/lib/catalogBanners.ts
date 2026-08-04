@@ -1,3 +1,5 @@
+import { normalizeStoragePublicUrl } from "./storageUrls";
+
 export const CATALOG_BANNERS_TABLE = "clinic+b2b_catalog_banners";
 
 export type CatalogBanner = {
@@ -41,10 +43,10 @@ export function normalizeCatalogBannerFromSupabaseRow(row: unknown): CatalogBann
   return {
     id: typeof record.id === "string" ? record.id : "",
     label: typeof record.label === "string" ? record.label : "Banner",
-    image_url: typeof record.image_url === "string" ? record.image_url : "",
-    image_url_avif: normalizeOptionalText(record.image_url_avif),
-    image_url_mobile: normalizeOptionalText(record.image_url_mobile),
-    image_url_mobile_avif: normalizeOptionalText(record.image_url_mobile_avif),
+    image_url: normalizeStoragePublicUrl(record.image_url as string | null | undefined, "product-images") ?? "",
+    image_url_avif: normalizeStoragePublicUrl(record.image_url_avif as string | null | undefined, "product-images"),
+    image_url_mobile: normalizeStoragePublicUrl(record.image_url_mobile as string | null | undefined, "product-images"),
+    image_url_mobile_avif: normalizeStoragePublicUrl(record.image_url_mobile_avif as string | null | undefined, "product-images"),
     link_url: normalizeOptionalText(record.link_url),
     sort_order: Number.isFinite(Number(record.sort_order)) ? Math.trunc(Number(record.sort_order)) : 0,
     active: Boolean(record.active),

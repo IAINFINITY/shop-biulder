@@ -1,3 +1,5 @@
+import { normalizeStoragePublicUrl } from "./storageUrls";
+
 export const CATALOG_NOTIFICATIONS_TABLE = "clinic+b2b_catalog_notifications";
 
 export type CatalogNotification = {
@@ -39,7 +41,7 @@ export function normalizeCatalogNotificationFromSupabaseRow(row: unknown): Catal
     title: typeof record.title === "string" ? record.title : "Notificação",
     summary: typeof record.summary === "string" ? record.summary : "",
     body: typeof record.body === "string" ? record.body : "",
-    image_url: normalizeOptionalText(record.image_url),
+    image_url: normalizeStoragePublicUrl(record.image_url as string | null | undefined, "product-images"),
     cta_label: normalizeOptionalText(record.cta_label),
     cta_url: normalizeOptionalText(record.cta_url),
     target_user_id: normalizeOptionalText(record.target_user_id),

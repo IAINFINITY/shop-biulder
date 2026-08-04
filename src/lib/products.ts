@@ -1,4 +1,5 @@
 import { coercePrice } from "./formatMoney";
+import { normalizeStoragePublicUrl } from "./storageUrls";
 
 /**
  * Como a foto ocupa a moldura 1:1 do catalogo.
@@ -91,7 +92,7 @@ export function resolveProductImageUrls(
   image_url: string | null | undefined,
   image_urls: unknown,
 ): string[] {
-  const primary = typeof image_url === "string" ? image_url.trim() : "";
+  const primary = normalizeStoragePublicUrl(image_url, "product-images") ?? "";
   const fromArray = parseSupabaseTextArray(image_urls);
   const urls: string[] = [];
   const seen = new Set<string>();

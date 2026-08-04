@@ -29,8 +29,9 @@ import {
   parsePriceInput,
   priceToAdminInput,
 } from "@/lib/formatMoney";
-import { uploadProductImageFile, deleteStorageImage } from "@/lib/productImageStorage";
+import { uploadProductImageFile, deleteStorageImage, nextProductImageObjectName, normalizeProductGalleryNames } from "@/lib/productImageStorage";
 import {
+  PRODUCT_IMAGE_FRAME,
   PRODUCT_IMAGE_MIN_SIZE,
   PRODUCT_IMAGE_TARGET_WIDTH,
   PRODUCT_IMAGE_TARGET_HEIGHT,
@@ -571,6 +572,13 @@ export default function AdminWorkspace() {
       toast.error("Abra ou crie um produto antes de enviar a foto.");
       return;
     }
+    // A foto vai para o storage com o codigo do produto como nome (`7912.webp`,
+    // `7912_2.webp`) — mesma convencao do envio em lote. Sem codigo nao ha nome,
+    // e o arquivo entraria como UUID, invisivel para o lote e para a biblioteca.
+    if (!editing.productCode.trim()) {
+      toast.error("Informe o código do produto antes de enviar a foto.");
+      return;
+    }
     if (editing.image_urls.length >= PRODUCT_MAX_IMAGES) {
       toast.error(`Máximo de ${PRODUCT_MAX_IMAGES} imagens por produto.`);
       return;
@@ -596,7 +604,10 @@ export default function AdminWorkspace() {
       }
     }
 
-    const result = await uploadProductImageFile(file);
+    const result = await uploadProductImageFile(file, {
+      frame: PRODUCT_IMAGE_FRAME,
+      nome: nextProductImageObjectName(editing.productCode, editing.image_urls) ?? undefined,
+    });
     setUploading(false);
 
     if (result.ok === false) {
@@ -673,13 +684,25 @@ export default function AdminWorkspace() {
       return;
     }
 
+    // O nome do arquivo acompanha a posicao na galeria (`7912.webp` = capa,
+    // `7912_2.webp` = segunda foto). Remover uma foto do meio ou reordenar deixa
+    // os nomes dessincronizados com as posicoes; renomear aqui, antes de gravar,
+    // garante que o banco e o storage saiam sempre coerentes.
+    const cleanUrls = editing.image_urls.filter((u) => u.trim() !== "");
+    const normalized = await normalizeProductGalleryNames(editing.productCode, cleanUrls);
+    if (!normalized.ok) {
+      toast.error(normalized.message);
+      return;
+    }
+    const finalUrls = normalized.urls;
+
     const { withGallery } = buildProductDbPayload({
       name: editing.name,
       description,
       brand: editing.brand,
       type: editing.type,
       family: editing.family.trim(),
-      image_urls: editing.image_urls.filter((u) => u.trim() !== ""),
+      image_urls: finalUrls,
       image_alts: editing.image_alts,
       image_fit: editing.image_fit,
       active: editing.active,

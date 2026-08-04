@@ -189,6 +189,129 @@ export function isProductImageStorageUrl(publicUrl: string | null | undefined): 
   return extractStoragePath(publicUrl) !== null;
 }
 
+function publicUrlOf(objectPath: string): string {
+  return supabase.storage.from(BUCKET).getPublicUrl(objectPath).data.publicUrl;
+}
+
+function extensionOf(objectPath: string): string {
+  const dot = objectPath.lastIndexOf(".");
+  return dot === -1 ? "webp" : objectPath.slice(dot + 1).toLowerCase();
+}
+
+function safeObjectName(code: string): string {
+  return code.trim().replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Proximo nome para um upload novo, na convencao `code.webp`, `code_2.webp`...
+ *
+ * Usa os caminhos ja presentes na galeria para achar o maior indice usado e
+ * avanca a partir dele. Sem isso, remover uma foto do meio deixaria um buraco
+ * e o upload seguinte colidiria com o arquivo que ficou — a posicao final so e
+ * garantida no save, por `normalizeProductGalleryNames`, mas o nome do upload
+ * precisa ser seguro desde ja.
+ */
+export function nextProductImageObjectName(code: string, currentUrls: string[]): string | null {
+  const safe = safeObjectName(code);
+  if (!safe) return null;
+
+  let maxIndex = 0;
+  for (const url of currentUrls) {
+    const path = extractStoragePath(url);
+    if (!path) continue;
+    const stem = path.replace(/\.[^./]+$/, "");
+    if (stem === safe) {
+      maxIndex = Math.max(maxIndex, 1);
+    } else if (stem.startsWith(`${safe}_`)) {
+      const suffix = stem.slice(safe.length + 1);
+      if (/^\d+$/.test(suffix)) maxIndex = Math.max(maxIndex, Number(suffix));
+    }
+  }
+
+  return maxIndex === 0 ? safe : `${safe}_${maxIndex + 1}`;
+}
+
+/** Mesmo motivo de `UploadProductImageResult`. */
+export type NormalizeGalleryResult =
+  | { ok: true; urls: string[]; message?: undefined }
+  | { ok: false; urls?: undefined; message: string };
+
+/**
+ * Renomeia a galeria inteira para casar o nome com a posicao final.
+ *
+ * `code.webp` para a capa, `code_2.webp` para a segunda foto, e assim por
+ * diante, na ordem em que a lista chega. E o que mantem a convencao valendo
+ * depois de remover uma foto do meio ou reordenar: o nome acompanha a posicao,
+ * nao a ordem em que os arquivos foram enviados.
+ *
+ * A ordem importa. Mover um arquivo para o alvo de outro (por exemplo
+ * `code_3.webp` -> `code_2.webp` quando a segunda foto sai) sobrescreveria o
+ * destino. Por isso cada arquivo vai primeiro para um nome temporario e so
+ * depois para o alvo final; se qualquer passo falhar, tudo volta ao estado
+ * anterior.
+ */
+export async function normalizeProductGalleryNames(code: string, urls: string[]): Promise<NormalizeGalleryResult> {
+  const safe = safeObjectName(code);
+  if (!safe) return { ok: true, urls };
+
+  const plan: Array<{ url: string; current: string; target: string }> = [];
+  for (let index = 0; index < urls.length; index += 1) {
+    const url = urls[index];
+    const current = extractStoragePath(url);
+    if (!current) continue;
+    const target = `${safe}${index === 0 ? "" : `_${index + 1}`}.${extensionOf(current)}`;
+    plan.push({ url, current, target });
+  }
+
+  const pending = plan.filter((m) => m.current !== m.target);
+  if (pending.length === 0) return { ok: true, urls };
+
+  const temp: Record<string, string> = {};
+  for (const m of pending) temp[m.current] = `${Date.now()}-${crypto.randomUUID()}-tmp.${extensionOf(m.current)}`;
+
+  const done: Array<{ current: string; temp: string; target: string }> = [];
+
+  try {
+    // Fase 1: para um nome temporario, liberando todos os alvos ao mesmo tempo.
+    for (const m of pending) {
+      const { error } = await supabase.storage.from(BUCKET).move(m.current, temp[m.current]);
+      if (error) throw new Error(`mover ${m.current}: ${error.message}`);
+    }
+
+    // Fase 2: do temporario para o alvo final. Nenhum alvo esta ocupado agora,
+    // entao nao ha risco de sobrescrever o arquivo de outra posicao.
+    for (const m of pending) {
+      const { error } = await supabase.storage.from(BUCKET).move(temp[m.current], m.target);
+      if (error) throw new Error(`mover ${temp[m.current]}: ${error.message}`);
+      done.push({ current: m.current, temp: temp[m.current], target: m.target });
+    }
+  } catch (err) {
+    // Desfaz o que ja moveu, da fase 2 de volta ao temporario e da fase 1 de
+    // volta ao original.
+    for (const m of [...done].reverse()) {
+      await supabase.storage.from(BUCKET).move(m.target, m.temp);
+    }
+    for (const m of pending) {
+      if (done.some((d) => d.current === m.current)) continue;
+      await supabase.storage.from(BUCKET).move(temp[m.current], m.current);
+    }
+    return {
+      ok: false,
+      message: `Não foi possível renomear as fotos: ${err instanceof Error ? err.message : "erro desconhecido"}`,
+    };
+  }
+
+  const moved = new Map(plan.map((m) => [m.current, m.target]));
+  return {
+    ok: true,
+    urls: urls.map((url) => {
+      const current = extractStoragePath(url);
+      const target = current ? moved.get(current) : null;
+      return target ? publicUrlOf(target) : url;
+    }),
+  };
+}
+
 /** Mesmo motivo de `UploadProductImageResult`. */
 export type DeleteImageResult =
   | { ok: true; message?: undefined }

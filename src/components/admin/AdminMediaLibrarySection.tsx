@@ -27,6 +27,52 @@ import { AdminSectionHeader } from "./AdminSectionHeader";
 
 const BUCKET = "product-images";
 
+type StorageListItem = {
+  id: string | null;
+  name: string;
+  created_at: string | null;
+  metadata?: { size?: number } | null;
+};
+
+async function listBucketFiles(path = ""): Promise<
+  { name: string; publicUrl: string; sizeBytes: number | null; createdAt: string | null }[]
+> {
+  const collected: { name: string; publicUrl: string; sizeBytes: number | null; createdAt: string | null }[] = [];
+  const pageSize = 100;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.storage.from(BUCKET).list(path, { limit: pageSize, offset });
+    if (error) throw error;
+
+    const page = ((data ?? []) as StorageListItem[]).filter((item) => typeof item.name === "string" && item.name.trim().length > 0);
+    if (page.length === 0) break;
+
+    for (const item of page) {
+      if (item.id === null) {
+        const nestedPath = path ? `${path}/${item.name}` : item.name;
+        const nested = await listBucketFiles(nestedPath);
+        collected.push(...nested);
+        continue;
+      }
+
+      const fullPath = path ? `${path}/${item.name}` : item.name;
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(BUCKET).getPublicUrl(fullPath);
+      collected.push({
+        name: fullPath,
+        publicUrl,
+        sizeBytes: typeof item.metadata?.size === "number" ? (item.metadata.size as number) : null,
+        createdAt: item.created_at ?? null,
+      });
+    }
+
+    if (page.length < pageSize) break;
+  }
+
+  return collected;
+}
+
 /**
  * Os tres estados sao filtro e legenda ao mesmo tempo.
  *
@@ -75,42 +121,14 @@ export function AdminMediaLibrarySection({ products }: Props) {
   const {
     data: files = [],
     isLoading,
+    isError,
+    error,
     refetch,
   } = useQuery({
     queryKey: ["admin-media-library"],
     staleTime: 60_000,
     queryFn: async () => {
-      // O storage devolve no maximo 100 por chamada: sem paginar, a biblioteca
-      // enxergava so parte do bucket e marcava como sem uso o que nao tinha
-      // carregado.
-      const collected: { name: string; publicUrl: string; sizeBytes: number | null; createdAt: string | null }[] = [];
-      const pageSize = 100;
-
-      for (let offset = 0; ; offset += pageSize) {
-        const { data, error } = await supabase.storage
-          .from(BUCKET)
-          .list("", { limit: pageSize, offset, sortBy: { column: "created_at", order: "desc" } });
-
-        if (error) throw error;
-        const page = (data ?? []).filter((item) => item.id !== null);
-        if (page.length === 0) break;
-
-        for (const item of page) {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from(BUCKET).getPublicUrl(item.name);
-          collected.push({
-            name: item.name,
-            publicUrl,
-            sizeBytes: typeof item.metadata?.size === "number" ? (item.metadata.size as number) : null,
-            createdAt: item.created_at ?? null,
-          });
-        }
-
-        if (page.length < pageSize) break;
-      }
-
-      return collected;
+      return listBucketFiles("");
     },
   });
 
@@ -358,6 +376,15 @@ export function AdminMediaLibrarySection({ products }: Props) {
               destructive
               onConfirm={removeAllReplaced}
             />
+          </div>
+        ) : null}
+
+        {isError ? (
+          <div className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <p className="font-medium">Não consegui ler o bucket `product-images`.</p>
+            <p className="mt-1 text-destructive/80">
+              {error instanceof Error ? error.message : "O Storage retornou erro ao listar os arquivos."}
+            </p>
           </div>
         ) : null}
       </div>

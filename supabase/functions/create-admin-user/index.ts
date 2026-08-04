@@ -103,7 +103,7 @@ export default {
       const userId = created.user.id;
 
       const { error: roleErr } = await supabaseAdmin
-        .from("user_roles")
+        .from("clinic+b2b_user_roles")
         .insert({ user_id: userId, role: normalizedRole });
 
       if (roleErr) {
@@ -116,12 +116,12 @@ export default {
         });
       }
 
-      const { error: userRoleErr } = await supabaseAdmin.from("user_roles")
+      const { error: userRoleErr } = await supabaseAdmin.from("clinic+b2b_user_roles")
         .insert({ user_id: userId, role: "user" });
       if (userRoleErr) console.error("Failed to insert user role:", userRoleErr.message);
 
       if (normalizedRole !== "user") {
-        const { error: adminUsersErr } = await supabaseAdmin.from("admin_users")
+        const { error: adminUsersErr } = await supabaseAdmin.from("clinic+b2b_admin_users")
           .insert({ user_id: userId, display_name: displayName || "", is_active: true, permissions: permissions ?? null });
         if (adminUsersErr) console.error("Failed to insert admin_users:", adminUsersErr.message);
       }

@@ -82,7 +82,7 @@ export function useProductReviews(productId: string | undefined, page: number = 
   const addReview = useCallback(
     async (input: ProductReviewInput, userId: string) => {
       if (!productId) return;
-      const { error } = await supabase.from("product_reviews").insert({
+      const { error } = await supabase.from("clinic+b2b_product_reviews").insert({
         product_id: productId,
         user_id: userId,
         rating: input.rating,
@@ -99,7 +99,7 @@ export function useProductReviews(productId: string | undefined, page: number = 
   const updateReview = useCallback(
     async (reviewId: string, input: ProductReviewInput) => {
       const { error } = await supabase
-        .from("product_reviews")
+        .from("clinic+b2b_product_reviews")
         .update({
           rating: input.rating,
           title: input.title ?? null,
@@ -116,7 +116,7 @@ export function useProductReviews(productId: string | undefined, page: number = 
 
   const deleteReview = useCallback(
     async (reviewId: string) => {
-      const { error } = await supabase.from("product_reviews").delete().eq("id", reviewId);
+      const { error } = await supabase.from("clinic+b2b_product_reviews").delete().eq("id", reviewId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["product-reviews", productId] });
     },

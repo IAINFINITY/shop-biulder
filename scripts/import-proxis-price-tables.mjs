@@ -32,8 +32,8 @@ const env = Object.fromEntries(
     }),
 );
 
-const TABLE = "customer_price_overrides";
-const CATALOG = "Clinic+ - Catálogo Front B2B";
+const TABLE = "clinic+b2b_customer_price_overrides";
+const CATALOG = "clinic+b2b_clinic_catalogo_front_b2b";
 /** Todas as tabelas do Proxis sao de cliente; o tipo separa so o fallback. */
 const CUSTOMER_TYPE = "cliente";
 
@@ -104,7 +104,7 @@ if (erroCatalogo) {
 const codigosDoCatalogo = new Set((produtos ?? []).map((p) => toCode(p.product_code)).filter(Boolean));
 
 // Quais tabelas realmente interessam: as que algum cliente usa.
-const { data: perfis } = await supabase.from("customer_profiles").select("proxis_tpr_id");
+const { data: perfis } = await supabase.from("clinic+b2b_customer_profiles").select("proxis_tpr_id");
 const tprsEmUso = new Set((perfis ?? []).map((p) => p.proxis_tpr_id).filter((v) => typeof v === "number"));
 
 let brutas = [];
@@ -134,7 +134,7 @@ for (const tabela of alvo) {
     .eq("proxis_tpr_id", tabela.tprId);
   const zerosAtuais = (atual ?? []).filter((r) => Number(r.price) === 0).length;
 
-  console.log(`tpr ${tabela.tprId} — ${tabela.description}`);
+  console.log(`tpr ${tabela.tprId} - ${tabela.description}`);
   console.log(`  no Proxis: ${tabela.items.size} itens  |  batem com o catalogo: ${doCatalogo.length}`);
   console.log(`  itens que o site nao vende: ${foraDoCatalogo} (descartados)`);
   console.log(`  produtos do catalogo sem preco nesta tabela: ${semPreco} (caem no fallback)`);
@@ -165,4 +165,4 @@ for (const tabela of alvo) {
   console.log(`  gravado: ${linhas.length} linhas`);
 }
 
-if (!apply) console.log("\nSimulacao — nada foi gravado. Use --apply para gravar.");
+if (!apply) console.log("\nSimulacao - nada foi gravado. Use --apply para gravar.");

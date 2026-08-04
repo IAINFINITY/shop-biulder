@@ -1,4 +1,4 @@
-export const CATALOG_BANNERS_TABLE = "catalog_banners";
+export const CATALOG_BANNERS_TABLE = "clinic+b2b_catalog_banners";
 
 export type CatalogBanner = {
   id: string;

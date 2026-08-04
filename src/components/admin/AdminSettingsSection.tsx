@@ -73,7 +73,7 @@ export function AdminSettingsSection() {
     queryFn: async () => {
       if (!user) return null;
       const { data } = await supabase
-        .from("user_roles")
+        .from("clinic+b2b_user_roles")
         .select("role")
         .eq("user_id", user.id)
         .in("role", ["superadmin", "admin", "consultor", "representante", "admin_atendimento"])

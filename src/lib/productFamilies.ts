@@ -1,4 +1,4 @@
-export const PRODUCT_FAMILIES_TABLE = "product_families";
+export const PRODUCT_FAMILIES_TABLE = "clinic+b2b_product_families";
 
 export type ProductFamily = {
   id: string;

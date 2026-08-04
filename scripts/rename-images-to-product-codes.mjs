@@ -23,7 +23,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 const BUCKET = "product-images";
-const TABELA = "Clinic+ - Catálogo Front B2B";
+const TABELA = "clinic+b2b_clinic_catalogo_front_b2b";
 
 const aplicar = process.argv.includes("--apply");
 

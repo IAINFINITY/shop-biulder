@@ -93,7 +93,7 @@ async function main() {
 
   console.log(`\nTotal objects: ${all.length}`);
   console.log(`Already .webp: ${alreadyWebP.length}`);
-  console.log(`To rename (→ .webp): ${toRename.length}`);
+  console.log(`To rename (-> .webp): ${toRename.length}`);
   console.log("");
 
   if (toRename.length === 0) {
@@ -101,9 +101,9 @@ async function main() {
     return;
   }
 
-  console.log(`⚠️  This will rename ${toRename.length} files:`);
+  console.log(`! This will rename ${toRename.length} files:`);
   for (const f of toRename) {
-    console.log(`     ${f.name} → ${toWebpName(f.name)}`);
+    console.log(`     ${f.name} -> ${toWebpName(f.name)}`);
   }
   console.log("");
 
@@ -113,7 +113,7 @@ async function main() {
   for (const file of toRename) {
     const { name } = file;
     try {
-      process.stdout.write(`  [${renamed.length + 1}/${toRename.length}] ${name} → ${toWebpName(name)} ... `);
+      process.stdout.write(`  [${renamed.length + 1}/${toRename.length}] ${name} -> ${toWebpName(name)} ... `);
       const result = await renameFile(name);
       renamed.push(result);
       console.log(`OK`);
@@ -137,9 +137,9 @@ async function main() {
   // Step 4: Update simple image_url columns
   console.log("\nStep 3: Updating database URLs...");
   const simpleTables = [
-    { table: "Clinic+ - Catálogo Front B2B", column: "image_url", label: "products" },
-    { table: "catalog_notifications", column: "image_url", label: "notifications" },
-    { table: "catalog_banners", column: "image_url", label: "banners" },
+    { table: "clinic+b2b_clinic_catalogo_front_b2b", column: "image_url", label: "products" },
+    { table: "clinic+b2b_catalog_notifications", column: "image_url", label: "notifications" },
+    { table: "clinic+b2b_catalog_banners", column: "image_url", label: "banners" },
   ];
 
   let totalDbUpdates = 0;
@@ -153,16 +153,16 @@ async function main() {
         .select("id", { count: "exact", head: false });
 
       if (error) {
-        console.error(`  ⚠️  ${label}: error updating ${oldName}: ${error.message}`);
+        console.error(`  ! ${label}: error updating ${oldName}: ${error.message}`);
       } else {
         const matched = Array.isArray(count) ? count.length : (count ?? 0);
         tableCount += matched;
       }
     }
     if (tableCount > 0) {
-      console.log(`  ✅ ${label}: ${tableCount} URL(s) updated`);
+      console.log(`  OK ${label}: ${tableCount} URL(s) updated`);
     } else {
-      console.log(`  ℹ️  ${label}: no matching URLs found`);
+      console.log(`  info ${label}: no matching URLs found`);
     }
     totalDbUpdates += tableCount;
   }
@@ -170,11 +170,11 @@ async function main() {
   // Step 5: Update image_urls array in products table
   console.log("\nStep 4: Updating image_urls arrays in products...");
   const { data: products, error: prodErr } = await supabase
-    .from("Clinic+ - Catálogo Front B2B")
+    .from("clinic+b2b_clinic_catalogo_front_b2b")
     .select("id, image_urls");
 
   if (prodErr) {
-    console.error(`  ⚠️  Failed to fetch products: ${prodErr.message}`);
+    console.error(`  ! Failed to fetch products: ${prodErr.message}`);
   } else {
     let arrayUpdates = 0;
     for (const product of products) {
@@ -192,21 +192,21 @@ async function main() {
 
       if (changed) {
         const { error: upErr } = await supabase
-          .from("Clinic+ - Catálogo Front B2B")
+          .from("clinic+b2b_clinic_catalogo_front_b2b")
           .update({ image_urls: updatedUrls })
           .eq("id", product.id);
 
         if (upErr) {
-          console.error(`  ⚠️  Product ${product.id}: array update failed: ${upErr.message}`);
+          console.error(`  ! Product ${product.id}: array update failed: ${upErr.message}`);
         } else {
           arrayUpdates++;
         }
       }
     }
     if (arrayUpdates > 0) {
-      console.log(`  ✅ ${arrayUpdates} product(s) had image_urls updated`);
+      console.log(`  OK ${arrayUpdates} product(s) had image_urls updated`);
     } else {
-      console.log(`  ℹ️  No products had matching URLs in image_urls`);
+      console.log(`  info No products had matching URLs in image_urls`);
     }
     totalDbUpdates += arrayUpdates;
   }
@@ -214,7 +214,7 @@ async function main() {
   console.log(`\n=== Summary ===`);
   console.log(`Files renamed: ${renamed.length}`);
   console.log(`Database URLs updated: ${totalDbUpdates}`);
-  console.log(`\n✅ Done!`);
+  console.log(`\nDone!`);
 }
 
 main().catch(console.error);

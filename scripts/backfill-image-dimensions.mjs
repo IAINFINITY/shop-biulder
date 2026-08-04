@@ -17,7 +17,7 @@ loadDotenv({ path: path.join(rootDir, ".env") });
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "").trim().replace(/\/$/, "");
 const SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-const PRODUCTS_TABLE = "Clinic+ - Catálogo Front B2B";
+const PRODUCTS_TABLE = "clinic+b2b_clinic_catalogo_front_b2b";
 const DRY_RUN = process.argv.includes("--dry");
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {

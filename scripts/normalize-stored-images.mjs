@@ -39,7 +39,7 @@ const env = Object.fromEntries(
     }),
 );
 
-const TABLE = "Clinic+ - Catálogo Front B2B";
+const TABLE = "clinic+b2b_clinic_catalogo_front_b2b";
 const BUCKET = "product-images";
 // Mesma tolerancia do admin: diferenca menor que isso nao se percebe na moldura.
 const TOLERANCE = 0.08;

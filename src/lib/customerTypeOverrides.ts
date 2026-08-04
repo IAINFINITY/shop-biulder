@@ -1,6 +1,6 @@
 import { onlyDigits } from "@/lib/brazilianIds";
 
-export const CUSTOMER_TYPE_OVERRIDES_TABLE = "customer_type_overrides";
+export const CUSTOMER_TYPE_OVERRIDES_TABLE = "clinic+b2b_customer_type_overrides";
 
 export type CustomerTypeOverride = {
   cnpj: string;

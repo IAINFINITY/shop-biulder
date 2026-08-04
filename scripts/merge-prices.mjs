@@ -99,14 +99,14 @@ for (const name of uniqueNames) {
 
 const outPath = path.join(root, "supabase", "migrations", "20260511120000_add_product_price_and_seed.sql");
 const lines = [
-  `alter table public."Clinic+ - Catálogo Front B2B"`,
+  `alter table public."clinic+b2b_clinic_catalogo_front_b2b"`,
   `  add column if not exists price numeric(12,2) not null default 0;`,
   ``,
 ];
 
 for (const { name, price } of updates) {
   lines.push(
-    `update public."Clinic+ - Catálogo Front B2B" set price = ${price.toFixed(2)} where name = '${sqlEscape(name)}';`
+    `update public."clinic+b2b_clinic_catalogo_front_b2b" set price = ${price.toFixed(2)} where name = '${sqlEscape(name)}';`
   );
 }
 

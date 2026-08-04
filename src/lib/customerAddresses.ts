@@ -1,6 +1,6 @@
 import type { AddressFormData } from "@/lib/address";
 
-export const CUSTOMER_ADDRESSES_TABLE = "customer_addresses";
+export const CUSTOMER_ADDRESSES_TABLE = "clinic+b2b_customer_addresses";
 
 export type CustomerAddress = AddressFormData & {
   id: string;

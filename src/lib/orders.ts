@@ -1,4 +1,4 @@
-﻿import { coercePrice } from "@/lib/formatMoney";
+import { coercePrice } from "@/lib/formatMoney";
 import {
   type OrderEnrichmentMaps,
   type Product,
@@ -7,7 +7,7 @@ import {
 } from "@/lib/products";
 import { resolveProductPrice } from "@/lib/pricing";
 
-export const ORDERS_TABLE = "orders";
+export const ORDERS_TABLE = "clinic+b2b_orders";
 
 export interface OrderItem {
   product_id: string;

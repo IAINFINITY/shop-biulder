@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export const SUPPORT_CONVERSATIONS_TABLE = "support_conversations";
-export const SUPPORT_MESSAGES_TABLE = "support_messages";
+export const SUPPORT_CONVERSATIONS_TABLE = "clinic+b2b_support_conversations";
+export const SUPPORT_MESSAGES_TABLE = "clinic+b2b_support_messages";
 
 export type SupportConversation = {
   id: string;

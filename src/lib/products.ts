@@ -1,4 +1,4 @@
-﻿import { coercePrice } from "./formatMoney";
+import { coercePrice } from "./formatMoney";
 
 /**
  * Como a foto ocupa a moldura 1:1 do catalogo.
@@ -21,8 +21,8 @@ export const PRODUCT_IMAGE_FIT_LABELS: Record<ProductImageFit, string> = {
   cover: "Ambientada (a foto já tem fundo próprio)",
 };
 
-export const PRODUCTS_TABLE = "Clinic+ - Catálogo Front B2B";
-export const PRODUCT_TYPES_TABLE = "product_types";
+export const PRODUCTS_TABLE = "clinic+b2b_clinic_catalogo_front_b2b";
+export const PRODUCT_TYPES_TABLE = "clinic+b2b_product_types";
 
 export interface Product {
   id: string;

@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AddressFormData } from "@/lib/address";
 
-export const CUSTOMER_PROFILES_TABLE = "customer_profiles";
+export const CUSTOMER_PROFILES_TABLE = "clinic+b2b_customer_profiles";
 
 export interface CustomerProfile {
   user_id: string;

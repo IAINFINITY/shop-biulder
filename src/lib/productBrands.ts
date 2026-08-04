@@ -10,7 +10,7 @@
 //   Categoria    -> como se consome    (Chá, Cápsula, Solúvel)
 //   Subcategoria -> o que e            (Camomila, Creatina, Whey)
 
-export const PRODUCT_BRANDS_TABLE = "product_brands";
+export const PRODUCT_BRANDS_TABLE = "clinic+b2b_product_brands";
 
 export type ProductBrand = {
   id: string;

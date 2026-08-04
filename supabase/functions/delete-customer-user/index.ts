@@ -6,10 +6,10 @@ const corsHeaders = new Headers({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
 
-const CUSTOMER_PROFILES_TABLE = "customer_profiles";
-const CUSTOMER_ADDRESSES_TABLE = "customer_addresses";
-const CUSTOMER_TYPE_OVERRIDES_TABLE = "customer_type_overrides";
-const ORDERS_TABLE = "orders";
+const CUSTOMER_PROFILES_TABLE = "clinic+b2b_customer_profiles";
+const CUSTOMER_ADDRESSES_TABLE = "clinic+b2b_customer_addresses";
+const CUSTOMER_TYPE_OVERRIDES_TABLE = "clinic+b2b_customer_type_overrides";
+const ORDERS_TABLE = "clinic+b2b_orders";
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");

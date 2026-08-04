@@ -14,7 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import process from "node:process";
 
-const TABLE = "Clinic+ - Catálogo Front B2B";
+const TABLE = "clinic+b2b_clinic_catalogo_front_b2b";
 const TARGET_RATIO = 4 / 5;
 // Tolerancia de ~8%: o suficiente para absorver diferenca de recorte sem deixar
 // passar foto que perderia parte do rotulo.

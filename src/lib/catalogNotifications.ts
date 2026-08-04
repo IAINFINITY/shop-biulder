@@ -1,4 +1,4 @@
-﻿export const CATALOG_NOTIFICATIONS_TABLE = "catalog_notifications";
+export const CATALOG_NOTIFICATIONS_TABLE = "clinic+b2b_catalog_notifications";
 
 export type CatalogNotification = {
   id: string;

@@ -17,7 +17,7 @@ export function customerTypeLabel(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
-export const CUSTOMER_PRICE_OVERRIDES_TABLE = "customer_price_overrides";
+export const CUSTOMER_PRICE_OVERRIDES_TABLE = "clinic+b2b_customer_price_overrides";
 
 /**
  * Mapa vazio compartilhado, para "ainda nao carregou".

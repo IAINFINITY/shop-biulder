@@ -114,14 +114,14 @@ function buildSql(groups) {
     "-- Execute este arquivo no Supabase para popular as tabelas de preco do ERP.",
     "BEGIN;",
     "",
-    `DELETE FROM public.customer_price_overrides WHERE proxis_tpr_id IN (${groups.map((group) => group.tprId).join(", ")});`,
+    `DELETE FROM public."clinic+b2b_customer_price_overrides" WHERE proxis_tpr_id IN (${groups.map((group) => group.tprId).join(", ")});`,
     "",
   ];
 
   for (const group of groups) {
     lines.push(`-- ${group.fileName}`);
     lines.push(`-- ${group.title} | Codigo Focco: ${group.tprId} | Tabela: ${group.tableLabel}`);
-    lines.push("INSERT INTO public.customer_price_overrides (customer_type, proxis_tpr_id, product_code, price, active) VALUES");
+    lines.push("INSERT INTO public.\"clinic+b2b_customer_price_overrides\" (customer_type, proxis_tpr_id, product_code, price, active) VALUES");
 
     group.entries.forEach((entry, index) => {
       const suffix = index === group.entries.length - 1 ? ";" : ",";

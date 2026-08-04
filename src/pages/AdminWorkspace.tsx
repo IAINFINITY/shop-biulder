@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { Images, LogOut, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,7 @@ export default function AdminWorkspace() {
     enabled: Boolean(user && isAdmin && !isSuperadmin),
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("admin_users")
+        .from("clinic+b2b_admin_users")
         .select("permissions")
         .eq("user_id", user!.id)
         .single();

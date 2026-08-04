@@ -26,8 +26,8 @@ const PROXSIS_FILIAL = (process.env.PROXSIS_FILIAL || "5").trim();
 const SUPABASE_URL = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
 const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 
-const OVERRIDES_TABLE = "customer_price_overrides";
-const CATALOG_TABLE = "Clinic+ - Catálogo Front B2B";
+const OVERRIDES_TABLE = "clinic+b2b_customer_price_overrides";
+const CATALOG_TABLE = "clinic+b2b_clinic_catalogo_front_b2b";
 /** Toda tabela do Proxis e de cliente; o tipo separa apenas o fallback geral. */
 const CUSTOMER_TYPE = "cliente";
 
@@ -93,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Quais tabelas algum cliente usa de fato: sao as que importam.
-      const { data: profiles } = await supabase.from("customer_profiles").select("proxis_tpr_id");
+      const { data: profiles } = await supabase.from("clinic+b2b_customer_profiles").select("proxis_tpr_id");
       const inUse = new Set(
         (profiles ?? []).map((row) => row.proxis_tpr_id).filter((v): v is number => typeof v === "number"),
       );

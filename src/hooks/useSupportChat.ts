@@ -68,7 +68,7 @@ export function useSupportMessages(conversationId: string | null, enabled = true
       const names = new Map<string, string>();
 
       const { data: adminUsers } = await supabase
-        .from("admin_users")
+        .from("clinic+b2b_admin_users")
         .select("user_id, display_name")
         .in("user_id", senderIds);
 
@@ -81,7 +81,7 @@ export function useSupportMessages(conversationId: string | null, enabled = true
       const customerIds = senderIds.filter((id) => !names.has(id));
       if (customerIds.length > 0) {
         const { data: customers } = await supabase
-          .from("customer_profiles")
+          .from("clinic+b2b_customer_profiles")
           .select("user_id, name")
           .in("user_id", customerIds);
 

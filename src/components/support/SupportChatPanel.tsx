@@ -354,7 +354,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
 
     const createConversation = async () => {
       const { data: profile } = await supabase
-        .from("customer_profiles")
+        .from("clinic+b2b_customer_profiles")
         .select("user_id, name, company, phone, cnpj, representante_id")
         .eq("user_id", customerId)
         .single();
@@ -362,7 +362,7 @@ export function SupportChatPanel({ mode }: SupportChatPanelProps) {
       if (!profile) return;
 
       const { data: newConv, error } = await supabase
-        .from("support_conversations")
+        .from("clinic+b2b_support_conversations")
         .insert({
           customer_user_id: profile.user_id,
           customer_name: profile.name,
@@ -1035,7 +1035,7 @@ function NewConversationSearch({ onSelect }: { onSelect: (customerUserId: string
     queryFn: async () => {
       const term = search.trim();
       const { data, error } = await supabase
-        .from("customer_profiles")
+        .from("clinic+b2b_customer_profiles")
         .select("user_id, name, company, phone, cnpj")
         .or(`name.ilike.%${term}%,company.ilike.%${term}%,cnpj.ilike.%${term}%`)
         .order("name", { ascending: true })

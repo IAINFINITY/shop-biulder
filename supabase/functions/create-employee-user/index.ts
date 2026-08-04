@@ -125,7 +125,7 @@ export default {
       const userId = created.user.id;
 
       const { error: profileErr } = await supabaseAdmin
-        .from("customer_profiles")
+        .from("clinic+b2b_customer_profiles")
         .upsert(
           {
             user_id: userId,

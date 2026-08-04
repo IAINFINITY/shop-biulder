@@ -9,7 +9,7 @@ export type CustomerTypeOption = {
   label: string;
 };
 
-const CUSTOMER_TYPES_TABLE = "customer_types";
+const CUSTOMER_TYPES_TABLE = "clinic+b2b_customer_types";
 
 function defaultTypes(): CustomerTypeOption[] {
   return [

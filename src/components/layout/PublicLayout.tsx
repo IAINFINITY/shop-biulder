@@ -81,9 +81,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const isAccountRoute = location.pathname.startsWith("/conta");
   const isOrderRoute = location.pathname.startsWith("/pedido");
   const isLoginRoute = location.pathname === "/login";
+  const isRecoverPasswordRoute = location.pathname === "/recuperar-senha";
   const isProductRoute = location.pathname.startsWith("/produto");
   const isHelpRoute = location.pathname.startsWith("/ajuda");
-  const hideFooter = isAccountRoute || isOrderRoute || isLoginRoute;
+  const hideFooter = isAccountRoute || isOrderRoute || isLoginRoute || isRecoverPasswordRoute;
   const showStoreHeader = isIndexRoute || isProductRoute || isOrderRoute || isHelpRoute;
   const handleSearchSubmit = useCallback((value: string) => {
     const trimmed = value.trim();
@@ -141,7 +142,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         >
           {children}
         </main>
-        {!isLoginRoute ? <MobileBottomNav /> : null}
+        {!isLoginRoute && !isRecoverPasswordRoute ? <MobileBottomNav /> : null}
         {!hideFooter ? <StoreFooter /> : null}
       </div>
     </PublicLayoutContext.Provider>

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,8 +113,18 @@ export default function Login() {
   const [slideDir, setSlideDir] = useState<"right" | "left">("right");
   const [signupEmailStatus, setSignupEmailStatus] = useState<EmailAvailabilityState>("idle");
   const returnTo = getSafeReturnToPath(searchParams.get("returnTo"));
+  const recoveryLink = signInEmail.trim()
+    ? `/recuperar-senha?email=${encodeURIComponent(signInEmail.trim())}`
+    : "/recuperar-senha";
 
   const cnpjValidation = useCnpjValidation(customerForm.cnpj, cnpjTouched);
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email")?.trim();
+    if (emailParam && !signInEmail) {
+      setSignInEmail(emailParam);
+    }
+  }, [searchParams, signInEmail]);
 
   useEffect(() => {
     if (authTab !== "cadastro") {
@@ -356,9 +366,9 @@ export default function Login() {
                     <Checkbox className="h-4 w-4 border-primary data-[state=checked]:bg-primary" />
                     Lembrar acesso
                   </label>
-                  <a href="#" className="text-primary transition-colors hover:text-primary/80">
+                  <Link to={recoveryLink} className="text-primary transition-colors hover:text-primary/80">
                     Esqueceu a senha
-                  </a>
+                  </Link>
                 </div>
 
                 <Button type="submit" className="h-12 w-full rounded-2xl text-sm font-semibold" disabled={submitting}>
@@ -461,7 +471,6 @@ export default function Login() {
     </ClientAuthStage>
   );
 }
-
 
 
 

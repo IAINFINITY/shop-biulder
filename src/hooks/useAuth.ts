@@ -10,6 +10,13 @@ import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType } from "@/lib/pricing";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { translateAuthErrorMessage as translateAuthErrorMessageShared } from "@/lib/authErrors";
+import {
+  PASSWORD_RECOVERY_STORAGE_KEY,
+  capturePasswordRecoveryIntent,
+  clearPasswordRecoveryMarker,
+  isPasswordRecoveryPendingFor,
+  writePasswordRecoveryMarker,
+} from "@/lib/passwordRecovery";
 
 type AuthContextValue = {
   user: User | null;
@@ -17,10 +24,12 @@ type AuthContextValue = {
   isSuperadmin: boolean;
   isCustomer: boolean;
   customerProfile: CustomerProfile | null;
+  isPasswordRecovery: boolean;
   loading: boolean;
   isResolvingAccess: boolean;
   signIn: (email: string, password: string) => Promise<Error | null>;
   signUp: (email: string, password: string) => Promise<Error | null>;
+  requestPasswordReset: (email: string) => Promise<Error | null>;
   signUpCustomer: (data: CustomerRegistrationData) => Promise<{ error: Error | null; needsEmailConfirmation: boolean }>;
   registerCustomerProfile: (
     data: Omit<CustomerRegistrationData, "email" | "password">,
@@ -34,6 +43,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 let authResolutionCounter = 0;
 const AUTH_BOOTSTRAP_STORAGE_KEY = "clinicplus_auth_bootstrap";
 const AUTH_PROFILE_STORAGE_KEY = "clinicplus_customer_profile_cache";
+
+capturePasswordRecoveryIntent();
 
 function normalizeCustomerProfile(profile: CustomerProfile): CustomerProfile {
   return {
@@ -146,6 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(bootstrapSnapshot?.user ?? null);
   const [isAdmin, setIsAdmin] = useState(bootstrapSnapshot?.isAdmin ?? false);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(
+    Boolean(bootstrapSnapshot?.user && isPasswordRecoveryPendingFor(bootstrapSnapshot.user.id)),
+  );
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(
     bootstrapSnapshot?.user ? readCachedCustomerProfile(bootstrapSnapshot.user.id) : null,
   );
@@ -244,13 +258,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchCustomerProfile]);
 
-  const resolveAuthState = useCallback(async (nextUser: User | null, forceRefresh = false) => {
+  const resolveAuthState = useCallback(async (nextUser: User | null, forceRefresh = false, passwordRecovery = false) => {
     if (!nextUser) {
       authResolutionCounter += 1;
       activeUserIdRef.current = null;
       userRef.current = null;
       isAdminRef.current = false;
       isSuperadminRef.current = false;
+      setIsPasswordRecovery(false);
       setUser(null);
       setIsAdmin(false);
       setIsSuperadmin(false);
@@ -262,9 +277,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (passwordRecovery) {
+      writePasswordRecoveryMarker(nextUser.id);
+    }
+    const nextIsPasswordRecovery = passwordRecovery || isPasswordRecoveryPendingFor(nextUser.id);
+
+    if (nextIsPasswordRecovery) {
+      authResolutionCounter += 1;
+      activeUserIdRef.current = nextUser.id;
+      userRef.current = nextUser;
+      isAdminRef.current = false;
+      isSuperadminRef.current = false;
+      setUser(nextUser);
+      setIsAdmin(false);
+      setIsSuperadmin(false);
+      setCustomerProfile(null);
+      setIsPasswordRecovery(true);
+      setIsResolvingAccess(false);
+      setLoading(false);
+      return;
+    }
+
     if (!forceRefresh && activeUserIdRef.current === nextUser.id && userRef.current?.id === nextUser.id) {
       userRef.current = nextUser;
       setUser(nextUser);
+      setIsPasswordRecovery(nextIsPasswordRecovery);
       setIsResolvingAccess(false);
       setLoading(false);
       return;
@@ -277,6 +314,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextUser);
     isAdminRef.current = false;
     isSuperadminRef.current = false;
+    setIsPasswordRecovery(nextIsPasswordRecovery);
     setIsAdmin(false);
     setIsSuperadmin(false);
     setCustomerProfile(readCachedCustomerProfile(nextUser.id));
@@ -311,6 +349,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       const supabase = await loadSupabaseClient();
+      if (!mounted) return;
+
+      const result = supabase.auth.onAuthStateChange((event, session) => {
+        if (!mounted) return;
+        if (event === "SIGNED_OUT") {
+          clearPasswordRecoveryMarker();
+        }
+        if (!session?.user && activeUserIdRef.current && event !== "SIGNED_OUT") {
+          return;
+        }
+        if (event === "TOKEN_REFRESHED" && session?.user && activeUserIdRef.current === session.user.id) {
+          return;
+        }
+        void resolveAuthState(session?.user ?? null, false, event === "PASSWORD_RECOVERY");
+      });
+      authSubscriptionRef.current = result.data.subscription;
+
       try {
         const { data } = await supabase.auth.getSession();
         const currentUser = data.session?.user ?? null;
@@ -322,25 +377,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void initAuth();
 
-    void loadSupabaseClient().then((supabase) => {
-      if (!mounted) return;
-      const result = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (!mounted) return;
-        if (!session?.user && activeUserIdRef.current && event !== "SIGNED_OUT") {
-          return;
-        }
-        if (event === "TOKEN_REFRESHED" && session?.user && activeUserIdRef.current === session.user.id) {
-          return;
-        }
-        void resolveAuthState(session?.user ?? null);
-      });
-      authSubscriptionRef.current = result.data.subscription;
-    });
-
     return () => {
       mounted = false;
     };
   }, [resolveAuthState]);
+
+  useEffect(() => {
+    const syncPasswordRecovery = (event: StorageEvent) => {
+      if (event.key !== PASSWORD_RECOVERY_STORAGE_KEY) return;
+      setIsPasswordRecovery(Boolean(userRef.current && isPasswordRecoveryPendingFor(userRef.current.id)));
+    };
+
+    window.addEventListener("storage", syncPasswordRecovery);
+    return () => window.removeEventListener("storage", syncPasswordRecovery);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -367,6 +417,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    clearPasswordRecoveryMarker();
+    setIsPasswordRecovery(false);
     const supabase = await loadSupabaseClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -390,6 +442,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = await loadSupabaseClient();
     const { error } = await supabase.auth.signUp({ email, password });
     return error;
+  };
+
+  const requestPasswordReset = async (email: string) => {
+    const supabase = await loadSupabaseClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/recuperar-senha`,
+    });
+
+    if (error) {
+      return new Error(translateAuthErrorMessageShared(error.message || "Erro ao enviar link de recuperação."));
+    }
+
+    return null;
   };
 
   const registerCustomerProfile = async (data: Omit<CustomerRegistrationData, "email" | "password">) => {
@@ -466,10 +531,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    const supabase = await loadSupabaseClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) return { error };
+
     authResolutionCounter += 1;
     setUser(null);
     setIsAdmin(false);
     setIsSuperadmin(false);
+    setIsPasswordRecovery(false);
+    clearPasswordRecoveryMarker();
     setCustomerProfile(null);
     setIsResolvingAccess(false);
     activeUserIdRef.current = null;
@@ -478,9 +549,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isSuperadminRef.current = false;
     clearAuthBootstrap();
     clearCachedCustomerProfile();
-    const supabase = await loadSupabaseClient();
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    return { error: null };
   };
 
   const value: AuthContextValue = {
@@ -489,10 +558,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isSuperadmin,
     isCustomer: !!customerProfile,
     customerProfile,
+    isPasswordRecovery,
     loading,
     isResolvingAccess,
     signIn,
     signUp,
+    requestPasswordReset,
     signUpCustomer,
     registerCustomerProfile,
     signOut,

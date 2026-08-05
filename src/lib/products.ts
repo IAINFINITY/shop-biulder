@@ -1,5 +1,5 @@
 import { coercePrice } from "./formatMoney";
-import { normalizeStoragePublicUrl } from "./storageUrls";
+import { normalizeStoragePublicUrl, storageObjectKey } from "./storageUrls";
 
 /**
  * Como a foto ocupa a moldura 1:1 do catalogo.
@@ -76,7 +76,11 @@ export function parseSupabaseTextArray(value: unknown): string[] {
     const inner = s.slice(1, -1).trim();
     if (!inner) return [];
     return inner
-      .split(/,(=(:(:[^"]*"){2})*[^"]*$)/)
+      // Virgula fora de aspas: so separa quando o resto da string tem um numero
+      // par de aspas pela frente. Os `?` do lookahead e dos grupos nao-capturantes
+      // sao essenciais — sem eles o padrao vira grupo de captura e o `split`
+      // injeta o que capturou no meio do resultado.
+      .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
       .map((part) => {
         let p = part.trim();
         if (p.startsWith('"') && p.endsWith('"')) p = p.slice(1, -1);
@@ -88,22 +92,39 @@ export function parseSupabaseTextArray(value: unknown): string[] {
   return [];
 }
 
+export const PRODUCT_IMAGES_BUCKET = "product-images";
+
+/**
+ * Galeria do produto a partir das duas colunas: `image_url` (capa, legada) e
+ * `image_urls` (galeria).
+ *
+ * Os dois lados precisam passar pela normalizacao de host. Normalizar so a capa
+ * fazia a mesma foto entrar duas vezes depois da troca de projeto do Supabase: a
+ * capa vinha reescrita para o host novo, a galeria vinha crua com o host antigo,
+ * e o dedupe por string exata nao via que eram o mesmo arquivo.
+ *
+ * A comparacao e pelo caminho do objeto no bucket, e nao pela URL: assim
+ * host, query de cache e escape de caractere deixam de produzir falsos
+ * distintos.
+ */
 export function resolveProductImageUrls(
   image_url: string | null | undefined,
   image_urls: unknown,
 ): string[] {
-  const primary = normalizeStoragePublicUrl(image_url, "product-images") ?? "";
-  const fromArray = parseSupabaseTextArray(image_urls);
   const urls: string[] = [];
   const seen = new Set<string>();
-  const add = (u: string) => {
-    const t = u.trim();
-    if (!t || seen.has(t)) return;
-    seen.add(t);
-    urls.push(t);
+  const add = (candidate: string | null | undefined) => {
+    if (typeof candidate !== "string") return;
+    const normalized = (normalizeStoragePublicUrl(candidate, PRODUCT_IMAGES_BUCKET) ?? candidate).trim();
+    if (!normalized) return;
+    const key = storageObjectKey(normalized, PRODUCT_IMAGES_BUCKET) ?? normalized;
+    if (seen.has(key)) return;
+    seen.add(key);
+    urls.push(normalized);
   };
-  if (primary) add(primary);
-  for (const u of fromArray) add(u);
+
+  add(image_url);
+  for (const url of parseSupabaseTextArray(image_urls)) add(url);
   return urls;
 }
 

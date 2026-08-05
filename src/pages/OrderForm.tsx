@@ -26,6 +26,7 @@ import { useCustomerAddresses } from "@/hooks/useCustomerAddresses";
 import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
 import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
+import { apiFetch } from "@/lib/apiFetch";
 import { profileAddressToForm, saveCustomerProfileAddress } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
@@ -392,9 +393,8 @@ export default function OrderForm() {
       // e ele aparece na fila de reconciliacao do painel. Por isso a falha e
       // apenas registrada no console, sem alarmar quem esta comprando.
       try {
-        const proxisRes = await fetch("/api/proxis-order", {
+        const proxisRes = await apiFetch("/api/proxis-order", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             submission_key: submissionKey,
             customer_name: form.name.trim(),
@@ -427,9 +427,8 @@ export default function OrderForm() {
       }
 
       try {
-        const bitrixRes = await fetch("/api/bitrix-deal", {
+        const bitrixRes = await apiFetch("/api/bitrix-deal", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             customer_name: form.name.trim(),
             customer_company: form.company.trim(),

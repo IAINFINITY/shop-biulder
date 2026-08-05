@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { canActForCnpj } from "../src/lib/apiAuth.js";
+import { requireAuth } from "./_auth.js";
 
 const BITRIX_WEBHOOK_BASE_URL = process.env.BITRIX_WEBHOOK_BASE_URL || "";
 const BITRIX_PIPELINE_ID = process.env.BITRIX_PIPELINE_ID || "";
@@ -113,16 +115,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   if (!BITRIX_WEBHOOK_BASE_URL) {
     return res.status(500).json({ error: "Bitrix webhook not configured on server" });
   }
 
   const body = req.body as BitrixOrderBody;
 
-  if (!body.customer_name || !body.customer_company || !body.customer_cnpj || !body.items.length) {
+  if (!body.customer_name || !body.customer_company || !body.customer_cnpj || !body.items?.length) {
     return res.status(400).json({
       error: "Missing required fields: customer_name, customer_company, customer_cnpj, items",
     });
+  }
+
+  if (!canActForCnpj(auth, body.customer_cnpj)) {
+    console.warn("[bitrix-deal] CNPJ fora do escopo do usuário", { user_id: auth.userId });
+    return res.status(403).json({ error: "CNPJ não corresponde ao cadastro da conta" });
   }
 
   try {

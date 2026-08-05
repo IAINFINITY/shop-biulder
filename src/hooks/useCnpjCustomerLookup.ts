@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { onlyDigits } from "@/lib/brazilianIds";
+import { apiFetch } from "@/lib/apiFetch";
 
 export type CnpjCustomerSuggestion = {
   name: string;
@@ -38,9 +39,8 @@ export function useCnpjCustomerLookup(cnpj: string, active: boolean) {
     const timeout = window.setTimeout(async () => {
       try {
         setStatus("loading");
-        const response = await fetch("/api/proxis-customer", {
+        const response = await apiFetch("/api/proxis-customer", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ cnpj: cnpjDigits }),
           signal: controller.signal,
         });

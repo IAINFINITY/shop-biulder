@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "./_auth.js";
 import { fetchAllProxisPriceTables, toPriceOverrideRows } from "../src/lib/proxisPriceTables.js";
 
 /**
@@ -68,6 +69,10 @@ async function loadCatalogCodes(): Promise<Set<string>> {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Sincroniza tabela de preço: operação de administração.
+  const auth = await requireAuth(req, res, { adminOnly: true });
+  if (!auth) return;
+
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(500).json({ error: "Integração com o Proxis não configurada." });
   }

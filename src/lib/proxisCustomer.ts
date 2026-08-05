@@ -1,4 +1,5 @@
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 
 export type ProxisCustomerLookupResult = {
   found: boolean;
@@ -35,9 +36,8 @@ const EMPTY_LOOKUP_RESULT: ProxisCustomerLookupResult = {
 };
 
 export async function lookupProxisCustomerByCnpj(cnpj: string): Promise<ProxisCustomerLookupResult> {
-  const response = await fetch("/api/proxis-customer", {
+  const response = await apiFetch("/api/proxis-customer", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ cnpj }),
   });
 

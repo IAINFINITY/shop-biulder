@@ -26,6 +26,7 @@ import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { AdminProxisPriceTables } from "./AdminProxisPriceTables";
 import type { AdminProduct } from "./adminTypes";
+import { apiFetch } from "@/lib/apiFetch";
 
 type PricingScopeMode = "customer_type" | "proxis_tpr_id";
 type PricingFilterMode = "all" | "with_override" | "without_override";
@@ -91,7 +92,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
   const proxisTablesQuery = useQuery({
     queryKey: ["proxis-price-tables"],
     queryFn: async () => {
-      const res = await fetch("/api/proxis-price-tables");
+      const res = await apiFetch("/api/proxis-price-tables");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as { tables: { tprId: number; description: string; usedByCustomers: boolean }[] };
     },

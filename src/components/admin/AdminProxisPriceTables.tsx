@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * Tabelas de preco do Proxis, lidas pela integracao.
@@ -49,7 +50,7 @@ type ProxisTableRow = {
 };
 
 async function fetchTables(): Promise<{ tables: ProxisTableRow[]; catalogSize: number }> {
-  const res = await fetch("/api/proxis-price-tables");
+  const res = await apiFetch("/api/proxis-price-tables");
   if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${res.status}`);
   return res.json();
 }
@@ -78,9 +79,8 @@ export function AdminProxisPriceTables({
 
   const importar = useMutation({
     mutationFn: async (tprIds: number[]) => {
-      const res = await fetch("/api/proxis-price-tables", {
+      const res = await apiFetch("/api/proxis-price-tables", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tprIds }),
       });
       const payload = (await res.json()) as { results?: { tprId: number; rows: number; error: string | null }[]; error?: string };

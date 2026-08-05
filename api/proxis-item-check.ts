@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { safeItemNumber } from "../src/lib/proxisFilter.js";
+import { requireAuth } from "./_auth.js";
 
 /**
  * Confere se um codigo de produto existe no Proxis.
@@ -23,6 +25,9 @@ function buildAuthHeader(): string {
 }
 
 async function buscarItem(code: string): Promise<{ ite_id: number; ite_descricao: string } | null> {
+  const safeCode = safeItemNumber(code);
+  if (!safeCode) return null;
+
   const res = await fetch(`${PROXSIS_BASE_URL.replace(/\/$/, "")}/"ObterItens"`, {
     method: "GET",
     headers: {
@@ -31,7 +36,7 @@ async function buscarItem(code: string): Promise<{ ite_id: number; ite_descricao
       "x-proManager-filial": PROXSIS_FILIAL,
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
-      "X-ProManager-Busca-Filtro": `item.ite_numero = '${code.replace(/'/g, "")}'`,
+      "X-ProManager-Busca-Filtro": `item.ite_numero = '${safeCode}'`,
     },
     signal: AbortSignal.timeout(20_000),
   });
@@ -47,6 +52,10 @@ async function buscarItem(code: string): Promise<{ ite_id: number; ite_descricao
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Conferência de cadastro no ERP: serve ao admin salvando produto.
+  const auth = await requireAuth(req, res, { adminOnly: true });
+  if (!auth) return;
+
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(500).json({ error: "Integração com o Proxis não configurada." });
   }

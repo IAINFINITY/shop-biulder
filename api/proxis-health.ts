@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { requireAuth } from "./_auth.js";
 
 const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
@@ -110,6 +111,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+
+  // Só o painel administrativo consome este status.
+  const auth = await requireAuth(req, res, { adminOnly: true });
+  if (!auth) return;
 
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(200).json({ connected: false, error: "Proxsis nao configurado no servidor" });

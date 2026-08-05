@@ -1,4 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { canActForCnpj } from "../src/lib/apiAuth.js";
+import { requireAuth } from "./_auth.js";
+import { safeNumericFilter, safeQuotedLiteral } from "../src/lib/proxisFilter.js";
 import {
   isB2bProxisTprId,
   resolveConfiguredProxisTprId,
@@ -125,11 +128,14 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   const candidates: Record<string, unknown>[] = [];
 
   for (const filterValue of filters) {
+    const safeFilterValue = safeQuotedLiteral(filterValue);
+    if (!safeFilterValue) continue;
+
     const result = await proxsisRequest("GET", "ObterParticipantes", {
       extraHeaders: {
         "X-ProManager-Pagina-Inicio": "0",
         "X-ProManager-Pagina-Quant": "10",
-        "X-ProManager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
+        "X-ProManager-Busca-Filtro": `pes_cpf_cnpj = '${safeFilterValue}'`,
       },
     });
 
@@ -181,11 +187,14 @@ async function buscarUltimaConfiguracaoPedido(
   pesId: number,
   tprId: number | null,
 ): Promise<{ fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null> {
+  const safePesId = safeNumericFilter(pesId);
+  if (!safePesId) return null;
+
   const result = await proxsisRequest("GET", "ObterPedidos", {
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "20",
-      "X-ProManager-Busca-Filtro": `pes_id_cli = ${pesId}`,
+      "X-ProManager-Busca-Filtro": `pes_id_cli = ${safePesId}`,
     },
   });
   const rows = Array.isArray(result) ? result : [result].filter(Boolean);
@@ -215,6 +224,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(500).json({ error: "Proxsis API not configured on server" });
   }
@@ -224,6 +236,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (cnpj.length !== 14) {
     return res.status(400).json({ error: "CNPJ invalido" });
+  }
+
+  // Sem isto a rota continua sendo consulta livre de CNPJ — só que exigindo
+  // login. Devolve nome, razão social e tabela de preço de qualquer empresa.
+  if (!canActForCnpj(auth, cnpj)) {
+    console.warn("[proxis-customer] Consulta de CNPJ fora do escopo do usuário", { user_id: auth.userId });
+    return res.status(403).json({ error: "CNPJ não vinculado ao seu cadastro" });
   }
 
   try {

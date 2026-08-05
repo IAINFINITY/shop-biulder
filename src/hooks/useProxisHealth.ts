@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { apiFetch } from "@/lib/apiFetch";
 
 type ProxisHealth = {
   connected: boolean;
@@ -20,7 +21,7 @@ export function useProxisHealth(): ProxisHealth {
   const check = useCallback(async () => {
     setChecking(true);
     try {
-      const res = await fetch(`/api/proxis-health?_t=${Date.now()}`);
+      const res = await apiFetch(`/api/proxis-health?_t=${Date.now()}`);
       if (res.status === 304) {
         if (mountedRef.current) {
           setLastCheck(new Date());

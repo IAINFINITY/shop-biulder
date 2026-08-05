@@ -1,3 +1,5 @@
+import { apiFetch } from "@/lib/apiFetch";
+
 export type ProxisOrderAddress = {
   cep: string;
   street: string;
@@ -70,9 +72,8 @@ export class ProxisSendError extends Error {
 }
 
 export async function sendProxisOrder(payload: ProxisOrderRequest): Promise<ProxisOrderResponse> {
-  const response = await fetch("/api/proxis-order", {
+  const response = await apiFetch("/api/proxis-order", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 

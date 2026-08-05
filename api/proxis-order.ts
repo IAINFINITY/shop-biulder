@@ -1,4 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { canActForCnpj } from "../src/lib/apiAuth.js";
+import { requireAuth } from "./_auth.js";
+import { isServerPriceEnforced, resolveServerPrices } from "./_pricing.js";
+import {
+  diffPrices,
+  isValidQuantity,
+  normalizeProductCode,
+  type PriceCheck,
+} from "../src/lib/serverPricing.js";
+import { safeItemNumber, safeNumericFilter, safeQuotedLiteral } from "../src/lib/proxisFilter.js";
 import {
   isB2bProxisTprId,
   resolveConfiguredProxisTprId,
@@ -342,6 +352,9 @@ async function buscarUltimaConfiguracaoPedido(
   pesId: number,
   tprId: number | null,
 ): Promise<{ fil_id: number | null; oin_id: number; cpa_id: number | null; tti_id: number | null; por_id: number | null } | null> {
+  const safePesId = safeNumericFilter(pesId);
+  if (!safePesId) return null;
+
   // Sem retry de proposito: a configuracao anterior e opcional (o chamador
   // trata a falha) e nao vale gastar o orcamento de tempo do checkout com ela.
   const result = await proxsisRequest("GET", "ObterPedidos", {
@@ -349,7 +362,7 @@ async function buscarUltimaConfiguracaoPedido(
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "20",
-      "X-ProManager-Busca-Filtro": `pes_id_cli = ${pesId}`,
+      "X-ProManager-Busca-Filtro": `pes_id_cli = ${safePesId}`,
     },
   });
 
@@ -380,12 +393,15 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   const candidates: Record<string, unknown>[] = [];
 
   for (const filterValue of filters) {
+    const safeFilterValue = safeQuotedLiteral(filterValue);
+    if (!safeFilterValue) continue;
+
     const result = await proxsisGetComRetry("ObterParticipantes", {
       body: null,
       extraHeaders: {
         "X-ProManager-Pagina-Inicio": "0",
         "X-ProManager-Pagina-Quant": "10",
-        "X-ProManager-Busca-Filtro": `pes_cpf_cnpj = '${filterValue}'`,
+        "X-ProManager-Busca-Filtro": `pes_cpf_cnpj = '${safeFilterValue}'`,
       },
     });
 
@@ -442,12 +458,15 @@ async function buscarMunIdPorIbge(ibge: string): Promise<number> {
   const ibgeDigits = onlyDigits(ibge);
   if (ibgeDigits.length < 7) return PROXSIS_DEFAULT_MUN_ID;
 
+  const safeIbge = safeNumericFilter(ibgeDigits);
+  if (!safeIbge) return PROXSIS_DEFAULT_MUN_ID;
+
   const result = await proxsisGetComRetry("ObterMunicipios", {
     body: null,
     extraHeaders: {
       "X-ProManager-Pagina-Inicio": "0",
       "X-ProManager-Pagina-Quant": "5",
-      "X-ProManager-Busca-Filtro": `mun_cod_ibge = ${ibgeDigits}`,
+      "X-ProManager-Busca-Filtro": `mun_cod_ibge = ${safeIbge}`,
     },
   });
 
@@ -537,7 +556,13 @@ async function criarCliente(
 }
 
 async function buscarProdutoPorNumero(numero: string): Promise<Record<string, unknown> | null> {
-  const filtro = `item.ite_numero = '${numero}'`;
+  const safeNumero = safeItemNumber(numero);
+  if (!safeNumero) {
+    console.warn("[proxis-order] Codigo de produto recusado pela sanitizacao do filtro");
+    return null;
+  }
+
+  const filtro = `item.ite_numero = '${safeNumero}'`;
 
   const result = await proxsisGetComRetry("ObterItens", {
     body: null,
@@ -696,6 +721,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  const auth = await requireAuth(req, res);
+  if (!auth) return;
+
   const body = (req.body ?? {}) as OrderRequestBody;
 
   // O doc_ped_web sai do submission_key do pedido, entao e identico em toda
@@ -743,6 +771,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({
       error: "CNPJ obrigatório para finalizar o pedido",
       detail: "O fluxo B2B só aceita compras com CNPJ cadastrado.",
+    });
+  }
+
+  // Cliente só lança pedido no próprio CNPJ (ou no da empresa vinculada).
+  // Admin segue livre: é ele quem reenvia pedido de terceiro pelo painel.
+  if (!canActForCnpj(auth, customerCnpjDigits)) {
+    console.warn("[proxis-order] CNPJ fora do escopo do usuário", { user_id: auth.userId });
+    return res.status(403).json({
+      error: "CNPJ não corresponde ao cadastro da conta",
+      detail: "Só é possível enviar pedidos para o CNPJ vinculado ao seu cadastro.",
     });
   }
 
@@ -903,10 +941,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const failedProducts: string[] = [];
 
+    // O preco do corpo da requisicao foi calculado pelo navegador. Refaz a conta
+    // a partir do banco; a flag decide se o resultado ja vale no pedido.
+    const enforceServerPrice = isServerPriceEnforced();
+    const priceChecks: PriceCheck[] = [];
+    let serverPrices = new Map<string, number>();
+
+    try {
+      serverPrices = await resolveServerPrices(body.items.map((item) => item.product_code), auth);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error("[proxis-order] Falha ao resolver precos no servidor:", detail);
+      if (enforceServerPrice) {
+        await registrarDesfecho(PROXIS_SYNC_ERROR, `Falha ao validar os preços do pedido: ${detail}`);
+        return res.status(500).json({ error: "Não foi possível validar os preços do pedido", detail });
+      }
+    }
+
     console.log("[proxis-order] Buscando produtos no Proxis, total de itens:", body.items.length);
     for (const item of body.items) {
       if (!item.product_code) {
         failedProducts.push(item.name || "Unknown product");
+        continue;
+      }
+
+      if (!isValidQuantity(item.quantity)) {
+        failedProducts.push(`${item.name} (quantidade inválida: ${item.quantity})`);
         continue;
       }
 
@@ -918,12 +978,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
 
+      const clientPrice = Number(item.unit_price) || 0;
+      const serverPrice = serverPrices.get(normalizeProductCode(item.product_code)) ?? null;
+      priceChecks.push({
+        code: normalizeProductCode(item.product_code),
+        name: item.name,
+        client_price: clientPrice,
+        server_price: serverPrice,
+      });
+
+      let unitPrice = clientPrice;
+      if (enforceServerPrice) {
+        if (serverPrice === null) {
+          failedProducts.push(`${item.name} (sem preço válido no catálogo: ${item.product_code})`);
+          continue;
+        }
+        unitPrice = serverPrice;
+      }
+
       console.log("[proxis-order] Produto encontrado:", item.product_code, "ite_id:", produto.ite_id);
       documentoItens.push({
         ite_id: Number(produto.ite_id),
-        dit_quantidade: item.quantity,
-        dit_vlr_unitario: item.unit_price || 0,
+        dit_quantidade: Number(item.quantity),
+        dit_vlr_unitario: unitPrice,
         lotes: [],
+      });
+    }
+
+    const priceDivergences = diffPrices(priceChecks);
+    if (priceDivergences.length > 0) {
+      console.warn("[proxis-order] Preço do navegador diferente do servidor:", {
+        user_id: auth.userId,
+        enforced: enforceServerPrice,
+        items: priceDivergences,
       });
     }
 

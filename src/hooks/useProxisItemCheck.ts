@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
+import { apiFetch } from "@/lib/apiFetch";
 
 /**
  * Confere se o codigo do produto existe no Proxis.
@@ -29,7 +30,7 @@ export function useProxisItemCheck(productCode: string) {
     staleTime: 5 * 60 * 1000,
     retry: false,
     queryFn: async () => {
-      const res = await fetch(`/api/proxis-item-check?code=${encodeURIComponent(code)}`);
+      const res = await apiFetch(`/api/proxis-item-check?code=${encodeURIComponent(code)}`);
       const payload = (await res.json()) as ProxisItemCheck & { error?: string };
       // 502 = falha ao falar com o ERP. Devolve `found: null` em vez de lancar,
       // para a tela distinguir "nao existe" de "nao consegui verificar".

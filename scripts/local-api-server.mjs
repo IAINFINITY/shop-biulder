@@ -73,7 +73,9 @@ const server = http.createServer(async (req, res) => {
   const handler = handlers.get(url.pathname);
 
   res.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:8080");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // Authorization e obrigatorio desde que as rotas passaram a exigir o token do
+  // Supabase; sem liberar aqui o preflight barra toda chamada no dev local.
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 
   if (req.method === "OPTIONS") {

@@ -41,6 +41,8 @@ export type CatalogThemeSection = {
  * cada ajuste. Agora ha um so.
  */
 type CatalogThemeSectionsProps = {
+  /** Distingue "ainda vem" de "nao ha nada" — sem isso o esqueleto e eterno. */
+  carregando?: boolean;
   sections: CatalogThemeSection[];
   resolvePrice: (product: Product) => number;
   /** Preco sem promocao, para o card riscar o "de". Ver `ProductPriceTag`. */
@@ -223,10 +225,26 @@ export function CatalogThemeSections({
   inCartIds,
   wishlistIds,
   onToggleWishlist,
+  carregando = false,
 }: CatalogThemeSectionsProps) {
   const visibleSections = sections.filter((section) => section.products.length > 0);
 
-if (visibleSections.length === 0) {
+  // Esqueleto **so** enquanto carrega.
+  //
+  // Antes bastava nao haver secao para o esqueleto aparecer, e ele nao sabia
+  // distinguir "ainda vem" de "nao ha nada". Com um filtro que nao casa com
+  // nenhuma prateleira tematica, o topo ficava com cartoes cinza pulsando para
+  // sempre — a pessoa esperando um conteudo que nunca ia chegar.
+  //
+  // `carregando` entra **junto com as outras props**, e nao como segundo
+  // parametro da funcao. Componente de funcao so recebe `props` no primeiro
+  // argumento; no segundo o React passa o contexto legado, um `{}` — que e
+  // verdadeiro. Declarado la fora, `carregando` valia sempre "sim, carregando",
+  // e esta guarda nunca disparava: era o mesmo esqueleto eterno, so que agora
+  // imune ao conserto.
+  if (visibleSections.length === 0 && !carregando) return null;
+
+  if (visibleSections.length === 0) {
     const skeletonShelves = [];
     for (let i = 0; i < 2; i++) {
       const skeletonCards = [];

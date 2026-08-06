@@ -706,6 +706,7 @@ export default function Index() {
             <PromoTrio label="Catálogo · 3" customerType={customerType} />
 
             <CatalogThemeSections
+              carregando={isLoading}
               sections={catalogThemeSections}
               resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
               resolvePrecoBase={(product) => resolvePrecoBase(product, customerPriceMap)}

@@ -19,7 +19,23 @@ export function PageHeaderShell({ children, className, innerClassName, compact }
     if (!header || typeof window === "undefined") return;
 
     const updateHeight = (height: number) => {
-      document.documentElement.style.setProperty(headerHeightVariable, `${Math.ceil(height)}px`);
+      // Altura zero e instancia escondida, nao cabecalho sem altura.
+      //
+      // O `StoreHeader` monta **dois** `PageHeaderShell` — um `lg:hidden` e um
+      // `hidden lg:flex` — e os dois escrevem esta mesma variavel. O que esta com
+      // `display:none` mede 0, e sem este guarda ele podia ser o ultimo a
+      // reportar: a barra de secoes gruda no topo errado, dependendo de quem
+      // respondeu por ultimo.
+      if (height <= 0) return;
+
+      // `floor` e nao `ceil`.
+      //
+      // A barra de secoes usa esta variavel como `top` do seu `sticky`. Com
+      // `ceil`, o topo dela fica ate 1px **abaixo** do fim do cabecalho sempre
+      // que a altura for fracionaria — e aparece uma fresta com o fundo da
+      // pagina atras. Com `floor` a sobra vira sobreposicao de menos de 1px, que
+      // ninguem ve porque as duas barras sao opacas.
+      document.documentElement.style.setProperty(headerHeightVariable, `${Math.floor(height)}px`);
     };
 
     if (typeof ResizeObserver === "undefined") {

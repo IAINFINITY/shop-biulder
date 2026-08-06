@@ -18,6 +18,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
 import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richTextPure";
+import { cn } from "@/lib/utils";
 
 export function PublicLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -84,8 +85,23 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const isRecoverPasswordRoute = location.pathname === "/recuperar-senha";
   const isProductRoute = location.pathname.startsWith("/produto");
   const isHelpRoute = location.pathname.startsWith("/ajuda");
+  const isFavoritesRoute = location.pathname.startsWith("/favoritos");
   const hideFooter = isAccountRoute || isOrderRoute || isLoginRoute || isRecoverPasswordRoute;
-  const showStoreHeader = isIndexRoute || isProductRoute || isOrderRoute || isHelpRoute;
+  // Login e recuperacao ganham a navegacao da loja.
+  //
+  // Estavam sem cabecalho, sem barra e sem rodape — nenhuma saida a nao ser um
+  // link de texto "Voltar ao catalogo" dentro do formulario. E o `ClientAuthStage`
+  // ja calcula a propria altura com `calc(100dvh - var(--page-header-shell-height))`:
+  // ele **foi desenhado** para ficar embaixo do cabecalho, que nao estava la.
+  //
+  // Fora da conta e do admin, que sao bancadas e montam a barra delas.
+  const mostrarBarraDaLoja = !isAccountRoute;
+  // `/favoritos` entra aqui: e uma tela da loja, nao da area do cliente. Sem o
+  // cabecalho ela abria so com o rodape e o texto no meio, sem busca, sem
+  // carrinho e sem caminho de volta a nao ser o botao do estado vazio.
+  const showStoreHeader =
+    isIndexRoute || isProductRoute || isOrderRoute || isHelpRoute || isFavoritesRoute
+    || isLoginRoute || isRecoverPasswordRoute;
   const handleSearchSubmit = useCallback((value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -138,11 +154,14 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           data-native-view-transition={
             typeof document !== "undefined" && "startViewTransition" in document ? "true" : "false"
           }
-          className="flex-1 page-shell pb-16 lg:pb-0"
+          className={cn("flex-1 page-shell lg:pb-0", mostrarBarraDaLoja && "pb-16")}
         >
           {children}
         </main>
-        {!isLoginRoute && !isRecoverPasswordRoute ? <MobileBottomNav /> : null}
+        {/* Fora da conta: la a bancada monta a propria barra, com as secoes do
+            cliente em vez dos destinos da loja. Duas barras empilhadas seriam
+            112px de tela gastos em navegacao. */}
+        {mostrarBarraDaLoja ? <MobileBottomNav /> : null}
         {!hideFooter ? <StoreFooter /> : null}
       </div>
     </PublicLayoutContext.Provider>

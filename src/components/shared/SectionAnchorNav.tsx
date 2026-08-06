@@ -1,4 +1,4 @@
-import {useEffect, useState,  type MouseEvent} from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ export function SectionAnchorNav({
   className?: string;
 }) {
   const [activeId, setActiveId] = useState<string | null>(sections[0]?.id ?? null);
+  const tiraRef = useRef<HTMLDivElement>(null);
 
   // A lista de secoes muda conforme filtros e conteudo (promocao pode nao
   // existir, favoritos podem estar vazios), entao o observer e refeito junto.
@@ -54,6 +55,61 @@ export function SectionAnchorNav({
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionKey]);
+
+  /**
+   * Traz o item ativo para dentro da vista.
+   *
+   * A faixa e uma tira rolavel na horizontal, e no celular ela nao cabe: medido
+   * em 390px, das 5 ancoras do catalogo aparecem 4, e das 5 da Central de ajuda
+   * aparecem 3. "Vistos recentemente" comeca em 385px e "Atendimento" em 406px —
+   * ou seja, fora da tela.
+   *
+   * Sem isto o destaque mudava num item que a pessoa nao via: a barra parecia
+   * parada, sempre nos primeiros, enquanto a pagina rolava. Ela indicava a secao
+   * certa para quem estava no desktop e nada para quem estava no celular.
+   */
+  useEffect(() => {
+    const tira = tiraRef.current;
+    if (!tira || !activeId || typeof window === "undefined") return;
+
+    const ativo = tira.querySelector<HTMLElement>(`[data-ancora="${CSS.escape(activeId)}"]`);
+    if (!ativo) return;
+
+    // Medido por retangulo, e nao por `offsetLeft`.
+    //
+    // `offsetLeft` e relativo ao ancestral posicionado, e este `<nav>` e
+    // `sticky` — ou seja, posicionado. O valor sairia relativo ao `<nav>`
+    // enquanto `scrollLeft` e da tira, e as duas contas so batem por acaso,
+    // enquanto a tira comecar exatamente na origem do `<nav>`. Retangulo nao
+    // depende de quem e o `offsetParent`.
+    const caixaTira = tira.getBoundingClientRect();
+    const caixaAtivo = ativo.getBoundingClientRect();
+
+    // Se ja esta confortavelmente visivel, nao mexe. Rolar a tira por baixo de
+    // quem acabou de arrasta-la com o dedo e pior que nao rolar.
+    //
+    // "Confortavelmente" e nao "visivel": item colado na borda esconde o vizinho
+    // e nao deixa claro que ha mais para o lado. Como os chips encostam no
+    // padding da tira, o primeiro e o ultimo nunca passam nesta checagem — para
+    // o primeiro o resultado e um `scrollTo(0)` que nao faz nada, e para o
+    // ultimo recentralizar e exatamente o que se quer.
+    const FOLGA = 16;
+    if (
+      caixaAtivo.left >= caixaTira.left + FOLGA &&
+      caixaAtivo.right <= caixaTira.right - FOLGA
+    ) {
+      return;
+    }
+
+    const inicioNaTira = caixaAtivo.left - caixaTira.left + tira.scrollLeft;
+    const suave = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    tira.scrollTo({
+      // Centraliza: deixar o ativo encostado na borda esconde o vizinho e tira a
+      // pista de que ha mais coisa para os dois lados.
+      left: Math.max(0, inicioNaTira - (tira.clientWidth - caixaAtivo.width) / 2),
+      behavior: suave ? "smooth" : "auto",
+    });
+  }, [activeId]);
 
   /**
    * Rola suave e sem depender de hook externo.
@@ -99,7 +155,10 @@ export function SectionAnchorNav({
     >
       {/* Mesmo respiro lateral da barra do topo, para os itens comecarem na
           mesma coluna que o logo. */}
-      <div className="flex items-center gap-1 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div
+        ref={tiraRef}
+        className="flex items-center gap-1 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {sections.map((section) => {
           const Icon = section.icon;
           const isActive = activeId === section.id;
@@ -107,6 +166,7 @@ export function SectionAnchorNav({
             <a
               key={section.id}
               href={`#${section.id}`}
+              data-ancora={section.id}
               onClick={(event) => handleAnchorClick(event, section.id)}
               aria-current={isActive ? "true" : undefined}
               className={cn(

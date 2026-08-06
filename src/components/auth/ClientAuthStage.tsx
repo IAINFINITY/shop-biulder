@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
-import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
-import { ArrowLeft, ClipboardCheck, Clock3, ShoppingCart, Tag } from "lucide-react";
+import { ClipboardCheck, Clock3, ShoppingCart, Tag } from "lucide-react";
 
 type ClientAuthHighlight = {
   title: string;
@@ -39,13 +36,16 @@ const highlightIcons = [ClipboardCheck, ShoppingCart, Clock3, Tag];
 export function ClientAuthStage({ children, className }: ClientAuthStageProps) {
   return (
     <div className={cn("relative h-[100dvh] overflow-hidden bg-background text-foreground", className)}>
-      <PageHeaderShell compact className="bg-card/95" innerClassName="justify-between gap-4">
-        <div className="inline-flex min-w-0 items-center">
-          <ClinicPlusLogo />
-        </div>
-        <ClientAuthBackLink />
-      </PageHeaderShell>
+      {/* Sem cabecalho proprio.
 
+          Este bloco montava um `PageHeaderShell` so dele, com o logo e um link
+          de texto "Voltar ao catalogo" — enquanto o resto do site usa o
+          cabecalho da loja. Duas barras diferentes para a mesma funcao, e nesta
+          o carrinho e a busca simplesmente nao existiam.
+
+          Agora quem desenha o topo e o `PublicLayout`, igual em qualquer outra
+          pagina. O `calc` abaixo continua valendo: e ele que le a altura do
+          cabecalho, e sempre foi escrito supondo que houvesse um. */}
       <div className="grid h-[calc(100dvh-var(--page-header-shell-height))] w-full grid-cols-1 overflow-hidden pt-6 lg:grid-cols-[58%_42%] lg:pt-8">
         <div className="pointer-events-none absolute inset-y-0 left-[58%] hidden w-px bg-border/70 lg:block" />
         <aside className="relative hidden overflow-y-auto bg-background lg:flex">
@@ -94,15 +94,3 @@ export function ClientAuthStage({ children, className }: ClientAuthStageProps) {
   );
 }
 
-export function ClientAuthBackLink() {
-  return (
-    <Link
-      to="/"
-      viewTransition
-      className="inline-flex items-center gap-2 text-[0.8125rem] font-medium text-muted-foreground transition-colors hover:text-foreground"
-    >
-      <ArrowLeft className="h-3.5 w-3.5" />
-      Voltar ao catálogo
-    </Link>
-  );
-}

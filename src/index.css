@@ -98,6 +98,23 @@
   }
 
   body {
+    /**
+     * `clip`, e nao `hidden`.
+     *
+     * As pecas que sangram (banner do topo, promocionais, barra de filtros,
+     * navegacao de secoes) usam a tecnica classica de largura total:
+     * `w-screen` + margem negativa. So que `100vw` **inclui a barra de
+     * rolagem** — no Windows sao ~15px. Com a barra vertical presente, cada
+     * uma dessas pecas fica 15px mais larga que a area util e abre uma barra
+     * de rolagem horizontal na pagina inteira.
+     *
+     * `overflow-x: hidden` resolveria, mas cria um container de rolagem: todo
+     * `position: sticky` descendente passaria a grudar nele em vez de na
+     * janela — e o cabecalho, a barra de filtros e a coluna de filtros do
+     * catalogo dependem de sticky. `clip` corta sem criar container, entao o
+     * sticky continua intacto.
+     */
+    overflow-x: clip;
     @apply bg-background text-foreground antialiased;
     font-family: "Inter Variable", "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     text-rendering: optimizeLegibility;

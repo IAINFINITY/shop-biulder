@@ -154,7 +154,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           data-native-view-transition={
             typeof document !== "undefined" && "startViewTransition" in document ? "true" : "false"
           }
-          className={cn("flex-1 page-shell lg:pb-0", mostrarBarraDaLoja && "pb-16")}
+          className={cn("flex-1 page-shell lg:pb-0",
+            // Login e recuperacao ficam de fora: o estagio de auth tem altura
+            // definida e rola por dentro. Um `pb` aqui esticaria o documento
+            // alem da tela e abriria uma faixa branca depois do cartao.
+            mostrarBarraDaLoja && !isLoginRoute && !isRecoverPasswordRoute && "pb-16")}
         >
           {children}
         </main>

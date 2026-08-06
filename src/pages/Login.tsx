@@ -290,17 +290,22 @@ export default function Login() {
   return (
     <ClientAuthStage>
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[2.25rem] border border-border/70 bg-background text-foreground shadow-[0_16px_40px_rgba(16,24,40,0.08)]">
-        <div className="border-b border-border/70 px-6 py-7 sm:px-8">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border border-primary/25 bg-primary/5 shadow-[0_8px_22px_rgba(16,24,40,0.05)]">
-            <img src="/faviconV2.png" alt="Clinic+ logo" className="h-14 w-auto" />
+        {/* Cabecalho enxuto no celular.
+
+              Medido: ele custava 251px de uma area util de 701, com um circulo
+              de 90px. No desktop isso e apresentacao; no celular sai direto do
+              formulario, que ja nao cabe — o cadastro precisa de 1136px. */}
+          <div className="border-b border-border/70 px-6 py-4 sm:px-8 lg:py-7">
+          <div className="mx-auto flex h-16 w-16 lg:h-24 lg:w-24 items-center justify-center rounded-full border border-primary/25 bg-primary/5 shadow-[0_8px_22px_rgba(16,24,40,0.05)]">
+            <img src="/faviconV2.png" alt="Clinic+ logo" className="h-9 w-auto lg:h-14" />
           </div>
 
-          <div className="mt-5 text-center">
+          <div className="mt-3 text-center lg:mt-5">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Acesso cliente</p>
-            <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-semibold leading-[1] tracking-tight text-foreground">
+            <h2 className="mt-2 text-[clamp(1.5rem,2.8vw,2.7rem)] font-semibold leading-[1.05] tracking-tight text-foreground lg:mt-3">
               {authTab === "entrar" ? "Entrar na conta" : "Criar conta corporativa"}
             </h2>
-            <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-muted-foreground">
+            <p className="mx-auto mt-2 max-w-[34ch] text-[0.8125rem] leading-5 text-muted-foreground lg:mt-3 lg:text-sm lg:leading-6">
 {authTab === "entrar"
                   ? "Entre com seu e-mail e senha cadastrados."
                   : "Preencha os dados da sua empresa e informe um CNPJ para criar sua conta B2B."}
@@ -308,7 +313,7 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6 sm:px-8">
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 py-6 sm:px-8">
           <Tabs value={authTab} onValueChange={(value) => {
             setSlideDir(value === "cadastro" ? "right" : "left");
             setAuthTab(value as "entrar" | "cadastro");

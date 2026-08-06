@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ProductSummaryCard } from "@/components/catalogo/ProductSummaryCard";
 import { StarRating } from "@/components/catalogo/StarRating";
 import { formatBRL } from "@/lib/formatMoney";
-import { buildProductTags, getProductDiscount, type Product } from "@/lib/products";
+import { buildProductTags, type Product } from "@/lib/products";
+import { aplicarPromocao } from "@/lib/promocao";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,6 +41,7 @@ export type ProductInfoActions = {
 export function ProductInfoPanel({
   product,
   price,
+  precoBase,
   averageRating,
   reviewCount,
   actions,
@@ -48,6 +50,11 @@ export function ProductInfoPanel({
 }: {
   product: Product;
   price: number;
+  /**
+   * Preco sem promocao, na tabela **do cliente**. Obrigatorio pelo mesmo motivo
+   * que em `ProductPriceTag`: opcional, so alguns pontos passariam.
+   */
+  precoBase: number;
   averageRating: number;
   reviewCount: number;
   /** Ausente = previa. */
@@ -56,7 +63,17 @@ export function ProductInfoPanel({
   className?: string;
 }) {
   const tags = buildProductTags(product);
-  const discount = getProductDiscount(product, price);
+  // A promocao percentual, e nao mais o `compare_at_price`.
+  //
+  // `getProductDiscount` le a coluna legada, um "de" global igual para todo
+  // mundo — o que nao funciona com tabela por cliente e por isso foi substituido.
+  // Enquanto ficou aqui, a pagina do produto era o unico lugar que nao mostrava
+  // o desconto novo: o card riscava o preco e a pagina dele nao.
+  const discount = aplicarPromocao(precoBase, {
+    promo_percent: product.promo_percent ?? null,
+    promo_starts_at: product.promo_starts_at ?? null,
+    promo_ends_at: product.promo_ends_at ?? null,
+  });
   const quantity = actions?.quantity ?? 1;
   // Sem desconto embutido aqui.
   //
@@ -165,7 +182,7 @@ export function ProductInfoPanel({
                 <p className="text-xs font-medium text-muted-foreground">Preço</p>
                 {discount ? (
                   <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="line-through tabular-nums">{formatBRL(discount.from * quantity)}</span>
+                    <span className="line-through tabular-nums">{formatBRL(discount.de * quantity)}</span>
                     <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                       -{discount.percent}%
                     </span>

@@ -43,6 +43,8 @@ export type CatalogThemeSection = {
 type CatalogThemeSectionsProps = {
   sections: CatalogThemeSection[];
   resolvePrice: (product: Product) => number;
+  /** Preco sem promocao, para o card riscar o "de". Ver `ProductPriceTag`. */
+  resolvePrecoBase: (product: Product) => number;
   onAdd: (product: Product) => void;
   inCartIds: Set<string>;
   wishlistIds?: string[];
@@ -52,6 +54,7 @@ type CatalogThemeSectionsProps = {
 function ThemeShelf({
   section,
   resolvePrice,
+  resolvePrecoBase,
   onAdd,
   inCartIds,
   wishlistIds,
@@ -59,6 +62,8 @@ function ThemeShelf({
 }: {
   section: CatalogThemeSection;
   resolvePrice: (product: Product) => number;
+  /** Preco sem promocao, para o card riscar o "de". Ver `ProductPriceTag`. */
+  resolvePrecoBase: (product: Product) => number;
   onAdd: (product: Product) => void;
   inCartIds: Set<string>;
   wishlistIds?: string[];
@@ -169,6 +174,7 @@ function ThemeShelf({
                 <CatalogProductCard
                   product={product}
                   price={resolvePrice(product)}
+                  precoBase={resolvePrecoBase(product)}
                   onAdd={onAdd}
                   inCart={inCartIds.has(product.id)}
                   compact
@@ -209,7 +215,15 @@ function ThemeShelf({
   );
 }
 
-export function CatalogThemeSections({ sections, resolvePrice, onAdd, inCartIds, wishlistIds, onToggleWishlist }: CatalogThemeSectionsProps) {
+export function CatalogThemeSections({
+  sections,
+  resolvePrice,
+  resolvePrecoBase,
+  onAdd,
+  inCartIds,
+  wishlistIds,
+  onToggleWishlist,
+}: CatalogThemeSectionsProps) {
   const visibleSections = sections.filter((section) => section.products.length > 0);
 
 if (visibleSections.length === 0) {
@@ -254,6 +268,7 @@ if (visibleSections.length === 0) {
           key={section.id}
           section={section}
           resolvePrice={resolvePrice}
+          resolvePrecoBase={resolvePrecoBase}
           onAdd={onAdd}
           inCartIds={inCartIds}
           wishlistIds={wishlistIds}

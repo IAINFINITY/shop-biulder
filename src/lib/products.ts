@@ -52,6 +52,10 @@ export interface Product {
   price: number | null;
   /** Preco anterior, exibido riscado quando maior que price. */
   compare_at_price: number | null;
+  /** Promocao percentual sobre a base do cliente. Ver `src/lib/promocao.ts`. */
+  promo_percent: number | null;
+  promo_starts_at: string | null;
+  promo_ends_at: string | null;
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
@@ -190,6 +194,9 @@ export const PRODUCT_OPTIONAL_COLUMNS = [
   "image_width",
   "image_height",
   "compare_at_price",
+  "promo_percent",
+  "promo_starts_at",
+  "promo_ends_at",
 ] as const;
 
 export type ProductOptionalColumn = (typeof PRODUCT_OPTIONAL_COLUMNS)[number];
@@ -216,6 +223,9 @@ export function omitProductColumn<T extends Record<string, unknown>>(row: T, col
 }
 
 export type ProductDbPayloadInput = {
+  promo_percent?: number | null;
+  promo_starts_at?: string | null;
+  promo_ends_at?: string | null;
   name: string;
   description: string;
   brand: string;
@@ -251,6 +261,9 @@ type ProductDbRow = {
   is_featured: boolean;
   price: number;
   compare_at_price: number | null;
+  promo_percent: number | null;
+  promo_starts_at: string | null;
+  promo_ends_at: string | null;
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
@@ -287,6 +300,11 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     // So grava desconto real; valor menor ou igual ao preco nao e comparacao.
     compare_at_price:
       input.compare_at_price !== null && input.compare_at_price > input.price ? input.compare_at_price : null,
+    // A promocao vai crua para o banco: as travas de faixa e de janela coerente
+    // sao `check` na tabela, entao regra escrita duas vezes viraria divergencia.
+    promo_percent: input.promo_percent ?? null,
+    promo_starts_at: input.promo_starts_at ?? null,
+    promo_ends_at: input.promo_ends_at ?? null,
     stock: input.stock,
     image_url: urls[0] ?? null,
     image_fit: normalizeProductImageFit(input.image_fit),
@@ -356,6 +374,9 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     is_featured: Boolean(record.is_featured),
     price: coercePrice(record.price),
     compare_at_price: coercePrice(record.compare_at_price) || null,
+    promo_percent: coercePrice(record.promo_percent) || null,
+    promo_starts_at: typeof record.promo_starts_at === "string" ? record.promo_starts_at : null,
+    promo_ends_at: typeof record.promo_ends_at === "string" ? record.promo_ends_at : null,
     // stock vinha no SELECT mas nao era mapeado aqui: o admin abria o campo
     // Estoque vazio e salvava null por cima do valor real.
     stock: typeof record.stock === "number" && Number.isFinite(record.stock) ? record.stock : null,

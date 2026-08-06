@@ -1,5 +1,6 @@
 import type { CartItem, Product } from "@/lib/products";
 import { getProductUnitPrice } from "@/lib/products";
+import { aplicarPromocao, precoFinalComPromocao, type ProdutoComPromocao } from "@/lib/promocao";
 
 export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor", "funcionario"];
 
@@ -92,7 +93,30 @@ export function mergePriceLayers(
   return merged;
 }
 
+/**
+ * O preco que vale para quem esta olhando.
+ *
+ * Duas camadas, nesta ordem:
+ *
+ * 1. **Base do cliente** — tabela do Proxis (TPR), tabela geral ou cadastro.
+ * 2. **Promocao** — percentual sobre essa base, se houver janela ativa.
+ *
+ * A promocao entra aqui, e nao em cada tela, de proposito: sao 19 pontos que
+ * pedem preco (vitrine, carrossel, carrinho, checkout, favoritos, historico).
+ * Aplicar o desconto num lugar so e o que garante que o preco da etiqueta e o
+ * preco cobrado.
+ */
 export function resolveProductPrice(
+  product: Pick<Product, "price" | "product_code"> & Partial<ProdutoComPromocao>,
+  priceOverrides: ReadonlyMap<string, number>,
+  agora: Date = new Date(),
+): number {
+  const base = resolvePrecoBase(product, priceOverrides);
+  return precoFinalComPromocao(base, promoDe(product), agora);
+}
+
+/** A base, sem promocao. E o "de" quando ha desconto. */
+export function resolvePrecoBase(
   product: Pick<Product, "price" | "product_code">,
   priceOverrides: ReadonlyMap<string, number>,
 ): number {
@@ -101,6 +125,24 @@ export function resolveProductPrice(
     return priceOverrides.get(code)!;
   }
   return getProductUnitPrice(product);
+}
+
+/** Normaliza o produto para a forma que `promocao.ts` espera. */
+function promoDe(product: Partial<ProdutoComPromocao>): ProdutoComPromocao {
+  return {
+    promo_percent: product.promo_percent ?? null,
+    promo_starts_at: product.promo_starts_at ?? null,
+    promo_ends_at: product.promo_ends_at ?? null,
+  };
+}
+
+/** O "de/por" pronto para a etiqueta, ja com a base do cliente. */
+export function resolvePromocao(
+  product: Pick<Product, "price" | "product_code"> & Partial<ProdutoComPromocao>,
+  priceOverrides: ReadonlyMap<string, number>,
+  agora: Date = new Date(),
+) {
+  return aplicarPromocao(resolvePrecoBase(product, priceOverrides), promoDe(product), agora);
 }
 
 export function calculateCartSubtotal(

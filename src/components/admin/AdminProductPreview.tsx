@@ -12,6 +12,7 @@ import { formatBRL } from "@/lib/formatMoney";
 import { getProductDiscount, getProductImageUrls, getProductUnitPrice } from "@/lib/products";
 import { isRichTextEmpty } from "@/lib/richTextPure";
 import { TEXT } from "@/lib/typography";
+import { precoFinalComPromocao } from "@/lib/promocao";
 import { cn } from "@/lib/utils";
 import type { AdminProductFormState } from "./adminTypes";
 
@@ -48,7 +49,15 @@ export function AdminProductPreview({ editing, mode = "catalog" }: AdminProductP
     );
   }
 
-  const price = getProductUnitPrice(product);
+  // Aqui nao ha cliente, entao a base e o preco de catalogo — e o preco mostrado
+  // e ele ja com a promocao. E o que faz a previa exibir o riscado enquanto
+  // alguem configura o desconto, em vez de so depois de salvar.
+  const precoBase = getProductUnitPrice(product);
+  const price = precoFinalComPromocao(precoBase, {
+    promo_percent: product.promo_percent ?? null,
+    promo_starts_at: product.promo_starts_at ?? null,
+    promo_ends_at: product.promo_ends_at ?? null,
+  });
   const discount = getProductDiscount(product, price);
   const gallery = getProductImageUrls(product);
 
@@ -68,6 +77,7 @@ export function AdminProductPreview({ editing, mode = "catalog" }: AdminProductP
           <CatalogProductCard
             product={product}
             price={price}
+            precoBase={precoBase}
             onAdd={() => undefined}
             inCart={false}
           />
@@ -98,6 +108,7 @@ export function AdminProductPreview({ editing, mode = "catalog" }: AdminProductP
         <ProductInfoPanel
           product={product}
           price={price}
+          precoBase={precoBase}
           averageRating={product.average_rating}
           reviewCount={product.review_count}
         />

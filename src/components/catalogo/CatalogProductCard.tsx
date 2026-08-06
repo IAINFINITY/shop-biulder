@@ -28,6 +28,8 @@ const typeColors: Record<string, string> = {
 export type CatalogProductCardProps = {
   product: Product;
   price: number;
+  /** Preco sem promocao, para a etiqueta desenhar o "de". Ver `ProductPriceTag`. */
+  precoBase: number;
   onAdd: (product: Product) => void;
   inCart: boolean;
   compact?: boolean;
@@ -36,7 +38,7 @@ export type CatalogProductCardProps = {
   onQuickView?: () => void;
 };
 
-export function CatalogProductCard({ product, price, onAdd, inCart, compact, isWishlisted, onToggleWishlist, onQuickView }: CatalogProductCardProps) {
+export function CatalogProductCard({ product, price, precoBase, onAdd, inCart, compact, isWishlisted, onToggleWishlist, onQuickView }: CatalogProductCardProps) {
   // O card busca o proprio selo em vez de receber por prop: ele e usado em cinco
   // lugares diferentes, e cada um teria de lembrar de repassar a informacao.
   // A consulta e uma so, cacheada por meia hora e compartilhada entre todos.
@@ -202,7 +204,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
           )}
 
           <div className={cn("mt-auto", compact ? "pt-1.5" : "mt-3 mb-1")}>
-            <ProductPriceTag product={product} price={displayPrice} size={compact ? "sm" : "md"} />
+            <ProductPriceTag product={product} precoBase={precoBase} price={displayPrice} size={compact ? "sm" : "md"} />
           </div>
 
           <StockBadge stock={product.stock} className="mt-1.5" />

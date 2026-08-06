@@ -691,6 +691,9 @@ export type Database = {
           is_promotion: boolean
           name: string
           price: number
+          promo_ends_at: string | null
+          promo_percent: number | null
+          promo_starts_at: string | null
           product_code: string | null
           review_count: number
           stock: number | null
@@ -717,6 +720,9 @@ export type Database = {
           is_promotion?: boolean
           name: string
           price?: number
+          promo_ends_at?: string | null
+          promo_percent?: number | null
+          promo_starts_at?: string | null
           product_code?: string | null
           review_count?: number
           stock?: number | null
@@ -743,6 +749,9 @@ export type Database = {
           is_promotion?: boolean
           name?: string
           price?: number
+          promo_ends_at?: string | null
+          promo_percent?: number | null
+          promo_starts_at?: string | null
           product_code?: string | null
           review_count?: number
           stock?: number | null

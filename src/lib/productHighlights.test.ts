@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { highlightBadgeClassName, highlightForProduct } from "./productHighlights";
 
-const produto = (over: Partial<{ id: string; is_promotion: boolean; is_featured: boolean }> = {}) => ({
+const produto = (
+  over: Partial<{
+    id: string;
+    is_promotion: boolean;
+    is_featured: boolean;
+    promo_percent: number | null;
+    promo_starts_at: string | null;
+    promo_ends_at: string | null;
+  }> = {},
+) => ({
   id: "p1",
   is_promotion: false,
   is_featured: false,
+  promo_percent: null,
+  promo_starts_at: null,
+  promo_ends_at: null,
   ...over,
 });
 
@@ -13,8 +25,24 @@ describe("selo do produto", () => {
     expect(highlightForProduct(produto(), new Set())).toBeNull();
   });
 
+  /**
+   * O booleano `is_promotion` nao acende mais o selo.
+   *
+   * Ele nao tocava em preco: os 4 produtos marcados na loja apareciam com
+   * "PROMOCAO" e o valor cheio, prometendo um desconto inexistente. Agora o selo
+   * exige percentual valendo.
+   */
+  it("marcado como promoção mas sem desconto não acende o selo", () => {
+    expect(highlightForProduct(produto({ is_promotion: true }), new Set())).toBeNull();
+  });
+
+  it("promoção fora da janela também não acende", () => {
+    const expirada = produto({ promo_percent: 20, promo_ends_at: "2020-01-01T00:00:00Z" });
+    expect(highlightForProduct(expirada, new Set())).toBeNull();
+  });
+
   it("reconhece cada um dos três sinais", () => {
-    expect(highlightForProduct(produto({ is_promotion: true }), new Set())?.label).toBe("Promoção");
+    expect(highlightForProduct(produto({ promo_percent: 15 }), new Set())?.label).toBe("Promoção");
     expect(highlightForProduct(produto({ is_featured: true }), new Set())?.label).toBe("Destaque");
     expect(highlightForProduct(produto(), new Set(["p1"]))?.label).toBe("Mais vendido");
   });
@@ -24,7 +52,7 @@ describe("selo do produto", () => {
    * selo existe para dar; a ordem e por utilidade para quem compra.
    */
   it("com mais de um sinal, mostra o que faz agir", () => {
-    const tudo = produto({ is_promotion: true, is_featured: true });
+    const tudo = produto({ promo_percent: 15, is_featured: true });
     expect(highlightForProduct(tudo, new Set(["p1"]))?.label).toBe("Promoção");
 
     const destaqueEVenda = produto({ is_featured: true });

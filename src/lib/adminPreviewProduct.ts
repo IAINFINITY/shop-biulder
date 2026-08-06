@@ -40,6 +40,12 @@ export function buildPreviewProduct(state: AdminProductFormState | null): Produc
     // Preco "de" menor ou igual ao atual nao e desconto: o banco barra, e aqui
     // tambem, senao o preview mostraria um risco que nunca vai existir na loja.
     compare_at_price: compareAt !== null && compareAt > price ? compareAt : null,
+    // A previa do admin mostra o produto como a loja mostra, entao a promocao
+    // precisa vir junto — inclusive a janela, para o preview refletir se ela
+    // esta valendo hoje ou nao.
+    promo_percent: state.promoPercentInput.trim() === "" ? null : parsePriceInput(state.promoPercentInput),
+    promo_starts_at: state.promoStartsAtInput.trim() === "" ? null : state.promoStartsAtInput,
+    promo_ends_at: state.promoEndsAtInput.trim() === "" ? null : state.promoEndsAtInput,
     stock: Number.isInteger(stock) ? stock : null,
     product_code: state.productCode.trim() || null,
     visible_to: state.visible_to.length > 0 ? state.visible_to : null,

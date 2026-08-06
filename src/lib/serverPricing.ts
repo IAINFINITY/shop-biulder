@@ -8,9 +8,17 @@
 // de preco mudar la, precisa mudar aqui. O teste
 // `serverPricing.test.ts` existe para travar o comportamento nos dois.
 
+// Caminho relativo com `.js`: este arquivo tambem e carregado pelas funcoes
+// serverless em `api/`, onde o alias `@/` do Vite nao existe.
+import { precoFinalComPromocao } from "./promocao.js";
+
 export type PriceRow = {
   product_code: string | null;
   price: number | string | null;
+  /** So o catalogo traz promocao; a tabela de override nao tem essas colunas. */
+  promo_percent?: number | string | null;
+  promo_starts_at?: string | null;
+  promo_ends_at?: string | null;
 };
 
 export function normalizeProductCode(value: unknown): string {
@@ -31,6 +39,7 @@ export function roundMoney(value: number): number {
 export function buildServerPriceMap(
   catalogRows: readonly PriceRow[],
   overrideRows: readonly PriceRow[],
+  agora: Date = new Date(),
 ): Map<string, number> {
   const prices = new Map<string, number>();
 
@@ -42,6 +51,27 @@ export function buildServerPriceMap(
       if (!Number.isFinite(price) || price <= 0) continue;
       prices.set(code, roundMoney(price));
     }
+  }
+
+  // A promocao entra **depois** da precedencia de tabelas, sobre a base que
+  // sobrou — igual ao `resolveProductPrice` do navegador.
+  //
+  // Sem esta camada o servidor recalcularia o preco cheio e acusaria divergencia
+  // em todo item em promocao; com `PRICING_ENFORCE_SERVER_PRICE` ligado, o
+  // pedido iria ao ERP **sem o desconto** que o cliente viu na tela. E a mesma
+  // funcao pura do front, e nao uma segunda implementacao da regra.
+  for (const row of catalogRows) {
+    const code = normalizeProductCode(row.product_code);
+    if (!code) continue;
+    const base = prices.get(code);
+    if (base === undefined) continue;
+    prices.set(code, roundMoney(precoFinalComPromocao(base, {
+      promo_percent: row.promo_percent === null || row.promo_percent === undefined
+        ? null
+        : Number(row.promo_percent),
+      promo_starts_at: row.promo_starts_at ?? null,
+      promo_ends_at: row.promo_ends_at ?? null,
+    }, agora)));
   }
 
   return prices;

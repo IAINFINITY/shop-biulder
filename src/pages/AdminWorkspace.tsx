@@ -75,6 +75,8 @@ import type { AdminPermissions } from "@/lib/adminUsers";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useSupportInbox } from "@/hooks/useSupportChat";
+import { campoLocalParaIso, isoParaCampoLocal } from "@/lib/dataHoraLocal";
+import { motivoParaNaoDestacar } from "@/lib/promocao";
 import type {
   AdminCustomerSummary,
   AdminDashboardOrder,
@@ -534,6 +536,9 @@ export default function AdminWorkspace() {
       is_featured: false,
       priceInput: "",
       compareAtPriceInput: "",
+      promoPercentInput: "",
+      promoStartsAtInput: "",
+      promoEndsAtInput: "",
       stockInput: "",
       productCode: "",
       visible_to: [],
@@ -557,6 +562,11 @@ export default function AdminWorkspace() {
       is_featured: p.is_featured,
       priceInput: priceToAdminInput(coercePrice(p.price)),
       compareAtPriceInput: p.compare_at_price ? priceToAdminInput(coercePrice(p.compare_at_price)) : "",
+      promoPercentInput: p.promo_percent ? String(p.promo_percent).replace(".", ",") : "",
+      // `slice(0, 16)` entregava o UTC cru ao campo, que le como hora local:
+      // 18:55 salvo reabria como 21:55, e cada edicao empurrava mais tres horas.
+      promoStartsAtInput: isoParaCampoLocal(p.promo_starts_at),
+      promoEndsAtInput: isoParaCampoLocal(p.promo_ends_at),
       stockInput: typeof p.stock === "number" && Number.isFinite(p.stock) ? String(Math.max(0, Math.trunc(p.stock))) : "",
       productCode: p.product_code ?? "",
       visible_to: p.visible_to ?? [],
@@ -683,6 +693,22 @@ export default function AdminWorkspace() {
       return;
     }
 
+    // Promocao sem desconto nao passa daqui.
+    //
+    // O formulario ja desliga a chave sozinho, mas isso e a interface. Esta e a
+    // porta por onde o dado entra: rascunho antigo carregado do cache, colagem
+    // de outro produto, ou simplesmente um caminho de codigo novo que esqueca a
+    // regra. A validacao que vale e a que fica junto da escrita.
+    const percentualPromocao =
+      editing.promoPercentInput.trim() === "" ? null : parsePriceInput(editing.promoPercentInput);
+    if (editing.is_promotion) {
+      const motivo = motivoParaNaoDestacar({ promo_percent: percentualPromocao });
+      if (motivo) {
+        toast.error(motivo);
+        return;
+      }
+    }
+
     const stockInput = editing.stockInput.trim();
     const stock = stockInput === "" ? null : Number.parseInt(stockInput, 10);
     if (stockInput !== "" && (!Number.isInteger(stock) || stock < 0)) {
@@ -716,6 +742,9 @@ export default function AdminWorkspace() {
       is_featured: editing.is_featured,
       price: normalizedPrice,
       compare_at_price: normalizedCompareAt,
+      promo_percent: percentualPromocao,
+      promo_starts_at: campoLocalParaIso(editing.promoStartsAtInput),
+      promo_ends_at: campoLocalParaIso(editing.promoEndsAtInput),
       stock,
       product_code: editing.productCode,
       visible_to: editing.visible_to.length > 0 ? editing.visible_to.map((t) => t.trim().toLowerCase()) : null,

@@ -23,7 +23,6 @@ import {
   getProductImageUrls,
   readCachedProductFromStorage,
   getProductImageAlt,
-  getProductDiscount,
   buildProductSelectColumns,
   detectMissingProductColumn,
 } from "@/lib/products";
@@ -62,7 +61,7 @@ import { useCustomerPricing } from "@/hooks/useCustomerPricing";
 import { useProducts } from "@/hooks/useProducts";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
-import { EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
+import { EMPTY_PRICE_MAP, resolvePrecoBase, resolveProductPrice } from "@/lib/pricing";
 import { toast } from "sonner";
 
 function QuantityStepper({
@@ -244,7 +243,6 @@ export default function ProductDetails() {
   const selectedImage = galleryUrls[selectedImageIndex] ?? galleryUrls[0] ?? null;
   const productPrice = product ? resolveProductPrice(product, customerPriceMap) : 0;
   const selectedTotalPrice = productPrice * quantity;
-  const discount = product ? getProductDiscount(product, productPrice) : null;
   const summaryFacts = useMemo(() => {
     if (!product) return [];
 
@@ -567,6 +565,7 @@ export default function ProductDetails() {
               <ProductInfoPanel
                 product={product}
                 price={productPrice}
+                precoBase={resolvePrecoBase(product, customerPriceMap)}
                 averageRating={averageRating}
                 reviewCount={reviewCount}
                 fullDescriptionHref={hasDescription ? "#descricao-produto" : undefined}
@@ -944,6 +943,7 @@ export default function ProductDetails() {
                         <CatalogProductCard
                           product={related}
                           price={resolveProductPrice(related, customerPriceMap)}
+                          precoBase={resolvePrecoBase(related, customerPriceMap)}
                           onAdd={handleRelatedAdd}
                           inCart={cartIds.has(related.id)}
                           compact

@@ -15,13 +15,15 @@ type QuickViewProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   price: number;
+  /** Preco sem promocao, para a etiqueta desenhar o "de". */
+  precoBase: number;
   onAdd: (product: Product, quantity?: number) => void;
   inCart: boolean;
   isWishlisted: boolean;
   onToggleWishlist: () => void;
 };
 
-export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, isWishlisted, onToggleWishlist }: QuickViewProps) {
+export function QuickView({ product, open, onOpenChange, price, precoBase, onAdd, inCart, isWishlisted, onToggleWishlist }: QuickViewProps) {
   const [qty, setQty] = useState(1);
   const [qtyDraft, setQtyDraft] = useState("1");
   const [isQtyEditing, setIsQtyEditing] = useState(false);
@@ -99,7 +101,7 @@ export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, i
                   de valor a cada clique no seletor de quantidade. */}
               <div className="mt-1 flex items-baseline gap-1.5 text-xs text-muted-foreground">
                 <span>Unitário</span>
-                <ProductPriceTag product={product} price={displayPrice} size="sm" />
+                <ProductPriceTag product={product} precoBase={precoBase} price={displayPrice} size="sm" />
               </div>
             </div>
             <button

@@ -83,6 +83,16 @@ export type AdminProductFormState = {
   priceInput: string;
   /** Preco "de" exibido riscado. Vazio = sem promocao com desconto. */
   compareAtPriceInput: string;
+  /**
+   * Promocao percentual sobre a base de cada cliente, com janela de validade.
+   *
+   * Percentual e nao preco fixo: com tabela por cliente (TPR), um valor
+   * promocional cravado pode ficar acima do que o distribuidor ja paga. Ver
+   * `src/lib/promocao.ts`.
+   */
+  promoPercentInput: string;
+  promoStartsAtInput: string;
+  promoEndsAtInput: string;
   stockInput: string;
   productCode: string;
   visible_to: string[];

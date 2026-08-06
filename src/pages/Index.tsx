@@ -27,7 +27,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useOrders } from "@/hooks/useOrders";
 import { useCart } from "@/hooks/useCart";
 import { useCustomerPricing } from "@/hooks/useCustomerPricing";
-import { EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
+import { EMPTY_PRICE_MAP, resolveProductPrice, resolvePrecoBase } from "@/lib/pricing";
 import {
   Select,
   SelectContent,
@@ -46,6 +46,7 @@ import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { useTopSellers } from "@/hooks/useTopSellers";
 import { completarFileira, useGridColumns } from "@/hooks/useGridColumns";
 import { podeVer } from "@/lib/visibilidade";
+import { estaEmPromocao as emPromocao } from "@/lib/promocao";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { resolveProductsByIdOrder } from "@/lib/productIdList";
 import { SectionAnchorNav, type SectionAnchor } from "@/components/shared/SectionAnchorNav";
@@ -293,7 +294,7 @@ export default function Index() {
       if (selectedType && p.type !== selectedType) return false;
       if (selectedFamily && p.family !== selectedFamily) return false;
       if (selectedBrand && (p.brand ?? "") !== selectedBrand) return false;
-      if (onlyPromotions && !p.is_promotion) return false;
+      if (onlyPromotions && !emPromocao(p)) return false;
       // Mesma regra de `visibleCatalog`. Estava reescrita aqui em duas condicoes
       // separadas, sem "marcou tudo" e sem a excecao do admin — entao a grade
       // escondia o que a prateleira mostrava.
@@ -340,7 +341,7 @@ export default function Index() {
     [countBy, visibleCatalog],
   );
   const promotionCount = useMemo(
-    () => visibleCatalog.filter((product) => product.is_promotion).length,
+    () => visibleCatalog.filter((product) => emPromocao(product)).length,
     [visibleCatalog],
   );
 
@@ -520,7 +521,10 @@ export default function Index() {
     if (visibleCatalog.length === 0) return [];
 
     const promotedProducts = visibleCatalog
-      .filter((product) => product.is_promotion)
+      // Curadoria **e** desconto valendo. `is_promotion` sozinho enchia o
+      // carrossel de produto com preco cheio; desconto sozinho nao basta porque
+      // esta prateleira e uma escolha editorial, nao a lista completa.
+      .filter((product) => product.is_promotion && emPromocao(product))
       .sort(
         (left, right) =>
           resolveProductPrice(left, customerPriceMap) - resolveProductPrice(right, customerPriceMap) ||
@@ -667,6 +671,7 @@ export default function Index() {
             <CatalogThemeSections
               sections={catalogThemeSections}
               resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+              resolvePrecoBase={(product) => resolvePrecoBase(product, customerPriceMap)}
               onAdd={handleRequestAdd}
               inCartIds={cartIds}
               wishlistIds={wishlistIds}
@@ -797,6 +802,7 @@ export default function Index() {
                         key={product.id}
                         product={product}
                         price={resolveProductPrice(product, customerPriceMap)}
+                        precoBase={resolvePrecoBase(product, customerPriceMap)}
                         onAdd={handleRequestAdd}
                         inCart={cartIds.has(product.id)}
                         compact
@@ -842,6 +848,7 @@ export default function Index() {
                 subtitle="Os últimos produtos que você abriu"
                 products={recentlyViewedProducts}
                 resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
+                resolvePrecoBase={(p) => resolvePrecoBase(p, customerPriceMap)}
                 onAdd={handleRequestAdd}
                 inCartIds={cartIds}
                 wishlistIds={wishlistIds}
@@ -885,6 +892,7 @@ export default function Index() {
         open={quickViewProduct !== null}
         onOpenChange={(open) => { if (!open) setQuickViewProduct(null); }}
         price={quickViewProduct ? resolveProductPrice(products.find((p) => p.id === quickViewProduct)!, customerPriceMap) : 0}
+        precoBase={quickViewProduct ? resolvePrecoBase(products.find((p) => p.id === quickViewProduct)!, customerPriceMap) : 0}
         onAdd={addToCart}
         inCart={quickViewProduct ? cartIds.has(quickViewProduct) : false}
         isWishlisted={quickViewProduct ? wishlistIds.includes(quickViewProduct) : false}
@@ -901,6 +909,7 @@ function ProductCarouselSection({
   subtitle,
   products,
   resolvePrice,
+  resolvePrecoBase,
   onAdd,
   inCartIds,
   wishlistIds,
@@ -911,6 +920,7 @@ function ProductCarouselSection({
   subtitle?: string;
   products: Product[];
   resolvePrice: (product: Product) => number;
+  resolvePrecoBase: (product: Product) => number;
   onAdd: (product: Product) => void;
   inCartIds: Set<string>;
   wishlistIds: string[];
@@ -982,6 +992,7 @@ function ProductCarouselSection({
                 <CatalogProductCard
                   product={product}
                   price={resolvePrice(product)}
+                  precoBase={resolvePrecoBase(product)}
                   onAdd={onAdd}
                   inCart={inCartIds.has(product.id)}
                   compact

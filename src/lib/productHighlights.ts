@@ -1,4 +1,5 @@
 import type { Product } from "@/lib/products";
+import { promocaoAtiva, type ProdutoComPromocao } from "@/lib/promocao";
 
 /**
  * O selo que um produto carrega, onde quer que ele apareca.
@@ -28,10 +29,23 @@ const MAIS_VENDIDO: ProductHighlight = { label: "Mais vendido", tone: "success" 
  * as tres coisas mostra "Promocao", que e a que faz agir.
  */
 export function highlightForProduct(
-  product: Pick<Product, "id" | "is_promotion" | "is_featured">,
+  product: Pick<Product, "id" | "is_promotion" | "is_featured"> & Partial<ProdutoComPromocao>,
   maisVendidos: ReadonlySet<string>,
+  agora: Date = new Date(),
 ): ProductHighlight | null {
-  if (product.is_promotion) return PROMOCAO;
+  // O selo segue a promocao **ativa**, e nao mais o booleano `is_promotion`.
+  //
+  // Aquele booleano nao tocava em preco: os 4 produtos marcados apareciam com
+  // "PROMOCAO" e o valor cheio, prometendo um desconto que nao existia. Agora o
+  // selo so acende quando ha percentual valendo dentro da janela — nao ha como
+  // anunciar promocao sem promocao.
+  if (promocaoAtiva({
+    promo_percent: product.promo_percent ?? null,
+    promo_starts_at: product.promo_starts_at ?? null,
+    promo_ends_at: product.promo_ends_at ?? null,
+  }, agora)) {
+    return PROMOCAO;
+  }
   if (product.is_featured) return DESTAQUE;
   if (maisVendidos.has(product.id)) return MAIS_VENDIDO;
   return null;

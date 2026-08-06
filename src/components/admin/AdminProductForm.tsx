@@ -12,6 +12,7 @@ import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { ProductImageCarouselEditor } from "@/components/admin/ProductImageCarouselEditor";
 import { ADMIN_TEXT_LIMITS, countRichTextCharacters } from "@/lib/adminTextLimits";
 import { normalizePriceInputDraft, parsePriceInput } from "@/lib/formatMoney";
+import { aplicarPromocao, motivoParaNaoDestacar, podeDestacarEmPromocao } from "@/lib/promocao";
 import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
 import { isRichTextEmpty } from "@/lib/richTextPure";
@@ -126,6 +127,36 @@ export function AdminProductForm({
   onCancel,
 }: AdminProductFormProps) {
   const { options: customerTypeOptions } = useCustomerTypes();
+
+  // Promocao marcada sem valor anterior utilizavel: ou vazio, ou menor/igual ao
+  // preco atual (nesse caso a normalizacao descarta e nao vira desconto).
+  /**
+   * Previa do desconto, com a **mesma** funcao que a loja usa.
+   *
+   * Recalcular aqui por conta propria seria a regra escrita duas vezes — e a
+   * previa passaria a divergir da vitrine no dia em que uma das duas mudasse.
+   */
+  /** O percentual como numero, ou nulo quando o campo esta vazio. */
+  const percentualDigitado =
+    editing.promoPercentInput.trim() === "" ? null : parsePriceInput(editing.promoPercentInput);
+  const podeDestacarPromocao = podeDestacarEmPromocao({ promo_percent: percentualDigitado });
+  const motivoSemDestaque = motivoParaNaoDestacar({ promo_percent: percentualDigitado });
+
+  const previaPromocao = (() => {
+    const base = parsePriceInput(editing.priceInput);
+    const resultado = aplicarPromocao(base, {
+      promo_percent: percentualDigitado,
+      promo_starts_at: editing.promoStartsAtInput.trim() === "" ? null : editing.promoStartsAtInput,
+      promo_ends_at: editing.promoEndsAtInput.trim() === "" ? null : editing.promoEndsAtInput,
+    });
+    if (!resultado) return null;
+    return {
+      deCatalogo: resultado.de.toFixed(2).replace(".", ","),
+      porCatalogo: resultado.por.toFixed(2).replace(".", ","),
+      percent: resultado.percent,
+    };
+  })();
+
   // Produto sem cadastro no ERP e descartado em silencio no pedido: o cliente
   // pede cinco itens e o Proxis recebe quatro. Conferir aqui evita o problema na
   // origem, enquanto ainda da para corrigir.
@@ -368,20 +399,72 @@ export function AdminProductForm({
               />
             </Field>
 
+            {/* Promocao percentual, e nao preco promocional fixo.
+
+                Com tabela por cliente (TPR), um valor cravado pode ficar acima
+                do que o distribuidor ja paga — a "promocao" viraria aumento.
+                Percentual incide sobre a base de cada um, entao o desconto e
+                real para todos. Ver `src/lib/promocao.ts`. */}
             <Field
-              id="product-compare-price"
-              label="Preço anterior (R$)"
-              hint="Aparece riscado acima do preço, com o percentual de desconto. Vazio = sem desconto."
+              id="product-promo-percent"
+              label="Desconto da promoção (%)"
+              hint={
+                previaPromocao
+                  ? `Catálogo R$ ${previaPromocao.deCatalogo} → R$ ${previaPromocao.porCatalogo}. Quem tem tabela própria recebe os mesmos ${previaPromocao.percent}% sobre o preço dele.`
+                  : "Percentual sobre o preço que cada cliente já pagaria. Vazio = sem promoção."
+              }
             >
               <Input
-                id="product-compare-price"
+                id="product-promo-percent"
                 type="text"
                 inputMode="decimal"
-                placeholder="69,90"
-                value={editing.compareAtPriceInput}
-                onChange={(e) =>
-                  onChange({ ...editing, compareAtPriceInput: normalizePriceInputDraft(e.target.value) })
-                }
+                placeholder="15"
+                value={editing.promoPercentInput}
+                onChange={(e) => {
+                  const promoPercentInput = normalizePriceInputDraft(e.target.value);
+                  const digitado = promoPercentInput.trim() === "" ? null : parsePriceInput(promoPercentInput);
+                  onChange({
+                    ...editing,
+                    promoPercentInput,
+                    // Apagar o desconto desliga o destaque na mesma acao. Deixar
+                    // a chave ligada e o campo vazio seria o formulario segurando
+                    // um estado que a regra proibe — e o erro so apareceria no
+                    // salvar, depois de a pessoa achar que estava feito.
+                    is_promotion: editing.is_promotion && podeDestacarEmPromocao({ promo_percent: digitado }),
+                  });
+                }}
+                className={inputClass}
+              />
+            </Field>
+
+            <Field
+              id="product-promo-starts"
+              label="Início da promoção"
+              hint="Vazio = vale desde já."
+            >
+              <Input
+                id="product-promo-starts"
+                type="datetime-local"
+                value={editing.promoStartsAtInput}
+                onChange={(e) => onChange({ ...editing, promoStartsAtInput: e.target.value })}
+                className={inputClass}
+              />
+            </Field>
+
+            <Field
+              id="product-promo-ends"
+              label="Fim da promoção"
+              hint={
+                editing.promoPercentInput.trim() !== "" && editing.promoEndsAtInput.trim() === ""
+                  ? "Sem data de fim a promoção fica no ar até alguém remover."
+                  : "A promoção sai do ar sozinha nesta data."
+              }
+            >
+              <Input
+                id="product-promo-ends"
+                type="datetime-local"
+                value={editing.promoEndsAtInput}
+                onChange={(e) => onChange({ ...editing, promoEndsAtInput: e.target.value })}
                 className={inputClass}
               />
             </Field>
@@ -417,13 +500,17 @@ export function AdminProductForm({
             <div className="flex items-center justify-between gap-4 rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3">
               <div className="min-w-0">
                 <p className={cn(TEXT.body, "font-medium text-foreground")}>Destaque em Promoções</p>
-                <p className={cn(TEXT.caption, "mt-0.5 text-muted-foreground")}>
-                  Entra no carrossel de promoções da home. Precisa estar ativo.
+                <p id="promo-destaque-motivo" className={cn(TEXT.caption, "mt-0.5 text-muted-foreground")}>
+                  {motivoSemDestaque ?? "Entra no carrossel de promoções da home. Precisa estar ativo."}
                 </p>
               </div>
               <Switch
-                checked={editing.is_promotion}
-                onCheckedChange={(checked) => onChange({ ...editing, is_promotion: checked })}
+                checked={editing.is_promotion && podeDestacarPromocao}
+                disabled={!podeDestacarPromocao}
+                aria-describedby={motivoSemDestaque ? "promo-destaque-motivo" : undefined}
+                onCheckedChange={(checked) =>
+                  onChange({ ...editing, is_promotion: checked && podeDestacarPromocao })
+                }
               />
             </div>
 

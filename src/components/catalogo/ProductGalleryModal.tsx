@@ -2,10 +2,10 @@ import {
   useCallback,
   useState,
   type MouseEvent as ReactMouseEvent,
-  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { ZoomIn } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ZoomPorGesto } from "@/components/catalogo/ZoomPorGesto";
 import { cn } from "@/lib/utils";
 
 type ProductGalleryModalProps = {
@@ -30,8 +30,8 @@ export function ProductGalleryModal({
 
   const selectedImage = images[selectedIndex] ?? images[0] ?? null;
 
-  // Converte uma coordenada de tela na origem da ampliacao. Serve mouse e toque:
-  // antes so havia onMouseMove, entao o zoom simplesmente nao existia no celular.
+  // Converte a posicao do cursor na origem da ampliacao. So mouse: o toque tem
+  // caminho proprio em ZoomPorGesto.
   const updateZoomPoint = useCallback((clientX: number, clientY: number, element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
@@ -47,16 +47,7 @@ export function ProductGalleryModal({
     updateZoomPoint(event.clientX, event.clientY, event.currentTarget);
   }, [isZoomEnabled, updateZoomPoint]);
 
-  const handleTouch = useCallback((event: ReactTouchEvent<HTMLDivElement>) => {
-    if (!isZoomEnabled) return;
-    const touch = event.touches[0];
-    if (!touch) return;
-    // Impede a pagina de rolar enquanto o dedo desloca a area ampliada.
-    event.preventDefault();
-    updateZoomPoint(touch.clientX, touch.clientY, event.currentTarget);
-  }, [isZoomEnabled, updateZoomPoint]);
-
-  // No toque nao existe hover: tocar na imagem liga e desliga a ampliacao.
+  // Clique liga e desliga a ampliacao; o movimento do mouse escolhe o ponto.
   const toggleZoom = useCallback(() => {
     setIsZoomEnabled((value) => {
       if (value) setZoomPoint({ x: 50, y: 50 });
@@ -68,7 +59,7 @@ export function ProductGalleryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[min(88vh,760px)] w-[min(92vw,1120px)] max-w-[1120px] overflow-hidden rounded-[1.5rem] border-border/70 p-0">
+      <DialogContent className="h-[min(88dvh,760px)] w-[min(92vw,1120px)] max-w-[1120px] overflow-hidden rounded-[1.5rem] border-border/70 p-0">
         <DialogHeader className="border-b border-border/70 px-4 py-3 sm:px-5 sm:py-3.5">
           <DialogTitle className="text-left text-base font-semibold tracking-tight text-foreground sm:text-lg">
             {title}
@@ -96,6 +87,25 @@ export function ProductGalleryModal({
           </div>
 
           <div className="min-h-0 bg-background p-3.5 xl:p-4">
+            {/* Toque e mouse tem gestos diferentes, entao sao dois blocos.
+
+                No celular vale a pinca e o toque duplo, que e o que qualquer
+                pessoa ja faz com foto no telefone. O caminho abaixo — botao que
+                liga a ampliacao e dedo arrastando o ponto — era o do mouse
+                remendado, e tinha o defeito de o proprio dedo cobrir o trecho
+                ampliado. */}
+            <div className="h-full lg:hidden">
+              <ZoomPorGesto
+                src={selectedImage}
+                alt={title}
+                className="rounded-[1.5rem] border border-border/70"
+                imageClassName="max-h-[68dvh] p-3"
+              />
+            </div>
+
+            <div
+              className="hidden h-full lg:block"
+            >
             <div
               role="button"
               tabIndex={0}
@@ -103,14 +113,12 @@ export function ProductGalleryModal({
               aria-label={isZoomEnabled ? "Desativar ampliação" : "Ampliar imagem"}
               className={cn(
                 "relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-[1.5rem] border border-border/70 bg-background",
-                isZoomEnabled ? "cursor-zoom-out touch-none" : "cursor-zoom-in",
+                isZoomEnabled ? "cursor-zoom-out" : "cursor-zoom-in",
               )}
               onMouseLeave={() => {
                 setZoomPoint({ x: 50, y: 50 });
               }}
               onMouseMove={handleMove}
-              onTouchStart={handleTouch}
-              onTouchMove={handleTouch}
               onClick={toggleZoom}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -124,7 +132,7 @@ export function ProductGalleryModal({
                 alt={title}
                 width={1600}
                 height={1600}
-                className="h-full w-full max-h-[68vh] object-contain p-3 transition-transform duration-200"
+                className="h-full w-full max-h-[68dvh] object-contain p-3 transition-transform duration-200"
                 style={{
                   transform: isZoomEnabled ? "scale(1.55)" : "scale(1)",
                   transformOrigin: `${zoomPoint.x}% ${zoomPoint.y}%`,
@@ -147,10 +155,10 @@ export function ProductGalleryModal({
 
               {isZoomEnabled && (
                 <div className="pointer-events-none absolute left-3 top-3 rounded-full border border-border/70 bg-background/95 px-3 py-2 text-[0.6875rem] font-medium text-foreground shadow-sm">
-                  <span className="hidden sm:inline">Mova o mouse para ajustar</span>
-                  <span className="sm:hidden">Arraste para explorar</span>
+                  Mova o mouse para ajustar
                 </div>
               )}
+            </div>
             </div>
           </div>
         </div>

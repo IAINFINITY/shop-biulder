@@ -30,6 +30,8 @@ import { PRODUCT_IMAGE_MIN_SIZE } from "@/lib/productImageNormalization";
 import { PRODUCT_FAMILIES_TABLE, makeProductFamilyKey, type ProductFamily } from "@/lib/productFamilies";
 import { PRODUCT_BRANDS_TABLE, type ProductBrand } from "@/lib/productBrands";
 import { cn } from "@/lib/utils";
+import { produtoTemSubcategoria, subcategoriasDoProduto } from "@/lib/subcategorias";
+import { ChipDeCategoria } from "@/components/admin/ChipDeCategoria";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { AdminProductForm } from "./AdminProductForm";
@@ -141,6 +143,15 @@ export function AdminProductsSection({
   const [previewMode, setPreviewMode] = useState<PreviewMode>("catalog");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [productListFilter, setProductListFilter] = useState<"all" | "promotions" | "featured" | "best_sellers" | ProductIssue>("all");
+  /**
+   * Filtro por categoria e subcategoria, independente do `productListFilter`.
+   *
+   * Sao dimensoes diferentes: da para querer "so promocoes" **dentro** de "Chas".
+   * Antes o chip so servia para remover — o contador dizia "50" e nao havia como
+   * ver quais eram os 50.
+   */
+  const [filtroTipo, setFiltroTipo] = useState<string | null>(null);
+  const [filtroFamilia, setFiltroFamilia] = useState<string | null>(null);
   const [newFamily, setNewFamily] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -160,7 +171,13 @@ export function AdminProductsSection({
   const familyUsage = useMemo(() => {
     const usage = new Map<string, number>();
     for (const product of allProducts) {
-      const family = product.family.trim();
+      // Conta em cada subcategoria a que o produto pertence, para o numero do
+      // chip bater com o que o filtro dele mostra.
+      for (const sub of subcategoriasDoProduto(product)) {
+        const chave = makeProductFamilyKey(sub);
+        usage.set(chave, (usage.get(chave) ?? 0) + 1);
+      }
+      const family = "";
       if (!family) continue;
       const key = makeProductFamilyKey(family);
       usage.set(key, (usage.get(key) ?? 0) + 1);
@@ -199,11 +216,13 @@ export function AdminProductsSection({
   );
   const familyOptionsForEditing = useMemo(() => {
     if (!editing) return familyOptions;
-    const currentFamily = editing.family.trim();
+      // Mantem visiveis as subcategorias ja gravadas mesmo que nao estejam mais
+      // no cadastro — editar nao pode apagar o valor. Agora sao varias.
+      const ausentes = editing.families.filter((nome) => nome && !familyOptions.includes(nome));
     // Mantem visivel a subcategoria ja gravada no produto mesmo que ela nao
     // esteja mais no cadastro, para editar o produto nao apagar o valor.
-    if (currentFamily && !familyOptions.includes(currentFamily)) {
-      return [currentFamily, ...familyOptions];
+      if (ausentes.length > 0) {
+        return [...ausentes, ...familyOptions];
     }
     return familyOptions;
   }, [editing, familyOptions]);
@@ -252,7 +271,7 @@ export function AdminProductsSection({
       editing.description !== initialEditing.description ||
       editing.brand !== initialEditing.brand ||
       editing.type !== initialEditing.type ||
-      editing.family !== initialEditing.family ||
+      editing.families.join("|") !== initialEditing.families.join("|") ||
       editing.stockInput !== initialEditing.stockInput ||
       editing.active !== initialEditing.active ||
       editing.priceInput !== initialEditing.priceInput ||
@@ -263,7 +282,17 @@ export function AdminProductsSection({
   }, [editing, initialEditing]);
 
   const visibleProducts = useMemo(() => {
-    const products = [...filteredProducts];
+    let products = [...filteredProducts];
+
+    // Categoria e subcategoria entram primeiro: elas restringem o conjunto, e os
+    // filtros abaixo (promocao, destaque, pendencia) atuam dentro dele.
+    if (filtroTipo) {
+      products = products.filter((product) => (product.type ?? "").trim() === filtroTipo);
+    }
+    if (filtroFamilia) {
+      products = products.filter((product) => produtoTemSubcategoria(product, filtroFamilia));
+    }
+
     if (productListFilter === "promotions") {
       return products.filter((product) => product.is_promotion);
     }
@@ -283,7 +312,7 @@ export function AdminProductsSection({
         .map(({ product }) => product);
     }
     return products;
-  }, [filteredProducts, productListFilter, salesByProductId]);
+  }, [filteredProducts, filtroFamilia, filtroTipo, productListFilter, salesByProductId]);
 
   const requestClose = () => {
     if (!editing) return;
@@ -436,19 +465,17 @@ export function AdminProductsSection({
             {adminTypes.length > 0 ? (
               adminTypes.map((type) => {
                 const count = typeUsage.get(type.name) ?? 0;
+                const ativo = filtroTipo === type.name.trim();
                 return (
-                  <ConfirmActionDialog
+                  <ChipDeCategoria
                     key={type.id}
-                    trigger={
-                      <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
-                        <span className="max-w-[14rem] truncate">{type.name}</span>
-                        <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
-                          {count}
-                        </Badge>
-                      </Button>
-                    }
-                    title="Remover categoria"
-                    description={
+                    nome={type.name}
+                    quantidade={count}
+                    ativo={ativo}
+                    onFiltrar={() => setFiltroTipo(ativo ? null : type.name.trim())}
+                    rotuloRemover={`Remover categoria ${type.name}`}
+                    tituloRemover="Remover categoria"
+                    descricaoRemover={
                       <>
                         <span className="block">Deseja remover a categoria "{type.name}"?</span>
                         <span className="mt-2 block text-muted-foreground">
@@ -456,9 +483,7 @@ export function AdminProductsSection({
                         </span>
                       </>
                     }
-                    confirmLabel="Remover"
-                    destructive
-                    onConfirm={() => onDeleteType(type.id)}
+                    onRemover={() => onDeleteType(type.id)}
                   />
                 );
               })
@@ -511,19 +536,17 @@ export function AdminProductsSection({
           {productFamilies.length > 0 ? (
             productFamilies.map((family) => {
               const count = familyUsage.get(makeProductFamilyKey(family.name)) ?? 0;
+              const ativo = filtroFamilia === family.name.trim();
               return (
-                <ConfirmActionDialog
+                <ChipDeCategoria
                   key={family.id}
-                  trigger={
-                    <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
-                      <span className="max-w-[14rem] truncate">{family.name}</span>
-                      <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
-                        {count}
-                      </Badge>
-                    </Button>
-                  }
-                  title="Remover subcategoria"
-                  description={
+                  nome={family.name}
+                  quantidade={count}
+                  ativo={ativo}
+                  onFiltrar={() => setFiltroFamilia(ativo ? null : family.name.trim())}
+                  rotuloRemover={`Remover subcategoria ${family.name}`}
+                  tituloRemover="Remover subcategoria"
+                  descricaoRemover={
                     <>
                       <span className="block">Deseja remover a subcategoria "{family.name}"?</span>
                       <span className="mt-2 block text-muted-foreground">
@@ -533,9 +556,7 @@ export function AdminProductsSection({
                       </span>
                     </>
                   }
-                  confirmLabel="Remover"
-                  destructive
-                  onConfirm={() => deleteFamily(family)}
+                  onRemover={() => deleteFamily(family)}
                 />
               );
             })
@@ -635,7 +656,7 @@ export function AdminProductsSection({
               className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[0.8125rem]"
             />
             <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.6875rem] font-medium text-muted-foreground">
-              {filteredProducts.length} itens
+              {visibleProducts.length} itens
             </div>
           </div>
 
@@ -644,6 +665,32 @@ export function AdminProductsSection({
             Novo produto
           </Button>
         </div>
+
+        {/* Sem isto o filtro seria uma armadilha: a lista encolhe e nao ha nada
+            na tela dizendo por que, nem como voltar. A faixa nomeia o recorte e
+            carrega a saida. */}
+        {filtroTipo || filtroFamilia ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2">
+            <span className="text-[0.8125rem] text-foreground">
+              Mostrando{" "}
+              <strong>
+                {[filtroTipo, filtroFamilia].filter(Boolean).join(" · ")}
+              </strong>{" "}
+              — {visibleProducts.length} de {filteredProducts.length} produtos
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 rounded-full px-3 text-xs"
+              onClick={() => {
+                setFiltroTipo(null);
+                setFiltroFamilia(null);
+              }}
+            >
+              Limpar filtro
+            </Button>
+          </div>
+        ) : null}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button

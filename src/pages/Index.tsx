@@ -48,6 +48,7 @@ import { completarFileira, useGridColumns } from "@/hooks/useGridColumns";
 import { podeVer } from "@/lib/visibilidade";
 import { useFiltroBooleanoNaUrl, useFiltroComPadraoNaUrl, useFiltroNaUrl } from "@/hooks/useFiltroNaUrl";
 import { estaEmPromocao as emPromocao } from "@/lib/promocao";
+import { produtoTemSubcategoria, subcategoriasDoProduto } from "@/lib/subcategorias";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { resolveProductsByIdOrder } from "@/lib/productIdList";
 import { SectionAnchorNav, type SectionAnchor } from "@/components/shared/SectionAnchorNav";
@@ -291,7 +292,11 @@ export default function Index() {
   const familyCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const product of products) {
-      counts.set(product.family, (counts.get(product.family) ?? 0) + 1);
+      // Um produto em duas subcategorias conta nas duas — e a leitura certa:
+      // o numero ao lado do filtro diz quantos aparecem ao clicar nele.
+      for (const sub of subcategoriasDoProduto(product)) {
+        counts.set(sub, (counts.get(sub) ?? 0) + 1);
+      }
     }
     return counts;
   }, [products]);
@@ -307,7 +312,7 @@ export default function Index() {
         return false;
       }
       if (selectedType && p.type !== selectedType) return false;
-      if (selectedFamily && p.family !== selectedFamily) return false;
+      if (selectedFamily && !produtoTemSubcategoria(p, selectedFamily)) return false;
       if (selectedBrand && (p.brand ?? "") !== selectedBrand) return false;
       if (onlyPromotions && !emPromocao(p)) return false;
       // Mesma regra de `visibleCatalog`. Estava reescrita aqui em duas condicoes
@@ -352,8 +357,21 @@ export default function Index() {
     [countBy, visibleCatalog],
   );
   const familyOptions = useMemo(
-    () => countBy((product) => product.family)(visibleCatalog),
-    [countBy, visibleCatalog],
+    () => {
+      // Mesma forma que o `countBy` devolve, mas contando **cada** subcategoria
+      // do produto — ele conta uma chave por produto e aqui um produto pode
+      // entrar em varias.
+      const contagem = new Map<string, number>();
+      for (const product of visibleCatalog) {
+        for (const sub of subcategoriasDoProduto(product)) {
+          contagem.set(sub, (contagem.get(sub) ?? 0) + 1);
+        }
+      }
+      return [...contagem.entries()]
+        .map(([value, count]) => ({ value, count }))
+        .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value, "pt-BR"));
+    },
+      [visibleCatalog],
   );
   const promotionCount = useMemo(
     () => visibleCatalog.filter((product) => emPromocao(product)).length,

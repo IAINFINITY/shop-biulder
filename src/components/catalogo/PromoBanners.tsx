@@ -1,7 +1,9 @@
+import { Link } from "react-router-dom";
 import { ImageIcon } from "lucide-react";
 import { TEXT } from "@/lib/typography";
 import { useBannerArtBySlot, type ArteDeBanner } from "@/hooks/useBannerArt";
 import { BANNER_SLOTS, formatEntrega, type BannerSlot } from "@/lib/bannerSlots";
+import { resolverLinkDeBanner } from "@/lib/linkDeBanner";
 import { cn } from "@/lib/utils";
 
 const SANGRA = "w-screen max-w-[100vw] ml-[calc(50%_-_50vw)]";
@@ -91,9 +93,34 @@ function Peca({
     </div>
   );
 
-  if (href && arte) {
-    return (
-      <a href={href} className={cn(moldura, "block transition-opacity hover:opacity-95")} aria-label={label}>
+  // O link do proprio banner vence o `href` fixo de quem monta a secao.
+  const destino = resolverLinkDeBanner(arte?.link) ?? resolverLinkDeBanner(href);
+
+  if (destino && arte) {
+    /**
+     * Sinal de que o banner leva a algum lugar.
+     *
+     * So `hover:opacity-95` nao convida clique — a pesquisa de affordance e
+     * direta em dizer que a possibilidade real precisa de um significante
+     * visivel. Aqui a arte cresce 2% e a caixa ganha sombra, com o mesmo efeito
+     * no foco de teclado e desligado para quem pediu menos animacao.
+     */
+    const afordancia = cn(
+      moldura,
+      "group block overflow-hidden transition-shadow duration-300",
+      "hover:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+      "focus-visible:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
+      "[&_img]:transition-transform [&_img]:duration-500 motion-reduce:[&_img]:transition-none",
+      "group-hover:[&_img]:scale-[1.02] group-focus-visible:[&_img]:scale-[1.02]",
+    );
+
+    return destino.tipo === "interno" ? (
+      <Link to={destino.para} viewTransition className={afordancia} aria-label={label}>
+        {conteudo}
+      </Link>
+    ) : (
+      <a href={destino.para} target="_blank" rel="noreferrer" className={afordancia} aria-label={label}>
         {conteudo}
       </a>
     );

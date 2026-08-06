@@ -22,6 +22,8 @@ import { podeVer } from "@/lib/visibilidade";
  * altura num celular de 390px. Uma tarja, nao um banner.
  */
 export type ArteDeBanner = {
+  /** Destino cru do cadastro; quem resolve e `resolverLinkDeBanner`. */
+  link: string | null;
   desktop: string;
   /** Nulo = usa a de desktop, cortada no centro. */
   celular: string | null;
@@ -49,6 +51,10 @@ export function useBannerArtBySlot(slot: string, customerType: string | null): {
       .filter((banner) => banner.image_url.trim() !== "")
       .sort((left, right) => left.sort_order - right.sort_order || left.created_at.localeCompare(right.created_at))
       .map((banner) => ({
+        // O link vinha sendo descartado aqui: os slots par/trio/unico tinham
+        // a prop `href` mas nada a alimentava, entao clicar no banner nao fazia
+        // nada.
+        link: banner.link_url ?? null,
         desktop: banner.image_url,
         celular: banner.image_url_mobile?.trim() || null,
       }));

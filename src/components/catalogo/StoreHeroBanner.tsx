@@ -14,6 +14,7 @@ import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { podeVer } from "@/lib/visibilidade";
+import { resolverLinkDeBanner } from "@/lib/linkDeBanner";
 import { cn } from "@/lib/utils";
 
 const AUTOPLAY_MS = 5500;
@@ -49,10 +50,6 @@ type HeroSlide = {
   label: string;
   linkUrl: string | null;
 };
-
-function isInternalLink(value: string): boolean {
-  return value.startsWith("/");
-}
 
 function HeroSlideFrame({
   slide,
@@ -104,12 +101,46 @@ function HeroSlideFrame({
 
   if (!slide.linkUrl) return content;
 
-  return isInternalLink(slide.linkUrl) ? (
-    <Link to={slide.linkUrl} viewTransition className="block h-full w-full" aria-label={slide.label}>
+  /**
+   * Sinal de que o banner leva a algum lugar.
+   *
+   * Imagem clicavel sem sinal nenhum nao convida clique: a pesquisa de affordance
+   * e direta em dizer que a possibilidade real precisa de um **significante** —
+   * cursor, sombra ou movimento. Aqui sao os tres, discretos: o cursor de mao vem
+   * do proprio link, a arte cresce 2% e a caixa ganha sombra.
+   *
+   * `focus-visible` repete o mesmo efeito porque quem navega por teclado precisa
+   * do mesmo aviso — sem isso o banner so existiria para quem usa mouse.
+   *
+   * `motion-safe` respeita quem pediu menos animacao no sistema; nesse caso fica
+   * so a sombra, que nao se move.
+   */
+  const AFFORDANCE = [
+    "group block h-full w-full overflow-hidden rounded-[inherit]",
+    "transition-shadow duration-300 hover:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+    "focus-visible:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
+    // `group-hover:` no lugar de encadear `motion-safe:hover:[&_img]:`, que o
+    // Tailwind nao gerou — verificado no CSS compilado. `group-hover:` ja e usado
+    // nos cards do catalogo, entao e caminho batido.
+    "[&_img]:transition-transform [&_img]:duration-500",
+    "motion-reduce:[&_img]:transition-none",
+    "group-hover:[&_img]:scale-[1.02] group-focus-visible:[&_img]:scale-[1.02]",
+  ].join(" ");
+
+  // Mesmo resolvedor do PromoBanners: `startsWith("/")` tratava
+  // `http://meusite.com/?categoria=Whey` como externo, abrindo aba nova para uma
+  // pagina do proprio site — e, depois do deploy, para a maquina de quem colou o
+  // endereco no admin.
+  const destino = resolverLinkDeBanner(slide.linkUrl);
+  if (!destino) return content;
+
+  return destino.tipo === "interno" ? (
+    <Link to={destino.para} viewTransition className={AFFORDANCE} aria-label={slide.label}>
       {content}
     </Link>
   ) : (
-    <a href={slide.linkUrl} target="_blank" rel="noreferrer" className="block h-full w-full" aria-label={slide.label}>
+    <a href={destino.para} target="_blank" rel="noreferrer" className={AFFORDANCE} aria-label={slide.label}>
       {content}
     </a>
   );

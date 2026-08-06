@@ -31,6 +31,7 @@ import { NOTIFICATION_IMAGE_MAX_SIZE } from "@/lib/productImageNormalization";
 import { cn } from "@/lib/utils";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
+import { campoLocalParaIso, isoParaCampoLocal } from "@/lib/dataHoraLocal";
 
 type NotificationFormState = {
   id?: string;
@@ -49,21 +50,9 @@ type NotificationFormState = {
 
 const DEFAULT_PRIORITY_STEP = 10;
 
-function toDatetimeLocalValue(value: string | null | undefined): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function fromDatetimeLocalValue(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const date = new Date(trimmed);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
-}
+// A conversao de fuso vive em `dataHoraLocal.ts`. Estas duas funcoes existiam
+// aqui, certas, enquanto o formulario de produto fazia `slice(0, 16)` e errava
+// tres horas: a regra estava escrita duas vezes e so uma sabia do fuso.
 
 function getTodayDateInputValue(reference = new Date()): string {
   const year = reference.getFullYear();
@@ -761,8 +750,8 @@ export function AdminNotificationsSection() {
       ctaUrl: notification.cta_url ?? "",
       targetUserId: notification.target_user_id ?? "",
       priority: String(notification.priority),
-      startsAt: toDatetimeLocalValue(notification.starts_at),
-      endsAt: toDatetimeLocalValue(notification.ends_at),
+      startsAt: isoParaCampoLocal(notification.starts_at),
+      endsAt: isoParaCampoLocal(notification.ends_at),
       active: notification.active,
     });
     setEditorOpen(true);
@@ -845,8 +834,8 @@ export function AdminNotificationsSection() {
       target_user_id: trimToNull(draft.targetUserId),
       priority,
       active: draft.active,
-      starts_at: fromDatetimeLocalValue(draft.startsAt),
-      ends_at: fromDatetimeLocalValue(draft.endsAt),
+      starts_at: campoLocalParaIso(draft.startsAt),
+      ends_at: campoLocalParaIso(draft.endsAt),
     };
 
     setSaving(true);

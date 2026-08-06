@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus, Minus, Heart, ImageIcon } from "lucide-react";
 import type { Product } from "@/lib/products";
-import { getProductImageUrls, getProductUnitPrice } from "@/lib/products";
+import { getProductImageUrls, getProductUnitPrice, caminhoDoProduto } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { ProductPriceTag } from "@/components/catalogo/ProductPriceTag";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,7 @@ export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, i
           </div>
 
           <Link
-            to={`/produto/${product.id}`}
+            to={caminhoDoProduto(product)}
             className="block text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             onClick={() => onOpenChange(false)}
           >

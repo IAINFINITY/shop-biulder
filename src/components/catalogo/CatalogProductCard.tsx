@@ -1,7 +1,7 @@
 ﻿import { type LucideIcon, Plus, Heart, Eye, Star, Leaf, Pill, FlaskConical, ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Product } from "@/lib/products";
-import { getProductDiscount, getProductImageAlt, getProductImageUrls, getProductUnitPrice } from "@/lib/products";
+import { getProductDiscount, getProductImageAlt, getProductImageUrls, getProductUnitPrice, caminhoDoProduto } from "@/lib/products";
 import { formatBRL } from "@/lib/formatMoney";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,7 @@ export function CatalogProductCard({ product, price, onAdd, inCart, compact, isW
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-background/80 ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:ring-black/10 hover:shadow-[0_14px_30px_rgba(16,24,40,0.06)] active:scale-[0.985]">
       <Link
-        to={`/produto/${product.id}`}
+        to={caminhoDoProduto(product)}
         viewTransition
         className="flex flex-1 flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
       >

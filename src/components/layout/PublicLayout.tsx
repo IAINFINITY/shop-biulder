@@ -66,6 +66,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       .slice(0, 10)
       .map(({ product }) => ({
         id: product.id,
+        product_code: product.product_code,
         name: product.name,
         type: product.type,
         family: product.family,

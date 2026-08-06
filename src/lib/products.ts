@@ -1,5 +1,6 @@
 import { coercePrice } from "./formatMoney";
 import { normalizeStoragePublicUrl, storageObjectKey } from "./storageUrls";
+import { encontrarProdutoPelaUrl } from "@/lib/urlDoProduto";
 
 /**
  * Como a foto ocupa a moldura 1:1 do catalogo.
@@ -379,6 +380,11 @@ export function getProductDiscount(
   return { from, to, percent: Math.round(((from - to) / from) * 100) };
 }
 
+// O endereco do produto e `/produto/cha-mais-anis-estrelado-2188` e mora em
+// `urlDoProduto.ts`, puro e testado. Reexportado aqui porque e daqui que o
+// catalogo inteiro ja importava.
+export { caminhoDoProduto } from "@/lib/urlDoProduto";
+
 export function getProductCode(product: Pick<Product, "product_code" | "id">): string {
   const code = (product.product_code ?? "").trim();
   if (code) return code;
@@ -509,13 +515,20 @@ export function readCachedProductsFromStorage(includeInactive: boolean): Product
   }
 }
 
-export function readCachedProductFromStorage(productId: string): Product | null {
+/**
+ * O produto guardado em disco, achado pelo mesmo criterio da URL.
+ *
+ * Era `product.id === productId`. Com o endereco em slug + codigo isso passou a
+ * errar sempre, e o cache existe justamente para a pagina abrir preenchida antes
+ * da consulta voltar.
+ */
+export function readCachedProductFromStorage(identificador: string): Product | null {
   const allProducts = [
     ...readCachedProductsFromStorage(false),
     ...readCachedProductsFromStorage(true),
   ];
 
-  return allProducts.find((product) => product.id === productId) ?? null;
+  return encontrarProdutoPelaUrl(allProducts, identificador);
 }
 
 function normalizeCartQuantity(value: unknown): number {

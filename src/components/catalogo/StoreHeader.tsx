@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { formatBRL } from "@/lib/formatMoney";
 import { PageHeaderShell } from "@/components/layout/PageHeaderShell";
 import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
+import { caminhoDoProduto } from "@/lib/products";
 import { cn } from "@/lib/utils";
 import { CepLocationButton } from "@/components/catalogo/CepLocationButton";
 import { useDeliveryCep } from "@/hooks/useDeliveryCep";
@@ -15,6 +16,8 @@ import { useWishlist } from "@/hooks/useWishlist";
 
 export type StoreHeaderSearchSuggestion = {
   id: string;
+  /** Para o link da sugestao usar o mesmo endereco do resto do catalogo. */
+  product_code?: string | null;
   name: string;
   type: string;
   family: string;
@@ -210,7 +213,7 @@ function SearchPanel({
                 searchSuggestions.map((item) => (
                   <Link
                     key={item.id}
-                    to={`/produto/${item.id}`}
+                    to={caminhoDoProduto({ id: item.id, product_code: item.product_code ?? null, name: item.name })}
                     viewTransition
                     className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-muted/70"
                     onClick={() => {

@@ -5,7 +5,13 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  caminhoDoProduto,
+  codigoNaUrl,
+  encontrarProdutoPelaUrl,
+  identificadorDoProduto,
+} from "@/lib/urlDoProduto";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Minus, Heart, ImageIcon, ShieldCheck, ChevronLeft, ChevronRight, Star, Hash, Package, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -138,7 +144,7 @@ export default function ProductDetails() {
   );
   const storageCachedProduct = useMemo(() => (id ? readCachedProductFromStorage(id) : null), [id]);
   const cachedProduct = useMemo(
-    () => storageCachedProduct ?? allProducts.find((item) => item.id === id) ?? null,
+    () => storageCachedProduct ?? encontrarProdutoPelaUrl(allProducts, id),
     [storageCachedProduct, allProducts, id],
   );
 
@@ -155,6 +161,7 @@ export default function ProductDetails() {
   }, [id]);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { add: addToRecentlyViewed } = useRecentlyViewed();
   const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
   const [reviewPage, setReviewPage] = useState(1);
@@ -181,8 +188,17 @@ export default function ProductDetails() {
     retry: 1,
     queryFn: async () => {
       if (!id) throw new Error("Produto não informado");
+
+      // Este caminho e o acesso direto: alguem colou o endereco e o catalogo
+      // ainda nao carregou. Sem a lista em maos nao da para usar
+      // `encontrarProdutoPelaUrl`, entao a coluna do filtro sai do formato do
+      // que veio na URL — UUID e `id`, o resto e codigo (com ou sem slug).
+      const ehUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      const coluna = ehUuid ? "id" : "product_code";
+      const valor = ehUuid ? id : (codigoNaUrl(id) ?? id);
+
       const run = (columns: string) =>
-        supabase.from(PRODUCTS_TABLE).select(columns).eq("id", id).eq("active", true).single();
+        supabase.from(PRODUCTS_TABLE).select(columns).eq(coluna, valor).eq("active", true).single();
 
       const omitted: string[] = [];
       let { data, error } = await run(buildProductSelectColumns());
@@ -201,6 +217,22 @@ export default function ProductDetails() {
   });
 
   const product = cachedProduct ?? liveProduct ?? null;
+
+  /**
+   * Endereco antigo cai no atual.
+   *
+   * Link com UUID, com codigo puro ou com o nome de antes de o produto ser
+   * renomeado continuam abrindo — a resolucao aceita todos. Mas deixar a barra
+   * de endereco mostrando a forma velha significa que sera ela a ser copiada e
+   * compartilhada de novo, e que o buscador vera a mesma pagina em varios
+   * enderecos. `replace` para nao criar volta para o endereco morto.
+   */
+  useEffect(() => {
+    if (!product || !id) return;
+    const canonico = identificadorDoProduto(product);
+    if (canonico === id) return;
+    navigate(caminhoDoProduto(product) + location.search + location.hash, { replace: true });
+  }, [product, id, navigate, location.search, location.hash]);
 
   const averageRating = useMemo(() => {
     if (product && product.average_rating > 0) return product.average_rating;

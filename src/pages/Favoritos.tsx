@@ -15,7 +15,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { itensParaCarrinho, MAX_QUANTIDADE } from "@/lib/favoritos";
 import { formatBRL } from "@/lib/formatMoney";
 import { EMPTY_PRICE_MAP, resolveProductPrice } from "@/lib/pricing";
-import { resolveProductImageUrls } from "@/lib/products";
+import { resolveProductImageUrls, caminhoDoProduto } from "@/lib/products";
 import { CARTAO } from "@/lib/superficies";
 import { cn } from "@/lib/utils";
 
@@ -189,7 +189,7 @@ export default function Favoritos() {
                   />
 
                   <Link
-                    to={`/produto/${produto.id}`}
+                    to={caminhoDoProduto(produto)}
                     viewTransition
                     className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4"
                   >

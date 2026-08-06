@@ -285,6 +285,38 @@ export default function OrderForm() {
     );
   }
 
+  // Login nao basta para fechar pedido.
+  //
+  // Sem perfil de cliente nao existe `proxis_tpr_id`, e sem TPR o
+  // `useCustomerPricing` recebe `(null, null)`: o pedido sairia pelo preco de
+  // catalogo em vez do preco da tabela do cliente, e chegaria assim no ERP.
+  // Antes a unica exigencia era estar logado e digitar um CNPJ valido aqui.
+  //
+  // O `allowGuestCheckout` (so em DEV) continua abrindo excecao, para nao travar
+  // o desenvolvimento sem banco.
+  if (user && !customerProfile && !allowGuestCheckout) {
+    return (
+      <AuthStatusScreen
+        eyebrow="Checkout"
+        title="Complete seu cadastro para finalizar"
+        description="Seu acesso já existe, mas os dados do cliente ainda não foram informados. É o cadastro que vincula sua tabela de preço — sem ele, o pedido sairia com o preço errado."
+        actions={
+          <div className="space-y-3">
+            <Link to="/conta" viewTransition>
+              <Button className="h-11 w-full rounded-xl px-5 text-sm">Completar cadastro</Button>
+            </Link>
+            <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 text-sm text-muted-foreground">
+              Prefere resolver por telefone? Fale com o consultor:{" "}
+              <a className="font-medium text-primary hover:underline" href={REPRESENTATIVE_PHONE_WHATSAPP_URL} target="_blank" rel="noreferrer">
+                {REPRESENTATIVE_PHONE_DISPLAY}
+              </a>
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
   if (!user && !allowGuestCheckout) {
     return (
       <AuthStatusScreen
@@ -327,6 +359,14 @@ export default function OrderForm() {
 
     if (!checkoutHasValidCnpj) {
       toast.error("Para finalizar a compra, informe um CNPJ válido na sua conta ou no checkout.");
+      return;
+    }
+
+    // Segunda trava, alem da barreira de tela: o perfil pode sumir entre abrir o
+    // formulario e enviar (sessao trocada em outra aba, por exemplo), e e aqui
+    // que o pedido de fato parte para o ERP.
+    if (!customerProfile && !allowGuestCheckout) {
+      toast.error("Complete seu cadastro antes de finalizar o pedido.");
       return;
     }
 
@@ -858,7 +898,7 @@ export default function OrderForm() {
 
               <div
                 ref={summaryRef}
-                className="order-first rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:order-last lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:flex lg:max-h-[calc(100vh-var(--page-header-shell-height,88px)-2rem)] lg:flex-col lg:self-start lg:overflow-y-auto"
+                className="order-first rounded-[1.35rem] sm:rounded-[1.75rem] border border-border/60 bg-card/95 p-4 sm:p-6 shadow-sm lg:order-last lg:sticky lg:top-[calc(var(--page-header-shell-height,88px)+1rem)] lg:flex lg:max-h-[calc(100dvh-var(--page-header-shell-height,88px)-2rem)] lg:flex-col lg:self-start lg:overflow-y-auto"
               >
                 <div className="mb-4 sm:mb-5 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">

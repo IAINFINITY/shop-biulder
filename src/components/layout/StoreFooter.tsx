@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 import { useCart } from "@/hooks/useCart";
@@ -57,11 +57,23 @@ const QUICK_LINKS = [
 
 // Rótulos com o destino explícito: sem isso, "Catálogo" aqui e "Catálogo" nos
 // links rápidos pareciam o mesmo link indo para lugares diferentes.
+/**
+ * Os cinco blocos da Central de ajuda, com os nomes que eles tem la.
+ *
+ * Os rotulos daqui foram escritos por conta propria e desencontraram do
+ * conteudo: "Duvidas sobre pedidos" levava a `#pedidos`, que na pagina se chama
+ * **Perguntas frequentes** e cobre pedido, senha, entrega, preco e atendimento.
+ * Quem clicava achava que tinha caido no lugar errado.
+ *
+ * Agora e a mesma lista de `SECTIONS` em `Help.tsx`, na mesma ordem — e
+ * "Atendimento", que existe la e faltava aqui, entrou.
+ */
 const HELP_LINKS = [
+  { label: "Conta", href: "/ajuda#conta" },
+  { label: "Catálogo", href: "/ajuda#catalogo" },
   { label: "Como funciona", href: "/ajuda#como-funciona" },
-  { label: "Dúvidas sobre pedidos", href: "/ajuda#pedidos" },
-  { label: "Dúvidas sobre a conta", href: "/ajuda#conta" },
-  { label: "Dúvidas sobre o catálogo", href: "/ajuda#catalogo" },
+  { label: "Perguntas frequentes", href: "/ajuda#pedidos" },
+  { label: "Atendimento", href: "/ajuda#atendimento" },
 ];
 
 // 44px é o alvo mínimo confortável para toque; os itens do rodapé tinham a
@@ -122,6 +134,7 @@ function ContactItem({ icon: Icon, label, href }: { icon: typeof Phone; label: s
 
 export function StoreFooter() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cart } = useCart();
 
   const handleMyOrdersClick = () => {
@@ -174,7 +187,21 @@ export function StoreFooter() {
                         <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/30 transition-colors group-hover:text-primary/70" />
                       </button>
                     ) : (
-                      <Link to={href} viewTransition className={FOOTER_LINK_CLASS}>
+                      <Link
+                        to={href}
+                        viewTransition
+                        className={FOOTER_LINK_CLASS}
+                        onClick={(evento) => {
+                          // Link para onde a pessoa ja esta nao faz nada, e no
+                          // rodape isso e pior: ela acabou de rolar ate o fim da
+                          // pagina, clica em "Catalogo" e a tela nao se mexe.
+                          // Rolar ao topo e o mesmo que o logo do cabecalho e o
+                          // "Inicio" da barra inferior ja fazem.
+                          if (location.pathname !== href) return;
+                          evento.preventDefault();
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
                         <Icon className="h-4 w-4 shrink-0 text-primary/50 transition-colors group-hover:text-primary/80" />
                         {label}
                         <ChevronRight className="ml-auto h-3.5 w-3.5 text-primary/30 transition-colors group-hover:text-primary/70" />

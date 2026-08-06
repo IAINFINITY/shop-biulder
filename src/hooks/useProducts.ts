@@ -1,3 +1,4 @@
+import { subcategoriasDoProduto } from "@/lib/subcategorias";
 import { useQuery } from "@tanstack/react-query";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import {
@@ -94,7 +95,9 @@ export function useProducts(options?: UseProductsOptions) {
 export function useProductFamilies() {
   const { data: products } = useProducts();
   if (!products) return [];
-  return [...new Set(products.map((p) => p.family))].sort();
+  // Achata as listas: subcategoria que so aparece como secundaria tambem
+  // precisa existir no seletor e na arvore.
+  return [...new Set(products.flatMap(subcategoriasDoProduto))].sort();
 }
 
 export function useProductTypes() {

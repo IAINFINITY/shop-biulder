@@ -36,7 +36,7 @@ export function assertAddressReady(address: AddressFormData): string | null {
   if (!address.neighborhood.trim()) return "Informe o bairro.";
   if (!address.city.trim()) return "Informe a cidade.";
   if (!address.state.trim() || address.state.trim().length !== 2) return "Informe o estado (UF).";
-  if (!address.number.trim()) return "Informe o numero do endereço.";
+  if (!address.number.trim()) return "Informe o número do endereço.";
   return null;
 }
 

@@ -46,6 +46,7 @@ import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { useTopSellers } from "@/hooks/useTopSellers";
 import { completarFileira, useGridColumns } from "@/hooks/useGridColumns";
 import { podeVer } from "@/lib/visibilidade";
+import { useFiltroBooleanoNaUrl, useFiltroComPadraoNaUrl, useFiltroNaUrl } from "@/hooks/useFiltroNaUrl";
 import { estaEmPromocao as emPromocao } from "@/lib/promocao";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { resolveProductsByIdOrder } from "@/lib/productIdList";
@@ -109,6 +110,10 @@ function saveCatalogViewState(state: CatalogViewState) {
   }
 }
 
+/** Guarda o valor que vem da URL: `?ordem=qualquer-coisa` nao pode quebrar a tela. */
+const ehModoDeOrdenacao = (valor: string): valor is CatalogSortMode =>
+  Object.prototype.hasOwnProperty.call(SORT_LABELS, valor);
+
 const SORT_LABELS: Record<CatalogSortMode, string> = {
   relevance: "Relevância",
   best_sellers: "Mais vendidos",
@@ -166,18 +171,28 @@ export default function Index() {
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(search, 250);
   const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
-  const [selectedFamily, setSelectedFamily] = useState<string | null>(
-    () => readCatalogViewState()?.selectedFamily ?? null,
-  );
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(
-    () => readCatalogViewState()?.selectedBrand ?? null,
-  );
-  const [onlyPromotions, setOnlyPromotions] = useState<boolean>(
-    () => readCatalogViewState()?.onlyPromotions ?? false,
-  );
+  /**
+   * Os filtros vivem **so** na URL.
+   *
+   * Antes ficavam em `useState` com copia no `localStorage`, e a URL nunca mudava
+   * — nao dava para compartilhar link nem apontar banner para uma categoria.
+   * A primeira tentativa de corrigir espelhou as duas fontes com efeitos e virou
+   * laco: 58 trocas de endereco ao clicar num banner.
+   *
+   * Derivando da URL nao ha segunda fonte, entao nao ha o que sincronizar. O
+   * "voltar" do navegador tambem restaura o filtro sozinho, que era o motivo de
+   * o `localStorage` guardar isso.
+   */
+  const [selectedType, setSelectedType] = useFiltroNaUrl("categoria");
+  const [selectedFamily, setSelectedFamily] = useFiltroNaUrl("subcategoria");
+  const [selectedBrand, setSelectedBrand] = useFiltroNaUrl("marca");
+  const [onlyPromotions, setOnlyPromotions] = useFiltroBooleanoNaUrl("promocao");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [sortMode, setSortMode] = useState<CatalogSortMode>(() => readCatalogViewState()?.sortMode ?? "relevance");
+  const [sortMode, setSortMode] = useFiltroComPadraoNaUrl<CatalogSortMode>(
+    "ordem",
+    "relevance",
+    ehModoDeOrdenacao,
+  );
   const [visibleProducts, setVisibleProducts] = useState(
     () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
   );
@@ -365,14 +380,18 @@ export default function Index() {
       });
     }
     return list;
-  }, [onlyPromotions, selectedBrand, selectedType, selectedFamily]);
+  }, [onlyPromotions, selectedBrand, selectedType, selectedFamily,
+      setOnlyPromotions, setSelectedBrand, setSelectedFamily, setSelectedType]);
 
+  // Os setters vem do `useFiltroNaUrl` e sao estaveis (dependem so da chave e do
+  // `setSearchParams` do router), mas o eslint nao tem como saber — entao entram
+  // na lista em vez de a regra ser silenciada.
   const clearAllFilters = useCallback(() => {
     setSelectedBrand(null);
     setSelectedType(null);
     setSelectedFamily(null);
     setOnlyPromotions(false);
-  }, []);
+  }, [setSelectedBrand, setSelectedType, setSelectedFamily, setOnlyPromotions]);
 
   /**
    * Duas nocoes de "vende bem", de proposito.

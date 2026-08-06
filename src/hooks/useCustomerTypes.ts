@@ -42,7 +42,18 @@ export function useCustomerTypes() {
 
       return names.map((name) => ({ name, label: customerTypeLabel(name) }));
     },
-    initialData: defaultTypes,
+    // `placeholderData`, e nao `initialData`.
+    //
+    // `initialData` entra no cache como se tivesse acabado de chegar do servidor:
+    // com `staleTime` de 5 minutos a consulta podia nunca disparar, e a lista de
+    // tipos ficava valendo os quatro padroes a sessao inteira. Essa lista
+    // alimenta o `podeVer`, entao a visibilidade dos produtos oscilava junto —
+    // era o que fazia sumirem familias inteiras da arvore de filtros para quem
+    // nao e admin.
+    //
+    // `placeholderData` pinta o mesmo enquanto carrega, mas nao mente para o
+    // cache: a consulta roda e o banco continua sendo a fonte.
+    placeholderData: defaultTypes,
   });
 
   const distinctQuery = useQuery({

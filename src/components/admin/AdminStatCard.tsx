@@ -20,10 +20,16 @@ export function AdminStatCard({ icon: Icon, label, value, tone, note }: AdminSta
   return (
     <div className="rounded-[1.1rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]">
       <div className="flex items-start justify-between gap-3">
-        <div className={cn("inline-flex h-9 w-9 items-center justify-center rounded-full border", toneClasses)}>
+        <div className={cn("inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border", toneClasses)}>
           <Icon className="h-4 w-4" />
         </div>
-        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</span>
+        {/* Em duas colunas no celular sobram ~90px para o rotulo, ao lado do
+            icone. Caixa alta com `tracking-[0.18em]` ocupa bem mais que o texto
+            aparenta, e sem `min-w-0` o flex nao deixa o span encolher — o rotulo
+            saia do cartao. */}
+        <span className="min-w-0 break-words text-right text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
+        </span>
       </div>
       <div className="mt-3">
         <div className="text-lg font-semibold tracking-tight text-foreground">{value}</div>

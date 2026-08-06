@@ -38,6 +38,7 @@ import { useProductFamilies } from "@/hooks/useProductFamilies";
 import { useProductBrands } from "@/hooks/useProductBrands";
 import { toast } from "sonner";
 import type { AdminProductFormState, AdminProduct } from "./adminTypes";
+import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
 
 type PreviewMode = "catalog" | "details";
 
@@ -851,8 +852,8 @@ export function AdminProductsSection({
           if (!open) requestClose();
         }}
       >
-        <DialogContent className="max-h-[92vh] w-[min(98vw,1720px)] max-w-[1720px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
-          <div className="flex max-h-[92vh] flex-col overflow-hidden">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[92dvh] w-[min(98vw,1720px)] max-w-[1720px] overflow-hidden rounded-[1.75rem] border-border/70 p-0")}>
+          <div className={cn("flex max-h-[92dvh] flex-col overflow-hidden", MODAL_TELA_CHEIA_CORPO)}>
             <DialogHeader className="border-b border-border/70 px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3 pr-10 sm:pr-12">
                 <div className="space-y-1 text-left">
@@ -905,8 +906,8 @@ export function AdminProductsSection({
         open={previewOpen && Boolean(editing)}
         onOpenChange={(open) => setPreviewOpen(open)}
       >
-        <DialogContent className="max-h-[92vh] w-[min(96vw,1460px)] max-w-[1460px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
-          <div className="flex max-h-[92vh] flex-col overflow-hidden">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[92dvh] w-[min(96vw,1460px)] max-w-[1460px] overflow-hidden rounded-[1.75rem] border-border/70 p-0")}>
+          <div className={cn("flex max-h-[92dvh] flex-col overflow-hidden", MODAL_TELA_CHEIA_CORPO)}>
             <DialogHeader className="border-b border-border/70 px-5 py-4">
               <div className="flex flex-wrap items-start justify-between gap-3 pr-10 sm:pr-12">
                 <div className="space-y-1 text-left">

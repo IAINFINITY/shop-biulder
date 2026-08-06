@@ -123,7 +123,7 @@ export function OrderAdminCard({
           <CollapsibleTrigger asChild>
             <button
               type="button"
-              className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="mt-0.5 flex h-10 sm:h-9 w-10 sm:w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-expanded={open}
               aria-label={open ? "Recolher pedido" : "Expandir pedido"}
             >
@@ -142,7 +142,7 @@ export function OrderAdminCard({
                   <Select value={order.status} onValueChange={(value) => onStatusChange(order.id, value)}>
                     <SelectTrigger
                       className={cn(
-                        "h-7 w-auto gap-1 rounded-full border px-2.5 py-0 text-[0.6875rem] font-medium",
+                        "h-9 sm:h-7 w-auto gap-1 rounded-full border px-2.5 py-0 text-[0.6875rem] font-medium",
                         statusClassName(order.status),
                         "[&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-50",
                       )}

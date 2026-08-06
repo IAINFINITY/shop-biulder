@@ -118,7 +118,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
           }
         }}
       >
-        <SelectTrigger className="h-8 w-[7.5rem] text-xs">
+        <SelectTrigger className="h-10 sm:h-8 w-[7.5rem] text-xs">
           <SelectValue placeholder="Tamanho" />
         </SelectTrigger>
         <SelectContent>
@@ -137,7 +137,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         type="button"
         variant="ghost"
         size="sm"
-        className="h-8 w-8 p-0"
+        className="h-10 sm:h-8 w-10 sm:w-8 p-0"
         onClick={() => editor.chain().focus().setHardBreak().run()}
         aria-label="Quebra de linha (Shift+Enter)"
         title="Quebra de linha — mantém no mesmo parágrafo (Shift+Enter)"
@@ -211,7 +211,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         type="button"
         variant="ghost"
         size="sm"
-        className="h-8 w-8 p-0"
+        className="h-10 sm:h-8 w-10 sm:w-8 p-0"
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().undo()}
         aria-label="Desfazer"
@@ -222,7 +222,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         type="button"
         variant="ghost"
         size="sm"
-        className="h-8 w-8 p-0"
+        className="h-10 sm:h-8 w-10 sm:w-8 p-0"
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().redo()}
         aria-label="Refazer"
@@ -233,7 +233,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
         type="button"
         variant="ghost"
         size="sm"
-        className="h-8 w-8 p-0"
+        className="h-10 sm:h-8 w-10 sm:w-8 p-0"
         onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
         aria-label="Limpar formatação"
       >

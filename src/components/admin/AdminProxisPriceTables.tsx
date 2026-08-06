@@ -141,7 +141,7 @@ export function AdminProxisPriceTables({
           <Button
             type="button"
             variant="outline"
-            className={cn(TEXT.compact, "h-9 gap-1.5 rounded-full px-3.5")}
+            className={cn(TEXT.compact, "h-10 sm:h-9 gap-1.5 rounded-full px-3.5")}
             onClick={() => refetch()}
             disabled={isFetching}
           >
@@ -153,7 +153,7 @@ export function AdminProxisPriceTables({
               <Button
                 type="button"
                 disabled={selected.size === 0 || importar.isPending}
-                className={cn(TEXT.compact, "h-9 gap-1.5 rounded-full px-3.5")}
+                className={cn(TEXT.compact, "h-10 sm:h-9 gap-1.5 rounded-full px-3.5")}
               >
                 <Download className="h-3.5 w-3.5" />
                 {importar.isPending ? "Importando…" : `Importar ${selected.size || ""}`}
@@ -282,7 +282,7 @@ export function AdminProxisPriceTables({
               <Button
                 type="button"
                 variant="outline"
-                className="h-8 w-8 rounded-full p-0"
+                className="h-10 sm:h-8 w-10 sm:w-8 rounded-full p-0"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={paginaAtual === 0}
                 aria-label="Página anterior"
@@ -292,7 +292,7 @@ export function AdminProxisPriceTables({
               <Button
                 type="button"
                 variant="outline"
-                className="h-8 w-8 rounded-full p-0"
+                className="h-10 sm:h-8 w-10 sm:w-8 rounded-full p-0"
                 onClick={() => setPage((p) => Math.min(totalPaginas - 1, p + 1))}
                 disabled={paginaAtual >= totalPaginas - 1}
                 aria-label="Próxima página"

@@ -118,7 +118,7 @@ function ActiveFilterSummary({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 shrink-0 rounded-full border-primary/20 bg-background px-3 text-xs text-primary hover:bg-primary/10 hover:text-primary"
+          className="h-10 sm:h-8 shrink-0 rounded-full border-primary/20 bg-background px-3 text-xs text-primary hover:bg-primary/10 hover:text-primary"
           onClick={onClear}
         >
           Limpar
@@ -192,7 +192,7 @@ function FamilyCollapsibleList({
                 <Button
                   type="button"
                   variant={selectedFamily === family && selectedType == null ? "default" : "outline"}
-                  className="h-8 rounded-full px-3 text-xs"
+                  className="h-10 sm:h-8 rounded-full px-3 text-xs"
                   onClick={() => {
                     onFamilyChange(family);
                     onTypeChange(null);
@@ -211,7 +211,7 @@ function FamilyCollapsibleList({
                       key={`${family}-${type}`}
                       type="button"
                       variant={typeActive ? "default" : "outline"}
-                      className="h-8 rounded-full px-3 text-xs"
+                      className="h-10 sm:h-8 rounded-full px-3 text-xs"
                       onClick={() => selectType(family, type)}
                     >
                       <span className="max-w-[11rem] truncate">{type}</span>
@@ -294,8 +294,20 @@ export function CatalogFiltersBarV2({
     setFamiliesOpen(false);
   };
 
+  /**
+   * Sangria por margem negativa, e nao por `left-1/2` + `translate`.
+   *
+   * Em `position: relative` o `left` desloca o elemento, e o par funciona — e o
+   * que o banner do topo faz. Em `sticky`, `left` e o **limiar de fixacao**, nao
+   * um deslocamento: o elemento fica onde o fluxo o colocou e so o `translate`
+   * age, o que deixa a posicao dependendo de como cada navegador resolve inset
+   * horizontal sem rolagem horizontal.
+   *
+   * `ml-[calc(50%_-_50vw)]` nao interage com sticky de forma nenhuma. E o mesmo
+   * padrao dos banners promocionais e da navegacao de secoes.
+   */
   return (
-    <div className="sticky left-1/2 top-[calc(var(--page-header-shell-height,88px)-1px)] z-40 w-screen max-w-[100vw] -translate-x-1/2 overflow-x-clip border-b border-border/40 bg-muted/40">
+    <div className="sticky top-[calc(var(--page-header-shell-height,88px)-1px)] z-40 ml-[calc(50%_-_50vw)] w-screen max-w-[100vw] overflow-x-clip border-b border-border/40 bg-muted/40">
       <div className="w-full space-y-3 px-3 py-3 sm:px-6 lg:px-8">
       {isLoading ? (
         <div
@@ -304,7 +316,7 @@ export function CatalogFiltersBarV2({
         >
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full border-border/70 bg-background/80 px-3 py-1 text-[0.6875rem] font-medium">
-              Carregando catalogo
+              Carregando catálogo
             </Badge>
           </div>
         </div>
@@ -313,7 +325,7 @@ export function CatalogFiltersBarV2({
       <div className="flex flex-wrap gap-2 lg:hidden">
         <Button
           type="button"
-          className="h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
+          className="h-10 sm:h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
           onClick={clearFilters}
         >
           <Menu className="h-4 w-4" strokeWidth={2.25} />
@@ -326,7 +338,7 @@ export function CatalogFiltersBarV2({
         <Button
           type="button"
           variant="outline"
-          className="h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold"
+          className="h-10 sm:h-9 shrink-0 gap-2 rounded-full px-3 text-xs font-semibold"
           onClick={() => setFamiliesOpen(true)}
         >
           <Filter className="h-4 w-4" />
@@ -345,7 +357,7 @@ export function CatalogFiltersBarV2({
           <Button
             type="button"
             variant="outline"
-            className="h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-medium"
+            className="h-10 sm:h-8 shrink-0 gap-1.5 rounded-full px-3 text-xs font-medium"
             onClick={() => setFamiliesOpen(true)}
           >
             <Filter className="h-3.5 w-3.5" />
@@ -391,7 +403,7 @@ export function CatalogFiltersBarV2({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 rounded-full px-2.5 text-[0.6875rem] text-muted-foreground hover:text-foreground"
+              className="h-9 sm:h-7 shrink-0 rounded-full px-2.5 text-[0.6875rem] text-muted-foreground hover:text-foreground"
               onClick={clearFilters}
             >
               Limpar
@@ -419,7 +431,7 @@ export function CatalogFiltersBarV2({
             <div className="shrink-0 px-6 pt-6">
               <SheetHeader className="pr-8">
                 <SheetTitle>Categorias</SheetTitle>
-                <SheetDescription>Escolha uma familia e abra os tipos relacionados sem perder o foco da vitrine.</SheetDescription>
+                <SheetDescription>Escolha uma família e abra os tipos relacionados sem perder o foco da vitrine.</SheetDescription>
               </SheetHeader>
             </div>
 
@@ -432,7 +444,7 @@ export function CatalogFiltersBarV2({
                   <Button
                     type="button"
                     variant={selectedFamily == null ? "default" : "outline"}
-                    className="h-9 w-full justify-start rounded-full px-4"
+                    className="h-10 sm:h-9 w-full justify-start rounded-full px-4"
                     onClick={() => {
                       clearFilters();
                       setFamiliesOpen(false);
@@ -499,7 +511,7 @@ export function CatalogFiltersSidebar({
           <ActiveFilterSummary selectedType={selectedType} selectedFamily={selectedFamily} onClear={onShowAllProducts} />
           <Button
             type="button"
-            className="h-9 w-full justify-start gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
+            className="h-10 sm:h-9 w-full justify-start gap-2 rounded-full px-3 text-xs font-semibold shadow-sm shadow-primary/15 transition-colors hover:opacity-95"
             onClick={onShowAllProducts}
           >
             <Menu className="h-4 w-4" strokeWidth={2.25} />

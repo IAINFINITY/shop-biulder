@@ -53,6 +53,7 @@ import {
 } from "@/lib/adminUsers";
 import type { AdminSection } from "./adminTypes";
 import { cn } from "@/lib/utils";
+import { MODAL_TELA_CHEIA } from "@/lib/modais";
 
 const PERMISSION_OPTIONS: { id: AdminSection; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
@@ -546,7 +547,7 @@ export function AdminUsersSection() {
                       >
                         <SelectTrigger
                           className={cn(
-                            "inline-flex h-9 w-36 items-center gap-1.5 rounded-full border bg-background px-5 text-[0.8125rem]",
+                            "inline-flex h-10 sm:h-9 w-36 items-center gap-1.5 rounded-full border bg-background px-5 text-[0.8125rem]",
                             getRoleVariant(u.role),
                             "hover:bg-muted/60 [&>svg]:h-3.5 [&>svg]:w-3.5",
                           )}
@@ -587,7 +588,7 @@ export function AdminUsersSection() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                        className="h-10 sm:h-9 w-10 sm:w-9 rounded-full text-muted-foreground hover:text-foreground"
                         onClick={() => openEdit(u)}
                       >
                         <Edit className="h-4 w-4" />
@@ -680,7 +681,7 @@ export function AdminUsersSection() {
           }
         }}
       >
-        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[58rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[calc(100dvh-2rem)] max-w-[58rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <UserPlus className="h-5 w-5" />
@@ -859,7 +860,7 @@ export function AdminUsersSection() {
           setEditingUser(null);
         }
       }}>
-        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[42rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[calc(100dvh-2rem)] max-w-[42rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <Edit className="h-5 w-5" />

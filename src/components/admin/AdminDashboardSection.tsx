@@ -216,7 +216,7 @@ export function AdminDashboardSection({
         />
       </div>
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)] h-full">
+      <div className="min-w-0 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)] h-full">
         <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
           <div>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedidos recentes</p>
@@ -225,7 +225,7 @@ export function AdminDashboardSection({
           <Button
             type="button"
             variant="ghost"
-            className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary shrink-0"
+            className="h-10 sm:h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary shrink-0"
             onClick={onGoToOrders}
           >
             Ver todos
@@ -315,9 +315,9 @@ export function AdminDashboardSection({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+        <div className="min-w-0 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Clientes recentes</p>
               <p className="text-sm text-foreground">Cadastros que acabaram de entrar no sistema</p>
             </div>
@@ -344,9 +344,9 @@ export function AdminDashboardSection({
           </div>
         </div>
 
-        <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+        <div className="min-w-0 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Funcionários recentes</p>
               <p className="text-sm text-foreground">Equipe vinculada à Clinic+</p>
             </div>
@@ -377,7 +377,7 @@ export function AdminDashboardSection({
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <div className="min-w-0 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Produtos</p>
@@ -386,7 +386,7 @@ export function AdminDashboardSection({
           <Button
             type="button"
             variant="ghost"
-            className="h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary"
+            className="h-10 sm:h-9 rounded-full px-3 text-sm text-primary hover:bg-primary/5 hover:text-primary"
             onClick={onGoToProducts}
           >
             Gerenciar
@@ -427,7 +427,7 @@ export function AdminDashboardSection({
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <div className="min-w-0 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Comunicação do catálogo</p>
@@ -556,7 +556,7 @@ export function AdminDashboardSection({
         </div>
       </div>
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+      <div className="min-w-0 rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Integração / Proxsys</p>

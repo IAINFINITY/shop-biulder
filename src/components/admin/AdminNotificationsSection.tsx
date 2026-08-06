@@ -30,6 +30,7 @@ import { deleteStorageImage, isProductImageStorageUrl, uploadProductImageFile } 
 import { NOTIFICATION_IMAGE_MAX_SIZE } from "@/lib/productImageNormalization";
 import { cn } from "@/lib/utils";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
+import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
 
 type NotificationFormState = {
   id?: string;
@@ -293,7 +294,7 @@ function NotificationCard({
 
           <ConfirmActionDialog
             trigger={
-              <Button type="button" variant="outline" className="h-9 rounded-full px-3 text-xs text-destructive">
+              <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-xs text-destructive">
                 <Trash2 className="h-4 w-4" />
                 Excluir
               </Button>
@@ -326,7 +327,7 @@ function NotificationPreview({
   const priority = draft?.priority.trim() || "0";
 
   return (
-    <div className="flex h-full min-h-[540px] flex-col gap-5">
+    <div className="flex h-full flex-col gap-5 lg:min-h-[540px]">
       <div className="space-y-1">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pré-visualização</p>
         <p className="text-sm text-foreground/80">Veja como a notificação vai aparecer para o cliente antes de salvar.</p>
@@ -400,8 +401,8 @@ function NotificationEditor({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] w-[min(98vw,1320px)] max-w-[1320px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
-        <div className="flex max-h-[92vh] flex-col overflow-hidden">
+      <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[92dvh] w-[min(98vw,1320px)] max-w-[1320px] overflow-hidden rounded-[1.75rem] border-border/70 p-0")}>
+        <div className={cn("flex max-h-[92dvh] flex-col overflow-hidden", MODAL_TELA_CHEIA_CORPO)}>
           <DialogHeader className="border-b border-border/70 px-5 py-4">
             <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
               {draft?.id ? "Editar notificação" : "Nova notificação"}
@@ -411,8 +412,17 @@ function NotificationEditor({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-            <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+          {/* Uma rolagem so no celular.
+
+                  Em duas colunas (lg) cada lado rola por conta propria, que e o
+                  certo: formulario de um lado, previa do outro, os dois sempre a
+                  vista. Empilhados numa coluna, porem, viravam **duas** areas de
+                  rolagem dividindo a mesma altura — e a previa ainda reservava
+                  320px de piso, entao ela tomava a tela e o formulario ficava
+                  numa fresta. Aqui embaixo quem rola e o container, e a previa
+                  vem depois do formulario, no fluxo. */}
+              <div className="grid min-h-0 flex-1 gap-0 max-lg:overflow-y-auto lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="min-h-0 p-4 sm:p-5 lg:overflow-y-auto">
               {draft ? (
                 <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
           <div className="grid gap-4 md:grid-cols-2">
@@ -486,7 +496,7 @@ function NotificationEditor({
                         <Button
                           type="button"
                           variant="ghost"
-                          className="h-9 rounded-full px-3 text-xs text-destructive"
+                          className="h-10 sm:h-9 rounded-full px-3 text-xs text-destructive"
                           onClick={async () => {
                             const currentImage = draft.imageUrl.trim();
                             if (currentImage && isProductImageStorageUrl(currentImage)) {
@@ -655,7 +665,7 @@ function NotificationEditor({
               ) : null}
             </div>
 
-            <div className="min-h-0 overflow-y-auto border-t border-border/70 bg-muted/15 p-5 sm:p-6 lg:border-l lg:border-t-0">
+            <div className="min-h-0 border-t border-border/70 bg-muted/15 p-5 sm:p-6 lg:overflow-y-auto lg:border-l lg:border-t-0">
               <NotificationPreview
                 draft={draft}
                 targetUserLabel={targetUserLabel}

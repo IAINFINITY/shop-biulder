@@ -261,7 +261,7 @@ export function ProductImageCarouselEditor({
                     type="button"
                     variant="secondary"
                     size="icon"
-                    className="h-7 w-7 rounded-md shadow-sm"
+                    className="h-9 sm:h-7 w-9 sm:w-7 rounded-md shadow-sm"
                     disabled={uploading || isFirst}
                     onClick={() => onMoveAt(index, index - 1)}
                     aria-label={`Mover foto ${index + 1} para a esquerda`}
@@ -273,7 +273,7 @@ export function ProductImageCarouselEditor({
                     type="button"
                     variant="secondary"
                     size="icon"
-                    className="h-7 w-7 rounded-md shadow-sm"
+                    className="h-9 sm:h-7 w-9 sm:w-7 rounded-md shadow-sm"
                     disabled={uploading || isLast}
                     onClick={() => onMoveAt(index, index + 1)}
                     aria-label={`Mover foto ${index + 1} para a direita`}
@@ -285,7 +285,7 @@ export function ProductImageCarouselEditor({
                     type="button"
                     variant="destructive"
                     size="icon"
-                    className="h-7 w-7 rounded-md shadow-sm"
+                    className="h-9 sm:h-7 w-9 sm:w-7 rounded-md shadow-sm"
                     disabled={uploading}
                     onClick={async () => {
                       await onRemoveAt(index);

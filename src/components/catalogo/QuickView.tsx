@@ -106,7 +106,7 @@ export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, i
               type="button"
               onClick={onToggleWishlist}
               className={cn(
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
+                "flex h-10 sm:h-9 w-10 sm:w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
                 isWishlisted
                   ? "border-primary/30 bg-primary/5 text-primary"
                   : "border-border/60 bg-background text-muted-foreground hover:text-primary",
@@ -123,7 +123,7 @@ export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, i
                 type="button"
                 onClick={decQty}
                 disabled={qty <= 1}
-                className="flex h-9 w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                className="flex h-10 sm:h-9 w-10 sm:w-9 items-center justify-center rounded-l-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -147,7 +147,7 @@ export function QuickView({ product, open, onOpenChange, price, onAdd, inCart, i
               <button
                 type="button"
                 onClick={incQty}
-                className="flex h-9 w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground"
+                className="flex h-10 sm:h-9 w-10 sm:w-9 items-center justify-center rounded-r-full text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>

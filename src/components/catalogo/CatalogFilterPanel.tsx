@@ -241,7 +241,7 @@ export function CatalogFilterPanel({
           <Button
             type="button"
             variant="ghost"
-            className={cn(TEXT.caption, "h-7 rounded-full px-2 text-muted-foreground hover:text-foreground")}
+            className={cn(TEXT.caption, "h-9 sm:h-7 rounded-full px-2 text-muted-foreground hover:text-foreground")}
             onClick={onClearAll}
           >
             Limpar

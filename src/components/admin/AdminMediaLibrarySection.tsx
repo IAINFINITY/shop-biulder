@@ -154,13 +154,37 @@ export function AdminMediaLibrarySection({ products }: Props) {
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return classified.filter((file) => {
+    const filtrados = classified.filter((file) => {
       if (statusFilter !== "todas" && file.status !== statusFilter) return false;
       if (!term) return true;
       return (
         file.name.toLowerCase().includes(term) ||
         file.usedBy.some((usage) => usage.label.toLowerCase().includes(term))
       );
+    });
+
+    /**
+     * Ordem de chegada, do mais novo para o mais antigo.
+     *
+     * O `storage.list()` nao recebia `sortBy`, entao vinha o padrao do Supabase:
+     * nome em ordem alfabetica. Depois que as fotos passaram a se chamar pelo
+     * codigo do produto, isso virou "ordem por codigo" — quem acabou de enviar
+     * um arquivo tinha de garimpar onde ele caiu no meio da lista.
+     *
+     * Mais novo primeiro, e nao mais antigo: numa biblioteca de midia quem abre
+     * a tela quase sempre quer ver o que acabou de subir.
+     *
+     * Arquivo sem data cai para o fim e desempata por nome, para a ordem nao
+     * mudar a cada carregamento.
+     */
+    return filtrados.sort((esquerda, direita) => {
+      const a = esquerda.createdAt ? Date.parse(esquerda.createdAt) : NaN;
+      const b = direita.createdAt ? Date.parse(direita.createdAt) : NaN;
+      const temA = Number.isFinite(a);
+      const temB = Number.isFinite(b);
+      if (temA && temB && a !== b) return b - a;
+      if (temA !== temB) return temA ? -1 : 1;
+      return esquerda.name.localeCompare(direita.name, "pt-BR");
     });
   }, [classified, statusFilter, search]);
 
@@ -274,7 +298,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
                 key={filter.key}
                 type="button"
                 variant={isActive ? "default" : "outline"}
-                className={cn(TEXT.compact, "h-9 gap-2 rounded-full px-3.5")}
+                className={cn(TEXT.compact, "h-10 sm:h-9 gap-2 rounded-full px-3.5")}
                 onClick={() => setStatusFilter(filter.key)}
               >
                 {filter.label}
@@ -320,7 +344,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
               <Button
                 type="button"
                 variant="ghost"
-                className={cn(TEXT.compact, "h-9 rounded-full px-3")}
+                className={cn(TEXT.compact, "h-10 sm:h-9 rounded-full px-3")}
                 onClick={() => setSelecionadas(new Set())}
               >
                 Limpar seleção
@@ -331,7 +355,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
                     type="button"
                     variant="outline"
                     disabled={isCleaning}
-                    className={cn(TEXT.compact, "h-9 gap-1.5 rounded-full border-destructive/30 px-4 text-destructive")}
+                    className={cn(TEXT.compact, "h-10 sm:h-9 gap-1.5 rounded-full border-destructive/30 px-4 text-destructive")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     {isCleaning ? "Apagando…" : "Apagar selecionados"}
@@ -364,7 +388,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
                   type="button"
                   variant="outline"
                   disabled={isCleaning}
-                  className={cn(TEXT.compact, "h-9 gap-1.5 rounded-full border-sky-300 bg-background px-4 text-sky-900")}
+                  className={cn(TEXT.compact, "h-10 sm:h-9 gap-1.5 rounded-full border-sky-300 bg-background px-4 text-sky-900")}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {isCleaning ? "Removendo…" : "Apagar as versões antigas"}
@@ -457,7 +481,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
                         <Button
                           type="button"
                           variant="ghost"
-                          className={cn(TEXT.caption, "h-8 w-full gap-1 rounded-full px-2 text-destructive")}
+                          className={cn(TEXT.caption, "h-10 sm:h-8 w-full gap-1 rounded-full px-2 text-destructive")}
                         >
                           <Trash2 className="h-3 w-3" />
                           Apagar

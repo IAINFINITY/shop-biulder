@@ -28,6 +28,8 @@ import type { AdminCustomerSummary } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
 import { deleteCustomerRecord } from "@/lib/customerProfile";
 import { listAdminUsers, getRoleLabel, type AdminUserRecord } from "@/lib/adminUsers";
+import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
+import { cn } from "@/lib/utils";
 
 type AdminClientsSectionProps = {
   customerProfiles: CustomerProfile[];
@@ -70,7 +72,12 @@ function DetailField({
     <div className="flex h-full min-h-[64px] sm:min-h-[80px] flex-col justify-between rounded-[1.2rem] border border-border/70 bg-muted/20 p-3 sm:p-4">
       <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
       <div className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1">
-        <p className="text-[0.8125rem] sm:text-sm font-medium leading-5 sm:leading-6 text-foreground">{value}</p>
+        {/* `break-words`: este campo mostra e-mail e documento — cadeias sem
+            espaco, que o navegador nao quebra sozinho e passavam por fora do
+            cartao no celular. */}
+        <p className="break-words text-[0.8125rem] sm:text-sm font-medium leading-5 sm:leading-6 text-foreground">
+          {value}
+        </p>
         {hint ? <p className="text-[0.6875rem] leading-4 sm:leading-5 text-muted-foreground">{hint}</p> : null}
       </div>
     </div>
@@ -500,8 +507,8 @@ export function AdminClientsSection({
       </div>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-h-[92vh] w-[min(98vw,640px)] max-w-[640px] overflow-hidden rounded-[1.5rem] border-border/70 p-0">
-          <div className="flex max-h-[92vh] flex-col overflow-hidden">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[92dvh] w-[min(98vw,640px)] max-w-[640px] overflow-hidden rounded-[1.5rem] border-border/70 p-0")}>
+          <div className={cn("flex max-h-[92dvh] flex-col overflow-hidden", MODAL_TELA_CHEIA_CORPO)}>
             <DialogHeader className="border-b border-border/70 px-4 py-3 sm:px-5 sm:py-4">
               <DialogTitle className="text-left text-base sm:text-lg font-semibold tracking-tight text-foreground">
                 Dados do cliente
@@ -660,7 +667,7 @@ export function AdminClientsSection({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-9 rounded-full px-3 text-xs"
+                          className="h-10 sm:h-9 rounded-full px-3 text-xs"
                           disabled={syncingProxis || proxisDetailsLoading}
                           onClick={syncDetailsProxis}
                         >

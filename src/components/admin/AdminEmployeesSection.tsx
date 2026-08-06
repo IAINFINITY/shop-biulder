@@ -46,6 +46,7 @@ import {
   type ErroImportacao,
 } from "@/lib/employeeBulkImport";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
+import { MODAL_TELA_CHEIA } from "@/lib/modais";
 
 export function AdminEmployeesSection() {
   const { user } = useAuth();
@@ -430,7 +431,7 @@ export function AdminEmployeesSection() {
           }
         }}
       >
-        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[56rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[calc(100dvh-2rem)] max-w-[56rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <UserPlus className="h-5 w-5" />
@@ -592,7 +593,7 @@ export function AdminEmployeesSection() {
           if (!open) resetEditState();
         }}
       >
-        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[56rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[calc(100dvh-2rem)] max-w-[56rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <PencilLine className="h-5 w-5" />
@@ -687,7 +688,7 @@ export function AdminEmployeesSection() {
           setImportOpen(open);
         }}
       >
-        <DialogContent className="max-h-[calc(100vh-2rem)] max-w-[46rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
+        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[calc(100dvh-2rem)] max-w-[46rem] overflow-y-auto rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]")}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
               <Upload className="h-5 w-5" />
@@ -716,7 +717,7 @@ export function AdminEmployeesSection() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-8 rounded-full px-3 text-xs"
+                className="h-10 sm:h-8 rounded-full px-3 text-xs"
                 onClick={() => setImportTexto(EXEMPLO_TXT)}
               >
                 Preencher com exemplo
@@ -724,7 +725,7 @@ export function AdminEmployeesSection() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-8 rounded-full px-3 text-xs"
+                className="h-10 sm:h-8 rounded-full px-3 text-xs"
                 onClick={() => importFileRef.current?.click()}
               >
                 Escolher arquivo .txt

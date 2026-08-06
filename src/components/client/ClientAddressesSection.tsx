@@ -20,6 +20,8 @@ import {
   type CustomerAddressFormData,
 } from "@/lib/customerAddresses";
 import { profileAddressToForm, type CustomerProfile } from "@/lib/customerProfile";
+import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
+import { cn } from "@/lib/utils";
 
 function AddressCard({
   address,
@@ -33,7 +35,7 @@ function AddressCard({
   onDelete: (address: CustomerAddress) => void;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
+    <div className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -111,8 +113,8 @@ function AddressEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] w-[min(98vw,980px)] max-w-[980px] overflow-hidden rounded-[1.75rem] border-border/70 p-0">
-        <div className="flex max-h-[92vh] flex-col overflow-hidden">
+      <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[92dvh] w-[min(98vw,980px)] max-w-[980px] overflow-hidden rounded-xl border-border/70 p-0")}>
+        <div className={cn("flex max-h-[92dvh] flex-col overflow-hidden", MODAL_TELA_CHEIA_CORPO)}>
           <DialogHeader className="border-b border-border/70 px-5 py-4">
             <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
               {editingId ? "Editar endereço" : "Novo endereço"}
@@ -123,7 +125,7 @@ function AddressEditor({
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+            <div className="space-y-4 rounded-xl bg-background ring-1 ring-black/5 p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
               <div className="space-y-2">
                 <Label htmlFor="address-label" className="text-[0.8125rem] font-medium">
                   Nome do endereço
@@ -133,7 +135,7 @@ function AddressEditor({
                   value={draft.label}
                   onChange={(e) => onDraftChange({ label: e.target.value })}
                   placeholder="Ex: Principal"
-                  className="h-11 rounded-2xl border-border/70 bg-background"
+                  className="h-11 rounded-xl border-border/70 bg-background"
                 />
               </div>
 
@@ -158,10 +160,10 @@ function AddressEditor({
           </div>
 
           <DialogFooter className="gap-2 border-t border-border/70 bg-background px-5 py-4 sm:gap-2">
-            <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm" onClick={() => onOpenChange(false)} disabled={saving}>
+            <Button type="button" variant="outline" className="h-11 rounded-xl px-5 text-sm" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onSave} disabled={saving}>
+            <Button type="button" className="h-11 rounded-xl px-5 text-sm" onClick={onSave} disabled={saving}>
               {saving ? "Salvando..." : "Salvar endereço"}
             </Button>
           </DialogFooter>
@@ -277,7 +279,7 @@ export function ClientAddressesSection() {
             <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
               {addresses.length}/5
             </Badge>
-            <Button type="button" className="h-10 rounded-2xl px-4 text-sm" onClick={openNew}>
+            <Button type="button" className="h-10 rounded-xl px-4 text-sm" onClick={openNew}>
               <Plus className="h-4 w-4" />
               Novo endereço
             </Button>
@@ -288,7 +290,7 @@ export function ClientAddressesSection() {
       {isLoading ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {Array.from({ length: 2 }).map((_, index) => (
-            <div key={index} className="h-40 animate-pulse rounded-[1.5rem] border border-border/70 bg-muted/20" />
+            <div key={index} className="h-40 animate-pulse rounded-xl border border-border/70 bg-muted/20" />
           ))}
         </div>
       ) : addresses.length > 0 ? (
@@ -304,9 +306,9 @@ export function ClientAddressesSection() {
           ))}
         </div>
       ) : customerProfile ? (
-        <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
+        <div className="rounded-xl border border-dashed border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <MapPinned className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -324,7 +326,7 @@ export function ClientAddressesSection() {
           </div>
         </div>
       ) : (
-        <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
+        <div className="rounded-xl border border-dashed border-border/70 bg-background/95 p-5 shadow-sm sm:p-6">
           <p className="text-sm leading-6 text-muted-foreground">
             O cadastro da conta ainda está sendo concluído. Quando o perfil estiver pronto, você poderá salvar os endereços aqui.
           </p>

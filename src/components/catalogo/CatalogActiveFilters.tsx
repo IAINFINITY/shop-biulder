@@ -32,7 +32,7 @@ export function CatalogActiveFilters({
           key={filter.id}
           type="button"
           onClick={filter.onRemove}
-          className="group flex h-8 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 pl-3 pr-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+          className="group flex h-10 sm:h-8 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 pl-3 pr-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
           aria-label={`Remover filtro ${filter.label}: ${filter.value}`}
         >
           <span className="opacity-70">{filter.label}:</span>
@@ -45,7 +45,7 @@ export function CatalogActiveFilters({
         <Button
           type="button"
           variant="ghost"
-          className="h-8 rounded-full px-2.5 text-xs text-muted-foreground hover:text-foreground"
+          className="h-10 sm:h-8 rounded-full px-2.5 text-xs text-muted-foreground hover:text-foreground"
           onClick={onClearAll}
         >
           Limpar tudo

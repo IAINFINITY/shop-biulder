@@ -171,7 +171,7 @@ export function CartDrawer({
                         </div>
                         <ConfirmActionDialog
                           trigger={
-                            <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive">
+                            <Button variant="ghost" size="icon" className="h-9 sm:h-7 w-9 sm:w-7 shrink-0 text-destructive">
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           }
@@ -212,7 +212,7 @@ export function CartDrawer({
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 rounded-full transition-transform active:scale-90"
+                        className="h-10 sm:h-8 w-10 sm:w-8 rounded-full transition-transform active:scale-90"
                         onClick={() => onUpdateQuantity(item.product.id, -1)}
                       >
                         <Minus className="h-3.5 w-3.5" />
@@ -236,7 +236,7 @@ export function CartDrawer({
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 rounded-full transition-transform active:scale-90"
+                        className="h-10 sm:h-8 w-10 sm:w-8 rounded-full transition-transform active:scale-90"
                         onClick={() => onUpdateQuantity(item.product.id, 1)}
                       >
                         <Plus className="h-3.5 w-3.5" />

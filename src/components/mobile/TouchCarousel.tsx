@@ -101,7 +101,7 @@ export function TouchCarousel({
             type="button"
             variant="outline"
             size="icon"
-            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border-0 bg-background/80 shadow-sm backdrop-blur"
+            className="absolute left-2 top-1/2 z-10 h-10 sm:h-8 w-10 sm:w-8 -translate-y-1/2 rounded-full border-0 bg-background/80 shadow-sm backdrop-blur"
             onClick={() => goTo(current - 1)}
             disabled={current === 0}
             aria-label="Slide anterior"
@@ -112,7 +112,7 @@ export function TouchCarousel({
             type="button"
             variant="outline"
             size="icon"
-            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border-0 bg-background/80 shadow-sm backdrop-blur"
+            className="absolute right-2 top-1/2 z-10 h-10 sm:h-8 w-10 sm:w-8 -translate-y-1/2 rounded-full border-0 bg-background/80 shadow-sm backdrop-blur"
             onClick={() => goTo(current + 1)}
             disabled={current === totalSlides - 1}
             aria-label="Próximo slide"

@@ -36,12 +36,16 @@ function InfoTile({ label, value, hint, icon: Icon }: InfoTileProps) {
   return (
     <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
         </div>
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+        <p className="min-w-0 truncate text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
+        </p>
       </div>
-      <p className="mt-3 text-sm font-medium text-foreground">{value}</p>
+      {/* `break-words`: o valor aqui e o e-mail da conta. Ver a nota igual no
+          `InfoTile` do Account — sao duas copias do mesmo cartao. */}
+      <p className="mt-3 break-words text-sm font-medium text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p> : null}
     </div>
   );

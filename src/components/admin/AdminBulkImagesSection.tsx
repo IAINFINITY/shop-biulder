@@ -310,7 +310,7 @@ export function AdminBulkImagesSection({ products }: Props) {
                 {summary.invalidos} inválido(s)
               </Badge>
             ) : null}
-            <Button type="button" variant="ghost" className="h-9 rounded-full px-3 text-xs" onClick={reset}>
+            <Button type="button" variant="ghost" className="h-10 sm:h-9 rounded-full px-3 text-xs" onClick={reset}>
               <X className="h-3.5 w-3.5" />
               Limpar
             </Button>

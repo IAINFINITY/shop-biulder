@@ -1,5 +1,5 @@
 ﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -16,6 +16,7 @@ const Login = lazy(() => import("./pages/Login.tsx"));
 const Account = lazy(() => import("./pages/Account.tsx"));
 const RecoverPassword = lazy(() => import("./pages/RecoverPassword.tsx"));
 const Help = lazy(() => import("./pages/Help.tsx"));
+const Favoritos = lazy(() => import("./pages/Favoritos.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 function RouteLoader() {
@@ -30,6 +31,29 @@ function RouteLoader() {
 }
 
 const queryClient = new QueryClient();
+
+/**
+ * Toda troca de rota comeca no topo — menos o catalogo.
+ *
+ * O navegador preserva a rolagem entre rotas, entao sair do meio do catalogo
+ * para a Conta caia no meio da pagina nova, sem cabecalho a vista. Aparecia mais
+ * na barra inferior do celular, que e onde se pula de uma area para outra sem
+ * passar por link nenhum.
+ *
+ * O catalogo fica de fora porque ele **restaura** a posicao de proposito, em
+ * `Index.tsx`, para quem volta de um produto nao perder o lugar na grade — e ja
+ * trata o caso de ir ao topo pelo `location.state.scrollToTop`.
+ */
+function ComecarNoTopo() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname === "/" || typeof window === "undefined") return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [pathname]);
+
+  return null;
+}
 
 function AppRoutes() {
   const location = useLocation();
@@ -50,8 +74,10 @@ function AppRoutes() {
     );
   }
 
+
   return (
     <PublicLayout>
+      <ComecarNoTopo />
       <Suspense fallback={<RouteLoader />}>
         <Routes location={location}>
           <Route path="/" element={<Index />} />
@@ -62,6 +88,7 @@ function AppRoutes() {
           <Route path="/recuperar-senha" element={<RecoverPassword />} />
           <Route path="/conta" element={<Account />} />
           <Route path="/ajuda" element={<Help />} />
+          <Route path="/favoritos" element={<Favoritos />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

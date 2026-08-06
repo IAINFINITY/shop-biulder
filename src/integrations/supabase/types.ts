@@ -941,6 +941,30 @@ export type Database = {
         }
         Relationships: []
       }
+      "clinic+b2b_customer_favorites": {
+        Row: {
+          created_at: string
+          product_id: string
+          quantity: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          product_id: string
+          quantity?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       "clinic+b2b_customer_types": {
         Row: {
           created_at: string

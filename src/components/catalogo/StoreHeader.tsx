@@ -1,6 +1,6 @@
 ﻿import { type FormEvent, type MouseEvent, type ReactNode, useId, useCallback, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ImageIcon, Search, User, Clock, X } from "lucide-react";
+import { Heart, ImageIcon, Search, User, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatBRL } from "@/lib/formatMoney";
@@ -11,6 +11,7 @@ import { CepLocationButton } from "@/components/catalogo/CepLocationButton";
 import { useDeliveryCep } from "@/hooks/useDeliveryCep";
 import { buildLoginPath } from "@/lib/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useWishlist } from "@/hooks/useWishlist";
 
 export type StoreHeaderSearchSuggestion = {
   id: string;
@@ -76,9 +77,22 @@ function SearchPanel({
     onSearchSubmit?.(search);
   };
 
+  /**
+   * A largura da busca nunca passa do espaco que ela tem.
+   *
+   * O `xl` cravava `w-[48rem]` — 768px fixos. Como o painel e `absolute`, ele
+   * esta fora do fluxo: o que sobra da largura nao empurra ninguem, passa por
+   * cima. Num monitor de 1280px sobram ~490px para a busca, entao os 768px
+   * invadiam ~140px de cada lado — em cima do CEP a esquerda e do "Entre /
+   * Cadastre-se" a direita. Em monitor grande havia folga e o defeito nao
+   * aparecia.
+   *
+   * `min(100%, 48rem)` mantem os 768px onde cabem e cede onde nao cabem. O
+   * `100%` aqui e o container de busca, que ja e `flex-1`.
+   */
   const wrapperClassName = floating
-    ? "pointer-events-none absolute left-1/2 top-[calc((var(--page-header-shell-height,88px)-3rem)/2)] z-[70] w-full max-w-2xl -translate-x-1/2 px-4 lg:w-[min(100%,46rem)] lg:max-w-none lg:px-0 xl:w-[48rem]"
-    : "relative w-full max-w-2xl lg:w-[min(100%,46rem)] lg:max-w-none xl:w-[48rem]";
+    ? "pointer-events-none absolute left-1/2 top-[calc((var(--page-header-shell-height,88px)-3rem)/2)] z-[70] w-full max-w-2xl -translate-x-1/2 px-4 lg:w-[min(100%,46rem)] lg:max-w-none lg:px-0 xl:w-[min(100%,48rem)]"
+    : "relative w-full max-w-2xl lg:w-[min(100%,46rem)] lg:max-w-none xl:w-[min(100%,48rem)]";
 
   const cardClassName = floating
     ? "pointer-events-auto overflow-hidden rounded-2xl bg-background/95 ring-1 ring-black/5 shadow-[0_18px_50px_rgba(0,0,0,0.10)]"
@@ -132,7 +146,7 @@ function SearchPanel({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 rounded-full px-3 text-xs"
+                className="h-10 sm:h-8 rounded-full px-3 text-xs"
                 onClick={onSearchHistoryClear}
               >
                 Limpar
@@ -146,7 +160,7 @@ function SearchPanel({
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
                   onClick={() => onSearchChange(term)}
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/60">
+                  <div className="flex h-10 sm:h-9 w-10 sm:w-9 shrink-0 items-center justify-center rounded-full bg-muted/60">
                     <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <span className="min-w-0 flex-1 truncate text-sm text-foreground">{term}</span>
@@ -184,7 +198,7 @@ function SearchPanel({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 rounded-full px-3 text-xs"
+                className="h-10 sm:h-8 rounded-full px-3 text-xs"
                 onClick={() => onSearchChange("")}
               >
                 Limpar
@@ -258,6 +272,43 @@ export function StoreHeader({
   const navigate = useNavigate();
   const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
   const { user } = useAuth();
+  const { ids: favoritosIds } = useWishlist();
+  const totalFavoritos = favoritosIds.length;
+
+  /**
+   * Atalho para a lista de recompra, ao lado do carrinho.
+   *
+   * E onde ele vive em qualquer loja. Antes so dava para chegar na lista pela
+   * Conta ou por um card da Ajuda — o "escondido em menu obscuro" que a NN/g
+   * cobra.
+   *
+   * A forma copia a do "Minha conta" logo ao lado (mesma altura, mesmo raio,
+   * mesma borda) em vez de ser um quadrado de icone solto: tres botoes vizinhos
+   * com tres formas diferentes e o que fazia ele parecer enfiado ali.
+   *
+   * O rotulo so entra a partir de 1600px. Esta e a mesma linha onde o CEP ja
+   * volta a aparecer em 1440px, e medido ali o rotulo custava 85px da busca —
+   * que ja e a parte mais espremida do cabecalho.
+   */
+  const linkFavoritos = (
+    <Link
+      to="/favoritos"
+      viewTransition
+      aria-label={totalFavoritos > 0 ? `Minha lista — ${totalFavoritos} produto(s)` : "Minha lista"}
+      className="relative inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-primary/20 px-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/5 min-[1600px]:px-3"
+    >
+      <Heart className="h-5 w-5" />
+      <span className="hidden min-[1600px]:inline">Minha lista</span>
+      {totalFavoritos > 0 ? (
+        <span
+          aria-hidden
+          className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-semibold leading-none text-primary-foreground"
+        >
+          {totalFavoritos > 9 ? "9+" : totalFavoritos}
+        </span>
+      ) : null}
+    </Link>
+  );
 
   const handleLogoClick = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
@@ -295,6 +346,11 @@ export function StoreHeader({
             />
           </div>
 
+          {/* No celular a lista tambem fica aqui, ao lado do carrinho. Ela nao
+              esta na barra inferior — que ficou em Inicio · Carrinho · Conta de
+              proposito — e sem este atalho so se chegava nela por dentro da
+              Conta. */}
+          <div className="shrink-0 pt-0.5">{linkFavoritos}</div>
           <div className="shrink-0 pt-0.5">{cartSlot}</div>
         </div>
 
@@ -312,8 +368,15 @@ export function StoreHeader({
             <Link to="/" viewTransition className="inline-block shrink-0" onClick={handleLogoClick}>
               <ClinicPlusLogo />
             </Link>
-            <div className="hidden h-8 w-px bg-border/50 xl:block" />
-            <div className="hidden xl:block">
+            {/* Reducao progressiva: o CEP so entra quando sobra espaco de fato.
+                
+                Ele custa ~190px numa linha onde logo, conta e carrinho nao cedem
+                (`shrink-0`). Em 1280px, mante-lo espremia a busca para ~490px;
+                sem ele sobram ~680px. Consultar o CEP e uma acao ocasional, e a
+                busca e o principal caminho do catalogo — entre os dois, quem sai
+                primeiro e o CEP. Ele continua no cabecalho de celular. */}
+            <div className="hidden h-8 w-px bg-border/50 min-[1440px]:block" />
+            <div className="hidden min-[1440px]:block">
               <CepLocationButton
                 currentCep={deliveryCep}
                 onCepResolved={saveDeliveryCep}
@@ -375,6 +438,7 @@ export function StoreHeader({
                 </span>
               </Link>
             )}
+            {linkFavoritos}
             <div className="hidden items-center lg:flex">{cartSlot}</div>
           </div>
         </div>

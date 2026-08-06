@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, memo } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowUpDown, ChevronUp, Flame,
-  Sparkles, Heart, History, LayoutGrid, SlidersHorizontal, Tag } from "lucide-react";
+  Sparkles, History, LayoutGrid, SlidersHorizontal, Tag } from "lucide-react";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -126,7 +126,7 @@ const SortModeControl = memo(function SortModeControl({
   const handleChange = useCallback((v: string) => onChange(v as CatalogSortMode), [onChange]);
   return (
     <Select value={value} onValueChange={handleChange}>
-      <SelectTrigger className="h-8 w-full gap-1.5 rounded-full border-border/60 bg-background px-3 text-xs font-medium shadow-none hover:bg-muted/40 sm:w-auto [&>svg]:h-3.5 [&>svg]:w-3.5">
+      <SelectTrigger className="h-10 sm:h-8 w-full gap-1.5 rounded-full border-border/60 bg-background px-3 text-xs font-medium shadow-none hover:bg-muted/40 sm:w-auto [&>svg]:h-3.5 [&>svg]:w-3.5">
         <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
@@ -159,9 +159,10 @@ export default function Index() {
   );
   const { cart, addToCart, updateQuantity, setQuantity, removeFromCart, clearCart } = useCart();
   const { ids: recentlyViewedIds } = useRecentlyViewed();
-  const { ids: wishlistIds, toggle: toggleWishlist, clear: clearWishlist } = useWishlist();
+  const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
   const { search, setSearch, setIsCartOpen } = usePublicLayout();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const debouncedSearch = useDebounce(search, 250);
   const [quickViewProduct, setQuickViewProduct] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(() => readCatalogViewState()?.selectedType ?? null);
@@ -183,7 +184,16 @@ export default function Index() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const restoredScrollRef = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const showFavoritesView = searchParams.get("view") === "favoritos";
+  // `?view=favoritos` virou a rota `/favoritos`.
+  //
+  // Era query param na home: nao dava para fixar, sumia do historico e obrigava
+  // Conta e Ajuda a montarem o link na mao. O redirect mantem vivo o link que
+  // alguem ja tenha salvo.
+  useEffect(() => {
+    if (searchParams.get("view") === "favoritos") {
+      navigate("/favoritos", { replace: true });
+    }
+  }, [navigate, searchParams]);
   const handleRequestAdd = useCallback((product: Product) => {
     setQuickViewProduct(product.id);
   }, []);
@@ -490,15 +500,6 @@ export default function Index() {
     [products, recentlyViewedIds],
   );
 
-  /** Lista completa: a pagina de favoritos precisa de todos, sem corte. */
-  const wishlistProducts = useMemo(
-    () => resolveProductsByIdOrder(wishlistIds, products),
-    [products, wishlistIds],
-  );
-
-  /** Recorte usado apenas no trilho da home. */
-  const wishlistHighlights = useMemo(() => wishlistProducts.slice(0, 10), [wishlistProducts]);
-
 
   /**
    * Prateleiras do topo: apenas curadoria.
@@ -629,15 +630,12 @@ export default function Index() {
 
     anchors.push({ id: "catalogo-completo", label: "Catálogo", icon: LayoutGrid });
 
-    if (wishlistHighlights.length > 0) {
-      anchors.push({ id: "favoritos", label: "Favoritos", icon: Heart });
-    }
     if (recentlyViewedProducts.length > 0) {
       anchors.push({ id: "vistos-recentemente", label: "Vistos recentemente", icon: History });
     }
 
     return anchors;
-  }, [catalogThemeSections, recentlyViewedProducts.length, wishlistHighlights.length]);
+  }, [catalogThemeSections, recentlyViewedProducts.length]);
 
   return (
     <div id="top" className="min-h-screen bg-muted/40">
@@ -648,304 +646,208 @@ export default function Index() {
         id="catalogo-produtos"
         className={cn(PAGE_CONTAINER, "pt-1 pb-32 sm:pt-3 sm:pb-[10rem]")}
       >
-        {!showFavoritesView ? (
-          <SectionAnchorNav
-            sections={pageAnchors}
-            className="mb-6"
-          />
-        ) : null}
+        <SectionAnchorNav
+          sections={pageAnchors}
+          className="mb-6"
+        />
 
         <div className="space-y-10 sm:space-y-12">
-          {showFavoritesView ? (
-            <section className="space-y-4">
+            {/* 2o bloco da pagina (o 1o e o banner do topo): 3 do mesmo
+                tamanho, na mesma reta.
+
+                Fica acima das secoes tematicas, e nao colado em
+                `#catalogo-completo`. Estava logo antes da grade, encostado na
+                coluna de filtros — que e o caso documentado pela Baymard na
+                Toys'R'Us, onde varios participantes tomaram um banner acima da
+                lista por ferramenta de filtro. Aqui em cima nao ha lista nem
+                filtro por perto para confundir, e a ordem 1/3/1/2/1 da pagina
+                continua igual. */}
+            <PromoTrio label="Catálogo · 3" customerType={customerType} />
+
+            <CatalogThemeSections
+              sections={catalogThemeSections}
+              resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+              onAdd={handleRequestAdd}
+              inCartIds={cartIds}
+              wishlistIds={wishlistIds}
+              onToggleWishlist={toggleWishlist}
+            />
+
+            <section
+              id="catalogo-completo"
+              className="grid gap-6 scroll-mt-[calc(var(--page-header-shell-height,88px)+4rem)] lg:grid-cols-[15rem_minmax(0,1fr)] xl:gap-8"
+            >
+              {/* Coluna fixa no desktop: todos os filtros visiveis de uma vez,
+                  que e o que a barra horizontal nao conseguia entregar com 48
+                  subcategorias. */}
+              <aside className="hidden lg:block">
+                <div className="sticky top-[calc(var(--page-header-shell-height,88px)+1rem)] max-h-[calc(100dvh-var(--page-header-shell-height,88px)-2rem)] overflow-y-auto rounded-xl bg-background/80 p-4 ring-1 ring-black/5 [scrollbar-width:thin]">
+                  <CatalogFilterPanel
+                    brands={brandOptions}
+                    types={typeOptions}
+                    families={familyOptions}
+                    selectedBrand={selectedBrand}
+                    selectedType={selectedType}
+                    selectedFamily={selectedFamily}
+                    onlyPromotions={onlyPromotions}
+                    promotionCount={promotionCount}
+                    onBrandChange={setSelectedBrand}
+                    onTypeChange={setSelectedType}
+                    onFamilyChange={setSelectedFamily}
+                    onOnlyPromotionsChange={setOnlyPromotions}
+                    onClearAll={clearAllFilters}
+                    activeFilterCount={activeFilters.length}
+                  />
+                </div>
+              </aside>
+
+              <div
+                ref={resultsRef}
+                className="min-w-0 space-y-4 scroll-mt-[calc(var(--page-header-shell-height,88px)+1rem)]"
+              >
               <CatalogSectionHeader
-                title="Meus favoritos"
+                title={selectedFamily || selectedBrand || selectedType || "Catálogo"}
                 subtitle={
-                  wishlistProducts.length === 1
-                    ? "1 produto salvo neste dispositivo"
-                    : `${wishlistProducts.length} produtos salvos neste dispositivo`
+                  activeFilters.length > 0
+                    ? `${filtered.length} de ${visibleCatalog.length} produtos`
+                    : `${filtered.length} produtos disponíveis`
                 }
                 actions={
                   <>
-                    {wishlistProducts.length > 0 ? (
-                      <ConfirmActionDialog
-                        trigger={
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-10 rounded-full px-4 text-sm text-destructive"
-                          >
-                            Limpar favoritos
-                          </Button>
-                        }
-                        title="Limpar favoritos"
-                        description="Isso remove todos os produtos salvos nos seus favoritos neste dispositivo."
-                        confirmLabel="Limpar"
-                        destructive
-                        onConfirm={clearWishlist}
-                      />
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 rounded-full border-border/60 px-4 text-sm"
-                      onClick={() => setSearchParams({})}
-                    >
-                      Ver catálogo
-                    </Button>
+                    {/* No celular o painel vira gaveta, com o numero de filtros
+                        ativos no proprio botao. */}
+                    <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+                      <SheetTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 sm:h-8 gap-1.5 rounded-full border-border/60 px-3 text-xs font-medium lg:hidden"
+                        >
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                          Filtros
+                          {activeFilters.length > 0 ? (
+                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[0.6875rem] font-semibold text-primary-foreground">
+                              {activeFilters.length}
+                            </span>
+                          ) : null}
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="left" className="w-[min(88vw,20rem)] overflow-y-auto p-4">
+                        <SheetHeader className="mb-2 text-left">
+                          <SheetTitle className="text-base">Filtrar produtos</SheetTitle>
+                        </SheetHeader>
+                        <CatalogFilterPanel
+                          brands={brandOptions}
+                          types={typeOptions}
+                          families={familyOptions}
+                          selectedBrand={selectedBrand}
+                          selectedType={selectedType}
+                          selectedFamily={selectedFamily}
+                          onlyPromotions={onlyPromotions}
+                          promotionCount={promotionCount}
+                          onBrandChange={setSelectedBrand}
+                          onTypeChange={setSelectedType}
+                          onFamilyChange={setSelectedFamily}
+                          onOnlyPromotionsChange={setOnlyPromotions}
+                          onClearAll={clearAllFilters}
+                          activeFilterCount={activeFilters.length}
+                        />
+                        <Button
+                          type="button"
+                          className="mt-4 h-11 w-full rounded-full"
+                          onClick={() => setFiltersOpen(false)}
+                        >
+                          Ver {filtered.length} produto(s)
+                        </Button>
+                      </SheetContent>
+                    </Sheet>
+                    <SortModeControl value={sortMode} onChange={setSortMode} />
                   </>
                 }
               />
 
-              {wishlistProducts.length === 0 ? (
-                <div className="rounded-[1.35rem] border border-dashed border-border/70 bg-background/80 px-6 py-14 text-center shadow-sm">
-                  <Heart className="mx-auto h-10 w-10 text-muted-foreground/35" />
-                  <p className="mt-4 text-lg font-semibold text-foreground">Você ainda não tem favoritos</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Marque produtos com o coração para salvar aqui e acessar depois.
-                  </p>
-                  <Button type="button" className="mt-5 rounded-full" onClick={() => setSearchParams({})}>
-                    Voltar ao catálogo
-                  </Button>
-                </div>
-              ) : (
-                // Grade, e nao carrossel: pagina dedicada mostra tudo de uma vez.
-                //
-                // Para em 4 colunas, sem abrir uma quinta no 2xl. Com a barra de
-                // filtros ocupando 15rem, a quinta coluna espremia o card para
-                // 203px enquanto o mesmo produto aparecia com 257px nos
-                // carrosseis logo acima — a mesma foto 21% menor em duas secoes
-                // da mesma pagina. Em 4 colunas os dois batem.
+              <CatalogActiveFilters filters={activeFilters} onClearAll={clearAllFilters} />
+
+              {isLoading ? (
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5">
-                  {wishlistProducts.map((product) => (
-                    <CatalogProductCard
-                      key={product.id}
-                      product={product}
-                      price={resolveProductPrice(product, customerPriceMap)}
-                      onAdd={handleRequestAdd}
-                      inCart={cartIds.has(product.id)}
-                      compact
-                      isWishlisted
-                      onToggleWishlist={() => toggleWishlist(product.id)}
-                    />
+                  {Array.from({ length: 10 }).map((_, index) => (
+                    <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
+                      <Skeleton className="aspect-[4/5] w-full rounded-none" />
+                    </div>
                   ))}
                 </div>
+              ) : filtered.length === 0 ? (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
+                  <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
+                  <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
+                  {activeFilters.length > 0 ? (
+                    <Button type="button" variant="outline" className="mt-5 rounded-full" onClick={clearAllFilters}>
+                      Limpar filtros
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div
+                    ref={gridRef}
+                    className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5"
+                  >
+                    {visibleFiltered.map((product) => (
+                      <CatalogProductCard
+                        key={product.id}
+                        product={product}
+                        price={resolveProductPrice(product, customerPriceMap)}
+                        onAdd={handleRequestAdd}
+                        inCart={cartIds.has(product.id)}
+                        compact
+                        isWishlisted={wishlistIds.includes(product.id)}
+                        onToggleWishlist={() => toggleWishlist(product.id)}
+                      />
+                    ))}
+                  </div>
+                  {hasMoreProducts ? (
+                    <div className="flex flex-col items-center gap-2 py-8">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        className="h-11 rounded-full border-border/60 px-8 text-sm font-medium shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5"
+                        onClick={showMoreProducts}
+                      >
+                        Carregar mais produtos
+                      </Button>
+                      <p className="text-xs tabular-nums text-muted-foreground">
+                        {visibleFiltered.length} de {filtered.length}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="py-6 text-center text-[0.8125rem] text-muted-foreground">
+                      {filtered.length === 1
+                        ? "1 produto no catálogo."
+                        : `Todos os ${filtered.length} produtos foram exibidos.`}
+                    </p>
+                  )}
+                </div>
               )}
+              </div>
             </section>
-          ) : (
-            <>
-              {/* 2o bloco da pagina (o 1o e o banner do topo): 3 do mesmo
-                  tamanho, na mesma reta.
 
-                  Fica acima das secoes tematicas, e nao colado em
-                  `#catalogo-completo`. Estava logo antes da grade, encostado na
-                  coluna de filtros — que e o caso documentado pela Baymard na
-                  Toys'R'Us, onde varios participantes tomaram um banner acima da
-                  lista por ferramenta de filtro. Aqui em cima nao ha lista nem
-                  filtro por perto para confundir, e a ordem 1/3/1/2/1 da pagina
-                  continua igual. */}
-              <PromoTrio label="Catálogo · 3" customerType={customerType} />
+            {/* 2 lado a lado, antes de "Vistos recentemente". */}
+            <PromoDuo label="Catálogo · 2" customerType={customerType} />
 
-              <CatalogThemeSections
-                sections={catalogThemeSections}
-                resolvePrice={(product) => resolveProductPrice(product, customerPriceMap)}
+            {recentlyViewedProducts.length > 0 && (
+              <ProductCarouselSection
+                id="vistos-recentemente"
+                title="Vistos recentemente"
+                subtitle="Os últimos produtos que você abriu"
+                products={recentlyViewedProducts}
+                resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
                 onAdd={handleRequestAdd}
                 inCartIds={cartIds}
                 wishlistIds={wishlistIds}
-                onToggleWishlist={toggleWishlist}
+                toggleWishlist={toggleWishlist}
               />
-
-              <section
-                id="catalogo-completo"
-                className="grid gap-6 scroll-mt-[calc(var(--page-header-shell-height,88px)+4rem)] lg:grid-cols-[15rem_minmax(0,1fr)] xl:gap-8"
-              >
-                {/* Coluna fixa no desktop: todos os filtros visiveis de uma vez,
-                    que e o que a barra horizontal nao conseguia entregar com 48
-                    subcategorias. */}
-                <aside className="hidden lg:block">
-                  <div className="sticky top-[calc(var(--page-header-shell-height,88px)+1rem)] max-h-[calc(100dvh-var(--page-header-shell-height,88px)-2rem)] overflow-y-auto rounded-xl bg-background/80 p-4 ring-1 ring-black/5 [scrollbar-width:thin]">
-                    <CatalogFilterPanel
-                      brands={brandOptions}
-                      types={typeOptions}
-                      families={familyOptions}
-                      selectedBrand={selectedBrand}
-                      selectedType={selectedType}
-                      selectedFamily={selectedFamily}
-                      onlyPromotions={onlyPromotions}
-                      promotionCount={promotionCount}
-                      onBrandChange={setSelectedBrand}
-                      onTypeChange={setSelectedType}
-                      onFamilyChange={setSelectedFamily}
-                      onOnlyPromotionsChange={setOnlyPromotions}
-                      onClearAll={clearAllFilters}
-                      activeFilterCount={activeFilters.length}
-                    />
-                  </div>
-                </aside>
-
-                <div
-                  ref={resultsRef}
-                  className="min-w-0 space-y-4 scroll-mt-[calc(var(--page-header-shell-height,88px)+1rem)]"
-                >
-                <CatalogSectionHeader
-                  title={selectedFamily || selectedBrand || selectedType || "Catálogo"}
-                  subtitle={
-                    activeFilters.length > 0
-                      ? `${filtered.length} de ${visibleCatalog.length} produtos`
-                      : `${filtered.length} produtos disponíveis`
-                  }
-                  actions={
-                    <>
-                      {/* No celular o painel vira gaveta, com o numero de filtros
-                          ativos no proprio botao. */}
-                      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-                        <SheetTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 gap-1.5 rounded-full border-border/60 px-3 text-xs font-medium lg:hidden"
-                          >
-                            <SlidersHorizontal className="h-3.5 w-3.5" />
-                            Filtros
-                            {activeFilters.length > 0 ? (
-                              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[0.6875rem] font-semibold text-primary-foreground">
-                                {activeFilters.length}
-                              </span>
-                            ) : null}
-                          </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="w-[min(88vw,20rem)] overflow-y-auto p-4">
-                          <SheetHeader className="mb-2 text-left">
-                            <SheetTitle className="text-base">Filtrar produtos</SheetTitle>
-                          </SheetHeader>
-                          <CatalogFilterPanel
-                            brands={brandOptions}
-                            types={typeOptions}
-                            families={familyOptions}
-                            selectedBrand={selectedBrand}
-                            selectedType={selectedType}
-                            selectedFamily={selectedFamily}
-                            onlyPromotions={onlyPromotions}
-                            promotionCount={promotionCount}
-                            onBrandChange={setSelectedBrand}
-                            onTypeChange={setSelectedType}
-                            onFamilyChange={setSelectedFamily}
-                            onOnlyPromotionsChange={setOnlyPromotions}
-                            onClearAll={clearAllFilters}
-                            activeFilterCount={activeFilters.length}
-                          />
-                          <Button
-                            type="button"
-                            className="mt-4 h-11 w-full rounded-full"
-                            onClick={() => setFiltersOpen(false)}
-                          >
-                            Ver {filtered.length} produto(s)
-                          </Button>
-                        </SheetContent>
-                      </Sheet>
-                      <SortModeControl value={sortMode} onChange={setSortMode} />
-                    </>
-                  }
-                />
-
-                <CatalogActiveFilters filters={activeFilters} onClearAll={clearAllFilters} />
-
-                {isLoading ? (
-                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5">
-                    {Array.from({ length: 10 }).map((_, index) => (
-                      <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
-                        <Skeleton className="aspect-[4/5] w-full rounded-none" />
-                      </div>
-                    ))}
-                  </div>
-                ) : filtered.length === 0 ? (
-                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
-                    <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
-                    <p className="mt-1 text-sm">Tente ajustar os filtros ou a busca.</p>
-                    {activeFilters.length > 0 ? (
-                      <Button type="button" variant="outline" className="mt-5 rounded-full" onClick={clearAllFilters}>
-                        Limpar filtros
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div
-                      ref={gridRef}
-                      className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5"
-                    >
-                      {visibleFiltered.map((product) => (
-                        <CatalogProductCard
-                          key={product.id}
-                          product={product}
-                          price={resolveProductPrice(product, customerPriceMap)}
-                          onAdd={handleRequestAdd}
-                          inCart={cartIds.has(product.id)}
-                          compact
-                          isWishlisted={wishlistIds.includes(product.id)}
-                          onToggleWishlist={() => toggleWishlist(product.id)}
-                        />
-                      ))}
-                    </div>
-                    {hasMoreProducts ? (
-                      <div className="flex flex-col items-center gap-2 py-8">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="lg"
-                          className="h-11 rounded-full border-border/60 px-8 text-sm font-medium shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5"
-                          onClick={showMoreProducts}
-                        >
-                          Carregar mais produtos
-                        </Button>
-                        <p className="text-xs tabular-nums text-muted-foreground">
-                          {visibleFiltered.length} de {filtered.length}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="py-6 text-center text-[0.8125rem] text-muted-foreground">
-                        {filtered.length === 1
-                          ? "1 produto no catálogo."
-                          : `Todos os ${filtered.length} produtos foram exibidos.`}
-                      </p>
-                    )}
-                  </div>
-                )}
-                </div>
-              </section>
-
-              {wishlistHighlights.length > 0 && (
-                <ProductCarouselSection
-                  id="favoritos"
-                  title="Meus favoritos"
-                  subtitle="Produtos que você salvou para voltar depois"
-                  products={wishlistHighlights}
-                  resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                  onAdd={handleRequestAdd}
-                  inCartIds={cartIds}
-                  wishlistIds={wishlistIds}
-                  toggleWishlist={toggleWishlist}
-                />
-              )}
-
-              {/* 2 lado a lado, antes de "Vistos recentemente". */}
-              <PromoDuo label="Catálogo · 2" customerType={customerType} />
-
-              {recentlyViewedProducts.length > 0 && (
-                <ProductCarouselSection
-                  id="vistos-recentemente"
-                  title="Vistos recentemente"
-                  subtitle="Os últimos produtos que você abriu"
-                  products={recentlyViewedProducts}
-                  resolvePrice={(p) => resolveProductPrice(p, customerPriceMap)}
-                  onAdd={handleRequestAdd}
-                  inCartIds={cartIds}
-                  wishlistIds={wishlistIds}
-                  toggleWishlist={toggleWishlist}
-                />
-              )}
-            </>
-          )}
+            )}
         </div>
       </div>
 
@@ -956,17 +858,15 @@ export default function Index() {
           `-mb-16 lg:mb-0` anula o `pb-16` que o `<main>` do PublicLayout usa no
           celular para liberar a barra de navegacao fixa. Sem isso sobraria uma
           faixa de 64px entre o banner e a borda superior do rodape. */}
-      {!showFavoritesView ? (
-        <div className="-mb-16 lg:mb-0">
-          <PromoUnico
-            format="destaque"
-            label="Catálogo · destaque final"
-           
-            bleed
-            customerType={customerType}
-          />
-        </div>
-      ) : null}
+      <div className="-mb-16 lg:mb-0">
+        <PromoUnico
+          format="destaque"
+          label="Catálogo · destaque final"
+         
+          bleed
+          customerType={customerType}
+        />
+      </div>
 
       {showBackToTop ? (
         <Button

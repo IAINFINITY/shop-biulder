@@ -148,7 +148,7 @@ const CATALOG_ACTIONS: HelpAction[] = [
     title: "Favoritos",
     description: "Salve os itens que você repete no pedido e volte neles quando precisar.",
     cta: "Ver favoritos",
-    to: "/?view=favoritos",
+    to: "/favoritos",
     icon: ShoppingBag,
     keywords: ["favorito", "salvar", "lista", "carrinho"],
   },
@@ -346,7 +346,14 @@ export default function Help() {
 
   return (
     <div className="relative min-h-screen bg-muted/40 pb-32 sm:pb-[10rem]">
-      <div className="pointer-events-none absolute inset-0">
+      {/* `overflow-hidden` aqui, como nas outras telas que usam o mesmo enfeite.
+          
+          O circulo de baixo fica em `right-[-100px]`: sem conter, ele empurra a
+          pagina 100px para a direita. No celular isso nao vira so uma barra de
+          rolagem — o viewport de layout estica junto, e todo elemento `fixed`
+          estica com ele. A barra de navegacao inferior passava a ser mais larga
+          que a tela e o item "Conta" saia do campo visivel. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/2 top-[-200px] h-96 w-96 -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl" />
         <div className="absolute right-[-100px] top-40 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
       </div>

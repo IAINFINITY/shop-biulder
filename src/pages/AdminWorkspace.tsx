@@ -56,7 +56,7 @@ import { AdminOrdersSection } from "@/components/admin/AdminOrdersSection";
 import { AdminClientsSection } from "@/components/admin/AdminClientsSection";
 import { AdminUsersSection } from "@/components/admin/AdminUsersSection";
 import { AdminSettingsSection } from "@/components/admin/AdminSettingsSection";
-import { SupportChatPanel } from "@/components/support/SupportChatPanel";
+import { ChatWorkspace } from "@/components/support/ChatWorkspace";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
 import { listEmployees } from "@/lib/employeeUsers";
 import { canAccessAdminSection } from "@/lib/adminUsers";
@@ -176,7 +176,13 @@ export default function AdminWorkspace() {
   const [orderSearch, setOrderSearch] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   const [clientFilter, setClientFilter] = useState<"all" | "orders" | "revenue">("all");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Mesma correcao da area de cliente: a variavel significa "expandida" no
+  // desktop e "gaveta aberta" no celular, entao o valor inicial nao pode ser um
+  // so — com `true` fixo, entrar no admin pelo celular ja abria o menu por cima
+  // do conteudo.
+  const ehDesktop = () =>
+    typeof window === "undefined" || window.matchMedia("(min-width: 1024px)").matches;
+  const [sidebarOpen, setSidebarOpen] = useState(ehDesktop);
   const [proxisExportingId, setProxisExportingId] = useState<string | null>(null);
   const [proxisResendingId, setProxisResendingId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
@@ -923,13 +929,20 @@ export default function AdminWorkspace() {
   };
 
   const formatDate = (value: string) => new Date(value).toLocaleString("pt-BR");
-  const chatContent = <SupportChatPanel mode="admin" />;
+  const chatContent = <ChatWorkspace mode="admin" />;
 
   return (
     <AdminWorkspaceShell
       section={section}
+      conteudoCheio={section === "mensagens"}
       title={ADMIN_SECTION_TITLES[section]}
-      onSectionChange={setSection}
+      onSectionChange={(proxima) => {
+        setSection(proxima);
+        // No celular a gaveta cobre o conteudo: deixa-la aberta esconderia a
+        // secao que a pessoa acabou de escolher.
+        if (!ehDesktop()) setSidebarOpen(false);
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }}
       onLogout={signOut}
       userLabel={displayUserLabel}
       sidebarOpen={sidebarOpen}

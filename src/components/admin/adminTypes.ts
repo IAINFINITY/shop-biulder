@@ -82,6 +82,11 @@ export type AdminProductFormState = {
   is_featured: boolean;
   priceInput: string;
   /** Preco "de" exibido riscado. Vazio = sem promocao com desconto. */
+  /**
+   * Subcategorias marcadas. A **primeira** vira a principal (`family`) — a que
+   * aparece na etiqueta, na linha do pedido e no payload do ERP.
+   */
+  families: string[];
   compareAtPriceInput: string;
   /**
    * Promocao percentual sobre a base de cada cliente, com janela de validade.

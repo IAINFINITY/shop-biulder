@@ -1,3 +1,4 @@
+import { normalizarSubcategorias } from "@/lib/subcategorias";
 import { parsePriceInput } from "@/lib/formatMoney";
 import type { Product } from "@/lib/products";
 import type { AdminProductFormState } from "@/components/admin/adminTypes";
@@ -43,6 +44,7 @@ export function buildPreviewProduct(state: AdminProductFormState | null): Produc
     // A previa do admin mostra o produto como a loja mostra, entao a promocao
     // precisa vir junto — inclusive a janela, para o preview refletir se ela
     // esta valendo hoje ou nao.
+    families: normalizarSubcategorias(state.families ?? []),
     promo_percent: state.promoPercentInput.trim() === "" ? null : parsePriceInput(state.promoPercentInput),
     promo_starts_at: state.promoStartsAtInput.trim() === "" ? null : state.promoStartsAtInput,
     promo_ends_at: state.promoEndsAtInput.trim() === "" ? null : state.promoEndsAtInput,

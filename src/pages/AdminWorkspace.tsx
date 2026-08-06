@@ -29,6 +29,7 @@ import {
   parsePriceInput,
   priceToAdminInput,
 } from "@/lib/formatMoney";
+import { normalizarSubcategorias, subcategoriaPrincipal, subcategoriasDoProduto } from "@/lib/subcategorias";
 import { uploadProductImageFile, deleteStorageImage, nextProductImageObjectName, normalizeProductGalleryNames } from "@/lib/productImageStorage";
 import {
   PRODUCT_IMAGE_FRAME,
@@ -535,6 +536,7 @@ export default function AdminWorkspace() {
       is_promotion: false,
       is_featured: false,
       priceInput: "",
+      families: [],
       compareAtPriceInput: "",
       promoPercentInput: "",
       promoStartsAtInput: "",
@@ -561,6 +563,7 @@ export default function AdminWorkspace() {
       is_promotion: p.is_promotion,
       is_featured: p.is_featured,
       priceInput: priceToAdminInput(coercePrice(p.price)),
+      families: subcategoriasDoProduto(p),
       compareAtPriceInput: p.compare_at_price ? priceToAdminInput(coercePrice(p.compare_at_price)) : "",
       promoPercentInput: p.promo_percent ? String(p.promo_percent).replace(".", ",") : "",
       // `slice(0, 16)` entregava o UTC cru ao campo, que le como hora local:
@@ -674,7 +677,9 @@ export default function AdminWorkspace() {
   };
 
   const save = async () => {
-    if (!editing || !editing.name || !editing.family) {
+    // Trava de salvamento: o formulario nao alimenta mais `family`, entao ela
+    // olha a lista. Sem isso, salvar produto ficava bloqueado.
+    if (!editing || !editing.name || editing.families.length === 0) {
       toast.error("Preencha nome e família do produto.");
       return;
     }
@@ -733,7 +738,10 @@ export default function AdminWorkspace() {
       description,
       brand: editing.brand,
       type: editing.type,
-      family: editing.family.trim(),
+      // A lista manda; `family` sai dela. Guardar as duas independentes
+      // deixaria a principal contradizer o pertencimento.
+      families: normalizarSubcategorias(editing.families),
+      family: subcategoriaPrincipal({ family: null, families: editing.families }),
       image_urls: finalUrls,
       image_alts: editing.image_alts,
       image_fit: editing.image_fit,

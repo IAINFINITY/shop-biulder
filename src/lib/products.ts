@@ -1,5 +1,6 @@
 import { coercePrice } from "./formatMoney";
 import { normalizeStoragePublicUrl, storageObjectKey } from "./storageUrls";
+import { normalizarSubcategorias } from "@/lib/subcategorias";
 import { encontrarProdutoPelaUrl } from "@/lib/urlDoProduto";
 
 /**
@@ -52,6 +53,11 @@ export interface Product {
   price: number | null;
   /** Preco anterior, exibido riscado quando maior que price. */
   compare_at_price: number | null;
+  /**
+   * Todas as subcategorias. `family` continua sendo a principal (a primeira).
+   * Ler sempre por `src/lib/subcategorias.ts`, nunca direto.
+   */
+  families: string[] | null;
   /** Promocao percentual sobre a base do cliente. Ver `src/lib/promocao.ts`. */
   promo_percent: number | null;
   promo_starts_at: string | null;
@@ -197,6 +203,7 @@ export const PRODUCT_OPTIONAL_COLUMNS = [
   "promo_percent",
   "promo_starts_at",
   "promo_ends_at",
+  "families",
 ] as const;
 
 export type ProductOptionalColumn = (typeof PRODUCT_OPTIONAL_COLUMNS)[number];
@@ -223,6 +230,7 @@ export function omitProductColumn<T extends Record<string, unknown>>(row: T, col
 }
 
 export type ProductDbPayloadInput = {
+  families?: string[] | null;
   promo_percent?: number | null;
   promo_starts_at?: string | null;
   promo_ends_at?: string | null;
@@ -264,6 +272,7 @@ type ProductDbRow = {
   promo_percent: number | null;
   promo_starts_at: string | null;
   promo_ends_at: string | null;
+  families: string[] | null;
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
@@ -302,6 +311,9 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
       input.compare_at_price !== null && input.compare_at_price > input.price ? input.compare_at_price : null,
     // A promocao vai crua para o banco: as travas de faixa e de janela coerente
     // sao `check` na tabela, entao regra escrita duas vezes viraria divergencia.
+    // `family` sai da lista, e nao de um campo separado: guardar as duas
+    // independentes deixaria a principal contradizer o pertencimento.
+    families: normalizarSubcategorias(input.families ?? []),
     promo_percent: input.promo_percent ?? null,
     promo_starts_at: input.promo_starts_at ?? null,
     promo_ends_at: input.promo_ends_at ?? null,
@@ -374,6 +386,9 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     is_featured: Boolean(record.is_featured),
     price: coercePrice(record.price),
     compare_at_price: coercePrice(record.compare_at_price) || null,
+    families: Array.isArray(record.families)
+      ? record.families.filter((v): v is string => typeof v === "string")
+      : null,
     promo_percent: coercePrice(record.promo_percent) || null,
     promo_starts_at: typeof record.promo_starts_at === "string" ? record.promo_starts_at : null,
     promo_ends_at: typeof record.promo_ends_at === "string" ? record.promo_ends_at : null,
@@ -401,7 +416,7 @@ export function getProductDiscount(
   return { from, to, percent: Math.round(((from - to) / from) * 100) };
 }
 
-// O endereco do produto e `/produto/cha-mais-anis-estrelado-2188` e mora em
+// O endereco do produto — `/produto/cha-mais-anis-estrelado-2188` — mora em
 // `urlDoProduto.ts`, puro e testado. Reexportado aqui porque e daqui que o
 // catalogo inteiro ja importava.
 export { caminhoDoProduto } from "@/lib/urlDoProduto";

@@ -673,6 +673,10 @@ export type Database = {
       }
       "clinic+b2b_clinic_catalogo_front_b2b": {
         Row: {
+          families: string[] | null
+          promo_percent: number | null
+          promo_starts_at: string | null
+          promo_ends_at: string | null
           active: boolean
           average_rating: number
           brand: string | null
@@ -691,9 +695,6 @@ export type Database = {
           is_promotion: boolean
           name: string
           price: number
-          promo_ends_at: string | null
-          promo_percent: number | null
-          promo_starts_at: string | null
           product_code: string | null
           review_count: number
           stock: number | null
@@ -702,6 +703,10 @@ export type Database = {
           visible_to: string[] | null
         }
         Insert: {
+          families?: string[] | null
+          promo_percent?: number | null
+          promo_starts_at?: string | null
+          promo_ends_at?: string | null
           active?: boolean
           average_rating?: number
           brand?: string | null
@@ -720,9 +725,6 @@ export type Database = {
           is_promotion?: boolean
           name: string
           price?: number
-          promo_ends_at?: string | null
-          promo_percent?: number | null
-          promo_starts_at?: string | null
           product_code?: string | null
           review_count?: number
           stock?: number | null
@@ -731,6 +733,10 @@ export type Database = {
           visible_to?: string[] | null
         }
         Update: {
+          families?: string[] | null
+          promo_percent?: number | null
+          promo_starts_at?: string | null
+          promo_ends_at?: string | null
           active?: boolean
           average_rating?: number
           brand?: string | null
@@ -749,9 +755,6 @@ export type Database = {
           is_promotion?: boolean
           name?: string
           price?: number
-          promo_ends_at?: string | null
-          promo_percent?: number | null
-          promo_starts_at?: string | null
           product_code?: string | null
           review_count?: number
           stock?: number | null

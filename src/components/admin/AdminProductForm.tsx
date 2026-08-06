@@ -167,7 +167,7 @@ export function AdminProductForm({
     const missing: string[] = [];
     if (!editing.name.trim()) missing.push("Nome");
     if (!editing.brand.trim()) missing.push("Marca");
-    if (!editing.family.trim()) missing.push("Subcategoria");
+    if (editing.families.length === 0) missing.push("Subcategoria");
     if (isRichTextEmpty(editing.description)) missing.push("Descrição");
     if (!editing.productCode.trim()) missing.push("Código");
     if (parsePriceInput(editing.priceInput) <= 0) missing.push("Preço");
@@ -324,24 +324,47 @@ export function AdminProductForm({
               </Select>
             </Field>
 
-            <Field id="product-family" label="Subcategoria" hint="O que o produto é.">
-              <Select value={editing.family} onValueChange={(v) => onChange({ ...editing, family: v })}>
-                <SelectTrigger id="product-family" className={cn(inputClass, "w-full", TEXT.compact)}>
-                  <SelectValue
-                    placeholder={
-                      familyOptions.length > 0 ? "Selecione" : "Nenhuma cadastrada ainda"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {familyOptions.map((family) => (
-                    <SelectItem key={family} value={family}>
-                      {family}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            {/* Selecao multipla: um produto pode pertencer a mais de uma
+                subcategoria.
+
+                A **ordem importa** — a primeira marcada vira a principal, que e
+                a que aparece na etiqueta, na linha do pedido e no payload do
+                ERP. Por isso marcar acrescenta no fim em vez de reordenar. */}
+            <div className="rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3 md:col-span-2">
+              <p className={cn(TEXT.body, "font-medium text-foreground")}>Subcategorias</p>
+              <p className={cn(TEXT.caption, "mt-0.5 text-muted-foreground")}>
+                {editing.families.length > 0
+                  ? `Principal: ${editing.families[0]}. Marque outras para o produto aparecer também nos filtros delas.`
+                  : "Marque uma ou mais. A primeira vira a principal, usada na etiqueta e no pedido."}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+                {familyOptions.map((nome) => {
+                  const marcada = editing.families.includes(nome);
+                  const principal = editing.families[0] === nome;
+                  return (
+                    <label
+                      key={nome}
+                      className={cn(TEXT.compact, "flex cursor-pointer items-center gap-2 text-foreground")}
+                    >
+                      <Checkbox
+                        checked={marcada}
+                        onCheckedChange={(estado) => {
+                          const marcar = estado === true;
+                          onChange({
+                            ...editing,
+                            families: marcar
+                              ? [...editing.families, nome]
+                              : editing.families.filter((f) => f !== nome),
+                          });
+                        }}
+                        className="h-4 w-4 border-primary data-[state=checked]:bg-primary"
+                      />
+                      <span className={cn(principal && "font-semibold text-primary")}>{nome}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </FormSection>
 

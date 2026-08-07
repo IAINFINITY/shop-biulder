@@ -28,6 +28,7 @@ const handlers = new Map(
       ["/api/bitrix-deal", "api/bitrix-deal.ts"],
       ["/api/proxis-price-tables", "api/proxis-price-tables.ts"],
       ["/api/proxis-item-check", "api/proxis-item-check.ts"],
+      ["/api/resumo-produto", "api/resumo-produto.ts"],
     ].map(async ([route, file]) => [route, (await import(pathToFileURL(path.join(rootDir, file)).href)).default]),
   ),
 );

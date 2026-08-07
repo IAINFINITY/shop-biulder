@@ -51,6 +51,7 @@ export function buildPreviewProduct(state: AdminProductFormState | null): Produc
     stock: Number.isInteger(stock) ? stock : null,
     product_code: state.productCode.trim() || null,
     visible_to: state.visible_to.length > 0 ? state.visible_to : null,
+    ai_summary: state.aiSummaryInput.trim() || null,
     created_at: "",
     updated_at: "",
     // Avaliacao vem de quem compra: no preview nao ha o que mostrar, e inventar

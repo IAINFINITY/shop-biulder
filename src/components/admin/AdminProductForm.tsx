@@ -1,5 +1,5 @@
-import { useMemo, type ChangeEvent, type ReactNode, type RefObject } from "react";
-import { AlertTriangle, CheckCircle2, Save, X } from "lucide-react";
+import { useMemo, useState, type ChangeEvent, type ReactNode, type RefObject } from "react";
+import { AlertTriangle, CheckCircle2, Loader2, Save, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,13 @@ import { normalizePriceInputDraft, parsePriceInput } from "@/lib/formatMoney";
 import { aplicarPromocao, motivoParaNaoDestacar, podeDestacarEmPromocao } from "@/lib/promocao";
 import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
-import { isRichTextEmpty } from "@/lib/richTextPure";
+import { isRichTextEmpty, stripHtml } from "@/lib/richTextPure";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { useProxisItemCheck } from "@/hooks/useProxisItemCheck";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { apiFetch } from "@/lib/apiFetch";
+import { MAX_ITENS, MIN_ITENS, resumoParaTexto } from "@/lib/resumoDeProduto";
 import type { AdminProductFormState } from "./adminTypes";
 
 type ProductTypeOption = string;
@@ -127,6 +131,52 @@ export function AdminProductForm({
   onCancel,
 }: AdminProductFormProps) {
   const { options: customerTypeOptions } = useCustomerTypes();
+  const [gerandoResumo, setGerandoResumo] = useState(false);
+
+  /**
+   * Pede o resumo a rota e coloca no campo — **sem salvar**.
+   *
+   * O texto chega como rascunho: quem esta editando le, corrige e so entao
+   * grava. E o unico ponto do fluxo em que uma pessoa ve o texto antes de ele
+   * virar conteudo publico, e para suplemento isso nao e conforto — a regra da
+   * ANVISA proibe alegacao de cura, tratamento ou prevencao, e a validacao do
+   * servidor pega o termo obvio, nao a insinuacao.
+   */
+  const gerarResumo = async () => {
+    setGerandoResumo(true);
+    try {
+      const resposta = await apiFetch("/api/resumo-produto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editing.name,
+          description: editing.description,
+          type: editing.type,
+          brand: editing.brand,
+        }),
+      });
+      const dados = (await resposta.json().catch(() => ({}))) as {
+        itens?: string[];
+        error?: string;
+      };
+      if (!resposta.ok || !dados.itens) {
+        toast.error(dados.error ?? "Não foi possível gerar o resumo.");
+        return;
+      }
+      onChange({ ...editing, aiSummaryInput: resumoParaTexto(dados.itens) });
+      toast.success("Resumo gerado. Confira o texto antes de salvar.");
+    } catch (error) {
+      console.error("[admin] falha ao gerar resumo:", error);
+      toast.error("Não foi possível falar com o servidor.");
+    } finally {
+      setGerandoResumo(false);
+    }
+  };
+
+  // Descricao curta demais nao rende resumo, e a rota recusa. Barrar aqui evita
+  // a ida ao servidor so para voltar com erro.
+  const descricaoEmTexto = stripHtml(editing.description).trim();
+  const podeGerarResumo = editing.name.trim().length > 0 && descricaoEmTexto.length >= 80;
 
   // Promocao marcada sem valor anterior utilizavel: ou vazio, ou menor/igual ao
   // preco atual (nesse caso a normalizacao descarta e nao vira desconto).
@@ -404,6 +454,55 @@ export function AdminProductForm({
               <strong className="font-medium text-foreground">Enter duas vezes</strong> abre uma linha em
               branco. <strong className="font-medium text-foreground">Backspace</strong> no início da
               linha desfaz, um passo por vez.
+            </p>
+          </div>
+
+          {/* O resumo fica **junto da descricao**, e nao numa secao propria: ele e
+              derivado dela, e separar os dois faria parecer que sao conteudos
+              independentes — o resumo desatualizaria em silencio a cada edicao do
+              texto de cima. */}
+          <div className="space-y-2 border-t border-border/60 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <Label htmlFor="product-ai-summary" className={cn(TEXT.compact, "font-medium")}>
+                  Resumo (card ao lado do preço)
+                </Label>
+                {/* De onde o texto vem, escrito na tela e nao so no codigo: quem
+                    abre o formulario pela primeira vez precisa saber que o botao
+                    le a descricao acima, e nao o catalogo ou a internet. Sem
+                    isso, a origem do texto e adivinhacao. */}
+                <p className={cn(TEXT.caption, "mt-0.5 text-muted-foreground")}>
+                  Escrito por IA a partir da descrição acima. Nada é publicado sem você salvar.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={gerarResumo}
+                disabled={!podeGerarResumo || gerandoResumo}
+                className={cn(TEXT.compact, "h-9 gap-2 rounded-full px-3")}
+              >
+                {gerandoResumo ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {gerandoResumo ? "Gerando…" : "Gerar com IA"}
+              </Button>
+            </div>
+            <Textarea
+              id="product-ai-summary"
+              value={editing.aiSummaryInput}
+              onChange={(e) => onChange({ ...editing, aiSummaryInput: e.target.value })}
+              rows={5}
+              placeholder={`Um item por linha, ${MIN_ITENS} a ${MAX_ITENS}. Vazio = o card usa as primeiras frases da descrição.`}
+              className={cn(inputClass, "min-h-[7rem] resize-y py-2 leading-6")}
+            />
+            <p className={cn(TEXT.caption, "leading-5 text-muted-foreground")}>
+              {podeGerarResumo
+                ? `Um item por linha, ${MIN_ITENS} a ${MAX_ITENS} (o normal é ${MAX_ITENS}). Leia antes de salvar: o texto não pode prometer cura, tratamento ou emagrecimento, e deve manter as restrições da descrição — alérgeno, idade mínima, origem animal.`
+                : "Preencha o nome e uma descrição com pelo menos 80 caracteres para liberar a geração."}
             </p>
           </div>
         </FormSection>

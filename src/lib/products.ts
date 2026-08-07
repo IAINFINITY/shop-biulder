@@ -65,6 +65,13 @@ export interface Product {
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
+  /**
+   * Resumo escrito por IA e revisado no painel, um item por linha.
+   *
+   * Nulo e o estado normal: a pagina cai no recorte da descricao. Ler sempre por
+   * `textoParaResumo` em `src/lib/resumoDeProduto.ts`.
+   */
+  ai_summary: string | null;
   created_at: string;
   updated_at: string;
   average_rating: number;
@@ -204,6 +211,7 @@ export const PRODUCT_OPTIONAL_COLUMNS = [
   "promo_starts_at",
   "promo_ends_at",
   "families",
+  "ai_summary",
 ] as const;
 
 export type ProductOptionalColumn = (typeof PRODUCT_OPTIONAL_COLUMNS)[number];
@@ -230,6 +238,7 @@ export function omitProductColumn<T extends Record<string, unknown>>(row: T, col
 }
 
 export type ProductDbPayloadInput = {
+  ai_summary?: string | null;
   families?: string[] | null;
   promo_percent?: number | null;
   promo_starts_at?: string | null;
@@ -276,6 +285,7 @@ type ProductDbRow = {
   stock: number | null;
   product_code: string | null;
   visible_to: string[] | null;
+  ai_summary: string | null;
 };
 
 /**
@@ -322,6 +332,9 @@ export function buildProductDbPayload(input: ProductDbPayloadInput): {
     image_fit: normalizeProductImageFit(input.image_fit),
     product_code: (input.product_code ?? "").trim() || null,
     visible_to: visibleTo,
+    // Vazio grava nulo, e nao string vazia: nulo e o que a pagina entende como
+    // "sem resumo, use a descricao".
+    ai_summary: (input.ai_summary ?? "").trim() || null,
   };
   // As descricoes acompanham a mesma quantidade de imagens salvas, para os
   // indices continuarem casando depois de reordenar ou remover fotos.
@@ -397,6 +410,7 @@ export function normalizeProductFromSupabaseRow(row: unknown): Product {
     stock: typeof record.stock === "number" && Number.isFinite(record.stock) ? record.stock : null,
     product_code: productCode,
     visible_to: visibleTo,
+    ai_summary: typeof record.ai_summary === "string" && record.ai_summary.trim() ? record.ai_summary : null,
     average_rating: typeof record.average_rating === "number" ? record.average_rating : 0,
     review_count: typeof record.review_count === "number" ? record.review_count : 0,
     created_at: typeof record.created_at === "string" ? record.created_at : "",

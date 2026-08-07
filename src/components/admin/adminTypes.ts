@@ -101,6 +101,13 @@ export type AdminProductFormState = {
   stockInput: string;
   productCode: string;
   visible_to: string[];
+  /**
+   * Resumo do card "Resumo", um item por linha.
+   *
+   * Editavel de proposito, mesmo vindo da IA: e o unico ponto em que uma pessoa
+   * le o texto antes de ele virar conteudo publico. Ver `resumoDeProduto.ts`.
+   */
+  aiSummaryInput: string;
 };
 
 export type AdminCustomerSummary = {

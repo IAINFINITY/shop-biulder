@@ -541,6 +541,7 @@ export default function AdminWorkspace() {
       promoPercentInput: "",
       promoStartsAtInput: "",
       promoEndsAtInput: "",
+      aiSummaryInput: "",
       stockInput: "",
       productCode: "",
       visible_to: [],
@@ -570,6 +571,7 @@ export default function AdminWorkspace() {
       // 18:55 salvo reabria como 21:55, e cada edicao empurrava mais tres horas.
       promoStartsAtInput: isoParaCampoLocal(p.promo_starts_at),
       promoEndsAtInput: isoParaCampoLocal(p.promo_ends_at),
+      aiSummaryInput: p.ai_summary ?? "",
       stockInput: typeof p.stock === "number" && Number.isFinite(p.stock) ? String(Math.max(0, Math.trunc(p.stock))) : "",
       productCode: p.product_code ?? "",
       visible_to: p.visible_to ?? [],
@@ -756,6 +758,7 @@ export default function AdminWorkspace() {
       stock,
       product_code: editing.productCode,
       visible_to: editing.visible_to.length > 0 ? editing.visible_to.map((t) => t.trim().toLowerCase()) : null,
+      ai_summary: editing.aiSummaryInput,
     });
 
     const persist = async (payload: Record<string, unknown>) => {
@@ -773,6 +776,7 @@ export default function AdminWorkspace() {
       brand: "Marca não salva. Execute supabase/APLICAR_NO_SUPABASE_product_taxonomy_brands.sql no Supabase e tente de novo.",
       visible_to: "Visibilidade não salva. Execute supabase/APLICAR_NO_SUPABASE_visible_to.sql no Supabase e tente de novo.",
       stock: "Estoque não salvo. Execute a migração da coluna stock no Supabase e tente de novo.",
+      ai_summary: "Resumo não salvo. Execute supabase/migrations/20260807140000_resumo_ia.sql no Supabase e tente de novo.",
     };
 
     let body: Record<string, unknown> = withGallery;

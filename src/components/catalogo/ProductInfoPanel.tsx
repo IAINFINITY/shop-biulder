@@ -173,7 +173,11 @@ export function ProductInfoPanel({
       </div>
 
       <div className="grid gap-3 2xl:grid-cols-2 2xl:items-stretch">
-        <ProductSummaryCard description={product.description} fullDescriptionHref={fullDescriptionHref} />
+        <ProductSummaryCard
+          description={product.description}
+          aiSummary={product.ai_summary}
+          fullDescriptionHref={fullDescriptionHref}
+        />
 
         <div className="overflow-hidden rounded-xl bg-background ring-1 ring-black/5">
           <div className="flex h-full flex-col p-4 sm:p-5">

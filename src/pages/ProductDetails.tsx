@@ -164,18 +164,12 @@ export default function ProductDetails() {
   const { add: addToRecentlyViewed } = useRecentlyViewed();
   const { ids: wishlistIds, toggle: toggleWishlist } = useWishlist();
   const [reviewPage, setReviewPage] = useState(1);
-  const { data: reviewData = { reviews: [], totalCount: 0, totalPages: 1 }, addReview, updateReview, deleteReview } = useProductReviews(id, reviewPage);
-  const { reviews, totalCount: reviewTotalCount, totalPages: reviewTotalPages } = reviewData;
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewTitle, setReviewTitle] = useState("");
   const [reviewComment, setReviewComment] = useState("");
   const [reviewTags, setReviewTags] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (id) addToRecentlyViewed(id);
-  }, [id, addToRecentlyViewed]);
 
   const cartIds = useMemo(() => new Set(cart.map((item) => item.product.id)), [cart]);
 
@@ -216,6 +210,31 @@ export default function ProductDetails() {
   });
 
   const product = cachedProduct ?? liveProduct ?? null;
+
+  /**
+   * Avaliacoes e "vistos recentemente" andam pelo **id do banco**, nao pelo que
+   * esta na URL.
+   *
+   * Os dois liam `id` do `useParams`, que era o UUID ate a URL passar a usar
+   * `nome-do-produto-2188`. Desde entao "vistos recentemente" guardava o slug e
+   * a home procurava por `product.id` — nunca casava, e a prateleira parava de
+   * atualizar. As avaliacoes tinham a mesma falha e pior consequencia: o slug ia
+   * para uma RPC que espera uuid.
+   *
+   * Por isso as duas chamadas vivem **abaixo** de `product`: enquanto estavam la
+   * em cima, o unico identificador ao alcance era o da URL.
+   */
+  const {
+    data: reviewData = { reviews: [], totalCount: 0, totalPages: 1 },
+    addReview,
+    updateReview,
+    deleteReview,
+  } = useProductReviews(product?.id, reviewPage);
+  const { reviews, totalCount: reviewTotalCount, totalPages: reviewTotalPages } = reviewData;
+
+  useEffect(() => {
+    if (product?.id) addToRecentlyViewed(product.id);
+  }, [product?.id, addToRecentlyViewed]);
 
   /**
    * Endereco antigo cai no atual.

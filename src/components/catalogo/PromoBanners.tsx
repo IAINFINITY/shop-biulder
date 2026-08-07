@@ -68,8 +68,9 @@ function Peca({
     // iguais lado a lado. Levantar a peca sob o cursor diz qual delas o clique
     // vai pegar. `motion-safe` deixa a animacao de fora para quem pediu menos
     // movimento no sistema.
-    format === "trio" &&
-      "motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-safe:hover:-translate-y-1.5 motion-safe:hover:scale-[1.02]",
+    // O levantar do trio saiu daqui: o bloco clicavel abaixo ja levanta a peca,
+    // e as duas regras no mesmo elemento davam translacao dobrada. Peca sem link
+    // nao levanta — e correto, ela nao leva a lugar nenhum.
   );
 
   const conteudo = loading ? null : arte ? (
@@ -100,19 +101,35 @@ function Peca({
     /**
      * Sinal de que o banner leva a algum lugar.
      *
-     * So `hover:opacity-95` nao convida clique — a pesquisa de affordance e
-     * direta em dizer que a possibilidade real precisa de um significante
-     * visivel. Aqui a arte cresce 2% e a caixa ganha sombra, com o mesmo efeito
-     * no foco de teclado e desligado para quem pediu menos animacao.
+     * O zoom anterior **nunca rodava**. `group-hover:` gera
+     * `.group:hover .classe` — a classe precisa estar num **descendente** do
+     * grupo, e ela estava no proprio elemento marcado como `group`. O seletor
+     * existia no CSS compilado e nao casava com nada: medido no navegador, a
+     * imagem ficava em `transform: none` antes e depois do cursor. Sobrava a
+     * sombra, que sozinha e quase invisivel. Com `hover:` o seletor vira
+     * `.classe:hover img` e casa.
+     *
+     * A pesquisa do Baymard e direta sobre por que o resto tambem era fraco:
+     * "muitos usuarios passam rapido pelo site e nao sao observadores o
+     * suficiente para se beneficiar dessas pistas sutis" — cursor, sombra leve e
+     * 2% de zoom sao exatamente pistas sutis. Dai o efeito ser bem mais forte
+     * agora: 4% na arte, a peca sobe, sombra funda, tudo em hover **unificado**
+     * no bloco inteiro (o caso aqui: um link so envolve tudo).
+     *
+     * **Fica um buraco conhecido no celular.** Nada disso existe sem cursor, e a
+     * outra metade da recomendacao do Baymard — um sinal explicito, tipo seta,
+     * visivel sem hover — foi retirada por decisao de design. No telefone o
+     * banner nao tem nenhum indicio de que e clicavel.
      */
     const afordancia = cn(
       moldura,
-      "group block overflow-hidden transition-shadow duration-300",
-      "hover:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
+      "group block overflow-hidden",
+      "transition-[box-shadow,transform] duration-300 ease-out",
+      "hover:shadow-[0_18px_44px_rgba(16,24,40,0.20)] focus-visible:shadow-[0_18px_44px_rgba(16,24,40,0.20)]",
+      "motion-safe:hover:-translate-y-1 motion-safe:focus-visible:-translate-y-1",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-      "focus-visible:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
-      "[&_img]:transition-transform [&_img]:duration-500 motion-reduce:[&_img]:transition-none",
-      "group-hover:[&_img]:scale-[1.02] group-focus-visible:[&_img]:scale-[1.02]",
+      "[&_img]:transition-transform [&_img]:duration-500 [&_img]:ease-out motion-reduce:[&_img]:transition-none",
+      "hover:[&_img]:scale-[1.04] focus-visible:[&_img]:scale-[1.04]",
     );
 
     return destino.tipo === "interno" ? (

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAuth } from "./_auth.js";
+import { aplicarRateLimit } from "./_rateLimit.js";
 
 const PROXSIS_BASE_URL = (process.env.PROXSIS_BASE_URL || "").trim();
 const PROXSIS_USER = process.env.PROXSIS_USER || "";
@@ -115,6 +116,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Só o painel administrativo consome este status.
   const auth = await requireAuth(req, res, { adminOnly: true });
   if (!auth) return;
+
+  // Limite de uso por conta (§21). Depois do guard de propósito: sem saber quem
+  // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
+  // controle principal.
+  if (!(await aplicarRateLimit(req, res, "proxis-health", auth.userId))) return;
 
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(200).json({ connected: false, error: "Proxsis nao configurado no servidor" });

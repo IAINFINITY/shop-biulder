@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireAuth } from "./_auth.js";
+import { aplicarRateLimit } from "./_rateLimit.js";
 import {
   construirPromptDeResumo,
   normalizarResumo,
@@ -61,6 +62,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const auth = await requireAuth(req, res, { adminOnly: true });
   if (!auth) return;
+
+  // Limite de uso por conta (§21). Depois do guard de propósito: sem saber quem
+  // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
+  // controle principal.
+  if (!(await aplicarRateLimit(req, res, "resumo-produto", auth.userId))) return;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {

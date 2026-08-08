@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { canActForCnpj } from "../src/lib/apiAuth.js";
 import { requireAuth } from "./_auth.js";
+import { aplicarRateLimit } from "./_rateLimit.js";
 
 const BITRIX_WEBHOOK_BASE_URL = process.env.BITRIX_WEBHOOK_BASE_URL || "";
 const BITRIX_PIPELINE_ID = process.env.BITRIX_PIPELINE_ID || "";
@@ -117,6 +118,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const auth = await requireAuth(req, res);
   if (!auth) return;
+
+  // Limite de uso por conta (§21). Depois do guard de propósito: sem saber quem
+  // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
+  // controle principal.
+  if (!(await aplicarRateLimit(req, res, "bitrix-deal", auth.userId))) return;
 
   if (!BITRIX_WEBHOOK_BASE_URL) {
     return res.status(500).json({ error: "Bitrix webhook not configured on server" });

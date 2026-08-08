@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { safeItemNumber } from "../src/lib/proxisFilter.js";
 import { requireAuth } from "./_auth.js";
+import { aplicarRateLimit } from "./_rateLimit.js";
 
 /**
  * Confere se um codigo de produto existe no Proxis.
@@ -55,6 +56,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Conferência de cadastro no ERP: serve ao admin salvando produto.
   const auth = await requireAuth(req, res, { adminOnly: true });
   if (!auth) return;
+
+  // Limite de uso por conta (§21). Depois do guard de propósito: sem saber quem
+  // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
+  // controle principal.
+  if (!(await aplicarRateLimit(req, res, "proxis-item-check", auth.userId))) return;
 
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(500).json({ error: "Integração com o Proxis não configurada." });

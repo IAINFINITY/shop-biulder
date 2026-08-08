@@ -545,6 +545,30 @@ export type Database = {
         }
         Relationships: []
       }
+      "clinic+b2b_auth_events": {
+        Row: {
+          detalhe: Json
+          evento: string
+          id: string
+          ocorrido_em: string
+          user_id: string | null
+        }
+        Insert: {
+          detalhe?: Json
+          evento: string
+          id?: string
+          ocorrido_em?: string
+          user_id?: string | null
+        }
+        Update: {
+          detalhe?: Json
+          evento?: string
+          id?: string
+          ocorrido_em?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       "clinic+b2b_catalog_banners": {
         Row: {
           active: boolean
@@ -673,16 +697,14 @@ export type Database = {
       }
       "clinic+b2b_clinic_catalogo_front_b2b": {
         Row: {
-          families: string[] | null
-          promo_percent: number | null
-          promo_starts_at: string | null
-          promo_ends_at: string | null
           active: boolean
+          ai_summary: string | null
           average_rating: number
           brand: string | null
           compare_at_price: number | null
           created_at: string
           description: string
+          families: string[] | null
           family: string
           id: string
           image_alts: string[] | null
@@ -696,6 +718,9 @@ export type Database = {
           name: string
           price: number
           product_code: string | null
+          promo_ends_at: string | null
+          promo_percent: number | null
+          promo_starts_at: string | null
           review_count: number
           stock: number | null
           type: string
@@ -703,16 +728,14 @@ export type Database = {
           visible_to: string[] | null
         }
         Insert: {
-          families?: string[] | null
-          promo_percent?: number | null
-          promo_starts_at?: string | null
-          promo_ends_at?: string | null
           active?: boolean
+          ai_summary?: string | null
           average_rating?: number
           brand?: string | null
           compare_at_price?: number | null
           created_at?: string
           description?: string
+          families?: string[] | null
           family: string
           id?: string
           image_alts?: string[] | null
@@ -726,6 +749,9 @@ export type Database = {
           name: string
           price?: number
           product_code?: string | null
+          promo_ends_at?: string | null
+          promo_percent?: number | null
+          promo_starts_at?: string | null
           review_count?: number
           stock?: number | null
           type: string
@@ -733,16 +759,14 @@ export type Database = {
           visible_to?: string[] | null
         }
         Update: {
-          families?: string[] | null
-          promo_percent?: number | null
-          promo_starts_at?: string | null
-          promo_ends_at?: string | null
           active?: boolean
+          ai_summary?: string | null
           average_rating?: number
           brand?: string | null
           compare_at_price?: number | null
           created_at?: string
           description?: string
+          families?: string[] | null
           family?: string
           id?: string
           image_alts?: string[] | null
@@ -756,11 +780,35 @@ export type Database = {
           name?: string
           price?: number
           product_code?: string | null
+          promo_ends_at?: string | null
+          promo_percent?: number | null
+          promo_starts_at?: string | null
           review_count?: number
           stock?: number | null
           type?: string
           updated_at?: string
           visible_to?: string[] | null
+        }
+        Relationships: []
+      }
+      "clinic+b2b_config_seguranca": {
+        Row: {
+          atualizado_em: string
+          chave: string
+          descricao: string | null
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string
+          chave: string
+          descricao?: string | null
+          valor: string
+        }
+        Update: {
+          atualizado_em?: string
+          chave?: string
+          descricao?: string | null
+          valor?: string
         }
         Relationships: []
       }
@@ -815,6 +863,30 @@ export type Database = {
         }
         Relationships: []
       }
+      "clinic+b2b_customer_favorites": {
+        Row: {
+          created_at: string
+          product_id: string
+          quantity: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          product_id: string
+          quantity?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       "clinic+b2b_customer_price_overrides": {
         Row: {
           active: boolean
@@ -862,6 +934,7 @@ export type Database = {
           company: string
           created_at: string
           customer_type: string
+          deve_trocar_senha: boolean
           email: string | null
           linked_company_cnpj: string | null
           name: string
@@ -889,6 +962,7 @@ export type Database = {
           company: string
           created_at?: string
           customer_type?: string
+          deve_trocar_senha?: boolean
           email?: string | null
           linked_company_cnpj?: string | null
           name: string
@@ -916,6 +990,7 @@ export type Database = {
           company?: string
           created_at?: string
           customer_type?: string
+          deve_trocar_senha?: boolean
           email?: string | null
           linked_company_cnpj?: string | null
           name?: string
@@ -950,30 +1025,6 @@ export type Database = {
           created_at?: string
           customer_type?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      "clinic+b2b_customer_favorites": {
-        Row: {
-          created_at: string
-          product_id: string
-          quantity: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          product_id: string
-          quantity?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          product_id?: string
-          quantity?: number
-          updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -1220,6 +1271,24 @@ export type Database = {
         }
         Relationships: []
       }
+      "clinic+b2b_rate_limit": {
+        Row: {
+          chave: string
+          contagem: number
+          janela_inicio: string
+        }
+        Insert: {
+          chave: string
+          contagem?: number
+          janela_inicio?: string
+        }
+        Update: {
+          chave?: string
+          contagem?: number
+          janela_inicio?: string
+        }
+        Relationships: []
+      }
       "clinic+b2b_support_conversations": {
         Row: {
           admin_typing_at: string | null
@@ -1302,7 +1371,15 @@ export type Database = {
           sender_user_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clinic_b2b_support_messages_conversation_fk"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "clinic+b2b_support_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       "clinic+b2b_user_roles": {
         Row: {
@@ -2051,6 +2128,20 @@ export type Database = {
         Returns: boolean
       }
       clinic_b2b_is_superadmin: { Args: never; Returns: boolean }
+      clinic_b2b_ultimo_uso_dos_fatores: {
+        Args: never
+        Returns: {
+          factor_id: string
+          ultimo_uso: string
+        }[]
+      }
+      consumir_rate_limit: {
+        Args: { p_chave: string; p_janela_segundos: number }
+        Returns: {
+          contagem: number
+          segundos_na_janela: number
+        }[]
+      }
       count_product_reviews: { Args: { p_product_id: string }; Returns: number }
       dispatch_report_day_auto_sync: { Args: never; Returns: undefined }
       ensure_support_conversation: {

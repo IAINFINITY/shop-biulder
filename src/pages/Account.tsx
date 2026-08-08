@@ -23,6 +23,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ClientWorkspaceShell } from "@/components/client/ClientWorkspaceShell";
 import { ClientSectionHeader } from "@/components/client/ClientSectionHeader";
+import { AutenticadoresSection } from "@/components/client/AutenticadoresSection";
+import { ExcluirContaSection } from "@/components/client/ExcluirContaSection";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
 import { ClientAddressesSection } from "@/components/client/ClientAddressesSection";
 import { CatalogNotificationImageFrame } from "@/components/shared/CatalogNotificationImageFrame";
@@ -50,6 +52,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
+import { validarSenha } from "@/lib/validarSenha";
+import { MIN_SEM_MFA } from "@/lib/senha";
+import { forcaDaSenha } from "@/lib/forcaDaSenha";
 import {
   REPRESENTATIVE_PHONE_DISPLAY,
   REPRESENTATIVE_PHONE_TEL,
@@ -95,20 +100,6 @@ function formatCompactDateTime(value: string | null | undefined) {
   }).format(date);
 
   return { datePart, timePart };
-}
-
-function passwordStrength(password: string): { label: string; score: number; checks: { label: string; ok: boolean }[] } {
-  const checks = [
-    { label: "Mínimo 8 caracteres", ok: password.length >= 8 },
-    { label: "Máximo 64 caracteres", ok: password.length <= 64 },
-    { label: "Letra maiúscula", ok: /[A-Z]/.test(password) },
-    { label: "Letra minúscula", ok: /[a-z]/.test(password) },
-    { label: "Número", ok: /\d/.test(password) },
-    { label: "Caractere especial", ok: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-  ];
-  const okCount = checks.filter((c) => c.ok).length;
-  const labels = ["Fraca", "Fraca", "Regular", "Média", "Boa", "Forte", "Forte"];
-  return { label: labels[Math.min(okCount, 6)], score: okCount, checks };
 }
 
 function AdminAccessNotice({
@@ -951,12 +942,13 @@ export default function Account() {
         onSubmit={async (e) => {
           e.preventDefault();
           if (!currentPassword) { toast.error("Informe a senha atual"); return; }
-          if (newPassword.length < 8) { toast.error("Nova senha deve ter no mínimo 8 caracteres"); return; }
-          if (newPassword.length > 64) { toast.error("Nova senha deve ter no máximo 64 caracteres"); return; }
-          if (!/[A-Z]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos uma letra maiúscula"); return; }
-          if (!/[a-z]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos uma letra minúscula"); return; }
-          if (!/\d/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos um número"); return; }
-          if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos um caractere especial"); return; }
+          // Politica unica em `src/lib/senha.ts` — as regras de composicao que
+          // estavam aqui sao proibidas pela §10 do padrao de autenticacao.
+          const validacaoDeSenha = await validarSenha(newPassword, { email: user?.email });
+          if (!validacaoDeSenha.ok) {
+      toast.error(validacaoDeSenha.problema!);
+      return;
+    }
           if (newPassword !== confirmPassword) { toast.error("Senhas não conferem"); return; }
           setSavingPassword(true);
           try {
@@ -992,6 +984,12 @@ export default function Account() {
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="Sua senha atual"
+              // Sem `autoComplete`, o gerenciador de senhas do navegador decide
+              // sozinho o que preencher — e preenche escrevendo direto no DOM,
+              // sem disparar o `onChange` do React. O campo mostra os pontinhos
+              // e o estado continua vazio, o que fazia duas senhas iguais na
+              // tela reprovarem em "Senhas nao conferem".
+              autoComplete="current-password"
               maxLength={64}
               className="h-10 rounded-xl pr-10 text-[0.8125rem]"
             />
@@ -1013,7 +1011,8 @@ export default function Account() {
               type={showNewPassword ? "text" : "password"}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
+              placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
+              autoComplete="new-password"
               maxLength={64}
               className="h-10 rounded-xl pr-10 text-[0.8125rem]"
             />
@@ -1033,20 +1032,20 @@ export default function Account() {
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-300",
-                      passwordStrength(newPassword).score <= 1 ? "w-1/6 bg-red-400" :
-                      passwordStrength(newPassword).score <= 2 ? "w-1/3 bg-orange-400" :
-                      passwordStrength(newPassword).score <= 3 ? "w-1/2 bg-yellow-400" :
-                      passwordStrength(newPassword).score <= 4 ? "w-2/3 bg-yellow-400" :
-                      passwordStrength(newPassword).score <= 5 ? "w-5/6 bg-emerald-400" :
+                      forcaDaSenha(newPassword, user?.email).score <= 1 ? "w-1/6 bg-red-400" :
+                      forcaDaSenha(newPassword, user?.email).score <= 2 ? "w-1/3 bg-orange-400" :
+                      forcaDaSenha(newPassword, user?.email).score <= 3 ? "w-1/2 bg-yellow-400" :
+                      forcaDaSenha(newPassword, user?.email).score <= 4 ? "w-2/3 bg-yellow-400" :
+                      forcaDaSenha(newPassword, user?.email).score <= 5 ? "w-5/6 bg-emerald-400" :
                       "w-full bg-emerald-400",
                     )}
                   />
                 </div>
-                <span className="text-[0.6875rem] font-medium text-muted-foreground">{passwordStrength(newPassword).label}</span>
+                <span className="text-[0.6875rem] font-medium text-muted-foreground">{forcaDaSenha(newPassword, user?.email).label}</span>
                 <span className="ml-auto text-[0.6875rem] tabular-nums text-muted-foreground/60">{newPassword.length}/64</span>
               </div>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {passwordStrength(newPassword).checks.map((c) => (
+                {forcaDaSenha(newPassword, user?.email).checks.map((c) => (
                   <span key={c.label} className={cn("text-[0.6875rem]", c.ok ? "text-emerald-600" : "text-muted-foreground/60")}>
                     {c.ok ? "✓" : "○"} {c.label}
                   </span>
@@ -1064,6 +1063,7 @@ export default function Account() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repita a nova senha"
+              autoComplete="new-password"
               maxLength={64}
               className="h-10 rounded-xl pr-10 text-[0.8125rem]"
             />
@@ -1076,6 +1076,16 @@ export default function Account() {
               {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+          {/* Aviso enquanto digita, e nao so no envio.
+              A divergencia aparecia como toast depois de clicar em "Alterar
+              senha" — e, no bug do autofill, dizia que duas senhas visivelmente
+              iguais nao conferiam, sem dar pista do que fazer. */}
+          {confirmPassword.length > 0 && newPassword !== confirmPassword ? (
+            <p className="text-[0.6875rem] text-destructive">As senhas não conferem.</p>
+          ) : null}
+          {confirmPassword.length > 0 && newPassword === confirmPassword ? (
+            <p className="text-[0.6875rem] text-emerald-600">As senhas conferem.</p>
+          ) : null}
         </div>
 
         <div className="flex justify-end">
@@ -1086,6 +1096,13 @@ export default function Account() {
         </div>
       </form>
 
+      {/* Logo abaixo da troca de senha: quem veio cuidar do acesso encontra as
+          duas coisas juntas, que é onde se olha ao desconfiar de invasão. */}
+      <AutenticadoresSection />
+
+      {/* Por último e visualmente separado: é a única ação desta tela que não tem
+          volta, e ela não pode ficar ao lado de "salvar telefone". */}
+      <ExcluirContaSection />
     </div>
   );
 

@@ -66,7 +66,11 @@ const hydratedProfile: CustomerProfile = {
   proxis_pes_id: null,
   proxis_tpr_id: null,
   proxis_found: null,
-  proxis_synced_at: null,
+  // Perfil **ja sincronizado** com o ERP, que e o estado normal de um perfil
+  // hidratado. Com `null` aqui, carregar o perfil dispara a sincronia de fundo
+  // (ver `fetchCustomerProfile`) — comportamento correto, mas que soma uma
+  // chamada a `getSession` e faria este teste medir outra coisa.
+  proxis_synced_at: "2026-08-01T12:00:00.000Z",
   linked_company_cnpj: null,
   user_id: "admin-1",
   name: "Admin",

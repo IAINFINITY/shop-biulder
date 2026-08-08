@@ -35,6 +35,8 @@ type AuthContextValue = {
     data: Omit<CustomerRegistrationData, "email" | "password">,
   ) => Promise<Error | null>;
   signOut: () => Promise<{ error: Error | null }>;
+  /** Senha provisoria ainda nao trocada — o site bloqueia ate ela trocar. */
+  deveTrocarSenha: boolean;
   updateCustomerType: (customerType: string) => Promise<Error | null>;
   refreshCustomerProfile: (userId: string) => Promise<void>;
 };
@@ -137,19 +139,31 @@ function translateAuthErrorMessage(message: string): string {
   if (normalized.includes("invalid login credentials") || normalized.includes("invalid credentials")) {
     return "E-mail ou senha incorretos.";
   }
+  // "Este e-mail ja esta cadastrado" e "Confirme seu e-mail antes de fazer
+  // login" saíram daqui de propósito: as duas contam a quem perguntou que a conta
+  // existe. A §21 exige comportamento observável equivalente para "conta
+  // inexistente", "senha incorreta", "conta suspensa" e "cadastro com
+  // identificador existente" — e uma mensagem diferente é diferença observável.
+  //
+  // Com elas, bastava um formulário e uma lista de e-mails para descobrir quem é
+  // cliente da Clinic+. O cadastro passou a responder igual nos dois casos (ver
+  // `signUpCustomer`), e o login não distingue mais e-mail não confirmado de
+  // credencial errada.
   if (
     normalized.includes("user already registered") ||
     normalized.includes("already registered") ||
     normalized.includes("email already exists") ||
-    normalized.includes("email exists")
+    normalized.includes("email exists") ||
+    normalized.includes("email not confirmed") ||
+    normalized.includes("email not verified")
   ) {
-    return "Este e-mail já está cadastrado. Entre com sua senha ou recupere o acesso.";
-  }
-  if (normalized.includes("email not confirmed") || normalized.includes("email not verified")) {
-    return "Confirme seu e-mail antes de fazer login.";
+    return "E-mail ou senha incorretos.";
   }
 
-  return message;
+  // Mensagem crua do provedor pode descrever estado interno da conta. Sem
+  // tradução conhecida, é melhor um texto genérico do que vazar o original.
+  console.warn("[auth] mensagem sem tradução:", message);
+  return "Não foi possível concluir. Verifique os dados e tente de novo.";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -199,7 +213,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (activeUserIdRef.current === userId && userRef.current) {
       writeAuthBootstrap({ user: userRef.current, isAdmin: isAdminRef.current });
     }
+
+    // Perfil sem vinculo com o Proxis: liga agora, uma vez.
+    //
+    // O vinculo e o que traz a tabela de preco negociada (`proxis_tpr_id`). Ele
+    // era feito no cadastro, mas dentro do ramo que so roda quando o `signUp`
+    // devolve sessao — e com confirmacao de e-mail ligada ele nunca devolve.
+    // O perfil passou a ser criado por gatilho (migration 20260808140000), e o
+    // gatilho nao tem como falar com o ERP: e uma funcao de banco.
+    //
+    // Sem isto, a pessoa navegava com preco padrao ate abrir a propria conta ou
+    // fechar um pedido, que sao os outros pontos onde a sincronia acontece.
+    // **Uma tentativa por sessao.** `syncCustomerProxisLink` nao garante gravar
+    // `proxis_synced_at` — CNPJ que o ERP nao conhece pode deixar o campo nulo.
+    // Sem esta trava, a condicao continuaria verdadeira e cada carregamento de
+    // perfil dispararia uma ida ao ERP, para sempre.
+    if (
+      !normalizedProfile.proxis_synced_at &&
+      normalizedProfile.cnpj &&
+      !proxisSyncAttemptedRef.current.has(userId)
+    ) {
+      const documentDigits = onlyDigits(normalizedProfile.cnpj);
+      if (documentDigits.length === 14) {
+        proxisSyncAttemptedRef.current.add(userId);
+        // Sem `await`: a tela nao deve esperar o ERP para renderizar.
+        void syncCustomerProxisLink(documentDigits)
+          .then(() => fetchCustomerProfileRef.current?.(userId))
+          .catch(() => null);
+      }
+    }
   }, []);
+
+  /** Quem ja teve a sincronia com o ERP tentada nesta sessao. */
+  const proxisSyncAttemptedRef = useRef<Set<string>>(new Set());
+
+  // O `fetchCustomerProfile` precisa se rechamar depois da sincronia, para a
+  // tela receber o `proxis_tpr_id` que acabou de ser gravado. A `ref` evita a
+  // dependencia circular que isso criaria no `useCallback`.
+  const fetchCustomerProfileRef = useRef<typeof fetchCustomerProfile | null>(null);
+  fetchCustomerProfileRef.current = fetchCustomerProfile;
 
   const hydrateSessionDetails = useCallback(async (nextUser: User, resolutionId: number) => {
     setIsResolvingAccess(true);
@@ -500,6 +552,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (signUpError) {
+      /**
+       * E-mail ja cadastrado responde como cadastro novo.
+       *
+       * A §21 lista "cadastro com identificador existente" entre os casos que
+       * devem ser indistinguiveis. Devolver erro aqui — com qualquer texto —
+       * confirma a existencia da conta pelo simples fato de ser erro.
+       *
+       * Quem ja tem conta nao fica sem saida: o fluxo "Esqueci minha senha" leva
+       * ao mesmo lugar, e ele ja responde sem revelar nada.
+       */
+      const jaCadastrado = /already registered|email already exists|email exists/i.test(
+        signUpError.message ?? "",
+      );
+      if (jaCadastrado) {
+        console.warn("[auth] cadastro com e-mail existente respondido como novo (§21).");
+        return { error: null, needsEmailConfirmation: true };
+      }
+
       return {
         error: new Error(translateAuthErrorMessageShared(signUpError.message || "Erro ao criar conta.")),
         needsEmailConfirmation: false,
@@ -532,8 +602,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const supabase = await loadSupabaseClient();
-    const { error } = await supabase.auth.signOut();
-    if (error) return { error };
+    /**
+     * `scope: "global"` — revoga a sessao **no servidor**, em todos os
+     * dispositivos.
+     *
+     * O padrao do SDK e `"local"`: limpa o armazenamento desta aba e pronto. O
+     * refresh token continua valido, entao a sessao aberta no computador da loja
+     * ou no celular emprestado segue de pe depois de a pessoa clicar em "Sair" e
+     * ir embora achando que fechou.
+     *
+     * A §20 do padrao de autenticacao exige que o logout "revogue sessao ou
+     * familia de refresh tokens no servidor", e a §31 lista "sessao sem revogacao
+     * ou expiracao server-side" como antipadrao. Enquanto o token vive em
+     * `localStorage` (ver PERFIL-CLINIC-PLUS.md, item 3.1), esta e a unica forma
+     * de o logout significar alguma coisa de verdade.
+     */
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    // Erro de rede nao pode prender a pessoa logada na tela: o estado local e
+    // limpo de qualquer jeito abaixo. O que se perde e a revogacao remota, e
+    // isso e melhor do que um botao "Sair" que nao sai.
+    if (error) console.error("[auth] signOut global falhou:", error.message);
 
     authResolutionCounter += 1;
     setUser(null);
@@ -553,6 +641,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value: AuthContextValue = {
+    deveTrocarSenha: Boolean(customerProfile?.deve_trocar_senha),
     user,
     isAdmin,
     isSuperadmin,

@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { canActForCnpj } from "../src/lib/apiAuth.js";
+import { mascararCnpj } from "../src/lib/pii.js";
 import { requireAuth } from "./_auth.js";
+import { aplicarRateLimit } from "./_rateLimit.js";
 import { safeNumericFilter, safeQuotedLiteral } from "../src/lib/proxisFilter.js";
 import {
   isB2bProxisTprId,
@@ -149,15 +151,14 @@ async function buscarClientePorCnpj(cnpj: string): Promise<Record<string, unknow
   if (match) return match;
 
   if (candidates.length > 0) {
+    // O diagnostico util aqui e "qual campo de documento veio preenchido", e nao
+    // o conteudo dele: e por um campo com nome inesperado que o match falha.
+    // Nome e razao social nao ajudam em nada e sao dado cadastral em claro.
     console.log("[proxis-customer] Participantes recebidos sem match exato:", candidates.slice(0, 3).map((item) => ({
       pes_id: item.pes_id ?? null,
-      pes_nome: item.pes_nome ?? null,
-      pes_fantasia: item.pes_fantasia ?? null,
-      pes_cpf_cnpj: item.pes_cpf_cnpj ?? null,
-      cpf_cnpj: item.cpf_cnpj ?? null,
-      pes_cnpj: item.pes_cnpj ?? null,
-      cnpj: item.cnpj ?? null,
-      documento: item.documento ?? null,
+      documento_em: ["pes_cpf_cnpj", "cpf_cnpj", "pes_cnpj", "cnpj", "documento"]
+        .filter((campo) => String(item[campo] ?? "").replace(/\D/g, "").length > 0),
+      cnpj: mascararCnpj(cnpjFromRecord(item)),
     })));
   }
 
@@ -227,6 +228,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await requireAuth(req, res);
   if (!auth) return;
 
+  // Limite de uso por conta (§21). Depois do guard de propósito: sem saber quem
+  // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
+  // controle principal.
+  if (!(await aplicarRateLimit(req, res, "proxis-customer", auth.userId))) return;
+
   if (!PROXSIS_BASE_URL || !PROXSIS_USER || !PROXSIS_PASSWORD) {
     return res.status(500).json({ error: "Proxsis API not configured on server" });
   }
@@ -246,7 +252,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    console.log("[proxis-customer] Buscando cliente CNPJ:", cnpj);
+    console.log("[proxis-customer] Buscando cliente CNPJ:", mascararCnpj(cnpj));
     const cliente = await buscarClientePorCnpj(cnpj);
     const pesId = Number(cliente?.pes_id);
     const found = !!cliente && Number.isFinite(pesId) && pesId > 0;

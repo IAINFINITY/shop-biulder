@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXEMPLO_TXT, SENHA_PADRAO, lerTxtDeFuncionarios } from "./employeeBulkImport";
+import { EXEMPLO_TXT, lerTxtDeFuncionarios } from "./employeeBulkImport";
 
 describe("importação de funcionários por TXT", () => {
   it("lê uma linha completa e normaliza telefone, CPF e e-mail", () => {
@@ -103,13 +103,13 @@ describe("importação de funcionários por TXT", () => {
     expect(validos).toHaveLength(1);
   });
 
-  it("a senha padrão passa nas regras do cadastro individual", () => {
-    expect(SENHA_PADRAO.length).toBeGreaterThanOrEqual(8);
-    expect(SENHA_PADRAO.length).toBeLessThanOrEqual(64);
-    expect(SENHA_PADRAO).toMatch(/[A-Z]/);
-    expect(SENHA_PADRAO).toMatch(/[a-z]/);
-    expect(SENHA_PADRAO).toMatch(/\d/);
-    expect(SENHA_PADRAO).toMatch(/[!@#$%^&*(),.?":{}|<>]/);
+  it("nenhuma senha aparece no material distribuído", () => {
+    // O teste antigo conferia composição de uma constante do front. Ele deixou de
+    // dizer qualquer coisa quando a senha provisória saiu do código para
+    // `clinic+b2b_config_seguranca` — e composição, aliás, é o que a §10 proíbe
+    // exigir. O que importa agora é o inverso: que o valor não volte para cá.
+    expect(EXEMPLO_TXT).not.toMatch(/Alterar@123/i);
+    expect(EXEMPLO_TXT).not.toMatch(/senha\s*[:=]/i);
   });
 
   it("o exemplo distribuído é ele mesmo um arquivo válido", () => {

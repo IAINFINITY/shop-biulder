@@ -9,6 +9,8 @@ import { ClientAuthStage } from "@/components/auth/ClientAuthStage";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { validarSenha } from "@/lib/validarSenha";
+import { MIN_SEM_MFA } from "@/lib/senha";
 
 type PasswordFieldProps = {
   id: string;
@@ -55,20 +57,20 @@ function PasswordField({ id, label, placeholder, value, onChange, autoComplete }
   );
 }
 
-function validatePassword(password: string) {
-  if (password.length < 8) return "A senha deve ter pelo menos 8 caracteres.";
-  if (password.length > 64) return "A senha deve ter no máximo 64 caracteres.";
-  if (!/[A-Z]/.test(password)) return "A senha deve conter pelo menos uma letra maiúscula.";
-  if (!/[a-z]/.test(password)) return "A senha deve conter pelo menos uma letra minúscula.";
-  if (!/\d/.test(password)) return "A senha deve conter pelo menos um número.";
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return "A senha deve conter pelo menos um caractere especial.";
-  return null;
+/**
+ * Politica unica em `src/lib/senha.ts`.
+ *
+ * As regras de composicao que viviam aqui — maiuscula, minuscula, digito,
+ * especial — sao proibidas pela §10 do padrao de autenticacao.
+ */
+async function validatePassword(password: string, email?: string | null) {
+  return (await validarSenha(password, { email })).problema;
 }
 
 export default function RecoverPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, loading, isResolvingAccess, requestPasswordReset, signOut, isPasswordRecovery } = useAuth();
+  const { user, loading, isResolvingAccess, requestPasswordReset, signOut, isPasswordRecovery, deveTrocarSenha } = useAuth();
   const [email, setEmail] = useState(searchParams.get("email")?.trim() ?? "");
   const [requestingReset, setRequestingReset] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
@@ -118,7 +120,10 @@ export default function RecoverPassword() {
     );
   }
 
-  if (user && isPasswordRecovery) {
+  // Senha provisoria cai no mesmo formulario da recuperacao: e a mesma acao —
+  // definir uma senha propria — e reaproveitar a tela evita uma segunda copia da
+  // validacao, que foi o que deixou a politica antiga sobreviver em seis lugares.
+  if (user && (isPasswordRecovery || deveTrocarSenha)) {
     return (
       <ClientAuthStage>
         <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[2.25rem] border border-border/70 bg-background text-foreground shadow-[0_16px_40px_rgba(16,24,40,0.08)]">
@@ -128,12 +133,19 @@ export default function RecoverPassword() {
             </div>
 
             <div className="mt-5 text-center">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Redefinição de senha</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
+                {deveTrocarSenha ? "Primeiro acesso" : "Redefinição de senha"}
+              </p>
               <h2 className="mt-3 text-[clamp(1.9rem,2.8vw,2.7rem)] font-semibold leading-[1] tracking-tight text-foreground">
                 Crie sua nova senha
               </h2>
+              {/* O texto muda porque a situacao e outra: quem chega por senha
+                  provisoria nao clicou em link nenhum, e dizer que clicou faria a
+                  tela parecer defeito. */}
               <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-muted-foreground">
-                O link de recuperação já foi validado. Agora basta definir a nova senha para continuar.
+                {deveTrocarSenha
+                  ? "Você entrou com a senha provisória. Escolha uma senha sua para continuar — ela é a única que valerá a partir de agora."
+                  : "O link de recuperação já foi validado. Agora basta definir a nova senha para continuar."}
               </p>
             </div>
           </div>
@@ -143,7 +155,7 @@ export default function RecoverPassword() {
               onSubmit={async (event) => {
                 event.preventDefault();
 
-                const errorMessage = validatePassword(newPassword);
+                const errorMessage = await validatePassword(newPassword, user?.email);
                 if (errorMessage) {
                   toast.error(errorMessage);
                   return;
@@ -158,6 +170,21 @@ export default function RecoverPassword() {
                 try {
                   const { error } = await supabase.auth.updateUser({ password: newPassword });
                   if (error) throw error;
+
+                  // Some a obrigacao antes de encerrar a sessao: se ficasse para
+                  // depois do logout, a pessoa entraria com a senha nova e cairia
+                  // de novo nesta tela, sem entender por que.
+                  if (deveTrocarSenha) {
+                    const { error: flagErr } = await supabase
+                      .from("clinic+b2b_customer_profiles")
+                      .update({ deve_trocar_senha: false })
+                      .eq("user_id", user.id);
+                    if (flagErr) {
+                      // A senha ja mudou; travar aqui seria pior. O log serve
+                      // para alguem notar se isso virar rotina.
+                      console.error("[senha] flag de troca obrigatoria nao foi limpa:", flagErr);
+                    }
+                  }
 
                   const { error: signOutError } = await signOut();
                   if (signOutError) {
@@ -189,7 +216,7 @@ export default function RecoverPassword() {
               <PasswordField
                 id="new-password"
                 label="Nova senha"
-                placeholder="Mínimo 8 caracteres"
+                placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
                 value={newPassword}
                 onChange={setNewPassword}
                 autoComplete="new-password"

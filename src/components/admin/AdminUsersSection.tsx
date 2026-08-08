@@ -54,6 +54,9 @@ import {
 import type { AdminSection } from "./adminTypes";
 import { cn } from "@/lib/utils";
 import { MODAL_TELA_CHEIA } from "@/lib/modais";
+import { validarSenha } from "@/lib/validarSenha";
+import { forcaDaSenha } from "@/lib/forcaDaSenha";
+import { MIN_SEM_MFA } from "@/lib/senha";
 
 const PERMISSION_OPTIONS: { id: AdminSection; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
@@ -128,19 +131,6 @@ function PermissionChecklist({ value, onChange }: PermissionChecklistProps) {
   );
 }
 
-function passwordStrength(password: string): { label: string; score: number; checks: { label: string; ok: boolean }[] } {
-  const checks = [
-    { label: "Mínimo 8 caracteres", ok: password.length >= 8 },
-    { label: "Máximo 64 caracteres", ok: password.length <= 64 },
-    { label: "Letra maiúscula", ok: /[A-Z]/.test(password) },
-    { label: "Letra minúscula", ok: /[a-z]/.test(password) },
-    { label: "Número", ok: /\d/.test(password) },
-    { label: "Caractere especial", ok: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-  ];
-  const okCount = checks.filter((c) => c.ok).length;
-  const labels = ["Fraca", "Fraca", "Regular", "Média", "Boa", "Forte", "Forte"];
-  return { label: labels[Math.min(okCount, 6)], score: okCount, checks };
-}
 
 export function AdminUsersSection() {
   const { user } = useAuth();
@@ -204,12 +194,14 @@ export function AdminUsersSection() {
     e.preventDefault();
     if (!newEmail || !newPassword) { toast.error("Preencha e-mail e senha"); return; }
     if (newPassword !== newPasswordConfirm) { toast.error("As senhas não conferem"); return; }
-    if (newPassword.length < 8) { toast.error("A senha deve ter no mínimo 8 caracteres"); return; }
-    if (newPassword.length > 64) { toast.error("A senha deve ter no máximo 64 caracteres"); return; }
-    if (!/[A-Z]/.test(newPassword)) { toast.error("A senha deve conter pelo menos uma letra maiúscula"); return; }
-    if (!/[a-z]/.test(newPassword)) { toast.error("A senha deve conter pelo menos uma letra minúscula"); return; }
-    if (!/\d/.test(newPassword)) { toast.error("A senha deve conter pelo menos um número"); return; }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) { toast.error("A senha deve conter pelo menos um caractere especial"); return; }
+    // Politica unica em `src/lib/senha.ts` (§10 do padrao de autenticacao).
+    const validacaoDeSenha = await validarSenha(newPassword);
+    if (!validacaoDeSenha.ok) {
+      toast.error(validacaoDeSenha.problema!);
+      return;
+    }
+    // Ver a nota em `AdminSettingsSection`: as regras de composição rodavam
+    // antes de `validarSenha` e recusavam a senha sem a política nova opinar.
     setCreating(true);
     try {
       await createAdminUser({
@@ -266,7 +258,7 @@ export function AdminUsersSection() {
     }
   }
 
-  const strength = passwordStrength(newPassword);
+  const strength = forcaDaSenha(newPassword);
 
   return (
     <div className="space-y-6">
@@ -744,9 +736,10 @@ export function AdminUsersSection() {
                   <div className="relative">
                     <Input
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Mínimo 8 caracteres"
+                    placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
                     maxLength={64}
                     required
                     className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
@@ -800,6 +793,7 @@ export function AdminUsersSection() {
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={newPasswordConfirm}
                     onChange={(e) => setNewPasswordConfirm(e.target.value)}
                     placeholder="Repita a senha"

@@ -41,12 +41,13 @@ import { formatDocumentId, onlyDigits } from "@/lib/brazilianIds";
 import {
   COLUNAS_TXT,
   EXEMPLO_TXT,
-  SENHA_PADRAO,
   lerTxtDeFuncionarios,
   type ErroImportacao,
 } from "@/lib/employeeBulkImport";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { MODAL_TELA_CHEIA } from "@/lib/modais";
+import { validarSenha } from "@/lib/validarSenha";
+import { MIN_SEM_MFA } from "@/lib/senha";
 
 export function AdminEmployeesSection() {
   const { user } = useAuth();
@@ -136,7 +137,6 @@ export function AdminEmployeesSection() {
           name: linha.nome,
           phone: linha.telefone,
           email: linha.email,
-          password: SENHA_PADRAO,
           cpf: linha.cpf,
         });
         await syncCustomerProxisLink(CLINIC_MASTER_CNPJ, userId).catch(() => null);
@@ -182,28 +182,11 @@ export function AdminEmployeesSection() {
       toast.error("CPF inválido. Preencha 11 dígitos.");
       return;
     }
-    if (newPassword.length < 8) {
-      toast.error("A senha deve ter no mínimo 8 caracteres");
-      return;
-    }
-    if (newPassword.length > 64) {
-      toast.error("A senha deve ter no máximo 64 caracteres");
-      return;
-    }
-    if (!/[A-Z]/.test(newPassword)) {
-      toast.error("A senha deve conter pelo menos uma letra maiúscula");
-      return;
-    }
-    if (!/[a-z]/.test(newPassword)) {
-      toast.error("A senha deve conter pelo menos uma letra minúscula");
-      return;
-    }
-    if (!/\d/.test(newPassword)) {
-      toast.error("A senha deve conter pelo menos um número");
-      return;
-    }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-      toast.error("A senha deve conter pelo menos um caractere especial");
+    // Politica unica em `src/lib/senha.ts`; as regras de composicao que estavam
+    // aqui sao proibidas pela §10 do padrao de autenticacao.
+    const validacaoDeSenha = await validarSenha(newPassword);
+    if (!validacaoDeSenha.ok) {
+      toast.error(validacaoDeSenha.problema!);
       return;
     }
     setCreating(true);
@@ -505,9 +488,10 @@ export function AdminEmployeesSection() {
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Mínimo 8 caracteres"
+                    placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
                     maxLength={64}
                     required
                     className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
@@ -530,6 +514,7 @@ export function AdminEmployeesSection() {
                 <div className="relative">
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     value={newPasswordConfirm}
                     onChange={(e) => setNewPasswordConfirm(e.target.value)}
                     placeholder="Repita a senha"
@@ -709,9 +694,10 @@ export function AdminEmployeesSection() {
               <code className="font-mono">#</code> é comentário, e o cabeçalho é ignorado.
             </p>
             <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">A senha não vai no arquivo.</span> Todos entram com{" "}
-              <code className="rounded bg-background px-1.5 py-0.5 font-mono text-foreground">{SENHA_PADRAO}</code> e
-              devem trocar no primeiro acesso.
+              <span className="font-medium text-foreground">A senha não vai no arquivo.</span> Todos entram com a
+              senha provisória definida nas configurações e{" "}
+              <span className="font-medium text-foreground">são obrigados a trocá-la no primeiro acesso</span> — o
+              site não deixa usar nada antes disso.
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button

@@ -9,7 +9,11 @@ export type EmployeeUserCreatePayload = {
   name: string;
   phone: string;
   email: string;
-  password: string;
+  /**
+   * @deprecated Ignorado pelo servidor desde 2026-08-08: a senha provisoria vem
+   * de `clinic+b2b_config_seguranca`. Quem cria nao escolhe mais a senha.
+   */
+  password?: string;
   cpf: string;
 };
 

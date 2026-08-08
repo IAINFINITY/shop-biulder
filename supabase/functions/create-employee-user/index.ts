@@ -82,18 +82,32 @@ export default {
         });
       }
 
-      if (password.length < 8 || password.length > 64 || !/[A-Z]/.test(password) ||
-          !/[a-z]/.test(password) || !/\d/.test(password) ||
-          !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        return new Response(JSON.stringify({ error: "Senha não atende aos requisitos" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
-        });
+      // A senha provisoria vem do banco, nao do corpo da requisicao.
+      //
+      // Antes ela chegava do navegador — o que significa que quem chamasse esta
+      // funcao escolhia a senha do funcionario criado. E o valor morava em
+      // `src/lib/employeeBulkImport.ts`, versionado no git e presente no bundle.
+      //
+      // Agora e lida de `clinic+b2b_config_seguranca`, tabela sem policy: so o
+      // service role alcanca. O `password` do corpo passa a ser ignorado.
+      const { data: config, error: configErr } = await supabaseAdmin
+        .from("clinic+b2b_config_seguranca")
+        .select("valor")
+        .eq("chave", "senha_padrao_funcionario")
+        .maybeSingle();
+
+      const senhaProvisoria = config?.valor;
+      if (configErr || !senhaProvisoria) {
+        console.error("[create-employee-user] senha provisoria ausente:", configErr);
+        return new Response(
+          JSON.stringify({ error: "Configuração de senha provisória ausente. Fale com o suporte." }),
+          { status: 503, headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) } },
+        );
       }
 
       const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email,
-        password,
+        password: senhaProvisoria,
         email_confirm: true,
         user_metadata: {
           name,
@@ -135,6 +149,10 @@ export default {
             cnpj: cpfDigits,
             linked_company_cnpj: linkedCnpjDigits,
             email: email.trim(),
+            // Senha provisoria conhecida pelo admin: a pessoa troca antes de
+            // usar o site. Marcado aqui, no servidor, e nao pelo navegador —
+            // quem cria nao deveria poder decidir nao marcar.
+            deve_trocar_senha: true,
           },
           { onConflict: "user_id" },
         );

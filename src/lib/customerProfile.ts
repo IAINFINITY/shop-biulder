@@ -18,6 +18,13 @@ export interface CustomerProfile {
   proxis_found: boolean | null;
   proxis_synced_at: string | null;
   linked_company_cnpj: string | null;
+  /**
+   * Senha provisoria ainda nao trocada.
+   *
+   * Marcado no servidor quando o painel cria o funcionario; limpo quando a pessoa
+   * define a senha dela. Enquanto for `true`, o site nao deixa fazer mais nada.
+   */
+  deve_trocar_senha?: boolean;
   address_cep: string;
   address_street: string;
   address_number: string;

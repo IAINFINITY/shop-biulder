@@ -65,13 +65,40 @@ export default {
         });
       }
 
-      if (password.length < 8 || password.length > 64 || !/[A-Z]/.test(password) ||
-          !/[a-z]/.test(password) || !/\d/.test(password) ||
-          !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-        return new Response(JSON.stringify({ error: "Senha não atende aos requisitos" }), {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
-        });
+      /**
+       * Política de senha do servidor.
+       *
+       * Antes exigia maiúscula, minúscula, dígito e caractere especial. São as
+       * "regras arbitrárias de composição" que a §10 do padrão de autenticação
+       * proíbe, e que já tinham saído de `src/lib/senha.ts` — mas continuavam
+       * valendo aqui, no servidor, que é onde a recusa realmente acontece.
+       *
+       * O que fica é o que não depende de lista nem de rede: comprimento mínimo
+       * e o teto de 72 bytes do bcrypt. A verificação completa — senha comum,
+       * termo do contexto, derivada do e-mail e base de vazamentos — roda no
+       * cliente, em `validarSenha`.
+       *
+       * **Valores repetidos de propósito.** Edge function roda em Deno, sem o
+       * bundler do front, e não alcança `src/lib`. Se `MIN_SEM_MFA` ou
+       * `MAX_BYTES` mudarem lá, mudam aqui.
+       */
+      const MIN_CARACTERES = 10;
+      const MAX_BYTES = 72;
+      const tamanho = [...password].length;
+      const bytes = new TextEncoder().encode(password).length;
+
+      if (tamanho < MIN_CARACTERES) {
+        return new Response(
+          JSON.stringify({ error: `A senha precisa de pelo menos ${MIN_CARACTERES} caracteres.` }),
+          { status: 400, headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) } },
+        );
+      }
+
+      if (bytes > MAX_BYTES) {
+        return new Response(
+          JSON.stringify({ error: `A senha passou do limite de ${MAX_BYTES} bytes. Use uma um pouco mais curta.` }),
+          { status: 400, headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) } },
+        );
       }
 
       const normalizedRole = role ?? "admin";

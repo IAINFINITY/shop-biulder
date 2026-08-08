@@ -9,7 +9,16 @@
  */
 
 /** Senha provisoria. Atende as regras do cadastro: maiuscula, minuscula, numero e simbolo. */
-export const SENHA_PADRAO = "Alterar@123";
+/**
+ * @deprecated A senha provisoria vive em `clinic+b2b_config_seguranca` no banco,
+ * lida pela funcao de borda `create-employee-user`. Este valor ficou apenas como
+ * texto de apoio ao admin e **nao e mais usado para criar ninguem** — mudar aqui
+ * nao muda a senha de nada.
+ *
+ * Para alterar a senha provisoria de verdade, mude a linha
+ * `senha_padrao_funcionario` naquela tabela.
+ */
+export const SENHA_PADRAO_EXIBIDA = "a senha provisória configurada";
 
 export const COLUNAS_TXT = ["nome", "email", "telefone", "cpf"] as const;
 
@@ -177,7 +186,7 @@ export function lerTxtDeFuncionarios(
 /** Modelo para o botao "baixar exemplo". */
 export const EXEMPLO_TXT = [
   "# nome,email,telefone,cpf",
-  "# A senha de todos é Alterar@123 e deve ser trocada no primeiro acesso.",
+  "# Todos entram com a senha provisória e devem trocá-la no primeiro acesso.",
   "Maria Souza,maria.souza@empresa.com.br,11987654321,12345678901",
   "João Lima,joao.lima@empresa.com.br,(11) 91234-5678,987.654.321-00",
 ].join("\n");

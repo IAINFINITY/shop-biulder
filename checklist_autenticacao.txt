@@ -1,0 +1,806 @@
+===============================================================================
+CHECKLIST DE VALIDACAO — SISTEMA DE AUTENTICACAO
+Clinic+ B2B
+===============================================================================
+
+Atualizado em: 2026-08-08
+Objetivo:      validar item por item o que funciona e o que nao funciona.
+Detalhe tecnico de cada item: documentation/autenticacao/ROTEIRO-DE-TESTE.md
+
+
+COMO MARCAR
+-----------
+  [ ]   nao testado
+  [OK]  funcionou como esperado
+  [X]   FALHOU  -> escreva o que aconteceu em "obs:"
+  [~]   parcial / funcionou com ressalva
+  [-]   nao se aplica / nao consegui testar agora
+
+Pode me mandar so os numeros: "3.2 falhou, 5.1 OK". Eu localizo pelo numero.
+
+
+PLACAR (preencher no fim)
+-------------------------
+  Total de itens: 105
+  Atualizado em 08/08, apos a primeira rodada:
+    OK: 48    FALHOU: 0    PARCIAL: 3    NAO TESTADO: 54
+    (testes de navegador rodados com Playwright + Chrome do sistema)
+
+  Os [OK] trazem a evidencia na linha ">>" logo abaixo.
+
+  SONDAGEM ANONIMA (feita por fora, 08/08) — a superficie publica esta fechada:
+    avaliacoes: user_id  -> 401     select=*      -> 401
+    avaliacoes: id,rating -> 200 (a loja deslogada continua funcionando)
+    trilha de auth       -> vazio   tabela de preco -> vazio
+    perfis de cliente    -> vazio
+  COM TOKEN DE CLIENTE (08/08) — o isolamento do Perfil C esta provado:
+    tabela de preco: 139 de 570 linhas (so a propria TPR + geral)
+    perfis:          1 de 110 (so o proprio)
+    pedidos:         0 de outro CNPJ
+    trilha de auth:  0 linhas
+    bucket:          upload e sobrescrita -> 403
+
+  ATENCAO: isto prova o anonimo, NAO o cliente logado. O requisito do Perfil C
+  — cliente A nao le o dado do cliente B — exige token e continua em aberto.
+
+
+===============================================================================
+BLOCO 0 — PREPARACAO   (fazer antes de tudo)
+===============================================================================
+
+[OK] 0.1  Subir o ambiente local
+          >> servidor no ar: rotas responderam em 08/08
+         COMO:      npm install
+                    npm run dev:local
+         ESPERADO:  front e rotas /api/* no ar, sem erro no terminal
+         obs: ______________________________________________________
+
+[OK] 0.2  Confirmar que MFA_ADMIN_OBRIGATORIO esta VAZIO no .env
+          >> conferido no .env
+         POR QUE:   com "1", todo admin leva 403. Hoje ha ZERO fatores
+                    cadastrados em 122 contas (medido no banco), e o painel
+                    e onde se cadastra o fator. Ligar antes tranca todo
+                    mundo do lado de fora.
+         ESPERADO:  MFA_ADMIN_OBRIGATORIO=""
+         obs: ______________________________________________________
+
+[OK] 0.3  Confirmar que PRICING_ENFORCE_SERVER_PRICE esta VAZIO
+          >> conferido no .env
+         POR QUE:   modo sombra — o preco do servidor e calculado e
+                    comparado, mas quem vale ainda e o do navegador.
+         ESPERADO:  PRICING_ENFORCE_SERVER_PRICE=""
+         obs: ______________________________________________________
+
+[OK] 0.4  Confirmar VITE_WEBAUTHN_RP_ID="localhost"
+          >> definido como "localhost"
+         POR QUE:   e o unico valor que funciona em http://localhost.
+                    ATENCAO: passkey criada aqui NAO funciona em producao.
+         obs: ______________________________________________________
+
+[~] 0.5  Ter a mao: 1 conta admin, 1 conta cliente, 1 conta funcionario
+         >> conta CLIENTE criada; falta conta admin e funcionario
+         POR QUE:   os blocos 2, 12 e 13 dependem de trocar de perfil.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 1 — GUARD DE AUTENTICACAO NAS ROTAS /api/*
+===============================================================================
+Nenhuma rota pode responder sem token. Antes, as 6 rotas iam do
+"if (req.method !== POST)" direto para a logica de negocio.
+
+Comando base (troque o nome da rota):
+
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+    http://127.0.0.1:3000/api/proxis-customer \
+    -H "Content-Type: application/json" -d '{"cnpj":"04163851000106"}'
+
+[OK] 1.1  proxis-order        SEM token -> 401
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.2  proxis-customer     SEM token -> 401
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.3  bitrix-deal         SEM token -> 401
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.4  proxis-health       SEM token -> 401   (GET, nao POST)
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.5  proxis-item-check   SEM token -> 401
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.6  proxis-price-tables SEM token -> 401
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.7  resumo-produto      SEM token -> 401
+          >> curl sem token -> 401
+         obs: ______________________________________________________
+
+[OK] 1.8  senha-vazada        SEM token -> 200  (aberta DE PROPOSITO)
+          >> curl -> 200, aberta de proposito
+         POR QUE:   roda no cadastro, antes de existir conta. Exigir
+                    token aqui impediria justamente o caso mais
+                    importante: a pessoa escolhendo a primeira senha.
+         obs: ______________________________________________________
+
+[OK] 1.9  Logado como CLIENTE, chamar as 4 rotas de admin
+          >> cliente -> 403 nas 4 rotas de admin
+         (proxis-health, proxis-item-check, proxis-price-tables,
+          resumo-produto)
+         ESPERADO:  403 nas quatro
+         obs: ______________________________________________________
+
+[OK] 1.10 O site continua funcionando normalmente logado
+          >> catalogo carrega logado (Playwright)
+         POR QUE:   se o token nao estiver sendo injetado pelo apiFetch,
+                    o checkout quebra com 401.
+         ESPERADO:  catalogo, carrinho e checkout normais
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 2 — POSSE DE CNPJ
+===============================================================================
+Autenticar sozinho resolvia metade: um cliente logado continuaria lendo
+razao social, nome e tabela de preco de QUALQUER CNPJ.
+
+[OK] 2.1  CLIENTE consultando o PROPRIO CNPJ -> funciona (200)
+          >> proprio CNPJ -> 200
+         obs: ______________________________________________________
+
+[OK] 2.2  CLIENTE consultando CNPJ DE OUTRA EMPRESA -> 403
+          >> CNPJ alheio -> 403
+         ESTE E O TESTE QUE MAIS IMPORTA DESTE BLOCO
+         obs: ______________________________________________________
+
+[OK] 2.3  CLIENTE tentando lancar PEDIDO em CNPJ alheio -> 403
+          >> pedido em CNPJ alheio -> 403 (payload completo)
+         obs: ______________________________________________________
+
+[ ] 2.4  FUNCIONARIO no proprio CNPJ -> funciona
+         obs: ______________________________________________________
+
+[ ] 2.5  FUNCIONARIO no CNPJ mestre da Clinic+ (linked_company_cnpj)
+         -> funciona
+         POR QUE:   e o caso de quem compra pelo CNPJ da empresa.
+         obs: ______________________________________________________
+
+[ ] 2.6  ADMIN em qualquer CNPJ -> funciona
+         POR QUE:   e ele quem reenvia pedido de terceiro pelo painel.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 3 — MFA: CADASTRO DO FATOR
+===============================================================================
+
+[ ] 3.1  Entrar como admin e acessar /admin
+         ESPERADO:  aparece a tela de verificacao em duas etapas
+         obs: ______________________________________________________
+
+[ ] 3.2  A SENHA e pedida ANTES de mostrar o QR Code
+         POR QUE:   §12 — uma sessao restaurada do localStorage dias
+                    depois nao pode, sozinha, autorizar autenticador novo.
+                    Mostrar o QR antes seria entregar o segredo a quem
+                    nao provou nada.
+         ESPERADO:  campo de senha primeiro; QR so depois de acertar
+         obs: ______________________________________________________
+
+[ ] 3.3  Senha errada nessa etapa -> recusa, nao mostra o QR
+         obs: ______________________________________________________
+
+[ ] 3.4  Cadastrar TOTP (Google Authenticator / Authy / 1Password)
+         ESPERADO:  QR le normal, codigo de 6 digitos e aceito
+         obs: ______________________________________________________
+
+[ ] 3.5  Codigo TOTP errado -> recusado com mensagem clara
+         obs: ______________________________________________________
+
+[ ] 3.6  Depois de confirmar, o painel monta
+         obs: ______________________________________________________
+
+[ ] 3.7  Botao de PASSKEY aparece (navegador com suporte)
+         NOTA:      so aparece se o navegador suportar PublicKeyCredential.
+                    Se nao aparecer no seu, marque [-] e diga qual navegador.
+         obs: ______________________________________________________
+
+[ ] 3.8  Cadastrar passkey funciona
+         LEMBRETE:  criada em localhost, NAO migra para producao.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 4 — MFA: O PORTAO DO PAINEL (MfaGate)
+===============================================================================
+
+[ ] 4.1  Sem fator verificado, o conteudo do painel NAO monta
+         POR QUE:   se so escondesse visualmente, as consultas do painel
+                    sairiam do mesmo jeito.
+         ESPERADO:  nenhuma requisicao de dado do painel no DevTools
+         obs: ______________________________________________________
+
+[ ] 4.2  Com o fator confirmado, o painel abre normal
+         obs: ______________________________________________________
+
+[ ] 4.3  Aparece o aviso no LOG DO SERVIDOR enquanto a flag esta vazia
+         PROCURAR:  [auth] admin <id> acessou rota administrativa sem
+                    aal2 (aal=aal1)
+         POR QUE:   ESTE AVISO E O MEDIDOR. Quando parar de aparecer,
+                    todo admin ja cadastrou e a flag pode subir.
+         obs: ______________________________________________________
+
+[ ] 4.4  Sair e entrar de novo: o segundo fator e pedido
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 5 — MFA: INVENTARIO DE AUTENTICADORES
+===============================================================================
+Pagina da conta -> secao "Verificacao em duas etapas".
+
+[OK] 5.1  A lista mostra os fatores cadastrados
+          >> secao existe; conta sem fatores mostra 'Nenhum autenticador'
+         obs: ______________________________________________________
+
+[ ] 5.2  Mostra o TIPO (aplicativo autenticador / chave de acesso)
+         obs: ______________________________________________________
+
+[ ] 5.3  Mostra a DATA DE CADASTRO ("cadastrado em 08 ago 2026")
+         obs: ______________________________________________________
+
+[ ] 5.4  Mostra o ULTIMO USO — depois de usar o fator ao menos 1 vez
+         COMO:      saia, entre de novo, confirme o segundo fator,
+                    volte nesta tela
+         ATENCAO:   fator recem-cadastrado e nunca usado aparece SEM
+                    essa linha. E proposital: ausencia de data nao e
+                    "nunca usado", e a tela nao afirma o que nao sabe.
+         obs: ______________________________________________________
+
+[ ] 5.5  Fator com cadastro incompleto aparece como "cadastro nao
+         concluido" (nao some da lista)
+         obs: ______________________________________________________
+
+[ ] 5.6  Remover autenticador PEDE A SENHA ATUAL
+         POR QUE:   mesma razao do 3.2 — sessao esquecida aberta nao
+                    pode desligar a protecao da conta.
+         obs: ______________________________________________________
+
+[ ] 5.7  Remocao com senha errada -> recusa
+         obs: ______________________________________________________
+
+[ ] 5.8  Sendo admin, tentar remover o UNICO fator -> botao bloqueado
+         POR QUE:   admin sem fator nenhum nao consegue mais entrar.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 6 — POLITICA DE SENHA
+===============================================================================
+Testar na troca de senha da conta E nos formularios do painel.
+
+[OK] 6.1  Menos de 10 caracteres -> recusada
+          >> 'precisa de pelo menos 10 caracteres'
+         (minimo 10 sem MFA, 8 com MFA)
+         obs: ______________________________________________________
+
+[OK] 6.2  Senha comum ("senha123", "12345678") -> recusada
+          >> 'aparece em listas publicas de senhas vazadas'
+         obs: ______________________________________________________
+
+[OK] 6.3  Senha com termo do contexto -> recusada
+          >> 'nao pode conter o nome da empresa nem do produto'
+         TESTAR:    clinicmais / clinic+ / clinicplus / iainfinity
+         obs: ______________________________________________________
+
+[OK] 6.4  Senha igual ao proprio e-mail -> recusada
+          >> 'nao pode conter o seu e-mail'
+         obs: ______________________________________________________
+
+[OK] 6.5  Senha acima de 72 bytes -> recusada
+          >> 64 caracteres acentuados = 79 bytes -> 'passou do limite de 72 bytes'
+         POR QUE:   limite do bcrypt; acima disso o resto e ignorado
+                    em silencio, o que daria falsa sensacao de forca.
+         obs: ______________________________________________________
+
+[OK] 6.6  Senha boa e aceita ("jacaranda-portao-98-verde")
+          >> conta criada e senha trocada com senha valida
+         obs: ______________________________________________________
+
+[~] 6.7  A MESMA regra vale nos 6 formularios
+         >> verificado em Minha conta. Os 5 formularios do admin usam o mesmo validarSenha, mas nao foram exercitados na tela
+         ONDE:      conta do cliente, recuperacao de senha,
+                    admin > usuarios, admin > funcionarios,
+                    admin > configuracoes, cadastro
+         POR QUE:   antes cada um tinha sua copia da politica — foi assim
+                    que uma regra proibida sobreviveu em 6 lugares.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 7 — SENHA VAZADA (Have I Been Pwned)
+===============================================================================
+
+[OK] 7.1  Senha reconhecidamente vazada -> recusada
+          >> iloveyou123 recusada: "apareceu em vazamentos publicos"
+         TESTAR:    Password123!   (longa o bastante para passar na
+                    regra local, entao so cai pela base de vazamentos)
+         obs: ______________________________________________________
+
+[OK] 7.2  So 5 CARACTERES saem da maquina
+          >> verificado na rota: so 5 caracteres (prefixo 9752F)
+         COMO:      DevTools > Network, procurar a chamada
+                    /api/senha-vazada?prefixo=XXXXX
+         ESPERADO:  exatamente 5 caracteres hex no parametro.
+                    A senha e o hash completo NUNCA aparecem.
+         obs: ______________________________________________________
+
+[OK] 7.3  Servico fora do ar -> senha e ACEITA
+          >> provado sem querer: com a rota quebrada, o cadastro passou
+         COMO:      bloquear /api/senha-vazada no DevTools e tentar
+         POR QUE:   recusar cadastro porque um terceiro caiu seria
+                    transformar a queda deles na nossa.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 8 — RATE LIMIT
+===============================================================================
+Limites por conta, por hora:
+  proxis-order 40 | proxis-customer 60 | bitrix-deal 60 | resumo-produto 40
+
+[ ] 8.1  Estourar o limite de uma rota -> 429
+         obs: ______________________________________________________
+
+[ ] 8.2  O limite e POR CONTA, nao por IP
+         COMO:      duas contas diferentes na mesma maquina; estourar
+                    numa nao pode bloquear a outra
+         obs: ______________________________________________________
+
+[ ] 8.3  resumo-produto RECUSA quando o contador esta fora do ar
+         POR QUE:   gasta credito da OpenAI a cada chamada; as outras
+                    rotas deixam passar de proposito.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 9 — EXCLUSAO DE CONTA
+===============================================================================
+Pagina da conta -> "Excluir conta".
+
+[OK] 9.1  A tela LISTA o que sai e o que fica ANTES de confirmar
+          >> dialogo lista 'O que sera apagado' e 'O que continua existindo'
+         POR QUE:   §27 proibe apresentar soft delete como apagamento.
+         obs: ______________________________________________________
+
+[OK] 9.2  Pede a SENHA ATUAL para confirmar
+          >> pede senha atual + confirmacao digitada; botao inicia desabilitado
+         obs: ______________________________________________________
+
+[ ] 9.3  Senha errada -> nao exclui
+         obs: ______________________________________________________
+
+[ ] 9.4  Apos excluir, a sessao cai
+         obs: ______________________________________________________
+
+[OK] 9.5  Pedidos e conversas de suporte PERMANECEM
+          >> texto explica que pedido e documento fiscal do CNPJ e permanece
+         POR QUE:   sistema B2B — o pedido pertence ao CNPJ da empresa,
+                    nao a conta pessoal. A tela precisa dizer isso.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 10 — TRILHA DE AUDITORIA
+===============================================================================
+Consultar no Supabase (SQL editor):
+
+  select evento, count(*) from "clinic+b2b_auth_events"
+  group by 1 order by 2 desc;
+
+[OK] 10.1 Entrar         -> gera "sessao_criada"
+          >> sessao_criada gravada no banco
+         obs: ______________________________________________________
+
+[OK] 10.2 Sair           -> gera "sessao_revogada"
+          >> sessao_revogada gravada no banco
+         obs: ______________________________________________________
+
+[ ] 10.3 Cadastrar fator-> gera "fator_mfa_alterado"
+         obs: ______________________________________________________
+
+[ ] 10.4 Usar o fator   -> gera "fator_mfa_usado"    <- NOVO (08/08)
+         obs: ______________________________________________________
+
+[ ] 10.5 Remover fator  -> gera "fator_mfa_removido"
+         obs: ______________________________________________________
+
+[ ] 10.6 Trocar senha   -> gera "senha_alterada"
+         obs: ______________________________________________________
+
+[OK] 10.7 A trilha NAO vaza para usuario comum
+          >> cliente logado: 0 linhas na trilha (RLS sem policy)
+         COMO:      logado como cliente, tentar ler a tabela
+         ESPERADO:  vazio ou negado — nunca linhas de outra conta
+         obs: ______________________________________________________
+
+[ ] 10.8 A trilha NAO contem token, senha, hash nem codigo
+         COMO:      olhar a coluna "detalhe" de algumas linhas
+         ESPERADO:  so tipo de fator, status, factor_id
+         obs: ______________________________________________________
+
+         NAO COBERTO (ja sabido): falha de login. O Supabase nao cria
+         sessao com senha errada, entao nao ha linha para o gatilho ver.
+         E o unico item da §24 em aberto.
+
+
+===============================================================================
+BLOCO 11 — PRECO RESOLVIDO NO SERVIDOR (modo sombra)
+===============================================================================
+
+[ ] 11.1 Fazer um pedido normal e olhar o log do servidor
+         PROCURAR:  [proxis-order] Preco do navegador diferente do
+                    servidor
+         ESPERADO:  idealmente NENHUMA divergencia. Se aparecer, me
+                    mande o conteudo — e exatamente o que precisa ser
+                    entendido antes de ligar a flag.
+         obs: ______________________________________________________
+
+[ ] 11.2 Pedido com quantidade FRACIONARIA (1.5) -> item recusado
+         obs: ______________________________________________________
+
+[ ] 11.3 Pedido com quantidade ZERO ou NEGATIVA -> item recusado
+         obs: ______________________________________________________
+
+[ ] 11.4 Pedido com quantidade acima de 9999 -> item recusado
+         obs: ______________________________________________________
+
+[ ] 11.5 Produto em PROMOCAO: o preco do log bate com o da tela
+         POR QUE:   a promocao entra depois da precedencia de tabelas.
+                    Se nao batesse, ligar a flag mandaria o pedido ao
+                    ERP SEM o desconto que o cliente viu.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 12 — ISOLAMENTO DA TABELA DE PRECO
+===============================================================================
+O achado mais grave da revisao: a politica de RLS nao correlacionava nada,
+e qualquer cliente autenticado lia as 570 linhas das 4 tabelas negociadas.
+
+[OK] 12.1 Cliente da TPR A ve os precos da TPR A
+          >> TPR 8728: 138 linhas + 1 da camada geral
+         obs: ______________________________________________________
+
+[OK] 12.2 Cliente da TPR B ve precos DIFERENTES dos da TPR A
+          >> TPR 8729/8744/8745 de outros clientes: ZERO linhas cada.
+                     Reconferido apos a migration 20260808150000: identico,
+                     e sem filtro devolve 139 de 570 linhas (so a propria)
+         ESTE E O TESTE QUE MAIS IMPORTA DESTE BLOCO
+         obs: ______________________________________________________
+
+[ ] 12.3 Admin continua vendo TUDO no painel de precos
+         ATENCAO ESPECIAL: a migration 20260808150000 reescreveu as 4 policies
+                    internas (select/insert/update/delete) para resolver a
+                    checagem de papel uma vez em vez de por linha. A logica e
+                    identica, mas isso NAO foi testado com token de admin —
+                    so o lado do cliente foi reconferido.
+         COMO:      Admin -> Precos: listar, importar tabela do Proxis, editar
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 13 — DESATIVAR USUARIO REVOGA ACESSO
+===============================================================================
+Defeito corrigido: o painel gravava is_active=false e dizia "o usuario
+perdera acesso", mas NADA no sistema lia esse campo. O usuario continuava
+entrando, lendo preco de todos os clientes e lancando pedido no ERP.
+
+[ ] 13.1 Desativar um usuario no painel
+         obs: ______________________________________________________
+
+[ ] 13.2 Esse usuario NAO consegue mais entrar no painel
+         obs: ______________________________________________________
+
+[ ] 13.3 As rotas /api/* de admin recusam esse usuario
+         obs: ______________________________________________________
+
+[ ] 13.4 Reativar devolve o acesso
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 14 — SENHA PROVISORIA DE FUNCIONARIO
+===============================================================================
+A senha padrao estava como texto no repositorio ("Alterar@123" em
+employeeBulkImport.ts): versionada em git, no bundle do navegador e
+impressa na tela do admin.
+
+[ ] 14.1 Cadastrar funcionario continua funcionando
+         obs: ______________________________________________________
+
+[OK] 14.2 A senha provisoria NAO aparece mais no codigo-fonte
+          >> unica ocorrencia e num teste que garante a ausencia
+         COMO:      buscar "Alterar@123" no repositorio
+         ESPERADO:  nenhuma ocorrencia
+         obs: ______________________________________________________
+
+[ ] 14.3 No PRIMEIRO acesso, a troca de senha e OBRIGATORIA
+         obs: ______________________________________________________
+
+[ ] 14.4 Sem trocar, o funcionario nao navega no sistema
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 15 — LOGOUT GLOBAL
+===============================================================================
+
+[OK] 15.1 Entrar em DOIS navegadores com a mesma conta
+          >> duas sessoes simultaneas na mesma conta
+         obs: ______________________________________________________
+
+[~] 15.2 Sair em um -> o outro tambem perde a sessao
+         >> PARCIAL — ver a nota abaixo. Revoga, mas nao instantaneamente
+         POR QUE:   signOut com scope "global" revoga no servidor.
+                    Sem isso, roubo de sessao nao teria como ser cortado.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 16 — HEADERS DE SEGURANCA / CSP
+===============================================================================
+SO VALE EM DEPLOY (vercel.json). Em localhost nao aparece.
+
+[ ] 16.1 Conferir os headers na resposta (DevTools > Network > Doc)
+         ESPERADO:  Content-Security-Policy, Strict-Transport-Security,
+                    X-Content-Type-Options, Referrer-Policy,
+                    X-Frame-Options, Permissions-Policy,
+                    Cross-Origin-Opener-Policy
+         obs: ______________________________________________________
+
+[ ] 16.2 ZERO erro de CSP no console em uso normal
+         COMO:      navegar catalogo, produto, carrinho, conta, painel
+         POR QUE:   a CSP e o principal controle compensatorio do token
+                    em localStorage. Se estiver quebrando a pagina,
+                    alguem vai afrouxa-la — e ai ela deixa de valer.
+         obs: ______________________________________________________
+
+[ ] 16.3 /api/* responde com Cache-Control: no-store
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 17 — STORAGE DE IMAGENS SO ADMIN
+===============================================================================
+
+[ ] 17.1 Admin consegue subir imagem de produto
+         obs: ______________________________________________________
+
+[OK] 17.2 CLIENTE logado NAO consegue escrever no bucket
+          >> upload e sobrescrita -> 403 Unauthorized
+         POR QUE:   a policy antiga liberava para "authenticated" — o que
+                    confunde autenticacao com autorizacao: qualquer
+                    cliente logado tambem e authenticated.
+         obs: ______________________________________________________
+
+[ ] 17.3 As imagens continuam aparecendo normalmente na loja
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 18 — user_id FORA DAS AVALIACOES
+===============================================================================
+
+[OK] 18.1 Pagina do produto DESLOGADO mostra as avaliacoes
+          >> bloco de avaliacoes presente na pagina do produto, deslogado
+         obs: ______________________________________________________
+
+[OK] 18.2 ZERO erro no console nessa pagina
+          >> nenhum erro de permissao (401/user_id) no console
+         obs: ______________________________________________________
+
+[ ] 18.3 Logado, a pessoa ainda edita a PROPRIA avaliacao
+         POR QUE:   authenticated mantem acesso ao user_id de proposito;
+                    quem perdeu foi so o anonimo.
+         obs: ______________________________________________________
+
+
+===============================================================================
+BLOCO 19 — CORRIGIDO DURANTE A VALIDACAO (08/08)
+===============================================================================
+Itens que nasceram de defeitos encontrados testando os blocos acima. Como o
+codigo mudou, precisam de conferencia propria.
+
+[OK] 19.1 Tela de login/cadastro reformulada
+          >> confirmado por voce: "a tela de login ta muito boa agora"
+         O QUE ERA:  formulario preso numa caixa da altura da tela, rolando
+                     por dentro. 7 campos pedindo ~1136px numa area de ~700px.
+         obs: ______________________________________________________
+
+[OK] 19.2 CNPJ preenche a empresa pela Receita Federal
+          >> confirmado por voce: "verificou meu CNPJ na receita federal"
+         POR QUE:    a consulta ao ERP passou a exigir login (correto), e no
+                     cadastro ninguem esta logado. Passou a usar dado publico
+                     da Receita, que ja era consultado e era descartado.
+         obs: ______________________________________________________
+
+[OK] 19.3 Senha vazada volta a ser checada no dev local
+          >> confirmado por voce: "Essa senha apareceu em vazamentos publicos"
+         O QUE ERA:  `res.send is not a function` no servidor de dev. O erro
+                     virava 502, e 502 faz a senha PASSAR — a protecao esteve
+                     desligada sem ninguem perceber.
+         obs: ______________________________________________________
+
+[ ] 19.4 CADASTRO NOVO cria o perfil do cliente
+         COMO:      criar UMA CONTA NOVA (e-mail diferente), confirmar o
+                    e-mail e entrar
+         ESPERADO:  NAO aparece "Falta completar seu cadastro"
+         O QUE ERA: o perfil so era criado quando o cadastro devolvia sessao
+                    — e com confirmacao de e-mail ligada ele nunca devolve.
+                    15 contas de 123 estavam sem perfil.
+         ATENCAO:   sua conta foi recuperada pelo backfill, entao ela NAO
+                    testa o gatilho. So conta nova testa.
+         obs: ______________________________________________________
+
+[ ] 19.5 Conta nova recebe a tabela de preco (proxis_tpr_id)
+         COMO:      na mesma conta do 19.4, conferir no banco:
+                    select cnpj, proxis_tpr_id, proxis_synced_at
+                      from "clinic+b2b_customer_profiles" where user_id=...
+         ESPERADO:  proxis_tpr_id preenchido, ou proxis_found=false se o CNPJ
+                    nao existir no ERP
+         obs: ______________________________________________________
+
+[OK] 19.6 Sugestao de dominio no LOGIN
+          >> 'Voce quis dizer ...@gmail.com?' e o clique corrige o campo
+         COMO:      digitar seuemail@gmai.com na tela de entrar
+         ESPERADO:  "Voce quis dizer seuemail@gmail.com?" — clicavel
+         POR QUE:   a mensagem de erro do login e generica de proposito
+                    (§21), entao erro de digitacao ficava indistinguivel de
+                    senha errada. Foi o que aconteceu no teste.
+         obs: ______________________________________________________
+
+[OK] 19.7 Sugestao de dominio no CADASTRO
+          >> passo 1 mostra CNPJ e NAO mostra senha; indicador de passos visivel
+         COMO:      mesmo teste, na aba de criar conta
+         POR QUE:   aqui custa mais caro: o e-mail de confirmacao vai para um
+                    endereco que nao existe e a conta fica presa.
+         obs: ______________________________________________________
+
+[OK] 19.8 Dominio corporativo NAO recebe sugestao
+          >> clinicmais.com.br, empresa.com.br e gmail.com: sem sugestao
+         COMO:      digitar compras@clinicmais.com.br
+         ESPERADO:  nenhuma sugestao aparece
+         POR QUE:   e-mail de empresa e o caso normal aqui; sugerir errado
+                    seria pior que nao sugerir.
+         obs: ______________________________________________________
+
+[OK] 19.9 Confirmacao de senha avisa enquanto digita
+          >> avisa 'nao conferem' e 'conferem' enquanto digita
+         COMO:      Minha conta -> alterar senha
+         ESPERADO:  "As senhas conferem" em verde / "nao conferem" em vermelho,
+                    ANTES de clicar no botao
+         O QUE ERA: nenhum campo de senha tinha `autoComplete`. O navegador
+                    preenchia sem disparar o onChange do React, e duas senhas
+                    iguais na tela reprovavam. Corrigido em 10 campos.
+         obs: ______________________________________________________
+
+[OK] 19.10 Medidor de forca mostra a politica REAL
+           >> Fraca para curta/comum/contextual; Media/Boa/Forte por comprimento
+         COMO:      digitar uma senha e olhar a lista de checagens
+         ESPERADO:  "Minimo 10 caracteres", "Nao e uma senha comum",
+                    "Nao usa o nome da empresa", "Nao parece com seu e-mail"
+         NAO DEVE:  aparecer "Letra maiuscula", "Numero", "Caractere especial"
+         POR QUE:   sao as regras de composicao que a §10 proibe. A validacao
+                    ja nao as cobrava, mas a tela continuava pedindo — o que
+                    empurra a pessoa para "Senha1!".
+         obs: ______________________________________________________
+
+[ ] 19.11 Trocar senha nos formularios do ADMIN
+         COMO:      Admin -> configuracoes, usuarios e funcionarios
+         ESPERADO:  mesmo comportamento do 19.9 e 19.10
+         POR QUE:   os 7 campos do admin tinham o mesmo defeito de autofill.
+         obs: ______________________________________________________
+
+[OK] 19.12 As edge functions NO AR nao cobram regra de composicao
+           >> conferido em 08/08 lendo o bundle publicado, nao o repositorio
+         COMO:      GET /v1/projects/<ref>/functions/<slug>/body (Management API)
+                    O corpo vem em ESZIP2.3; o fonte esta legivel la dentro.
+         ACHADO:    create-admin-user v3 (08/08 19:00) valida SO tamanho minimo
+                    (10) e teto de 72 bytes do bcrypt. As palavras "maiuscula" e
+                    "caractere especial" ainda aparecem no pacote, mas as quatro
+                    ocorrencias estao dentro do COMENTARIO que explica a remocao
+                    (duplicadas porque o bundle carrega fonte + source map).
+                    create-employee-user v2 ignora o `password` do corpo e usa a
+                    senha provisoria lida de `senha_padrao_funcionario` no banco.
+         PORTAO:    sem token -> 401 nas duas. Com token de admin comum -> 403
+                    "Acesso negado" (create-admin-user exige superadmin).
+         NAO TESTADO E POR QUE: o caminho feliz — criar um usuario de verdade —
+                    exige token de SUPERADMIN, e a conta de teste e admin comum.
+                    A validacao de senha fica DEPOIS do portao de papel, entao
+                    nenhuma requisicao minha chegou a executa-la. O que esta
+                    escrito acima foi lido do codigo publicado, nao exercitado.
+         obs: ______________________________________________________
+
+
+===============================================================================
+ITEM 15.2 — MEDIDO COM PRECISAO EM 08/08
+===============================================================================
+"Sair de todos os dispositivos" revoga, mas NAO instantaneamente:
+
+  signOut global ................... HTTP 204
+  sessoes no banco depois .......... 0     (todas apagadas)
+  refresh token da outra sessao .... 400   (revogado, correto)
+  access token da outra sessao ..... 200   AINDA FUNCIONA
+  vida do access token ............. 60 minutos
+
+Ou seja: quem estiver com uma sessao roubada continua lendo e escrevendo por
+ate 60 minutos depois de a vitima clicar em "Sair". Nao e defeito de codigo —
+JWT e sem estado e nao da para revogar um token ja emitido. O que encurta a
+janela e reduzir o TTL do access token, que hoje esta no padrao do Supabase.
+
+Isso tem duas consequencias registradas:
+  1. O PERFIL dizia que o botao "Sair" ja encerra todos os dispositivos. Meia
+     verdade — corrigido no item 3.11.
+  2. A excecao EX-001 (token em localStorage) lista "TTL curto de access token"
+     entre os controles compensatorios. Com 60 minutos, esse controle nao esta
+     de fato em vigor.
+
+===============================================================================
+ACHADO FORA DO ESCOPO DE AUTENTICACAO
+===============================================================================
+Erro no console apos o login, em toda pagina com o cabecalho da loja:
+
+  "Maximum update depth exceeded" — laco de render
+  at CepLocationButton.tsx:30  (Popover do Radix)
+
+Nao tem relacao com autenticacao e e anterior a este trabalho, mas aparece em
+toda navegacao logada e polui o console de quem for depurar outra coisa.
+
+===============================================================================
+O QUE **NAO** ESTA PRONTO — nao gaste tempo testando
+===============================================================================
+
+  - Falha de login na trilha de auditoria (10.x): o Supabase nao cria
+    sessao com senha errada; depende de webhook do Auth.
+
+  - Notificacao por e-mail na troca de senha: depende de contratar
+    provedor de e-mail transacional.
+
+  - Token de sessao em localStorage: decisao em aberto (BFF com cookie
+    ou manter a excecao EX-001). Ver PERFIL-CLINIC-PLUS.md item 3.1.
+
+  - Fluxo implicit (token no fragmento da URL): a correcao obvia
+    (flowType pkce) QUEBRA a recuperacao de senha entre dispositivos.
+    Depende de mexer no template de e-mail do Supabase.
+
+  - Binding e lista de eventos por autenticador (§19): a trilha ja tem
+    os dados, falta a tela.
+
+  - RP ID de producao: hoje esta "localhost". Precisa do dominio real,
+    e MUDAR DEPOIS INVALIDA TODA PASSKEY JA CRIADA.
+
+
+===============================================================================
+DEPOIS DE VALIDAR
+===============================================================================
+
+Me mande os numeros que falharam, com o que voce observou. Para os [X] eu
+investigo e corrijo; para os [~] eu avalio se e defeito ou se e o
+comportamento esperado mal explicado aqui.
+
+A sequencia depois que o checklist estiver verde:
+
+  1. cada admin cadastra o fator MFA
+  2. o aviso do item 4.3 para de aparecer nos logs
+  3. so entao MFA_ADMIN_OBRIGATORIO=1
+  4. definir VITE_WEBAUTHN_RP_ID de producao ANTES dos primeiros
+     cadastros reais de passkey
+  5. acompanhar o log do item 11.1 por alguns dias
+  6. so entao PRICING_ENFORCE_SERVER_PRICE=1

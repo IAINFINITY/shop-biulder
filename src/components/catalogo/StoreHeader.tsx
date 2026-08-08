@@ -37,6 +37,25 @@ export type StoreHeaderProps = {
   onSearchHistoryClear?: () => void;
   onSearchHistoryRemove?: (term: string) => void;
   showSearchSuggestions?: boolean;
+  /**
+   * Versao reduzida, para as telas de login e recuperacao: so a logo.
+   *
+   * Medido em 08/08 na tela de login: com a barra completa, o primeiro campo do
+   * formulario comecava a 573px do topo numa tela de 800px — 72% da tela antes
+   * de dar para digitar. Busca, carrinho, CEP e favoritos nao servem a quem
+   * esta tentando entrar; servem para distrair.
+   *
+   * As lojas de referencia fazem o mesmo. Medidas na mesma data, na propria
+   * pagina de login: Amazon e Netshoes nao tem `<header>`; Mercado Livre tem
+   * 55px com um link; Magazine Luiza tem 90px e **nenhum** link. Nenhuma
+   * mantem busca ou carrinho.
+   *
+   * E a **mesma** barra, nao uma segunda: o motivo de esta tela ter passado a
+   * usar o cabecalho da loja foi justamente acabar com duas barras diferentes
+   * para a mesma funcao. Reduzir mantem isso — o que sai e o excesso, nao a
+   * unidade.
+   */
+  minima?: boolean;
 };
 
 type SearchPanelProps = {
@@ -266,6 +285,7 @@ export function StoreHeader({
   onSearchHistoryClear,
   onSearchHistoryRemove,
   showSearchSuggestions = true,
+  minima = false,
 }: StoreHeaderProps) {
   const trimmedSearch = search.trim();
   const showSuggestions = showSearchSuggestions && trimmedSearch.length > 0;
@@ -321,6 +341,41 @@ export function StoreHeader({
     }
     navigate("/", { state: { scrollToTop: true } });
   }, [location.pathname, navigate]);
+
+  /**
+   * Saida antecipada, e nao condicionais espalhadas.
+   *
+   * O cabecalho tem dois desenhos completos — um de celular e um de desktop —
+   * e cada um com varias reducoes progressivas por largura. Enfiar `minima` em
+   * cada ramo multiplicaria os casos e arriscaria a barra da loja, que funciona.
+   * Aqui a versao reduzida e um bloco proprio, e o caminho da loja segue
+   * intocado abaixo.
+   */
+  if (minima) {
+    return (
+      <div className="sticky top-0 z-50">
+        <PageHeaderShell
+          compact
+          className="!relative border-b border-border/70 bg-card/95 shadow-sm backdrop-blur"
+          innerClassName="flex items-center justify-center py-3 sm:py-4"
+        >
+          {/* Clicavel de proposito: e a unica saida da tela de login, e e onde
+              todo mundo clica para voltar. Sem ela, a pessoa usa o botao de
+              voltar do navegador — que num fluxo de cadastro perde o que ja foi
+              digitado. */}
+          <Link
+            to="/"
+            viewTransition
+            aria-label="Voltar ao catálogo Clinic+"
+            className="inline-block shrink-0"
+            onClick={handleLogoClick}
+          >
+            <ClinicPlusLogo />
+          </Link>
+        </PageHeaderShell>
+      </div>
+    );
+  }
 
   return (
     <div className="sticky top-0 z-50">

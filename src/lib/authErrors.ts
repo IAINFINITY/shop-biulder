@@ -17,32 +17,42 @@ export function isRegisteredEmailAuthMessage(message: string) {
   );
 }
 
-export function translateAuthErrorMessage(message: string, options?: { duplicateEmailText?: string }) {
+/**
+ * Mensagem de erro de autenticacao, sem contar quem existe.
+ *
+ * A §21 do padrao exige comportamento **observavel equivalente** para conta
+ * inexistente, senha incorreta, conta suspensa, recuperacao de conta inexistente
+ * e cadastro com identificador existente. Mensagem diferente e diferenca
+ * observavel — bastava um formulario e uma lista de e-mails para levantar quem e
+ * cliente da Clinic+.
+ *
+ * O parametro `duplicateEmailText` continua na assinatura para nao quebrar quem
+ * chama, mas **e ignorado**: nao ha texto de "ja cadastrado" que seja seguro.
+ */
+export function translateAuthErrorMessage(message: string, _options?: { duplicateEmailText?: string }) {
   const normalized = normalizeAuthMessage(message || "");
-  const duplicateEmailText =
-    options?.duplicateEmailText || "Este e-mail já está cadastrado. Entre com sua senha ou recupere o acesso.";
 
   if (!normalized) return "Erro ao autenticar.";
 
+  // CNPJ e diferente de e-mail: quem digita um CNPJ ja e a empresa dona dele, e a
+  // informacao nao serve para varrer terceiros. Fica.
   if (normalized.includes("customer_profiles_cnpj_unique") || (normalized.includes("duplicate") && normalized.includes("cnpj"))) {
     return "Este CNPJ já possui cadastro. Se a empresa já existe, entre com a conta correta ou fale com o suporte.";
   }
 
-  if (normalized.includes("email not confirmed") || normalized.includes("email not verified")) {
-    return "Confirme seu e-mail antes de entrar. Verifique a caixa de entrada e o spam.";
-  }
-
+  // As tres condicoes abaixo cabiam em ramos distintos e cada texto denunciava um
+  // estado: "nao confirmado" e "ja cadastrado" provam que a conta existe;
+  // "credencial invalida" nao prova nada. Agora as tres respondem igual.
   if (
     normalized.includes("invalid login") ||
     normalized.includes("invalid credentials") ||
     normalized.includes("incorrect password") ||
-    normalized.includes("senha incorreta")
+    normalized.includes("senha incorreta") ||
+    normalized.includes("email not confirmed") ||
+    normalized.includes("email not verified") ||
+    isRegisteredEmailAuthMessage(normalized)
   ) {
     return "E-mail ou senha incorretos. Confira os dados e tente novamente.";
-  }
-
-  if (isRegisteredEmailAuthMessage(normalized)) {
-    return duplicateEmailText;
   }
 
   if (normalized.includes("invalid email")) {
@@ -57,5 +67,7 @@ export function translateAuthErrorMessage(message: string, options?: { duplicate
     return "Muitas tentativas em sequência. Aguarde alguns instantes e tente novamente.";
   }
 
-  return message;
+  // Mensagem crua do provedor pode descrever estado interno da conta.
+  console.warn("[auth] mensagem sem tradução:", message);
+  return "Não foi possível concluir. Verifique os dados e tente de novo.";
 }

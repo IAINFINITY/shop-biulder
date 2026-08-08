@@ -20,10 +20,23 @@ import { getProductImageUrls } from "@/lib/products";
 import { descriptionIncludesQuery } from "@/lib/richTextPure";
 import { cn } from "@/lib/utils";
 
+/**
+ * Instancia fixa para o catalogo ainda nao carregado.
+ *
+ * `const { data = [] }` cria um array **novo a cada render** enquanto a consulta
+ * nao respondeu. Isso invalidava o `useMemo` de `productsForSuggestions`, que
+ * devolvia outro array, que disparava o `setSearchSuggestions` do efeito, que
+ * renderizava de novo — "Maximum update depth exceeded" no console de toda
+ * pagina publica, mais visivel no login, onde o catalogo demora mais a chegar.
+ *
+ * Mesmo motivo de `EMPTY_PRICE_MAP` em `pricing.ts`.
+ */
+const SEM_PRODUTOS: ReturnType<typeof useProducts>["data"] & object = [];
+
 export function PublicLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { data: allProducts = [] } = useProducts();
+  const { data: allProducts = SEM_PRODUTOS } = useProducts();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 250);
   const [searchSuggestions, setSearchSuggestions] = useState<StoreHeaderSearchSuggestion[]>([]);
@@ -103,6 +116,17 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const showStoreHeader =
     isIndexRoute || isProductRoute || isOrderRoute || isHelpRoute || isFavoritesRoute
     || isLoginRoute || isRecoverPasswordRoute;
+  /**
+   * Login e recuperacao recebem a barra **reduzida**: so a logo.
+   *
+   * A barra completa resolveu o problema de "duas barras diferentes para a mesma
+   * funcao", e isso continua valendo — e a mesma barra. O que muda e o conteudo:
+   * busca, carrinho, CEP e favoritos nao servem a quem esta tentando entrar.
+   *
+   * Medido antes da mudanca: o primeiro campo do formulario comecava a 573px do
+   * topo numa tela de 800px. Ver a nota em `StoreHeaderProps.minima`.
+   */
+  const barraMinima = isLoginRoute || isRecoverPasswordRoute;
   const handleSearchSubmit = useCallback((value: string) => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -124,6 +148,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen flex-col">
         {showStoreHeader ? (
           <StoreHeader
+            minima={barraMinima}
             search={search}
             onSearchChange={setSearch}
             onSearchSubmit={handleSearchSubmit}

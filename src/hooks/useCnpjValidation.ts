@@ -10,8 +10,15 @@ function detectDocumentType(digits: string): DocumentType {
   return null;
 }
 
+/** O que a Receita devolve e nos interessa. */
+export type DadosDoCnpj = {
+  razaoSocial: string;
+  nomeFantasia: string;
+};
+
 export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
   const [status, setStatus] = useState<CnpjValidationStatus>("idle");
+  const [dados, setDados] = useState<DadosDoCnpj | null>(null);
 
   const digits = onlyDigits(cnpj);
   const docType = detectDocumentType(digits);
@@ -27,11 +34,13 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
   useEffect(() => {
     if (!isDocComplete) {
       setStatus("idle");
+      setDados(null);
       return;
     }
 
     if (!isValidCnpj(digits)) {
       setStatus("invalid");
+      setDados(null);
       return;
     }
 
@@ -39,11 +48,29 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
     const timeout = setTimeout(async () => {
       try {
         setStatus("checking");
+        setDados(null);
         const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
           signal: controller.signal,
         });
 
         if (response.ok) {
+          // O corpo da resposta era descartado: so o status decidia valido ou
+          // nao. A razao social ja vem aqui, e e o que permite preencher a
+          // empresa no cadastro sem pedir para a pessoa digitar de novo.
+          //
+          // Vem da Receita, e nao do nosso ERP. A consulta ao ERP por CNPJ
+          // exige login desde a correcao de seguranca — e deve exigir mesmo:
+          // sem isso, qualquer um levantava razao social e tabela de preco de
+          // qualquer empresa. Dado publico da Receita nao tem esse problema.
+          const corpo = await response.json().catch(() => null);
+          setDados(
+            corpo && typeof corpo === "object"
+              ? {
+                  razaoSocial: String((corpo as Record<string, unknown>).razao_social ?? "").trim(),
+                  nomeFantasia: String((corpo as Record<string, unknown>).nome_fantasia ?? "").trim(),
+                }
+              : null,
+          );
           setStatus("valid");
           return;
         }
@@ -81,6 +108,8 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
     cnpjDigits: digits,
     docType,
     status,
+    /** Razao social e nome fantasia, quando a Receita respondeu. */
+    dados,
     isDocIncomplete,
     isDocComplete,
     shouldShowError,

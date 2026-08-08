@@ -13,7 +13,7 @@ import { CatalogActiveFilters, type CatalogActiveFilter } from "@/components/cat
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { QuickView } from "@/components/catalogo/QuickView";
 import { cn } from "@/lib/utils";
-import { PAGE_CONTAINER } from "@/lib/pageLayout";
+import { PAGE_CONTAINER_VITRINE } from "@/lib/pageLayout";
 import {
   Carousel,
   CarouselContent,
@@ -685,7 +685,7 @@ export default function Index() {
       <div
         ref={catalogRef}
         id="catalogo-produtos"
-        className={cn(PAGE_CONTAINER, "pt-1 pb-32 sm:pt-3 sm:pb-[10rem]")}
+        className={cn(PAGE_CONTAINER_VITRINE, "pt-1 pb-32 sm:pt-3 sm:pb-[10rem]")}
       >
         <SectionAnchorNav
           sections={pageAnchors}
@@ -812,7 +812,7 @@ export default function Index() {
               <CatalogActiveFilters filters={activeFilters} onClearAll={clearAllFilters} />
 
               {isLoading ? (
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5 min-[2200px]:grid-cols-6 min-[2500px]:grid-cols-7 min-[3000px]:grid-cols-8">
                   {Array.from({ length: 10 }).map((_, index) => (
                     <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
                       <Skeleton className="aspect-[4/5] w-full rounded-none" />
@@ -833,7 +833,7 @@ export default function Index() {
                 <div className="space-y-4">
                   <div
                     ref={gridRef}
-                    className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5"
+                    className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5 min-[2200px]:grid-cols-6 min-[2500px]:grid-cols-7 min-[3000px]:grid-cols-8"
                   >
                     {visibleFiltered.map((product) => (
                       <CatalogProductCard
@@ -1026,7 +1026,7 @@ function ProductCarouselSection({
           </div>
           <CarouselContent className="-ml-2 sm:-ml-3">
             {products.map((product) => (
-              <CarouselItem key={product.id} className="basis-1/2 pl-2 sm:pl-2.5 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 min-[1680px]:basis-1/6">
+              <CarouselItem key={product.id} className="basis-1/2 pl-2 sm:pl-2.5 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 min-[1680px]:basis-1/6 min-[2200px]:basis-[calc(100%/7)] min-[2500px]:basis-[calc(100%/8)] min-[3000px]:basis-[calc(100%/9)]">
                 <CatalogProductCard
                   product={product}
                   price={resolvePrice(product)}

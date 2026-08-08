@@ -168,7 +168,7 @@ function ThemeShelf({
             {section.products.map((product) => (
               <CarouselItem
                 key={`${section.id}-${product.id}`}
-                className="basis-1/2 pl-2 sm:pl-2.5 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 min-[1680px]:basis-1/6"
+                className="basis-1/2 pl-2 sm:pl-2.5 sm:basis-1/3 lg:basis-1/4 xl:basis-1/5 min-[1680px]:basis-1/6 min-[2200px]:basis-[calc(100%/7)] min-[2500px]:basis-[calc(100%/8)] min-[3000px]:basis-[calc(100%/9)]"
               >
                 {/* `compact`, igual a "Vistos recentemente" e aos relacionados:
                     e o mesmo carrossel, com a mesma largura de slide. O selo o

@@ -9,6 +9,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { parseBearerToken, type AuthContext, type AuthProfile } from "../src/lib/apiAuth.js";
+import { lerAal, podeAtenderRotaAdmin } from "../src/lib/mfa.js";
 
 /**
  * Repetido de proposito. O valor canonico e `CUSTOMER_PROFILES_TABLE` em
@@ -92,7 +93,10 @@ export async function authenticate(req: VercelRequest): Promise<AuthContext | nu
   if (!userId) return null;
 
   const [isAdmin, profile] = await Promise.all([resolveIsAdmin(userId), resolveProfile(userId)]);
-  return { userId, isAdmin, profile };
+  // `lerAal` decodifica o payload sem conferir assinatura, e isso so e seguro
+  // **aqui**: `resolveUserId` acabou de provar que este token e legitimo. Chamar
+  // antes disso seria confiar em texto escrito pelo cliente.
+  return { userId, isAdmin, profile, aal: lerAal(token) };
 }
 
 /**
@@ -127,6 +131,41 @@ export async function requireAuth(
   if (options.adminOnly && !auth.isAdmin) {
     res.status(403).json({ error: "Acesso restrito a administradores." });
     return null;
+  }
+
+  /**
+   * Rota administrativa exige segundo fator (§11).
+   *
+   * Este e o ponto que faz o MFA valer: exigido so na tela, ele seria contornado
+   * por quem chamasse `/api/*` direto com o token — o que a §31 chama de
+   * "autenticacao ou autorizacao somente no frontend".
+   *
+   * **Modo sombra enquanto `MFA_ADMIN_OBRIGATORIO` estiver vazio.** Ligar de uma
+   * vez derrubaria todo administrador que ainda nao cadastrou o fator, e a
+   * descoberta seria o painel fora do ar. Mesmo padrao de
+   * `PRICING_ENFORCE_SERVER_PRICE`.
+   *
+   * A §2 e clara em que rodar em sombra e **exceção temporaria**, nao
+   * conformidade: enquanto a flag estiver desligada, o item 3.2 do
+   * PERFIL-CLINIC-PLUS.md continua em aberto.
+   */
+  if (options.adminOnly) {
+    const exigir = process.env.MFA_ADMIN_OBRIGATORIO === "1";
+    if (!podeAtenderRotaAdmin(auth.aal, exigir)) {
+      res.status(403).json({
+        error: "Esta operação exige verificação em duas etapas.",
+        codigo: "mfa_necessario",
+      });
+      return null;
+    }
+    if (!exigir && auth.aal !== "aal2") {
+      // O log e o que permite saber quando da para ligar a flag sem derrubar
+      // ninguem: quando esta linha parar de aparecer, todo admin ja tem fator.
+      console.warn(
+        `[auth] admin ${auth.userId} acessou rota administrativa sem aal2 (aal=${auth.aal}). ` +
+          "Com MFA_ADMIN_OBRIGATORIO=1 este acesso seria recusado.",
+      );
+    }
   }
 
   return auth;

@@ -10,20 +10,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { getRoleLabel } from "@/lib/adminUsers";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { validarSenha } from "@/lib/validarSenha";
+import { forcaDaSenha } from "@/lib/forcaDaSenha";
+import { MIN_SEM_MFA } from "@/lib/senha";
+import { AutenticadoresSection } from "@/components/client/AutenticadoresSection";
 
-function passwordStrength(password: string): { label: string; score: number; checks: { label: string; ok: boolean }[] } {
-  const checks = [
-    { label: "Mínimo 8 caracteres", ok: password.length >= 8 },
-    { label: "Máximo 64 caracteres", ok: password.length <= 64 },
-    { label: "Letra maiúscula", ok: /[A-Z]/.test(password) },
-    { label: "Letra minúscula", ok: /[a-z]/.test(password) },
-    { label: "Número", ok: /\d/.test(password) },
-    { label: "Caractere especial", ok: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
-  ];
-  const okCount = checks.filter((c) => c.ok).length;
-  const labels = ["Fraca", "Fraca", "Regular", "Média", "Boa", "Forte", "Forte"];
-  return { label: labels[Math.min(okCount, 6)], score: okCount, checks };
-}
 
 type InfoTileProps = {
   label: string;
@@ -66,7 +57,7 @@ export function AdminSettingsSection() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
-  const strength = passwordStrength(newPassword);
+  const strength = forcaDaSenha(newPassword);
 
   useEffect(() => {
     setName(user?.user_metadata?.name ?? "");
@@ -120,12 +111,16 @@ export function AdminSettingsSection() {
   async function handleSavePassword(e: React.FormEvent) {
     e.preventDefault();
     if (!currentPassword) { toast.error("Informe a senha atual"); return; }
-    if (newPassword.length < 8) { toast.error("Nova senha deve ter no mínimo 8 caracteres"); return; }
-    if (newPassword.length > 64) { toast.error("Nova senha deve ter no máximo 64 caracteres"); return; }
-    if (!/[A-Z]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos uma letra maiúscula"); return; }
-    if (!/[a-z]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos uma letra minúscula"); return; }
-    if (!/\d/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos um número"); return; }
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) { toast.error("Nova senha deve conter pelo menos um caractere especial"); return; }
+    // Politica unica em `src/lib/senha.ts` (§10 do padrao de autenticacao).
+    const validacaoDeSenha = await validarSenha(newPassword);
+    if (!validacaoDeSenha.ok) {
+      toast.error(validacaoDeSenha.problema!);
+      return;
+    }
+    // As quatro regras de composição que havia aqui — maiúscula, minúscula,
+    // dígito e caractere especial — são proibidas pela §10 e já tinham saído da
+    // política. Elas sobreviveram **rodando antes** de `validarSenha`, então
+    // recusavam a senha e a política nova nem chegava a ser consultada.
     if (newPassword !== confirmPassword) { toast.error("Senhas não conferem"); return; }
 
     setSavingPassword(true);
@@ -257,6 +252,7 @@ export function AdminSettingsSection() {
             <div className="relative">
               <Input
                 type={showCurrentPassword ? "text" : "password"}
+                autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="Sua senha atual"
@@ -279,9 +275,10 @@ export function AdminSettingsSection() {
             <div className="relative">
               <Input
                 type={showNewPassword ? "text" : "password"}
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 8 caracteres"
+                placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
                 maxLength={64}
                 className="h-11 w-full rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
               />
@@ -329,6 +326,7 @@ export function AdminSettingsSection() {
             <div className="relative">
               <Input
                 type={showConfirmPassword ? "text" : "password"}
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repita a nova senha"
@@ -354,6 +352,16 @@ export function AdminSettingsSection() {
           </Button>
         </div>
       </form>
+
+      {/* O administrador precisa cadastrar o fator **aqui**.
+
+          Enquanto o MFA era obrigatorio, o cadastro aparecia sozinho no portao
+          do painel. Ao torna-lo opcional, o portao deixou de bloquear — e o
+          unico outro lugar com o cadastro e a pagina da conta, que redireciona
+          o admin para ca ("Voce esta logado como admin"). Sem esta secao, quem
+          administra nao consegue ativar a protecao nem querendo, que e o
+          oposto do que "opcional" deveria significar. */}
+      <AutenticadoresSection className="rounded-[1.5rem] border border-border/70 shadow-[0_12px_32px_rgba(16,24,40,0.08)] ring-0" />
     </div>
   );
 }

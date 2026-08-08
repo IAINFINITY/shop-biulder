@@ -8,6 +8,9 @@ function contexto(overrides: Partial<AuthContext> = {}): AuthContext {
   return {
     userId: "user-1",
     isAdmin: false,
+    // `aal1` como base: o contexto do teste representa uma sessao comum, de um
+    // fator. Quem testa comportamento de aal2 sobrescreve.
+    aal: "aal1",
     profile: {
       cnpj: CNPJ_PROPRIO,
       customer_type: "lojista",

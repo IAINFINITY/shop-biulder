@@ -7,8 +7,20 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
 import { PublicLayout } from "@/components/layout/PublicLayout";
+import { GuardaDeSegundoFator } from "@/components/auth/GuardaDeSegundoFator";
 const Index = lazy(() => import("./pages/Index.tsx"));
-const Admin = lazy(() => import("./pages/AdminWorkspace.tsx"));
+/**
+ * `Admin.tsx`, e nao `AdminWorkspace.tsx`.
+ *
+ * A rota importava o painel direto, pulando `pages/Admin.tsx` — que e quem
+ * envolve tudo no `MfaGate`. O portao de segundo fator existia, estava correto e
+ * tinha teste, e **nunca era montado**: nenhum arquivo importava `Admin.tsx`.
+ *
+ * Medido em 08/08: conta admin com fator TOTP verificado e sessao `aal1` abria o
+ * painel inteiro sem o desafio. A regra devolvia `desafio_necessario` quando
+ * chamada direto; ninguem a chamava.
+ */
+const Admin = lazy(() => import("./pages/Admin.tsx"));
 const ProductDetails = lazy(() => import("./pages/ProductDetails.tsx"));
 const OrderForm = lazy(() => import("./pages/OrderForm.tsx"));
 const OrderSuccess = lazy(() => import("./pages/OrderSuccess.tsx"));
@@ -57,25 +69,66 @@ function ComecarNoTopo() {
 
 function AppRoutes() {
   const location = useLocation();
-  const { user, isPasswordRecovery } = useAuth();
+  const { user, isAdmin: contaEhAdmin, isPasswordRecovery, deveTrocarSenha } = useAuth();
   const isAdmin = location.pathname.startsWith("/admin");
 
   if (user && isPasswordRecovery && location.pathname !== "/recuperar-senha") {
     return <Navigate to="/recuperar-senha" replace />;
   }
 
+  /**
+   * Senha provisoria bloqueia o site inteiro ate ser trocada.
+   *
+   * Fica **acima** do desvio do admin de proposito: funcionario com papel
+   * administrativo tambem passa por aqui. Colocar depois deixaria justamente as
+   * contas mais poderosas de fora.
+   *
+   * A tela ja dizia "devem trocar no primeiro acesso" — nada obrigava. Este e o
+   * controle que faltava para a promessa virar verdade.
+   */
+  if (user && deveTrocarSenha && location.pathname !== "/recuperar-senha") {
+    return <Navigate to="/recuperar-senha" replace />;
+  }
+
+  /**
+   * Segundo fator: o terceiro desvio, pelo mesmo motivo dos dois acima.
+   *
+   * Fica **antes** do desvio do admin, como o `deveTrocarSenha` — colocar depois
+   * deixaria de fora justamente as contas mais poderosas. E vale para cliente
+   * tambem: quem cadastrou autenticador usa, seja qual for o papel. Ver
+   * `avaliarExigenciaDeMfa`.
+   *
+   * `user &&` porque visitante nao tem fator a confirmar, e sem isso o
+   * `useMfa` faria tres chamadas em toda visita anonima ao catalogo.
+   */
+  const conteudo = isAdmin ? (
+    <Suspense fallback={<RouteLoader />}>
+      <Routes location={location}>
+        <Route path="/admin" element={<Admin />} />
+      </Routes>
+    </Suspense>
+  ) : null;
+
   if (isAdmin) {
-    return (
-      <Suspense fallback={<RouteLoader />}>
-        <Routes location={location}>
-          <Route path="/admin" element={<Admin />} />
-        </Routes>
-      </Suspense>
+    return user ? (
+      <GuardaDeSegundoFator isAdmin={contaEhAdmin}>{conteudo}</GuardaDeSegundoFator>
+    ) : (
+      conteudo
     );
   }
 
 
-  return (
+  /**
+   * A recuperacao de senha fica **fora** do portao.
+   *
+   * Os dois desvios acima mandam para `/recuperar-senha`. Se o portao cobrisse
+   * essa rota, quem cai neles ficaria preso num circulo: e mandado para a
+   * recuperacao e barrado antes de chegar. E quem perdeu o autenticador precisa
+   * justamente desse caminho.
+   */
+  const foraDoPortao = location.pathname === "/recuperar-senha";
+
+  const paginas = (
     <PublicLayout>
       <ComecarNoTopo />
       <Suspense fallback={<RouteLoader />}>
@@ -93,6 +146,12 @@ function AppRoutes() {
         </Routes>
       </Suspense>
     </PublicLayout>
+  );
+
+  return user && !foraDoPortao ? (
+    <GuardaDeSegundoFator isAdmin={contaEhAdmin}>{paginas}</GuardaDeSegundoFator>
+  ) : (
+    paginas
   );
 }
 

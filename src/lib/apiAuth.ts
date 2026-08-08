@@ -1,3 +1,6 @@
+// Caminho relativo com `.js`: este arquivo tambem e importado pelas funcoes em
+// `api/`, que compilam sem o alias `@/`.
+import type { Aal } from "./mfa.js";
 // Regras de autorizacao das rotas `/api/*`.
 //
 // Mesma divisao de `proxisOrderStatusStore`: aqui fica so a decisao, sem tocar
@@ -19,6 +22,14 @@ export type AuthContext = {
   userId: string;
   isAdmin: boolean;
   profile: AuthProfile | null;
+  /**
+   * Garantia de autenticacao do token: `aal1` = um fator, `aal2` = dois.
+   *
+   * Vem de dentro do JWT assinado, entao nao ha como o cliente inventar. `null`
+   * quando o token nao traz a reivindicacao — e `null` nunca satisfaz `aal2`.
+   * Ver `src/lib/mfa.ts`.
+   */
+  aal: Aal;
 };
 
 function onlyDigits(value: unknown): string {

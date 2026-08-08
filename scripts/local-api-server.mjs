@@ -29,6 +29,8 @@ const handlers = new Map(
       ["/api/proxis-price-tables", "api/proxis-price-tables.ts"],
       ["/api/proxis-item-check", "api/proxis-item-check.ts"],
       ["/api/resumo-produto", "api/resumo-produto.ts"],
+      ["/api/senha-vazada", "api/senha-vazada.ts"],
+      ["/api/excluir-conta", "api/excluir-conta.ts"],
     ].map(async ([route, file]) => [route, (await import(pathToFileURL(path.join(rootDir, file)).href)).default]),
   ),
 );
@@ -59,6 +61,29 @@ function createResponse(res) {
         res.setHeader("Content-Type", "application/json; charset=utf-8");
       }
       res.end(JSON.stringify(payload));
+      return this;
+    },
+    /**
+     * `res.send` existe na Vercel e faltava aqui.
+     *
+     * `api/senha-vazada.ts` responde a faixa do HIBP como texto puro, e o
+     * `TypeError: res.status(...).send is not a function` derrubava a rota
+     * inteira no dev local. O erro caia no `catch`, virava 502 e a checagem de
+     * senha vazada era **pulada em silencio** — porque indisponibilidade da
+     * consulta deixa a senha passar de proposito. Ou seja: o defeito era do
+     * ambiente de desenvolvimento, mas o efeito era uma protecao desligada sem
+     * ninguem perceber.
+     *
+     * Nao mexe no `Content-Type` ja definido pela rota, ao contrario do `json`.
+     */
+    send(payload) {
+      if (!res.headersSent) {
+        res.statusCode = statusCode;
+        if (!res.getHeader("Content-Type")) {
+          res.setHeader("Content-Type", typeof payload === "string" ? "text/plain; charset=utf-8" : "application/octet-stream");
+        }
+      }
+      res.end(payload);
       return this;
     },
     end(payload) {

@@ -30,6 +30,18 @@ dist-ssr
 # Scripts de teste (uso local, não versionar)
 scripts/test-*.mjs
 
+# Backup do `configurar-auth-supabase.mjs`, regravado a cada execução.
+#
+# Não tem segredo — são os 17 campos de política e template que o script
+# gerencia. Fica de fora por outro motivo: é uma foto do que havia ANTES da
+# última execução NESTA máquina, e serve só ao `--restaurar` local.
+#
+# Versionado, viraria mais um arquivo com cara de "estado do servidor" sem ser.
+# É a armadilha que o CLAUDE.md já registra sobre os `APLICAR_NO_SUPABASE_*.sql`
+# — foi assim que o vazamento da tabela de preço passou despercebido. A verdade
+# do que está no ar se lê da API, não de um arquivo no repositório.
+scripts/auth-config-backup.json
+
 # Documentacao local do projeto
 documentation/
 design/

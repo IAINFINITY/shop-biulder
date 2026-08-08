@@ -42,6 +42,11 @@ scripts/test-*.mjs
 # do que está no ar se lê da API, não de um arquivo no repositório.
 scripts/auth-config-backup.json
 
+# Prévias de e-mail geradas por `configurar-auth-supabase.mjs --previa`.
+# São só as strings do próprio script despejadas em disco, para abrir no
+# navegador. A verdade dos templates é o script; isto é subproduto.
+scripts/previa-emails/
+
 # Documentacao local do projeto
 documentation/
 design/

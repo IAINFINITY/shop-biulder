@@ -67,130 +67,6 @@ if (!projeto || !token) {
 const API = `https://api.supabase.com/v1/projects/${projeto}/config/auth`;
 const CABECALHOS = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-const CORPO_DO_AVISO = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:520px">
-
-  <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">Sua senha foi alterada</h2>
-
-  <p style="margin:0 0 16px">
-    A senha da conta <strong>{{ .Email }}</strong> na Clinicmais Suplemento e Nutrição acabou de ser alterada.
-  </p>
-
-  <p style="margin:0 0 20px">
-    Se foi você, não precisa fazer nada. Este aviso é só para você ficar sabendo.
-  </p>
-
-  <div style="border-left:3px solid #dc2626;background:#fef2f2;padding:14px 16px;margin:0 0 20px">
-    <p style="margin:0 0 10px;font-weight:600;color:#991b1b">Não foi você?</p>
-    <p style="margin:0 0 10px">
-      Então alguém tem acesso à sua conta. Faça agora, nesta ordem:
-    </p>
-    <ol style="margin:0;padding-left:20px">
-      <li style="margin-bottom:6px">
-        Recupere o acesso em
-        <a href="https://catalogo-clinicmais.iainfinity.com.br/recuperar-senha" style="color:#dc2626;font-weight:600">catalogo-clinicmais.iainfinity.com.br/recuperar-senha</a>
-      </li>
-      <li style="margin-bottom:6px">Escolha uma senha que você não use em nenhum outro site.</li>
-      <li>Avise seu consultor da Clinicmais para conferirmos os pedidos recentes da sua empresa.</li>
-    </ol>
-  </div>
-
-  <p style="margin:0;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">
-    Este e-mail é automático — não responda. A Clinicmais nunca pede sua senha por e-mail, telefone ou WhatsApp.
-  </p>
-
-</div>`;
-
-/**
- * Confirmação de cadastro.
- *
- * O botão é a única coisa que a pessoa precisa fazer, então ele domina. A URL
- * aparece embaixo em texto porque cliente de e-mail corporativo às vezes
- * bloqueia o estilo do botão e sobra um link invisível — e aí a pessoa fica
- * sem saída.
- *
- * "Não foi você?" aqui é diferente do aviso de senha: **nada acontece** se
- * ignorar. A conta só existe de verdade depois da confirmação. Dizer isso
- * evita o e-mail virar motivo de preocupação à toa.
- */
-const CORPO_DA_CONFIRMACAO = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:520px">
-
-  <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">Confirme seu e-mail</h2>
-
-  <p style="margin:0 0 16px">
-    Falta um passo para sua conta na Clinicmais Suplemento e Nutrição ficar pronta. Confirme este endereço
-    e você já entra com preços da sua empresa, histórico de pedidos e recompra.
-  </p>
-
-  <p style="margin:0 0 22px">
-    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#16a34a;color:#ffffff;font-weight:600;text-decoration:none;padding:13px 26px;border-radius:8px">
-      Confirmar meu e-mail
-    </a>
-  </p>
-
-  <p style="margin:0 0 20px;font-size:13px;color:#6b7280">
-    O botão não funcionou? Copie e cole este endereço no navegador:<br>
-    <span style="word-break:break-all;color:#4b5563">{{ .ConfirmationURL }}</span>
-  </p>
-
-  <p style="margin:0 0 20px;font-size:14px;color:#4b5563">
-    O link vale por 1 hora. Depois disso, basta pedir um novo na tela de cadastro.
-  </p>
-
-  <p style="margin:0;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">
-    Não foi você que se cadastrou? Ignore este e-mail — sem a confirmação, nenhuma
-    conta é ativada e nada acontece. Este e-mail é automático; não responda.
-  </p>
-
-</div>`;
-
-/**
- * Recuperação de senha.
- *
- * Este é o e-mail que um atacante consegue disparar para a caixa de outra
- * pessoa: basta saber o endereço. Por isso o parágrafo "não foi você" precisa
- * ser tranquilizador e **específico** — a senha continua a mesma, ninguém
- * entrou, e ignorar resolve. Alarmar aqui produz ligação para o suporte e treina
- * a pessoa a clicar no link para "resolver", que é exatamente o que o golpe quer.
- */
-const CORPO_DA_RECUPERACAO = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:520px">
-
-  <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">Criar uma nova senha</h2>
-
-  <p style="margin:0 0 16px">
-    Recebemos um pedido para redefinir a senha da sua conta na Clinicmais Suplemento e Nutrição.
-    Clique no botão para escolher uma nova.
-  </p>
-
-  <p style="margin:0 0 22px">
-    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#16a34a;color:#ffffff;font-weight:600;text-decoration:none;padding:13px 26px;border-radius:8px">
-      Criar nova senha
-    </a>
-  </p>
-
-  <p style="margin:0 0 20px;font-size:13px;color:#6b7280">
-    O botão não funcionou? Copie e cole este endereço no navegador:<br>
-    <span style="word-break:break-all;color:#4b5563">{{ .ConfirmationURL }}</span>
-  </p>
-
-  <p style="margin:0 0 20px;font-size:14px;color:#4b5563">
-    O link vale por 1 hora e só pode ser usado uma vez.
-  </p>
-
-  <div style="border-left:3px solid #d1d5db;background:#f9fafb;padding:14px 16px;margin:0 0 20px">
-    <p style="margin:0;font-size:14px;color:#4b5563">
-      <strong style="color:#1f2937">Não foi você que pediu?</strong><br>
-      Pode ignorar este e-mail. Sua senha continua a mesma e ninguém entrou na sua
-      conta — nada muda enquanto o link não for usado.
-    </p>
-  </div>
-
-  <p style="margin:0;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">
-    Este e-mail é automático — não responda. A Clinicmais nunca pede sua senha por
-    e-mail, telefone ou WhatsApp.
-  </p>
-
-</div>`;
-
 /**
  * O endereço do site, usado como destino padrão dos links de e-mail.
  *
@@ -209,6 +85,202 @@ const CORPO_DA_RECUPERACAO = `<div style="font-family:-apple-system,Segoe UI,Rob
  * Não depende deste valor e não muda de comportamento.
  */
 const SITE_URL = "https://catalogo-clinicmais.iainfinity.com.br";
+
+/**
+ * O logo, e por que ele mora em `public/`.
+ *
+ * O arquivo que o site usa (`src/assets/clinicmais-logo.png`) nao serve aqui por
+ * dois motivos. E **WebP com extensao trocada** — o magic number e `RIFF....WEBP`
+ * —, e o Outlook nao le WebP. E o Vite poe hash no nome ao empacotar, entao a URL
+ * mudaria a cada build enquanto o e-mail ja enviado apontaria para o arquivo
+ * velho.
+ *
+ * `public/email-logo.png` e PNG de verdade, tem nome estavel e foi achatado sobre
+ * branco de proposito: o logo original tem fundo transparente, e o cinza do
+ * "clinic" some contra o fundo escuro do Gmail em modo noturno.
+ *
+ * 360px de arquivo para 180px de exibicao — o dobro, por causa de tela retina.
+ *
+ * **Depende de deploy.** O arquivo so existe na URL depois que o front subir. Por
+ * isso o script confere se ele responde antes de gravar os templates.
+ */
+const LOGO_URL = `${SITE_URL}/email-logo.png`;
+
+/**
+ * Suporte no rodape.
+ *
+ * A pesquisa de e-mail transacional trata isto como item obrigatorio, e era o que
+ * faltava nos nossos: quem recebe um aviso de seguranca e nao reconhece a acao
+ * precisa falar com alguem AGORA. Sem canal no proprio e-mail, a pessoa procura
+ * no Google — e cai em qualquer coisa.
+ *
+ * Mesmos valores de `src/lib/supportContact.ts` e do rodape do site. Repetidos
+ * aqui porque este script nao importa nada de `src/`.
+ */
+const SUPORTE_WHATSAPP = "https://wa.me/554920209980";
+const SUPORTE_EMAIL = "compras@clinicmais.com.br";
+
+/**
+ * A moldura comum dos cinco e-mails.
+ *
+ * Antes, cada template repetia cabecalho, fonte e rodape na mao. Cinco copias da
+ * mesma coisa e cinco chances de uma sair diferente — foi assim que o medidor de
+ * senha ficou com duas versoes, uma corrigida e a outra nao.
+ *
+ * ## Decisoes que parecem detalhe e nao sao
+ *
+ * **`width` e `height` como atributo, nao so no style.** O Outlook ignora
+ * dimensao vinda de CSS e renderiza a imagem no tamanho original.
+ *
+ * **`alt` que se sustenta sozinho.** Cliente de e-mail bloqueia imagem externa
+ * por padrao; o topo precisa dizer de quem e a mensagem mesmo sem carregar nada.
+ *
+ * **Fundo branco explicito.** Sem isso o modo escuro do Gmail inverte o fundo e
+ * deixa texto cinza contra cinza.
+ */
+function montarEmail({ titulo, conteudo }) {
+  return `<div style="background:#ffffff;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:520px;padding:8px 0">
+
+  <img src="${LOGO_URL}" width="180" height="52" alt="Clinicmais Suplemento e Nutrição"
+       style="display:block;border:0;margin:0 0 26px;width:180px;height:auto">
+
+  <h2 style="font-size:19px;font-weight:600;margin:0 0 16px;color:#111827">${titulo}</h2>
+
+${conteudo}
+
+  <div style="margin-top:26px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">
+    <p style="margin:0 0 10px">
+      Precisa de ajuda? Fale com a gente no
+      <a href="${SUPORTE_WHATSAPP}" style="color:#4b5563;font-weight:600">WhatsApp (49) 2020-9980</a>
+      ou em <a href="mailto:${SUPORTE_EMAIL}" style="color:#4b5563;font-weight:600">${SUPORTE_EMAIL}</a>.
+    </p>
+    <p style="margin:0">
+      Este e-mail é automático — não responda. A Clinicmais nunca pede sua senha por
+      e-mail, telefone ou WhatsApp.
+    </p>
+  </div>
+
+</div>`;
+}
+
+/** Bloco vermelho de "nao foi voce" — o mesmo alerta nos tres avisos de seguranca. */
+function blocoAlerta(conteudo) {
+  return `  <div style="border-left:3px solid #dc2626;background:#fef2f2;padding:14px 16px;margin:0 0 20px">
+${conteudo}
+  </div>`;
+}
+
+/**
+ * Aviso de senha alterada.
+ *
+ * A ordem dos passos importa e nao e obvia: **retomar o acesso vem antes de
+ * avisar o consultor**. Quem esta com a conta invadida perde tempo escrevendo
+ * mensagem enquanto o invasor continua dentro. Fechar a porta primeiro.
+ */
+const CORPO_DO_AVISO = montarEmail({
+  titulo: "Sua senha foi alterada",
+  conteudo: `  <p style="margin:0 0 16px">
+    Olá, {{ .Data.name }} — a senha da conta <strong>{{ .Email }}</strong> acabou de ser alterada.
+  </p>
+
+  <p style="margin:0 0 20px">
+    Se foi você, está tudo certo e não precisa fazer nada. Este aviso existe para
+    que uma troca que você não fez não passe despercebida.
+  </p>
+
+${blocoAlerta(`    <p style="margin:0 0 10px;font-weight:600;color:#991b1b">Não foi você?</p>
+    <p style="margin:0 0 10px;color:#7f1d1d">
+      Então alguém está com acesso à sua conta. Faça nesta ordem — primeiro fechar
+      a porta, depois avisar:
+    </p>
+    <ol style="margin:0;padding-left:20px;color:#7f1d1d">
+      <li style="margin-bottom:6px">
+        Retome o acesso em
+        <a href="${SITE_URL}/recuperar-senha" style="color:#dc2626;font-weight:600">recuperar senha</a>.
+      </li>
+      <li style="margin-bottom:6px">Escolha uma senha que você não use em nenhum outro site.</li>
+      <li>Avise seu consultor para conferirmos os pedidos recentes da sua empresa.</li>
+    </ol>`)}`,
+});
+
+/**
+ * Confirmação de cadastro.
+ *
+ * O botão é a única coisa que a pessoa precisa fazer, então ele domina. A URL
+ * aparece embaixo em texto porque cliente de e-mail corporativo às vezes bloqueia
+ * o estilo do botão e sobra um link invisível — e aí a pessoa fica sem saída.
+ *
+ * "Não foi você?" aqui é diferente do aviso de senha: **nada acontece** se
+ * ignorar. A conta só existe de verdade depois da confirmação. Dizer isso evita o
+ * e-mail virar motivo de preocupação à toa.
+ */
+const CORPO_DA_CONFIRMACAO = montarEmail({
+  titulo: "Confirme seu e-mail",
+  conteudo: `  <p style="margin:0 0 16px">
+    Olá, {{ .Data.name }} — falta um passo para liberar o acesso de
+    <strong>{{ .Email }}</strong> ao catálogo.
+  </p>
+
+  <p style="margin:0 0 22px">
+    Confirmando, você entra e já vê a tabela de preços da sua empresa, o histórico
+    de pedidos e a recompra em um clique.
+  </p>
+
+  <p style="margin:0 0 22px">
+    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#16a34a;color:#ffffff;font-weight:600;text-decoration:none;padding:13px 26px;border-radius:8px">
+      Confirmar meu e-mail
+    </a>
+  </p>
+
+  <p style="margin:0 0 20px;font-size:13px;color:#6b7280">
+    O botão não funcionou? Copie e cole este endereço no navegador:<br>
+    <span style="word-break:break-all;color:#4b5563">{{ .ConfirmationURL }}</span>
+  </p>
+
+  <p style="margin:0;font-size:14px;color:#4b5563">
+    O link vale por 1 hora. Se expirar, é só pedir outro na tela de cadastro.
+    Não foi você que se cadastrou? Pode ignorar — sem a confirmação nenhuma conta
+    é ativada.
+  </p>`,
+});
+
+/**
+ * Recuperação de senha.
+ *
+ * Este é o e-mail que um atacante consegue disparar para a caixa de outra pessoa:
+ * basta saber o endereço. Por isso o parágrafo "não foi você" precisa ser
+ * tranquilizador e **específico** — a senha continua a mesma, ninguém entrou, e
+ * ignorar resolve. Alarmar aqui produz ligação para o suporte e treina a pessoa a
+ * clicar no link para "resolver", que é exatamente o que o golpe quer.
+ */
+const CORPO_DA_RECUPERACAO = montarEmail({
+  titulo: "Criar uma nova senha",
+  conteudo: `  <p style="margin:0 0 22px">
+    Olá, {{ .Data.name }} — recebemos um pedido para redefinir a senha de
+    <strong>{{ .Email }}</strong>.
+  </p>
+
+  <p style="margin:0 0 22px">
+    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#16a34a;color:#ffffff;font-weight:600;text-decoration:none;padding:13px 26px;border-radius:8px">
+      Criar nova senha
+    </a>
+  </p>
+
+  <p style="margin:0 0 20px;font-size:13px;color:#6b7280">
+    O botão não funcionou? Copie e cole este endereço no navegador:<br>
+    <span style="word-break:break-all;color:#4b5563">{{ .ConfirmationURL }}</span>
+  </p>
+
+  <p style="margin:0 0 20px;font-size:14px;color:#4b5563">
+    O link vale por 1 hora e só funciona uma vez.
+  </p>
+
+${blocoAlerta(`    <p style="margin:0;color:#7f1d1d">
+      <strong style="color:#991b1b">Não foi você que pediu?</strong> Pode ignorar
+      este e-mail. Sua senha continua a mesma, ninguém entrou na sua conta e nada
+      muda enquanto o link não for usado.
+    </p>`)}`,
+});
 
 /**
  * Passkey (WebAuthn) — **nao da para ligar por aqui**.
@@ -240,68 +312,52 @@ const SITE_URL = "https://catalogo-clinicmais.iainfinity.com.br";
  *
  * Os dois templates aceitam `{{ .Email }}` e `{{ .FactorType }}`.
  */
-const CORPO_FATOR_CADASTRADO = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:520px">
-
-  <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">Novo autenticador na sua conta</h2>
-
-  <p style="margin:0 0 16px">
-    Um novo método de verificação em duas etapas ({{ .FactorType }}) foi cadastrado
-    na conta <strong>{{ .Email }}</strong>.
+const CORPO_FATOR_CADASTRADO = montarEmail({
+  titulo: "Novo autenticador na sua conta",
+  conteudo: `  <p style="margin:0 0 16px">
+    Olá, {{ .Data.name }} — um novo método de verificação em duas etapas
+    ({{ .FactorType }}) foi cadastrado em <strong>{{ .Email }}</strong>.
   </p>
 
   <p style="margin:0 0 20px">
-    Se foi você, não precisa fazer nada.
+    Se foi você, está tudo certo. A partir de agora esse aparelho passa a ser
+    pedido junto com a senha quando você entrar.
   </p>
 
-  <div style="border-left:3px solid #dc2626;background:#fef2f2;padding:14px 16px;margin:0 0 20px">
-    <p style="margin:0;color:#991b1b">
-      <strong>Não foi você?</strong> Então alguém tem acesso à sua conta. Troque sua senha
-      agora em
-      <a href="https://catalogo-clinicmais.iainfinity.com.br/recuperar-senha" style="color:#dc2626;font-weight:600">recuperar senha</a>
-      e avise seu consultor da Clinicmais.
-    </p>
-  </div>
+${blocoAlerta(`    <p style="margin:0;color:#7f1d1d">
+      <strong style="color:#991b1b">Não foi você?</strong> Então alguém está com
+      acesso à sua conta. Retome o acesso em
+      <a href="${SITE_URL}/recuperar-senha" style="color:#dc2626;font-weight:600">recuperar senha</a>,
+      remova o autenticador desconhecido em Minha conta e avise seu consultor.
+    </p>`)}`,
+});
 
-  <p style="margin:0;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">
-    Este e-mail é automático — não responda. A Clinicmais nunca pede sua senha por e-mail, telefone ou WhatsApp.
-  </p>
-
-</div>`;
-
-const CORPO_FATOR_REMOVIDO = `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;max-width:520px">
-
-  <h2 style="font-size:18px;font-weight:600;margin:0 0 16px">Um autenticador foi removido</h2>
-
-  <p style="margin:0 0 16px">
-    O método de verificação em duas etapas ({{ .FactorType }}) foi removido da conta
-    <strong>{{ .Email }}</strong>. Sua conta passa a ser protegida apenas pela senha.
+const CORPO_FATOR_REMOVIDO = montarEmail({
+  titulo: "Um autenticador foi removido",
+  conteudo: `  <p style="margin:0 0 16px">
+    Olá, {{ .Data.name }} — o método de verificação em duas etapas
+    ({{ .FactorType }}) foi removido de <strong>{{ .Email }}</strong>.
   </p>
 
   <p style="margin:0 0 20px">
-    Se foi você, não precisa fazer nada. Você pode cadastrar outro quando quiser.
+    Sua conta volta a ser protegida apenas pela senha. Se foi você, não precisa
+    fazer nada — dá para cadastrar outro quando quiser, em Minha conta.
   </p>
 
-  <div style="border-left:3px solid #dc2626;background:#fef2f2;padding:14px 16px;margin:0 0 20px">
-    <p style="margin:0;color:#991b1b">
-      <strong>Não foi você?</strong> Troque sua senha agora em
-      <a href="https://catalogo-clinicmais.iainfinity.com.br/recuperar-senha" style="color:#dc2626;font-weight:600">recuperar senha</a>
-      e avise seu consultor da Clinicmais.
-    </p>
-  </div>
-
-  <p style="margin:0;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280">
-    Este e-mail é automático — não responda.
-  </p>
-
-</div>`;
+${blocoAlerta(`    <p style="margin:0;color:#7f1d1d">
+      <strong style="color:#991b1b">Não foi você?</strong> Retome o acesso em
+      <a href="${SITE_URL}/recuperar-senha" style="color:#dc2626;font-weight:600">recuperar senha</a>
+      e avise seu consultor.
+    </p>`)}`,
+});
 
 const MUDANCAS = {
   mailer_notifications_mfa_factor_enrolled_enabled: true,
-  mailer_subjects_mfa_factor_enrolled_notification: "Novo autenticador na sua conta — Clinicmais Suplemento e Nutrição",
+  mailer_subjects_mfa_factor_enrolled_notification: "Novo autenticador na sua conta",
   mailer_templates_mfa_factor_enrolled_notification_content: CORPO_FATOR_CADASTRADO,
 
   mailer_notifications_mfa_factor_unenrolled_enabled: true,
-  mailer_subjects_mfa_factor_unenrolled_notification: "Um autenticador foi removido — Clinicmais Suplemento e Nutrição",
+  mailer_subjects_mfa_factor_unenrolled_notification: "Um autenticador foi removido",
   mailer_templates_mfa_factor_unenrolled_notification_content: CORPO_FATOR_REMOVIDO,
 
   site_url: SITE_URL,
@@ -318,13 +374,13 @@ const MUDANCAS = {
   password_hibp_enabled: true,
   password_min_length: 10,
   mailer_notifications_password_changed_enabled: true,
-  mailer_subjects_password_changed_notification: "Sua senha foi alterada — Clinicmais Suplemento e Nutrição",
+  mailer_subjects_password_changed_notification: "Sua senha foi alterada",
   mailer_templates_password_changed_notification_content: CORPO_DO_AVISO,
 
-  mailer_subjects_confirmation: "Confirme seu e-mail para ativar sua conta — Clinicmais Suplemento e Nutrição",
+  mailer_subjects_confirmation: "Confirme seu e-mail para entrar",
   mailer_templates_confirmation_content: CORPO_DA_CONFIRMACAO,
 
-  mailer_subjects_recovery: "Criar uma nova senha — Clinicmais Suplemento e Nutrição",
+  mailer_subjects_recovery: "Redefinir sua senha",
   mailer_templates_recovery_content: CORPO_DA_RECUPERACAO,
 };
 
@@ -340,9 +396,66 @@ async function lerConfig() {
   return resposta.json();
 }
 
+/**
+ * O logo precisa estar no ar ANTES do template que o aponta.
+ *
+ * A configuracao do Supabase e o deploy do front sao dois botoes separados, e
+ * nada obriga a ordem. Rodando este script antes de o `public/email-logo.png`
+ * subir, todo e-mail enviado no intervalo chega com o icone quebrado no topo —
+ * justo em mensagens que precisam parecer legitimas. Aviso de senha alterada com
+ * imagem falhando e exatamente o que um phishing parece.
+ *
+ * `text/html` na resposta significa que caiu no SPA, que devolve 200 para
+ * qualquer caminho — foi assim que descobrimos que o logo nao estava publicado.
+ * Por isso a checagem olha o `content-type`, nao o status.
+ */
+async function conferirLogo() {
+  const url = LOGO_URL;
+  try {
+    const r = await fetch(url, { method: "GET" });
+    const tipo = r.headers.get("content-type") ?? "";
+    if (r.ok && tipo.startsWith("image/")) return true;
+    console.error(`\nO logo do e-mail nao esta acessivel em ${url}`);
+    console.error(`  resposta: ${r.status}, content-type: ${tipo || "(vazio)"}`);
+    if (tipo.includes("html")) {
+      console.error("  (isso e o SPA respondendo — o arquivo nao foi publicado ainda)");
+    }
+  } catch (e) {
+    console.error(`\nNao deu para checar ${url}: ${e.message}`);
+  }
+  console.error("\nFaca o deploy do front primeiro; o arquivo vive em public/email-logo.png.");
+  console.error("Para aplicar assim mesmo (os e-mails ficam sem logo): --ignorar-logo\n");
+  return false;
+}
+
 const flags = process.argv.slice(2);
 const soMostrar = flags.includes("--dry");
 const restaurar = flags.includes("--restaurar");
+const ignorarLogo = flags.includes("--ignorar-logo");
+
+/**
+ * `--previa` — grava os cinco e-mails como HTML para abrir no navegador.
+ *
+ * Vem antes de `lerConfig()` porque nao precisa de rede nem de credencial: e so
+ * despejar as strings que este arquivo ja montou. Da para conferir o texto sem
+ * tocar no projeto, e sem disparar e-mail de verdade para ninguem.
+ *
+ * As variaveis do Supabase ficam visiveis como `{{ .Data.name }}` mesmo — a
+ * substituicao acontece no servidor, na hora do envio. Ver o marcador cru e util:
+ * mostra exatamente onde cada dado entra.
+ */
+if (flags.includes("--previa")) {
+  const destino = path.join(raiz, "scripts", "previa-emails");
+  fs.mkdirSync(destino, { recursive: true });
+  const paginas = Object.entries(MUDANCAS).filter(([k]) => k.startsWith("mailer_templates_"));
+  for (const [chave, html] of paginas) {
+    const nome = `${chave.replace("mailer_templates_", "").replace("_content", "")}.html`;
+    fs.writeFileSync(path.join(destino, nome), html, "utf8");
+    console.log(`  ${path.join("scripts", "previa-emails", nome)}`);
+  }
+  console.log(`\n${paginas.length} arquivos. Abra no navegador para conferir.`);
+  process.exit(0);
+}
 
 const atual = await lerConfig();
 
@@ -378,6 +491,10 @@ if (soMostrar) {
   console.log("\n--dry: nada foi aplicado.");
   process.exit(0);
 }
+
+// Depois do --dry de proposito: quem so quer VER o diff nao deveria esbarrar em
+// deploy pendente. A trava vale para quem vai gravar.
+if (!ignorarLogo && !(await conferirLogo())) process.exit(1);
 
 // Backup antes de escrever, sempre.
 const backup = Object.fromEntries(Object.keys(MUDANCAS).map((k) => [k, atual[k]]));

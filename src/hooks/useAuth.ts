@@ -27,6 +27,8 @@ type AuthContextValue = {
   isPasswordRecovery: boolean;
   loading: boolean;
   isResolvingAccess: boolean;
+  /** Id do usuario cujo papel ja foi consultado. `null` = ainda nao se sabe. */
+  acessoResolvidoPara: string | null;
   signIn: (email: string, password: string) => Promise<Error | null>;
   signUp: (email: string, password: string) => Promise<Error | null>;
   requestPasswordReset: (email: string) => Promise<Error | null>;
@@ -179,6 +181,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [loading, setLoading] = useState(true);
   const [isResolvingAccess, setIsResolvingAccess] = useState(false);
+
+  /**
+   * De QUEM ja sabemos o papel — nao "estou resolvendo agora".
+   *
+   * `isResolvingAccess` comeca `false`, entao "ainda nao comecei" e "ja terminei"
+   * sao o mesmo valor. Quem so pergunta "esta resolvendo?" acredita saber o papel
+   * durante a janela entre o usuario aparecer e a consulta comecar — e nessa
+   * janela `isAdmin` ainda e `false`.
+   *
+   * Foi o que mandou o admin para `/conta` no login: destino escolhido com
+   * `isAdmin` falso, e o `Account` corrigindo para `/admin` logo depois. Duas
+   * navegacoes, duas telas em branco, e a View Transition fotografando o meio do
+   * caminho.
+   *
+   * Guardar o **id** em vez de um booleano e o que fecha a porta: trocar de conta
+   * invalida a resposta sozinho, sem precisar lembrar de limpar a flag.
+   */
+  const [acessoResolvidoPara, setAcessoResolvidoPara] = useState<string | null>(
+    bootstrapSnapshot?.user?.id ?? null,
+  );
   const activeUserIdRef = useRef<string | null>(bootstrapSnapshot?.user?.id ?? null);
   const userRef = useRef<User | null>(bootstrapSnapshot?.user ?? null);
   const isAdminRef = useRef(bootstrapSnapshot?.isAdmin ?? false);
@@ -305,6 +327,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void fetchCustomerProfile(nextUser.id, resolutionId);
     } finally {
       if (resolutionId === authResolutionCounter) {
+        // Depois do `catch` de proposito: papel que falhou ao carregar vale
+        // `false` e **esta resolvido**. Sem isto, uma consulta com erro deixaria
+        // a tela de login girando para sempre em vez de entrar como cliente.
+        setAcessoResolvidoPara(nextUser.id);
         setIsResolvingAccess(false);
       }
     }
@@ -345,6 +371,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsSuperadmin(false);
       setCustomerProfile(null);
       setIsPasswordRecovery(true);
+      setAcessoResolvidoPara(null);
       setIsResolvingAccess(false);
       setLoading(false);
       return;
@@ -354,6 +381,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userRef.current = nextUser;
       setUser(nextUser);
       setIsPasswordRecovery(nextIsPasswordRecovery);
+      // **Nao** marca o acesso como resolvido aqui.
+      //
+      // A condicao deste atalho e `activeUserIdRef.current === nextUser.id`, e
+      // essa ref e preenchida no INICIO de `resolveAuthState` — antes de a
+      // consulta de papel terminar. O Supabase emite mais de um evento por login
+      // (`SIGNED_IN`, `INITIAL_SESSION`, `TOKEN_REFRESHED`), entao o segundo
+      // evento cai aqui enquanto o primeiro ainda esta consultando.
+      //
+      // Marcar resolvido neste ponto foi o que mandou o admin para `/conta`
+      // mesmo depois da correcao: a tela via "papel resolvido" com `isAdmin`
+      // ainda `false`. Quem resolve e so o `finally` do `hydrateSessionDetails`.
+      //
+      // Nao precisa restaurar nada: se ja estava resolvido para este usuario, o
+      // valor continua la — ninguem o apagou.
       setIsResolvingAccess(false);
       setLoading(false);
       return;
@@ -364,6 +405,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userRef.current = nextUser;
     setLoading(true);
     setUser(nextUser);
+    // Ainda nao sabemos o papel DESTE usuario. Se ficasse o id anterior, a tela
+    // decidiria o destino com o `isAdmin` de quem saiu.
+    setAcessoResolvidoPara(null);
     isAdminRef.current = false;
     isSuperadminRef.current = false;
     setIsPasswordRecovery(nextIsPasswordRecovery);
@@ -630,6 +674,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPasswordRecovery(false);
     clearPasswordRecoveryMarker();
     setCustomerProfile(null);
+    setAcessoResolvidoPara(null);
     setIsResolvingAccess(false);
     activeUserIdRef.current = null;
     userRef.current = null;
@@ -650,6 +695,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isPasswordRecovery,
     loading,
     isResolvingAccess,
+    acessoResolvidoPara,
     signIn,
     signUp,
     requestPasswordReset,

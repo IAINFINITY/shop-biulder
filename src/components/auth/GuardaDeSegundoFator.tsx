@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { suportaPasskey, useMfa } from "@/hooks/useMfa";
 import { CadastroDeFator } from "@/components/auth/CadastroDeFator";
+import { CarregandoPagina } from "@/components/shared/CarregandoPagina";
 import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
 
@@ -39,13 +40,24 @@ import { cn } from "@/lib/utils";
  * chamar `/api/*` direto — o que a §31 chama de "autenticacao ou autorizacao
  * somente no frontend".
  *
- * ## Enquanto carrega, deixa passar
+ * ## Enquanto carrega, espera — nao deixa passar
  *
- * `useMfa` faz tres chamadas ao montar. Bloquear a tela ate elas responderem
- * poria uma espera em **todo** carregamento de pagina de quem esta logado, para
- * proteger o caso raro — hoje, uma conta com fator em 123. Quem nao tem fator
- * nunca deveria pagar por isso. O servidor continua recusando enquanto o
- * navegador ainda nao sabe.
+ * Ate 08/08 este portao devolvia `children` durante o carregamento, para nao
+ * impor espera a quem nao tem fator. O efeito foi a area logada aparecendo e
+ * sendo retirada em seguida: o flash que o usuario relatou.
+ *
+ * A troca custa menos do que parecia. Quem ja confirmou o fator sai antes de
+ * qualquer chamada, porque `aal2` vem do JWT que ja esta na maquina — e fica
+ * gravado na SESSAO (`auth.sessions.aal`), sobrevivendo a renovacao do token.
+ * Quem nao tem fator espera as chamadas uma vez por carregamento de pagina
+ * inteira, e nao a cada navegacao: o portao monta uma vez so.
+ *
+ * ## `/login` fica de fora
+ *
+ * Nao por seguranca — la nao ha dado de ninguem — mas porque o portao substitui
+ * a arvore assim que `user` aparece, e a tela de login ainda precisa rodar o
+ * efeito que navega com a animacao. Coberta, ela desmontava antes disso. Ver
+ * `foraDoPortao` no `App.tsx`.
  */
 const TAMANHO_DO_CODIGO = 6;
 
@@ -113,9 +125,30 @@ export function GuardaDeSegundoFator({ isAdmin, children }: { isAdmin: boolean; 
 
   const precisaCadastrar = exigencia?.estado === "cadastro_necessario";
 
-  // Enquanto nao se sabe, o site segue — ver a nota no topo. O servidor recusa
-  // no lugar do navegador nesse intervalo.
-  if (carregando || !exigencia) return <>{children}</>;
+  /**
+   * Enquanto nao se sabe, **nao desenha o conteudo protegido**.
+   *
+   * A versao anterior devolvia `children` durante o carregamento, com o
+   * argumento de que ninguem deveria esperar pelo caso raro. O argumento estava
+   * errado na parte que importa: nao e uma espera contra um vazamento, e uma
+   * espera contra **mostrar a area logada e retira-la em seguida**. Foi o flash
+   * que o usuario relatou.
+   *
+   * O custo e menor do que parecia, porque a maioria nem chega aqui:
+   *
+   * - `aal2` ja resolvido sai na linha de cima, sem rede — o `aal` vem do JWT que
+   *   ja esta na maquina. Quem confirmou o fator uma vez cai sempre neste caso,
+   *   porque o `aal` fica gravado na SESSAO (`auth.sessions.aal`) e sobrevive a
+   *   renovacao do token (medido em 08/08: mesmo `session_id`, mesmo `aal`).
+   * - quem nao tem fator espera as chamadas do `useMfa` uma vez por carregamento
+   *   de pagina inteira — nao a cada navegacao, porque o portao monta uma vez so.
+   *
+   * Desenha o MESMO carregador das rotas, e nao `null`. Medido: com `null` a
+   * tela ficava **em branco** por ~170ms, o que so troca um incomodo por outro.
+   * Reusando o carregador, quem olha ve sempre a mesma coisa enquanto espera,
+   * venha a espera do `Suspense` da rota ou daqui.
+   */
+  if (carregando || !exigencia) return <CarregandoPagina />;
 
   if (exigencia.estado === "liberado") return <>{children}</>;
 

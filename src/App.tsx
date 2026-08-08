@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CartProvider } from "@/hooks/useCart";
 import { PublicLayout } from "@/components/layout/PublicLayout";
 import { GuardaDeSegundoFator } from "@/components/auth/GuardaDeSegundoFator";
+import { CarregandoPagina } from "@/components/shared/CarregandoPagina";
 const Index = lazy(() => import("./pages/Index.tsx"));
 /**
  * `Admin.tsx`, e nao `AdminWorkspace.tsx`.
@@ -30,17 +31,6 @@ const RecoverPassword = lazy(() => import("./pages/RecoverPassword.tsx"));
 const Help = lazy(() => import("./pages/Help.tsx"));
 const Favoritos = lazy(() => import("./pages/Favoritos.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-
-function RouteLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="space-y-3 text-center">
-        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground">Carregando página...</p>
-      </div>
-    </div>
-  );
-}
 
 const queryClient = new QueryClient();
 
@@ -102,7 +92,7 @@ function AppRoutes() {
    * `useMfa` faria tres chamadas em toda visita anonima ao catalogo.
    */
   const conteudo = isAdmin ? (
-    <Suspense fallback={<RouteLoader />}>
+    <Suspense fallback={<CarregandoPagina />}>
       <Routes location={location}>
         <Route path="/admin" element={<Admin />} />
       </Routes>
@@ -126,12 +116,31 @@ function AppRoutes() {
    * recuperacao e barrado antes de chegar. E quem perdeu o autenticador precisa
    * justamente desse caminho.
    */
-  const foraDoPortao = location.pathname === "/recuperar-senha";
+  /**
+   * Rotas que o portao NAO cobre.
+   *
+   * `/recuperar-senha` porque os dois desvios acima mandam para la: se o portao
+   * a cobrisse, quem cai neles ficaria num circulo — mandado para a recuperacao e
+   * barrado antes de chegar. E quem perdeu o autenticador precisa desse caminho.
+   *
+   * `/login` por um motivo diferente, descoberto medindo em 08/08. O portao
+   * substitui a arvore inteira assim que `user` aparece — inclusive a tela de
+   * login, que naquele instante ainda **nao navegou** para o destino. Ela
+   * desmontava antes de rodar o efeito de saida, e o resultado era a tela de dois
+   * fatores aparecendo com a URL ainda em `/login`, sem transicao nenhuma
+   * (`startViewTransition` chamado zero vezes).
+   *
+   * Nao ha o que proteger aqui: `/login` nao mostra dado de ninguem. Deixando de
+   * fora, ela conclui a navegacao com a animacao, e o portao engata no destino —
+   * que e onde ele tem sentido.
+   */
+  const foraDoPortao =
+    location.pathname === "/recuperar-senha" || location.pathname === "/login";
 
   const paginas = (
     <PublicLayout>
       <ComecarNoTopo />
-      <Suspense fallback={<RouteLoader />}>
+      <Suspense fallback={<CarregandoPagina />}>
         <Routes location={location}>
           <Route path="/" element={<Index />} />
           <Route path="/produto/:id" element={<ProductDetails />} />

@@ -99,37 +99,49 @@ function AuthField({
   );
 }
 
-/**
- * Sai da tela de login com a transicao do projeto, em vez de corte seco.
- *
- * Mantem o cartao desenhado ate a navegacao acontecer: e esse quadro que a
- * View Transition usa como "antes". Navegadores sem suporte a
- * `document.startViewTransition` ignoram a opcao e trocam direto, como antes —
- * o react-router cuida do recuo.
- */
-function SaidaComTransicao({ para }: { para: string }) {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    // `navigate(..., { viewTransition: true })` nao serve: essa opcao do
-    // react-router 6 exige data router, e o app usa `<BrowserRouter>`. Ver
-    // `comTransicaoDeTela`.
-    comTransicaoDeTela(() => navigate(para, { replace: true }));
-  }, [navigate, para]);
-
-  return (
-    <ClientAuthStage>
-      <div className="flex items-center justify-center py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    </ClientAuthStage>
-  );
-}
-
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, isAdmin, loading, isResolvingAccess, signIn, signUpCustomer } = useAuth();
+  const { user, isAdmin, loading, isResolvingAccess, acessoResolvidoPara, signIn, signUpCustomer } = useAuth();
+
+  const returnTo = getSafeReturnToPath(searchParams.get("returnTo"));
+
+  /**
+   * Para onde sair — ou `null` enquanto ainda nao da para saber.
+   *
+   * A condicao e `acessoResolvidoPara === user.id`, e nao `!isResolvingAccess`.
+   * A diferenca decide o destino: o segundo e verdadeiro tambem ANTES de a
+   * consulta de papel comecar, e nessa janela `isAdmin` vale `false`. Era o que
+   * mandava admin para `/conta` e deixava o `Account` corrigir para `/admin`
+   * logo em seguida — duas navegacoes, duas telas em branco.
+   */
+  const destinoDeSaida =
+    user && acessoResolvidoPara === user.id ? (isAdmin ? "/admin" : returnTo ?? "/conta") : null;
+
+  /**
+   * A saida do login é animada, e o `<Navigate>` nao anima.
+   *
+   * O projeto ja tem View Transitions montadas: o CSS define
+   * `::view-transition-old(root)` e `-new(root)` com fade e `scale(0.992)` de
+   * 240ms. So esta tela ficava de fora — saia por `<Navigate>`, que em
+   * react-router 6.30 aceita apenas `to`, `replace`, `state` e `relative`.
+   *
+   * ## Por que efeito, e nao um `return` antes do formulario
+   *
+   * A versao anterior devolvia um componente com um spinner assim que `user`
+   * aparecia. O comentario dela dizia "mantem o cartao desenhado" — mas o
+   * componente renderizava o spinner, nao o cartao. Entao a transicao fotografava
+   * **o spinner** como quadro inicial e cruzava para o carregador da proxima
+   * rota: dois quadros quase brancos. A animacao rodava (medido:
+   * `startViewTransition` chamado 1x) e nao havia nada visivel para animar.
+   *
+   * Como efeito, o formulario continua na tela ate a navegacao acontecer, e e
+   * ele que vira o quadro "antes".
+   */
+  useEffect(() => {
+    if (!destinoDeSaida) return;
+    comTransicaoDeTela(() => navigate(destinoDeSaida, { replace: true }));
+  }, [destinoDeSaida, navigate]);
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -153,7 +165,6 @@ export default function Login() {
    */
   const [signUpStep, setSignUpStep] = useState<1 | 2>(1);
   const [signupEmailStatus, setSignupEmailStatus] = useState<EmailAvailabilityState>("idle");
-  const returnTo = getSafeReturnToPath(searchParams.get("returnTo"));
   const recoveryLink = signInEmail.trim()
     ? `/recuperar-senha?email=${encodeURIComponent(signInEmail.trim())}`
     : "/recuperar-senha";
@@ -336,7 +347,16 @@ export default function Login() {
     setSubmitting(false);
   };
 
-  if (loading || isResolvingAccess) {
+  /**
+   * O spinner e so para quem AINDA NAO TEM sessao.
+   *
+   * Era `loading || isResolvingAccess`, e isso incluia o intervalo logo depois de
+   * `signIn` — quando `user` ja existe e o papel esta sendo consultado. Nesse
+   * intervalo o cartao sumia e dava lugar ao spinner, que virava o quadro "antes"
+   * da transicao. Com `!user`, o formulario fica na tela ate a navegacao; o botao
+   * ja mostra "Autenticando...", entao nao falta retorno visual.
+   */
+  if ((loading || isResolvingAccess) && !user) {
     return (
       <ClientAuthStage>
         <div className="flex items-center justify-center py-16">
@@ -344,26 +364,6 @@ export default function Login() {
         </div>
       </ClientAuthStage>
     );
-  }
-
-  if (user) {
-    /**
-     * A saida do login é animada, e o `<Navigate>` nao anima.
-     *
-     * O projeto ja tem View Transitions montadas: o CSS define
-     * `::view-transition-old(root)` e `-new(root)` com fade e um `scale(0.992)`
-     * de 240ms, e os `<Link>` do catalogo passam `viewTransition`. So esta tela
-     * ficava de fora — saia por `<Navigate>`, que em react-router 6.30 aceita
-     * apenas `to`, `replace`, `state` e `relative`. Sem a opcao, o navegador
-     * troca a arvore inteira de uma vez, e o corte fica seco justamente no
-     * momento mais importante do fluxo.
-     *
-     * O efeito **abaixo** do `return` de propósito: enquanto ele nao dispara,
-     * esta tela continua desenhada, e e ela que a transicao fotografa como
-     * quadro inicial. Devolver `null` aqui faria o fade comecar de uma tela
-     * branca.
-     */
-    return <SaidaComTransicao para={isAdmin ? "/admin" : returnTo ?? "/conta"} />;
   }
 
   return (

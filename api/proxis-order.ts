@@ -1,6 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { canActForCnpj } from "../src/lib/apiAuth.js";
+import { mapearComLimite } from "../src/lib/concorrencia.js";
+import { escolherRepresentante } from "../src/lib/rodizioDeRepresentante.js";
+import { mascararCnpj } from "../src/lib/pii.js";
 import { requireAuth } from "./_auth.js";
+import { aplicarRateLimit } from "./_rateLimit.js";
 import { isServerPriceEnforced, resolveServerPrices } from "./_pricing.js";
 import {
   diffPrices,
@@ -52,6 +56,15 @@ const SYNC_CREDENTIALS = resolveProxisSyncCredentials(process.env);
 // perceba. Os limites sao baixos de proposito: o checkout esta esperando esta
 // resposta, e o que nao resolver aqui cai na fila de pendentes do painel.
 const TRANSIENT_RETRY_DELAYS_MS = [400, 1200];
+
+/**
+ * Quantos produtos buscar ao mesmo tempo no ProManager.
+ *
+ * Cinco e um meio-termo deliberado: corta o tempo de um carrinho grande sem
+ * transformar o checkout numa rajada contra um ERP de terceiro. Subir isto sem
+ * saber o limite do fornecedor troca timeout por recusa.
+ */
+const BUSCA_DE_PRODUTO_SIMULTANEA = 5;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -144,8 +157,6 @@ function parseRepPesIdsFromEnv(): number[] {
 }
 
 const REPRESENTATIVE_ROTATION = parseRepPesIdsFromEnv();
-const REPRESENTATIVE_SET = new Set<number>(REPRESENTATIVE_ROTATION);
-let representativeRotationIndex = 0;
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
@@ -703,17 +714,30 @@ function parsePesId(value: unknown): number | null {
   return Math.trunc(numeric);
 }
 
-function nextRepresentativeId(): number {
-  const index = representativeRotationIndex % REPRESENTATIVE_ROTATION.length;
-  const repId = REPRESENTATIVE_ROTATION[index];
-  representativeRotationIndex = (representativeRotationIndex + 1) % REPRESENTATIVE_ROTATION.length;
-  return repId;
+/**
+ * A chave que decide o representante.
+ *
+ * `submission_key` primeiro, porque muda a cada pedido — e o que espalha entre
+ * pedidos, que era a intencao do rodizio original. Sem ela (cliente antigo em
+ * cache), o CNPJ: espalha entre clientes, mas o mesmo cliente passa a cair
+ * sempre no mesmo representante.
+ */
+function representativeRotationKey(body: OrderRequestBody): string {
+  return String(body.submission_key ?? "").trim() || onlyDigits(String(body.customer_cnpj ?? ""));
 }
 
 function resolveRepresentativeId(body: OrderRequestBody): number {
-  const explicitRepId = parseRepresentativeId(body.pes_id_ven ?? body.representative_id);
-  if (explicitRepId && REPRESENTATIVE_SET.has(explicitRepId)) return explicitRepId;
-  return nextRepresentativeId();
+  const escolhido = escolherRepresentante(
+    REPRESENTATIVE_ROTATION,
+    representativeRotationKey(body),
+    parseRepresentativeId(body.pes_id_ven ?? body.representative_id),
+  );
+  // A lista nunca fica vazia — `parseRepPesIdsFromEnv` tem padrao embutido —
+  // mas o tipo permite, e cair aqui em silencio mandaria o pedido sem vendedor.
+  if (escolhido === null) {
+    throw new Error("Nenhum representante configurado (PROXIS_REP_PES_IDS).");
+  }
+  return escolhido;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -723,6 +747,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const auth = await requireAuth(req, res);
   if (!auth) return;
+
+  // Limite de uso por conta (§21). Depois do guard de propósito: sem saber quem
+  // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
+  // controle principal.
+  if (!(await aplicarRateLimit(req, res, "proxis-order", auth.userId))) return;
 
   const body = (req.body ?? {}) as OrderRequestBody;
 
@@ -825,7 +854,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   };
 
   try {
-    console.log("[proxis-order] Buscando cliente por CNPJ:", body.customer_cnpj);
+    console.log("[proxis-order] Buscando cliente por CNPJ:", mascararCnpj(body.customer_cnpj));
     let cliente = await buscarClientePorCnpj(body.customer_cnpj);
     console.log("[proxis-order] Resultado da busca de cliente:", cliente ? "encontrado" : "nao encontrado", cliente);
     let pesId: number | null = null;
@@ -959,7 +988,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     console.log("[proxis-order] Buscando produtos no Proxis, total de itens:", body.items.length);
-    for (const item of body.items) {
+
+    // A busca de cada item e uma ida ao ERP. Em serie, um carrinho de 20 itens
+    // eram 20 idas enfileiradas com o checkout esperando — o caminho mais curto
+    // para estourar o tempo da funcao. O teto e baixo de proposito: o ProManager
+    // e servico de terceiro, e trocar "lento" por "recusado por excesso" nao e
+    // ganho. A ordem da entrada e preservada (ver `mapearComLimite`), entao o
+    // laco abaixo continua igual — so nao espera mais.
+    const produtosPorItem = await mapearComLimite(
+      body.items,
+      BUSCA_DE_PRODUTO_SIMULTANEA,
+      async (item) => {
+        if (!item.product_code || !isValidQuantity(item.quantity)) return null;
+        console.log("[proxis-order] Buscando produto:", item.product_code, item.name);
+        return buscarProdutoPorNumero(item.product_code);
+      },
+    );
+
+    for (const [indice, item] of body.items.entries()) {
       if (!item.product_code) {
         failedProducts.push(item.name || "Unknown product");
         continue;
@@ -970,8 +1016,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         continue;
       }
 
-      console.log("[proxis-order] Buscando produto:", item.product_code, item.name);
-      const produto = await buscarProdutoPorNumero(item.product_code);
+      const produto = produtosPorItem[indice];
       if (!produto || !produto.ite_id) {
         console.log("[proxis-order] Produto NAO encontrado:", item.product_code, item.name);
         failedProducts.push(`${item.name} (code: ${item.product_code})`);

@@ -56,6 +56,22 @@ export const POLITICAS: Record<string, PoliticaDeLimite> = {
   "bitrix-deal": { limite: 60, janelaSegundos: HORA, naFalha: "abrir" },
 
   /**
+   * Credencial de "lembrar deste aparelho".
+   *
+   * `fechar` na falha, pela mesma assimetria de `resumo-produto` e
+   * `excluir-conta`: o que se apresenta aqui e um token de 256 bits que dispensa
+   * o segundo fator, e sem contador funcionando nao ha teto para tentativas.
+   *
+   * Fechar nao tranca ninguem — quem for recusado digita os seis digitos, que e
+   * o caminho normal. E por isso que a conta certa e fechar: o custo de recusar
+   * e um incomodo, o custo de deixar passar e adivinhacao sem limite.
+   *
+   * 30 por hora cobre entrar em varios aparelhos no mesmo dia e nao chega perto
+   * do que uma tentativa de adivinhacao precisaria.
+   */
+  "dispositivo-confiavel": { limite: 30, janelaSegundos: HORA, naFalha: "fechar" },
+
+  /**
    * Exclusao de conta: cinco por hora e muito acima de qualquer uso legitimo —
    * ninguem apaga a propria conta duas vezes — e corta tentativa de adivinhar
    * senha usando esta rota como oraculo.

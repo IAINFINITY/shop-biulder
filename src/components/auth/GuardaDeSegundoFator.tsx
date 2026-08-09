@@ -120,6 +120,14 @@ export function GuardaDeSegundoFator({ isAdmin, children }: { isAdmin: boolean; 
     : undefined;
 
   const [codigo, setCodigo] = useState("");
+  /**
+   * Vem marcada por padrao, como no Google e no GitHub.
+   *
+   * O caso comum e o proprio aparelho da pessoa, e obriga-la a marcar toda vez
+   * seria manter o atrito que isto veio resolver. Quem esta num computador
+   * emprestado desmarca — e o rodape da tela diz isso em uma linha.
+   */
+  const [lembrarAparelho, setLembrarAparelho] = useState(true);
   const [ocupado, setOcupado] = useState(false);
   const [falha, setFalha] = useState<string | null>(null);
 
@@ -176,7 +184,7 @@ export function GuardaDeSegundoFator({ isAdmin, children }: { isAdmin: boolean; 
     setOcupado(true);
     setFalha(null);
     try {
-      await confirmarCodigo(fatorId, codigo);
+      await confirmarCodigo(fatorId, codigo, lembrarAparelho);
       setCodigo("");
     } catch (e) {
       // Mensagem do proprio Supabase quando o codigo nao confere; ela ja
@@ -228,6 +236,8 @@ export function GuardaDeSegundoFator({ isAdmin, children }: { isAdmin: boolean; 
             setCodigo={setCodigo}
             ocupado={ocupado}
             onEnviar={enviar}
+            lembrarAparelho={lembrarAparelho}
+            setLembrarAparelho={setLembrarAparelho}
           />
         </div>
       )}
@@ -278,12 +288,16 @@ function DesafioDeCodigo({
   setCodigo,
   ocupado,
   onEnviar,
+  lembrarAparelho,
+  setLembrarAparelho,
 }: {
   fatorVerificadoId: string | null;
   codigo: string;
   setCodigo: (v: string) => void;
   ocupado: boolean;
   onEnviar: (fatorId: string) => void | Promise<void>;
+  lembrarAparelho: boolean;
+  setLembrarAparelho: (v: boolean) => void;
 }) {
   if (!fatorVerificadoId) {
     return (
@@ -302,6 +316,26 @@ function DesafioDeCodigo({
         onEnviar={() => void onEnviar(fatorVerificadoId)}
         ocupado={ocupado}
       />
+      {/* Entre o campo e o botao de proposito: a decisao viaja junto com o
+          codigo. Depois do botao, seria um segundo passo numa tela que a pessoa
+          ja considera terminada — e a rota recusaria, porque exige o `aal2` que
+          so passa a existir depois da confirmacao. */}
+      <label className="flex cursor-pointer items-start gap-2.5">
+        <input
+          type="checkbox"
+          checked={lembrarAparelho}
+          onChange={(e) => setLembrarAparelho(e.target.checked)}
+          disabled={ocupado}
+          className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-border accent-primary"
+        />
+        <span className={cn(TEXT.caption, "text-muted-foreground")}>
+          Não pedir de novo neste aparelho por 30 dias.{" "}
+          <span className="text-muted-foreground/80">
+            Desmarque se este computador não é só seu.
+          </span>
+        </span>
+      </label>
+
       <Button
         type="button"
         className="h-11 w-full rounded-full"

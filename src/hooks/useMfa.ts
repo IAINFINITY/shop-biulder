@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
+import { apiFetch } from "@/lib/apiFetch";
 import {
   avaliarExigenciaDeMfa,
   motivoParaNaoRemoverFator,
@@ -203,18 +204,44 @@ export function useMfa(isAdmin: boolean) {
           usadoEm: usoPorFator.get(f.id) ?? null,
         }));
 
-      setEstado({
-        carregando: false,
+      let exigencia = avaliarExigenciaDeMfa({
+        isAdmin,
         aal,
-        fatores,
-        exigencia: avaliarExigenciaDeMfa({
-          isAdmin,
-          aal,
-          obrigatorio: MFA_ADMIN_OBRIGATORIO,
-          temFatorVerificado: fatores.some((f) => f.status === "verified"),
-        }),
-        erro: null,
+        obrigatorio: MFA_ADMIN_OBRIGATORIO,
+        temFatorVerificado: fatores.some((f) => f.status === "verified"),
       });
+
+      /**
+       * Aparelho lembrado dispensa o desafio — e **so** o desafio.
+       *
+       * A pergunta so e feita quando a resposta pode mudar alguma coisa:
+       * `desafio_necessario` significa que a pessoa tem fator e esta sessao nao
+       * passou por ele. Perguntar em `liberado` seria uma chamada por
+       * carregamento de pagina sem efeito nenhum; perguntar em
+       * `cadastro_necessario` seria oferecer pular um fator que nem existe.
+       *
+       * O cookie viaja sozinho: `apiFetch` fala com a mesma origem, e a
+       * credencial e `HttpOnly` — este codigo nunca a ve.
+       *
+       * Falha de rede nao vira confianca. O `catch` nao mexe em `exigencia`, e o
+       * desafio continua de pe: nao saber se o aparelho e conhecido tem de valer
+       * o mesmo que ele nao ser.
+       */
+      if (exigencia.estado === "desafio_necessario") {
+        try {
+          const r = await apiFetch("/api/dispositivo-confiavel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ acao: "validar" }),
+          });
+          const corpo = (await r.json()) as { confiavel?: boolean };
+          if (r.ok && corpo?.confiavel === true) exigencia = { estado: "liberado" };
+        } catch (e) {
+          console.warn("[mfa] nao deu para checar o aparelho; o codigo sera pedido:", e);
+        }
+      }
+
+      setEstado({ carregando: false, aal, fatores, exigencia, erro: null });
     } catch (erro) {
       console.error("[mfa] falha ao ler o estado:", erro);
       setEstado({
@@ -287,13 +314,39 @@ export function useMfa(isAdmin: boolean) {
 
   /** Confirma o codigo de seis digitos — vale tanto para cadastro quanto para desafio. */
   const confirmarCodigo = useCallback(
-    async (fatorId: string, codigo: string) => {
+    async (fatorId: string, codigo: string, lembrarAparelho = false) => {
       const supabase = await loadSupabaseClient();
       const { error } = await supabase.auth.mfa.challengeAndVerify({
         factorId: fatorId,
         code: codigo.replace(/\D/g, ""),
       });
       if (error) throw error;
+
+      /**
+       * Registrar o aparelho **depois** da verificacao, e nao antes.
+       *
+       * A rota exige `aal2`, que so existe a partir da linha acima. Nao e ordem
+       * por conveniencia: e a §17 dizendo que confianca de dispositivo nao pode
+       * substituir MFA silenciosamente. Ganha-se o direito de pular o PROXIMO
+       * desafio por ter passado por este.
+       *
+       * A falha e engolida de proposito. A pessoa acabou de digitar o codigo
+       * certo e tem o direito de entrar; se o registro nao vier, o custo e ver o
+       * desafio de novo na proxima — incomodo, nao bloqueio. Derrubar o login
+       * por causa da conveniencia seria trocar o essencial pelo acessorio.
+       */
+      if (lembrarAparelho) {
+        try {
+          await apiFetch("/api/dispositivo-confiavel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ acao: "registrar" }),
+          });
+        } catch (e) {
+          console.warn("[mfa] nao deu para lembrar deste aparelho:", e);
+        }
+      }
+
       // O token novo ja vem com `aal2`; recarregar e o que faz a tela sair do
       // portao.
       await recarregar();

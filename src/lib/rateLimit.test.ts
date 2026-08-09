@@ -36,11 +36,16 @@ describe("politicaDaRota", () => {
     // ar troca um risco pequeno por um dano grande — então ele abre. Já deixar a
     // torneira da OpenAI aberta é prejuízo direto, e deixar a exclusão de conta
     // sem limite entrega um oráculo de senha numa ação irreversível.
+    //
+    // `dispositivo-confiavel` entrou pelo mesmo raciocínio: quem chama apresenta
+    // um token que dispensa o segundo fator, e recusar só custa digitar os seis
+    // dígitos. Esta lista é deliberada — acrescentar uma rota aqui deveria doer
+    // um pouco, porque fechar tira o site do ar quando o contador falha.
     const fecham = Object.entries(POLITICAS)
       .filter(([, p]) => p.naFalha === "fechar")
       .map(([rota]) => rota)
       .sort();
-    expect(fecham).toEqual(["excluir-conta", "resumo-produto"]);
+    expect(fecham).toEqual(["dispositivo-confiavel", "excluir-conta", "resumo-produto"]);
   });
 
   it("a exclusão de conta tem o teto mais baixo de todas", () => {

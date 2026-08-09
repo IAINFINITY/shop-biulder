@@ -14,6 +14,7 @@ import { validarSenha } from "@/lib/validarSenha";
 import { forcaDaSenha } from "@/lib/forcaDaSenha";
 import { MIN_SEM_MFA } from "@/lib/senha";
 import { AutenticadoresSection } from "@/components/client/AutenticadoresSection";
+import { AparelhosLembradosSection } from "@/components/client/AparelhosLembradosSection";
 
 
 type InfoTileProps = {
@@ -362,6 +363,7 @@ export function AdminSettingsSection() {
           administra nao consegue ativar a protecao nem querendo, que e o
           oposto do que "opcional" deveria significar. */}
       <AutenticadoresSection className="rounded-[1.5rem] border border-border/70 shadow-[0_12px_32px_rgba(16,24,40,0.08)] ring-0" />
+      <AparelhosLembradosSection className="rounded-[1.5rem] border border-border/70 shadow-[0_12px_32px_rgba(16,24,40,0.08)] ring-0" />
     </div>
   );
 }

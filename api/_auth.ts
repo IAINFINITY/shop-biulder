@@ -9,6 +9,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { parseBearerToken, type AuthContext, type AuthProfile } from "../src/lib/apiAuth.js";
+import { dispositivoConfiavel } from "./_dispositivo.js";
 import { lerAal, podeAtenderRotaAdmin } from "../src/lib/mfa.js";
 
 /**
@@ -151,14 +152,36 @@ export async function requireAuth(
    */
   if (options.adminOnly) {
     const exigir = process.env.MFA_ADMIN_OBRIGATORIO === "1";
-    if (!podeAtenderRotaAdmin(auth.aal, exigir)) {
+
+    /**
+     * Aparelho confiavel vale tanto quanto `aal2` — e por isso ele existe.
+     *
+     * Sem esta linha, "lembrar deste aparelho" seria fachada: a tela dispensaria
+     * o desafio, o token continuaria `aal1`, e no dia em que
+     * `MFA_ADMIN_OBRIGATORIO=1` subisse o painel devolveria 403 para justamente
+     * quem marcou a caixinha. O front prometeria uma coisa e o servidor faria
+     * outra — exatamente o desencontro que a §31 chama de autorizacao so no
+     * frontend.
+     *
+     * A consulta so acontece quando faz diferenca: com `aal2` ja provado, nao ha
+     * o que perguntar, e o `&&` de curto-circuito poupa uma ida ao banco em toda
+     * chamada administrativa de quem digitou o codigo.
+     *
+     * Isto **nao** afrouxa a §11. O aparelho so entrou na lista depois de alguem
+     * ter passado pelo segundo fator naquela maquina, e some com a revogacao ou
+     * em 30 dias.
+     */
+    const comDispositivo =
+      auth.aal !== "aal2" && (await dispositivoConfiavel(req, auth.userId));
+
+    if (!comDispositivo && !podeAtenderRotaAdmin(auth.aal, exigir)) {
       res.status(403).json({
         error: "Esta operação exige verificação em duas etapas.",
         codigo: "mfa_necessario",
       });
       return null;
     }
-    if (!exigir && auth.aal !== "aal2") {
+    if (!exigir && auth.aal !== "aal2" && !comDispositivo) {
       // O log e o que permite saber quando da para ligar a flag sem derrubar
       // ninguem: quando esta linha parar de aparecer, todo admin ja tem fator.
       console.warn(

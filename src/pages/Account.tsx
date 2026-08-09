@@ -24,6 +24,7 @@ import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ClientWorkspaceShell } from "@/components/client/ClientWorkspaceShell";
 import { ClientSectionHeader } from "@/components/client/ClientSectionHeader";
 import { AutenticadoresSection } from "@/components/client/AutenticadoresSection";
+import { AparelhosLembradosSection } from "@/components/client/AparelhosLembradosSection";
 import { ExcluirContaSection } from "@/components/client/ExcluirContaSection";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
 import { ClientAddressesSection } from "@/components/client/ClientAddressesSection";
@@ -1099,6 +1100,7 @@ export default function Account() {
       {/* Logo abaixo da troca de senha: quem veio cuidar do acesso encontra as
           duas coisas juntas, que é onde se olha ao desconfiar de invasão. */}
       <AutenticadoresSection />
+      <AparelhosLembradosSection />
 
       {/* Por último e visualmente separado: é a única ação desta tela que não tem
           volta, e ela não pode ficar ao lado de "salvar telefone". */}

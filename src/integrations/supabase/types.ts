@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       _prisma_migrations: {
@@ -1043,6 +1018,42 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      "clinic+b2b_dispositivos_confiaveis": {
+        Row: {
+          criado_em: string
+          expira_em: string
+          id: string
+          revogado_em: string | null
+          rotacionado_em: string | null
+          rotulo: string | null
+          token_hash: string
+          ultimo_uso_em: string | null
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          expira_em: string
+          id?: string
+          revogado_em?: string | null
+          rotacionado_em?: string | null
+          rotulo?: string | null
+          token_hash: string
+          ultimo_uso_em?: string | null
+          user_id: string
+        }
+        Update: {
+          criado_em?: string
+          expira_em?: string
+          id?: string
+          revogado_em?: string | null
+          rotacionado_em?: string | null
+          rotulo?: string | null
+          token_hash?: string
+          ultimo_uso_em?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -2121,6 +2132,25 @@ export type Database = {
         Returns: boolean
       }
       clinic_b2b_current_email: { Args: never; Returns: string }
+      clinic_b2b_gravar_perfil_do_cliente: {
+        Args: {
+          p_address_cep?: string
+          p_address_city?: string
+          p_address_complement?: string
+          p_address_ibge?: string
+          p_address_neighborhood?: string
+          p_address_number?: string
+          p_address_state?: string
+          p_address_street?: string
+          p_cnpj: string
+          p_company: string
+          p_customer_type: string
+          p_name: string
+          p_phone: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       clinic_b2b_is_allowed_user: { Args: never; Returns: boolean }
       clinic_b2b_is_internal_staff: { Args: never; Returns: boolean }
       clinic_b2b_is_own_record: {
@@ -2128,6 +2158,10 @@ export type Database = {
         Returns: boolean
       }
       clinic_b2b_is_superadmin: { Args: never; Returns: boolean }
+      clinic_b2b_limpar_dispositivos_confiaveis: {
+        Args: never
+        Returns: number
+      }
       clinic_b2b_ultimo_uso_dos_fatores: {
         Args: never
         Returns: {
@@ -2404,9 +2438,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_auth_role: ["superadmin", "admin"],

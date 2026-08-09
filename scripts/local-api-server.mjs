@@ -31,6 +31,7 @@ const handlers = new Map(
       ["/api/resumo-produto", "api/resumo-produto.ts"],
       ["/api/senha-vazada", "api/senha-vazada.ts"],
       ["/api/excluir-conta", "api/excluir-conta.ts"],
+      ["/api/dispositivo-confiavel", "api/dispositivo-confiavel.ts"],
     ].map(async ([route, file]) => [route, (await import(pathToFileURL(path.join(rootDir, file)).href)).default]),
   ),
 );

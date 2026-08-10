@@ -95,6 +95,22 @@ export function AdminClientsSection({
 }: AdminClientsSectionProps) {
   const NO_REPRESENTATIVE_VALUE = "__none__";
   const { options: customerTypes, addCustomType } = useCustomerTypes();
+
+  /**
+   * `funcionario` existe de verdade em `useCustomerTypes` — precisa continuar
+   * lá, porque alimenta preço por tipo e o "Visível para" do produto (ver
+   * `20260806180000_customer_type_funcionario.sql`). Mas nesta tela ele nao faz
+   * sentido: `clientProfiles`, em `AdminWorkspace.tsx`, ja exclui todo perfil com
+   * `customer_type === "funcionario"` antes de chegar aqui — quem gerencia essas
+   * contas e a aba Funcionarios. O efeito pratico de deixar "Funcionário"
+   * aparecer nos contadores e filtros desta tela e um balde que mostra zero para
+   * sempre, e reclassificar alguem como funcionario por aqui faria a pessoa
+   * sumir da lista no proximo refresh — a contagem bateria, mas pareceria bug.
+   */
+  const clientCustomerTypes = useMemo(
+    () => customerTypes.filter((type) => type.name !== "funcionario"),
+    [customerTypes],
+  );
   const queryClient = useQueryClient();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsCustomer, setDetailsCustomer] = useState<AdminCustomerSummary | null>(null);
@@ -341,7 +357,7 @@ export function AdminClientsSection({
         />
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {customerTypes.map((type) => (
+          {clientCustomerTypes.map((type) => (
             <Badge key={type.name} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[0.6875rem] text-primary">
               {type.label}: {typeCounts[type.name] ?? 0}
             </Badge>
@@ -395,7 +411,7 @@ export function AdminClientsSection({
           >
             Todos
           </Button>
-          {customerTypes.map((type) => (
+          {clientCustomerTypes.map((type) => (
             <Button
               key={type.name}
               type="button"
@@ -780,7 +796,7 @@ export function AdminClientsSection({
                       <SelectValue placeholder="Selecione um tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      {customerTypes.map((type) => (
+                      {clientCustomerTypes.map((type) => (
                         <SelectItem key={type.name} value={type.name}>
                           {type.label}
                         </SelectItem>

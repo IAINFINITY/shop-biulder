@@ -143,7 +143,7 @@ export async function uploadProductImageFile(
       const {
         data: { publicUrl },
       } = supabase.storage.from(BUCKET).getPublicUrl(retryPath);
-      return { ok: true, publicUrl };
+      return { ok: true, publicUrl: comCacheBuster(publicUrl) };
     }
   }
 
@@ -170,7 +170,11 @@ export async function uploadProductImageFile(
     data: { publicUrl },
   } = supabase.storage.from(BUCKET).getPublicUrl(path);
 
-  return { ok: true, publicUrl };
+  // `upsert: true` deixa subir por cima de um caminho que ja existia — e e
+  // exatamente o caso de trocar uma foto que ja estava la. Sem a query nova,
+  // a URL sairia identica a de antes e o navegador nem chegaria a pedir de
+  // novo ao servidor.
+  return { ok: true, publicUrl: comCacheBuster(publicUrl) };
 }
 
 export function isBlobPreviewUrl(url: string): boolean {
@@ -191,6 +195,31 @@ export function isProductImageStorageUrl(publicUrl: string | null | undefined): 
 
 function publicUrlOf(objectPath: string): string {
   return supabase.storage.from(BUCKET).getPublicUrl(objectPath).data.publicUrl;
+}
+
+/**
+ * Marca a URL como uma versao nova do arquivo.
+ *
+ * O upload grava `cacheControl: "31536000"` (1 ano) porque foto de produto e
+ * conteudo estatico e vale a pena cachear agressivo — isso e o correto para
+ * performance. O problema e outro: a URL publica de um caminho e sempre a
+ * mesma. Quando uma foto e **substituida** — removida e trocada por outra no
+ * mesmo nome, o que acontece sempre que `normalizeProductGalleryNames` renomeia
+ * a galeria para a convencao por posicao no save — o arquivo no storage muda,
+ * mas a URL nao. Qualquer navegador ou o CDN do Supabase que ja tenha visto
+ * aquela URL antes continua servindo os bytes antigos pelo ano inteiro, porque
+ * o cabeçalho diz que nao precisa checar de novo.
+ *
+ * A query de cache resolve isso sem abrir mao do cache longo: o caminho no
+ * bucket nao muda (a convencao por codigo continua valendo para o envio em
+ * lote), mas a URL persistida no banco e usada no `<img src>` muda a cada
+ * upload, entao vira um recurso novo para qualquer cache. `extractStoragePath`
+ * e `storageObjectKey` ja ignoram essa query ao comparar identidade — foi
+ * escrito assim desde a correcao da foto duplicada, so nunca havia quem
+ * gerasse a query.
+ */
+export function comCacheBuster(url: string): string {
+  return `${url}?v=${Date.now()}`;
 }
 
 function extensionOf(objectPath: string): string {
@@ -307,7 +336,19 @@ export async function normalizeProductGalleryNames(code: string, urls: string[])
     urls: urls.map((url) => {
       const current = extractStoragePath(url);
       const target = current ? moved.get(current) : null;
-      return target ? publicUrlOf(target) : url;
+
+      // So gera URL nova para quem de fato trocou de caminho. E exatamente
+      // aqui que uma foto pode pousar num nome que ate agora tinha conteudo
+      // diferente em cache — por exemplo, a foto nova assumindo o lugar de
+      // uma removida (`code_3.webp` ja existia com outra imagem). Sem a
+      // query nova, o navegador nunca saberia que precisa buscar de novo.
+      //
+      // Quem nao mudou de posicao mantem a URL como chegou, cache buster
+      // incluso se ja tinha um — reescrever para a URL crua aqui jogaria fora
+      // a marca de versao de uma foto que acabou de ser trocada sem mudar de
+      // posicao (upload que ja nasceu no nome final).
+      if (!target || target === current) return url;
+      return comCacheBuster(publicUrlOf(target));
     }),
   };
 }

@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Trash2,
   UserPlus,
   XCircle,
@@ -33,11 +34,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ADMIN_ROLES,
+  SUPERADMIN_PROMOTION_OPTION,
   getRoleLabel,
   getRoleVariant,
   listAdminUsers,
@@ -154,6 +165,44 @@ export function AdminUsersSection() {
   const [editPermissions, setEditPermissions] = useState<AdminPermissions>(defaultPermissions());
   const [editName, setEditName] = useState("");
   const [savingPermissions, setSavingPermissions] = useState(false);
+
+  // Promover a superadmin e a unica mudanca de papel com um confirm dialog no
+  // meio: as outras trocas (admin -> consultor, etc.) continuam disparando
+  // direto do Select, porque sao reversiveis por qualquer superadmin a qualquer
+  // momento. Esta nao e — uma vez promovido, a linha vira badge fixo e some o
+  // Select, igual ja acontecia com o superadmin original. Um clique errado
+  // aqui nao se desfaz sozinho.
+  const [promotionTarget, setPromotionTarget] = useState<AdminUserRecord | null>(null);
+  const [promoting, setPromoting] = useState(false);
+
+  async function handleRoleChange(target: AdminUserRecord, nextRole: string) {
+    if (nextRole === "superadmin") {
+      setPromotionTarget(target);
+      return;
+    }
+    try {
+      await updateAdminRole(target.user_id, nextRole as AdminUserRecord["role"]);
+      toast.success("Papel atualizado");
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao alterar papel");
+    }
+  }
+
+  async function confirmPromotion() {
+    if (!promotionTarget) return;
+    setPromoting(true);
+    try {
+      await updateAdminRole(promotionTarget.user_id, "superadmin");
+      toast.success(`${promotionTarget.display_name || promotionTarget.email} agora é superadmin`);
+      setPromotionTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao promover a superadmin");
+    } finally {
+      setPromoting(false);
+    }
+  }
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users"],
@@ -376,15 +425,7 @@ export function AdminUsersSection() {
                     ) : (
                       <Select
                         value={u.role}
-                        onValueChange={async (val) => {
-                          try {
-                            await updateAdminRole(u.user_id, val as AdminUserRecord["role"]);
-                            toast.success("Papel atualizado");
-                            queryClient.invalidateQueries({ queryKey: ["admin_users"] });
-                          } catch (err) {
-                            toast.error(err instanceof Error ? err.message : "Erro ao alterar papel");
-                          }
-                        }}
+                        onValueChange={(val) => void handleRoleChange(u, val)}
                       >
                         <SelectTrigger className={cn("h-11 w-full rounded-2xl border bg-background px-4 text-[0.8125rem]", getRoleVariant(u.role))}>
                           <SelectValue>{getRoleLabel(u.role)}</SelectValue>
@@ -395,6 +436,15 @@ export function AdminUsersSection() {
                               {r.label}
                             </SelectItem>
                           ))}
+                          {/* Separada visualmente: nao e "mais um papel", e uma
+                              promocao — escolher aqui abre confirmacao, nao
+                              troca na hora como as opcoes acima. */}
+                          <SelectItem
+                            value={SUPERADMIN_PROMOTION_OPTION.value}
+                            className="mt-1 rounded-lg border-t border-border/60 pt-2 text-destructive"
+                          >
+                            {SUPERADMIN_PROMOTION_OPTION.label}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -527,15 +577,7 @@ export function AdminUsersSection() {
                     ) : (
                       <Select
                         value={u.role}
-                        onValueChange={async (val) => {
-                          try {
-                            await updateAdminRole(u.user_id, val as AdminUserRecord["role"]);
-                            toast.success("Papel atualizado");
-                            queryClient.invalidateQueries({ queryKey: ["admin_users"] });
-                          } catch (err) {
-                            toast.error(err instanceof Error ? err.message : "Erro ao alterar papel");
-                          }
-                        }}
+                        onValueChange={(val) => void handleRoleChange(u, val)}
                       >
                         <SelectTrigger
                           className={cn(
@@ -552,6 +594,15 @@ export function AdminUsersSection() {
                               {r.label}
                             </SelectItem>
                           ))}
+                          {/* Separada visualmente: nao e "mais um papel", e uma
+                              promocao — escolher aqui abre confirmacao, nao
+                              troca na hora como as opcoes acima. */}
+                          <SelectItem
+                            value={SUPERADMIN_PROMOTION_OPTION.value}
+                            className="mt-1 rounded-lg border-t border-border/60 pt-2 text-destructive"
+                          >
+                            {SUPERADMIN_PROMOTION_OPTION.label}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -911,6 +962,49 @@ export function AdminUsersSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(promotionTarget)}
+        onOpenChange={(open) => {
+          if (!open && !promoting) setPromotionTarget(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-[28rem] rounded-[1.5rem] border-border/70">
+          <AlertDialogHeader className="text-left">
+            <AlertDialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight text-foreground">
+              <ShieldCheck className="h-5 w-5 text-destructive" />
+              Tornar {promotionTarget?.display_name || promotionTarget?.email} superadmin?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-left text-[0.8125rem] leading-6 text-muted-foreground">
+              Superadmin tem acesso total: todas as seções do painel, inclusive esta — a de
+              gerenciar outros usuários. As permissões marcadas para essa pessoa deixam de valer,
+              porque superadmin nunca é restringido por elas.
+              <br />
+              <br />
+              Depois de promovida, esta tela não oferece mais um caminho para tirar o papel — como
+              já acontecia com o superadmin original. Reverter exige acesso direto ao banco.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel
+              className="mt-0 rounded-2xl px-4 text-sm"
+              disabled={promoting}
+              onClick={() => setPromotionTarget(null)}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              disabled={promoting}
+              onClick={() => void confirmPromotion()}
+              className="mt-0 rounded-2xl bg-destructive px-4 text-sm text-destructive-foreground hover:bg-destructive/90"
+            >
+              {promoting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              {promoting ? "Promovendo..." : "Tornar superadmin"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -53,6 +53,25 @@ export const ADMIN_ROLES: { value: AdminUserRecord["role"]; label: string }[] = 
   { value: "admin_atendimento", label: "Atendimento" },
 ];
 
+/**
+ * A opcao "Superadmin" no seletor de papel de uma linha existente.
+ *
+ * Fica fora de `ADMIN_ROLES` de proposito: aquela lista tambem alimenta o
+ * formulario de **criar** usuario e os filtros/contadores da tela. Superadmin so
+ * deve aparecer como destino de **promocao** de alguem que ja e admin — nao como
+ * papel escolhivel na criacao de uma conta nova, nem duplicado nos filtros, que
+ * ja tem seu proprio botao e contador fixos.
+ *
+ * O backend (`update_admin_role`) ja aceita este papel ha tempos — a unica
+ * trava era o front nunca oferecer a opcao. Ver `update_admin_role` em
+ * `20260710183300_admin_user_management.sql`: qualquer superadmin pode conceder
+ * o papel a qualquer outro admin, e no banco ja podia haver mais de um.
+ */
+export const SUPERADMIN_PROMOTION_OPTION: { value: "superadmin"; label: string } = {
+  value: "superadmin",
+  label: "Superadmin",
+};
+
 export async function listAdminUsers(): Promise<AdminUserRecord[]> {
   const { data, error } = await supabase.rpc("list_admin_users");
   if (error) throw error;
@@ -137,12 +156,6 @@ export async function deleteAdminUser(userId: string): Promise<void> {
 
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error ?? "Erro ao excluir usuário");
-}
-
-export function canManageRole(currentRole: string, targetRole: string): boolean {
-  if (currentRole !== "superadmin") return false;
-  if (targetRole === "superadmin") return false;
-  return true;
 }
 
 export function canAccessAdminSection(

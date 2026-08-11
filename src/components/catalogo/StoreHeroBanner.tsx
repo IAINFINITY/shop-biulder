@@ -11,10 +11,12 @@ import {
 } from "@/components/ui/carousel";
 import { findBannerSlot, formatEntrega } from "@/lib/bannerSlots";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
+import { useRodizioAutomatico } from "@/hooks/useRodizioAutomatico";
 import { useAuth } from "@/hooks/useAuth";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { podeVer } from "@/lib/visibilidade";
 import { resolverLinkDeBanner } from "@/lib/linkDeBanner";
+import { AFORDANCIA_DE_BANNER } from "@/lib/afordanciaDeBanner";
 import { cn } from "@/lib/utils";
 
 const AUTOPLAY_MS = 5500;
@@ -29,8 +31,28 @@ const AUTOPLAY_MS = 5500;
 // O teto de 600px e a altura natural do arquivo: acima disso a imagem seria
 // ampliada, o que nao acrescenta detalhe nenhum.
 const slideImageClass = "absolute inset-0 block h-full w-full object-cover object-center";
+/**
+ * O quadro do topo, e por que ele nao tem teto de altura.
+ *
+ * Tinha `max-h-[600px]` junto com `sm:aspect-[16/5]`, e as duas regras nao cabem
+ * na mesma caixa. 600px de altura em 16:5 correspondem a exatamente 1920px de
+ * largura — entao em qualquer tela mais larga que isso o teto vencia, a altura
+ * parava em 600 e a largura continuava crescendo. A caixa deixava de ser 16:5 e
+ * virava 4,3:1 numa tela de 2560.
+ *
+ * O `object-cover` da arte entao fazia o que ele existe para fazer: preenchia a
+ * caixa mais larga, o que significa **ampliar a arte e cortar em cima e
+ * embaixo**. Foi o relato de "fiz no tamanho e ficou maior" — a arte estava
+ * correta, o quadro e que tinha mudado de forma. Quem usa monitor de 1920 ou
+ * menos nunca viu o problema, porque ali o teto nao chega a agir.
+ *
+ * Sem teto, o quadro respeita a proporcao em qualquer largura e a arte entregue
+ * em 3840x1200 aparece inteira. A altura cresce junto com a tela — que e o
+ * comportamento de uma peca que sangra de borda a borda, e ja era o das outras
+ * areas (`PromoBanners` nunca teve teto).
+ */
 const heroFrameClass =
-  "relative aspect-[5/2] max-h-[600px] w-full overflow-hidden bg-muted sm:aspect-[16/5]";
+  "relative aspect-[5/2] w-full overflow-hidden bg-muted sm:aspect-[16/5]";
 const heroPlaceholderClass = cn(
   heroFrameClass,
   "flex flex-col items-center justify-center gap-1 border-y border-dashed border-border bg-muted/30 px-4 text-center",
@@ -115,18 +137,13 @@ function HeroSlideFrame({
    * `motion-safe` respeita quem pediu menos animacao no sistema; nesse caso fica
    * so a sombra, que nao se move.
    */
-  const AFFORDANCE = [
-    "group block h-full w-full overflow-hidden rounded-[inherit]",
-    "transition-shadow duration-300 hover:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-    "focus-visible:shadow-[0_12px_32px_rgba(16,24,40,0.14)]",
-    // `group-hover:` no lugar de encadear `motion-safe:hover:[&_img]:`, que o
-    // Tailwind nao gerou — verificado no CSS compilado. `group-hover:` ja e usado
-    // nos cards do catalogo, entao e caminho batido.
-    "[&_img]:transition-transform [&_img]:duration-500",
-    "motion-reduce:[&_img]:transition-none",
-    "group-hover:[&_img]:scale-[1.02] group-focus-visible:[&_img]:scale-[1.02]",
-  ].join(" ");
+  // O efeito mora em `afordanciaDeBanner.ts`, compartilhado com o `PromoBanners`.
+  //
+  // O que fica aqui e so o que e do topo: `h-full w-full` para preencher o slide
+  // do carrossel (nas outras areas a peca ja tem a altura da propria moldura) e
+  // `rounded-[inherit]`, que acompanha o quadro do topo — hoje sem raio, por ser
+  // uma peca que sangra de borda a borda.
+  const AFFORDANCE = cn(AFORDANCIA_DE_BANNER, "h-full w-full rounded-[inherit]");
 
   // Mesmo resolvedor do PromoBanners: `startsWith("/")` tratava
   // `http://meusite.com/?categoria=Whey` como externo, abrindo aba nova para uma
@@ -264,12 +281,33 @@ export function StoreHeroBanner({
     };
   }, [api, onSelect]);
 
-  useEffect(() => {
-    if (!api || slides.length <= 1) {
-      return;
-    }
+  /**
+   * O rodizio para enquanto alguem esta lendo o banner.
+   *
+   * Sem isso o banner troca sozinho no meio da leitura e nao ha como segurar:
+   * quem quer ler um texto de campanha com mais de duas linhas simplesmente nao
+   * termina. Foi o relato de quem usa o site.
+   *
+   * Pausa por **hover** e por **foco**. O foco nao e detalhe de acessibilidade
+   * solto: quem navega por teclado tem o mesmo problema, e pior — a pessoa
+   * chega na seta pelo Tab, o slide vira sozinho, e a seta que ela ia apertar
+   * agora faz outra coisa. Sao as duas formas de dizer "estou aqui, espera".
+   *
+   * Fica um limite conhecido: **no celular nao ha hover**, entao a pausa nao
+   * existe la. Resolver aquilo pede um botao de pausa visivel, que e decisao de
+   * desenho, nao de codigo.
+   */
+  const [pausado, setPausado] = useState(false);
 
-    const id = setInterval(() => {
+  // O relogio mora em `useRodizioAutomatico`, onde da para prova-lo com tempo
+  // falso — aqui dentro ele so existia junto do embla, que precisa de layout de
+  // verdade para rodar.
+  useRodizioAutomatico({
+    ativo: Boolean(api) && slides.length > 1,
+    pausado,
+    intervaloMs: AUTOPLAY_MS,
+    reiniciarEm: activeIndex,
+    avancar: () => {
       const embla = apiRef.current;
       if (!embla) return;
       if (embla.canScrollNext()) {
@@ -277,10 +315,13 @@ export function StoreHeroBanner({
       } else {
         embla.scrollTo(0);
       }
-    }, AUTOPLAY_MS);
+    },
+  });
 
-    return () => clearInterval(id);
-  }, [api, slides.length]);
+  // Topo sem arte some inteiro para quem compra — inclusive a borda inferior da
+  // secao, que sozinha viraria um risco atravessando o alto da pagina sem nada
+  // acima dele. Para o admin a area continua, com o quadro que se explica.
+  if (!isFetching && slides.length === 0 && !isAdmin) return null;
 
   return (
     <section
@@ -288,6 +329,16 @@ export function StoreHeroBanner({
       // que ganha em ocupar a tela toda.
       className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 overflow-hidden border-b border-border/40"
       aria-label={rotulo}
+      // Na `section`, e nao no `Carousel`: as setas e os pontinhos ficam por
+      // cima dos slides, e o cursor sobre eles precisa segurar o rodizio tanto
+      // quanto o cursor sobre a arte. Presos ao carrossel, mirar a seta seria
+      // corrida contra o relogio.
+      onMouseEnter={() => setPausado(true)}
+      onMouseLeave={() => setPausado(false)}
+      // `Capture` porque foco nao borbulha: quem recebe o foco e a seta ou o
+      // pontinho, nao a secao. Sem a fase de captura o teclado nao pausaria.
+      onFocusCapture={() => setPausado(true)}
+      onBlurCapture={() => setPausado(false)}
       {...(carrossel ? { "aria-roledescription": "carousel" } : {})}
     >
       <div className="w-full">
@@ -299,11 +350,14 @@ export function StoreHeroBanner({
           isFetching ? (
             <div className={heroFrameClass} aria-hidden="true" />
           ) : (
-            // Sem arte cadastrada, o quadro se explica em vez de virar uma faixa
-            // cinza sem sentido para quem administra a loja.
+            // Sem arte cadastrada, o quadro se explica — mas so para quem pode
+            // resolver. Ver a nota em `PromoBanners.tsx`: a instrucao de
+            // producao no meio da loja nao ajuda quem esta comprando, e aqui o
+            // efeito era o pior de todos, porque o topo e a primeira coisa que
+            // a pessoa ve ao abrir o site.
             <div className={heroPlaceholderClass}>
               <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-              <p className="text-[0.8125rem] font-medium text-muted-foreground">Arte aqui</p>
+              <p className="text-[0.8125rem] font-medium text-muted-foreground">Desativado</p>
               {medida ? (
                 <p className="text-[0.6875rem] text-muted-foreground/70">
                   {rotulo} · {medida.proporcao} · {formatEntrega(medida)}

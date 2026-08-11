@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { ImageIcon } from "lucide-react";
 import { TEXT } from "@/lib/typography";
+import { useAuth } from "@/hooks/useAuth";
 import { useBannerArtBySlot, type ArteDeBanner } from "@/hooks/useBannerArt";
 import { BANNER_SLOTS, formatEntrega, type BannerSlot } from "@/lib/bannerSlots";
 import { resolverLinkDeBanner } from "@/lib/linkDeBanner";
+import { AFORDANCIA_DE_BANNER } from "@/lib/afordanciaDeBanner";
 import { cn } from "@/lib/utils";
 
 const SANGRA = "w-screen max-w-[100vw] ml-[calc(50%_-_50vw)]";
@@ -54,6 +56,25 @@ function Peca({
   loading?: boolean;
 }) {
   const medida = MEDIDAS[format];
+  const { isAdmin } = useAuth();
+
+  /**
+   * Area sem arte some para quem compra, e se explica para quem administra.
+   *
+   * O contorno tracejado com "Arte aqui · 1280 × 720 px" era mostrado a
+   * **todo mundo** — o cliente via a instrucao de producao da agencia no meio
+   * da loja. Nao ha leitura em que isso ajude quem esta comprando: ou a area
+   * tem anuncio, ou ela nao deveria ocupar espaco.
+   *
+   * Para o admin o quadro continua, porque ele e util exatamente para quem
+   * pode resolver: diz onde falta arte e que medida entregar. So o texto muda
+   * de "Arte aqui" (uma instrucao) para "Desativado" (um estado), que e o que
+   * a area de fato esta enquanto nao houver arte.
+   *
+   * Durante o carregamento ninguem some: nao da para saber ainda se ha arte, e
+   * remover para recolocar seria pior que segurar o espaco por um instante.
+   */
+  if (!loading && !arte && !isAdmin) return null;
 
   const moldura = cn(
     "relative w-full min-w-0 overflow-hidden",
@@ -87,7 +108,7 @@ function Peca({
   ) : (
     <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-4 text-center">
       <ImageIcon className="h-5 w-5 text-muted-foreground/40" />
-      <p className={cn(TEXT.compact, "font-medium text-muted-foreground")}>Arte aqui</p>
+      <p className={cn(TEXT.compact, "font-medium text-muted-foreground")}>Desativado</p>
       <p className={cn(TEXT.caption, "text-muted-foreground/70")}>
         {label} · {medida.proporcao} · {formatEntrega(medida)}
       </p>
@@ -121,16 +142,7 @@ function Peca({
      * visivel sem hover — foi retirada por decisao de design. No telefone o
      * banner nao tem nenhum indicio de que e clicavel.
      */
-    const afordancia = cn(
-      moldura,
-      "group block overflow-hidden",
-      "transition-[box-shadow,transform] duration-300 ease-out",
-      "hover:shadow-[0_18px_44px_rgba(16,24,40,0.20)] focus-visible:shadow-[0_18px_44px_rgba(16,24,40,0.20)]",
-      "motion-safe:hover:-translate-y-1 motion-safe:focus-visible:-translate-y-1",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-      "[&_img]:transition-transform [&_img]:duration-500 [&_img]:ease-out motion-reduce:[&_img]:transition-none",
-      "hover:[&_img]:scale-[1.04] focus-visible:[&_img]:scale-[1.04]",
-    );
+    const afordancia = cn(moldura, AFORDANCIA_DE_BANNER);
 
     return destino.tipo === "interno" ? (
       <Link to={destino.para} viewTransition className={afordancia} aria-label={label}>
@@ -158,6 +170,21 @@ function completar(artes: ArteDeBanner[], quadros: number): (ArteDeBanner | null
   return Array.from({ length: quadros }, (_, i) => artes[i] ?? null);
 }
 
+/**
+ * O bloco inteiro sai do fluxo quando nao ha nada para mostrar.
+ *
+ * Nao basta cada `Peca` devolver `null`: o `div` que as envolve continuaria
+ * ali, e como o pai separa as secoes com `space-y`, um filho vazio vira um vao
+ * no meio da pagina sem nada dentro. Quem olha ve um buraco e nao entende.
+ *
+ * Para o admin nada some — ele precisa enxergar a area para saber que ela
+ * existe e esta vazia.
+ */
+function useBlocoVisivel(artes: ArteDeBanner[], loading: boolean): boolean {
+  const { isAdmin } = useAuth();
+  return loading || artes.length > 0 || isAdmin;
+}
+
 export function PromoUnico({
   format,
   label,
@@ -172,7 +199,10 @@ export function PromoUnico({
   customerType?: string | null;
 }) {
   const { artes, loading } = useBannerArtBySlot(format, customerType);
+  const visivel = useBlocoVisivel(artes, loading);
   const [arte] = completar(artes, 1);
+
+  if (!visivel) return null;
 
   return (
     <div className={cn(bleed && SANGRA)}>
@@ -189,7 +219,10 @@ export function PromoTrio({
   customerType?: string | null;
 }) {
   const { artes, loading } = useBannerArtBySlot("trio", customerType);
+  const visivel = useBlocoVisivel(artes, loading);
   const quadros = completar(artes, 3);
+
+  if (!visivel) return null;
 
   return (
     // `SANGRA` sempre, e nao so quando pedido. O trio fica dentro do container da
@@ -230,7 +263,10 @@ export function PromoDuo({
   customerType?: string | null;
 }) {
   const { artes, loading } = useBannerArtBySlot("par", customerType);
+  const visivel = useBlocoVisivel(artes, loading);
   const quadros = completar(artes, 2);
+
+  if (!visivel) return null;
 
   return (
     <div className={cn("grid gap-4 sm:grid-cols-2", bleed && SANGRA)}>

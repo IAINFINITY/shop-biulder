@@ -279,20 +279,45 @@ export type NormalizeGalleryResult =
  * depois para o alvo final; se qualquer passo falhar, tudo volta ao estado
  * anterior.
  */
-export async function normalizeProductGalleryNames(code: string, urls: string[]): Promise<NormalizeGalleryResult> {
-  const safe = safeObjectName(code);
-  if (!safe) return { ok: true, urls };
+export type MovimentoDaGaleria = { url: string; current: string; target: string };
 
-  const plan: Array<{ url: string; current: string; target: string }> = [];
+/**
+ * De onde cada arquivo sai e para onde vai — sem tocar no storage.
+ *
+ * Separado do `normalizeProductGalleryNames` para poder ser provado: a parte
+ * arriscada e aritmetica de nomes, nao a chamada de rede. O caso que exige
+ * cuidado e a **troca**: reordenar a capa com a segunda foto faz `code.webp`
+ * querer virar `code_2.webp` enquanto `code_2.webp` quer virar `code.webp`. Se
+ * os dois forem movidos direto, na ordem, o primeiro sobrescreve o destino do
+ * segundo e **uma foto do produto desaparece** — sem erro em lugar nenhum.
+ *
+ * E por isso que quem executa faz em duas fases, com nome temporario no meio.
+ * Aqui devolvemos o plano; `pendentes` sao os que de fato mudam de lugar.
+ */
+export function planejarRenomeioDaGaleria(
+  code: string,
+  urls: string[],
+): { plano: MovimentoDaGaleria[]; pendentes: MovimentoDaGaleria[] } {
+  const safe = safeObjectName(code);
+  if (!safe) return { plano: [], pendentes: [] };
+
+  const plano: MovimentoDaGaleria[] = [];
   for (let index = 0; index < urls.length; index += 1) {
     const url = urls[index];
     const current = extractStoragePath(url);
     if (!current) continue;
     const target = `${safe}${index === 0 ? "" : `_${index + 1}`}.${extensionOf(current)}`;
-    plan.push({ url, current, target });
+    plano.push({ url, current, target });
   }
 
-  const pending = plan.filter((m) => m.current !== m.target);
+  return { plano, pendentes: plano.filter((m) => m.current !== m.target) };
+}
+
+export async function normalizeProductGalleryNames(code: string, urls: string[]): Promise<NormalizeGalleryResult> {
+  const safe = safeObjectName(code);
+  if (!safe) return { ok: true, urls };
+
+  const { plano: plan, pendentes: pending } = planejarRenomeioDaGaleria(code, urls);
   if (pending.length === 0) return { ok: true, urls };
 
   const temp: Record<string, string> = {};

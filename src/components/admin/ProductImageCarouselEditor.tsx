@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, ImageIcon, Trash2, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, ImageIcon, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   PRODUCT_IMAGE_MIN_SIZE,
@@ -60,6 +60,35 @@ export function ProductImageCarouselEditor({
 }: Props) {
   const [api, setApi] = useState<CarouselApi>();
   const [slideIndex, setSlideIndex] = useState(0);
+
+  /**
+   * Arrastar para reordenar.
+   *
+   * As setas ‹ › ja faziam isso e continuam. Elas nao bastavam: quem administra
+   * a loja relatou que so sabia trocar a ordem apagando a foto e subindo de
+   * novo — ou seja, o recurso existia e nao foi encontrado. Arrastar e o gesto
+   * que a pessoa tenta primeiro numa fila de miniaturas, e a instrucao logo
+   * acima diz que da para fazer os dois.
+   *
+   * `origem` e o cartao que saiu do lugar; `sobre` e onde ele vai cair. Guardar
+   * os dois e o que permite marcar o alvo enquanto o dedo/cursor esta no ar —
+   * sem isso o arrasto acontece as cegas.
+   *
+   * HTML5 puro, sem biblioteca: sao tres eventos e a lista tem no maximo cinco
+   * itens. Uma dependencia de drag-and-drop aqui seria maior que o problema.
+   */
+  const [origem, setOrigem] = useState<number | null>(null);
+  const [sobre, setSobre] = useState<number | null>(null);
+
+  const encerrarArrasto = () => {
+    setOrigem(null);
+    setSobre(null);
+  };
+
+  const soltarEm = (destino: number) => {
+    if (origem !== null && origem !== destino) onMoveAt(origem, destino);
+    encerrarArrasto();
+  };
 
   useEffect(() => {
     if (!api) return;
@@ -225,24 +254,78 @@ export function ProductImageCarouselEditor({
         </div>
       ) : null}
 
+      {urls.length > 1 && (
+        // A instrucao fica junto das miniaturas, e nao num canto: e ali que a
+        // pessoa esta olhando quando quer trocar a ordem.
+        <p className="text-center text-[0.6875rem] text-muted-foreground">
+          Arraste as fotos para trocar a ordem, ou use as setas ‹ › de cada uma. A primeira é a capa.
+        </p>
+      )}
+
       {urls.length > 0 && (
         <div className="mx-auto flex w-full justify-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           {urls.map((src, index) => {
             const isFirst = index === 0;
             const isLast = index === urls.length - 1;
+            const arrastando = origem === index;
+            const alvo = sobre === index && origem !== null && origem !== index;
 
             return (
-              <div key={`${src}-${index}`} className="w-[9.5rem] shrink-0 overflow-hidden rounded-lg border border-border/70 bg-background shadow-sm sm:w-[10.5rem] lg:w-[11.5rem]">
-                <div className="relative aspect-square bg-muted/20">
+              <div
+                key={`${src}-${index}`}
+                onDragOver={(event) => {
+                  // Sem o `preventDefault` o navegador recusa a area como
+                  // destino e o `onDrop` nunca dispara.
+                  if (origem === null) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (sobre !== index) setSobre(index);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  soltarEm(index);
+                }}
+                onDragEnd={encerrarArrasto}
+                className={cn(
+                  "w-[9.5rem] shrink-0 overflow-hidden rounded-lg border bg-background shadow-sm transition-all sm:w-[10.5rem] lg:w-[11.5rem]",
+                  alvo ? "border-primary ring-2 ring-primary/40" : "border-border/70",
+                  arrastando && "opacity-40",
+                )}
+              >
+                <div
+                  // So a area da imagem arrasta. O campo de descricao logo
+                  // abaixo fica de fora de proposito: cartao inteiro arrastavel
+                  // impede selecionar texto dentro do input.
+                  draggable={!uploading && urls.length > 1}
+                  onDragStart={(event) => {
+                    setOrigem(index);
+                    event.dataTransfer.effectAllowed = "move";
+                    // Firefox so inicia o arrasto se houver algum dado no evento.
+                    event.dataTransfer.setData("text/plain", String(index));
+                  }}
+                  className={cn(
+                    "group relative aspect-square bg-muted/20",
+                    urls.length > 1 && !uploading && "cursor-grab active:cursor-grabbing",
+                  )}
+                >
                   <img
                     src={src}
                     alt=""
                     className={cn("h-full w-full p-1.5", imageFit === "cover" ? "object-cover p-0" : "object-contain")}
+                    // A imagem tem arrasto nativo proprio (virar link/arquivo),
+                    // que competiria com o nosso e mostraria o fantasma errado.
+                    draggable={false}
                   />
 
                   <div className="absolute left-2 top-2 rounded-md bg-foreground/80 px-1.5 py-0.5 text-[0.625rem] font-semibold text-background shadow-sm">
                     {isFirst ? "Capa" : `Foto ${index + 1}`}
                   </div>
+
+                  {urls.length > 1 ? (
+                    <div className="absolute right-2 top-2 rounded-md bg-foreground/70 p-1 text-background opacity-0 transition-opacity group-hover:opacity-100">
+                      <GripVertical className="h-3.5 w-3.5" />
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="border-t border-border/70 bg-background p-1.5">
@@ -264,7 +347,11 @@ export function ProductImageCarouselEditor({
                     className="h-9 sm:h-7 w-9 sm:w-7 rounded-md shadow-sm"
                     disabled={uploading || isFirst}
                     onClick={() => onMoveAt(index, index - 1)}
-                    aria-label={`Mover foto ${index + 1} para a esquerda`}
+                    // O rotulo diz a posicao de destino, e nao "esquerda": e a
+                    // ordem no site que importa, e "virar capa" e a acao que a
+                    // pessoa mais procura aqui.
+                    title={index === 1 ? "Tornar esta a capa" : `Mover para a posição ${index}`}
+                    aria-label={index === 1 ? "Tornar esta foto a capa" : `Mover a foto ${index + 1} para a posição ${index}`}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
@@ -276,7 +363,8 @@ export function ProductImageCarouselEditor({
                     className="h-9 sm:h-7 w-9 sm:w-7 rounded-md shadow-sm"
                     disabled={uploading || isLast}
                     onClick={() => onMoveAt(index, index + 1)}
-                    aria-label={`Mover foto ${index + 1} para a direita`}
+                    title={`Mover para a posição ${index + 2}`}
+                    aria-label={`Mover a foto ${index + 1} para a posição ${index + 2}`}
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>

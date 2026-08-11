@@ -301,9 +301,22 @@ export default function Index() {
     return counts;
   }, [products]);
 
-  const filtered = useMemo(() => {
-    const query = debouncedSearch;
-    return products.filter((p) => {
+  /**
+   * A regra de filtro, num lugar so, com um recorte opcional de fora.
+   *
+   * `ignorar` existe para as contagens do painel. Cada grupo de opcoes precisa
+   * ser contado com **todos os filtros ativos menos o proprio**: a lista de
+   * Subcategoria leva em conta a Categoria escolhida, mas nao a subcategoria
+   * escolhida — senao ela ficaria com uma opcao so, a que ja esta marcada.
+   *
+   * Escrever isso como um segundo `filter` copiado seria repetir a regra, e este
+   * projeto ja pagou esse preco: a versao anterior desta funcao tinha a condicao
+   * de visibilidade reescrita a mao, sem "marcou tudo" e sem a excecao do admin,
+   * e por isso a grade escondia o que a prateleira mostrava.
+   */
+  const casaComFiltros = useCallback(
+    (p: Product, ignorar?: "type" | "family" | "brand" | "promo") => {
+      const query = debouncedSearch;
       if (
         query &&
         !p.name.toLowerCase().includes(query.toLowerCase()) &&
@@ -311,16 +324,19 @@ export default function Index() {
       ) {
         return false;
       }
-      if (selectedType && p.type !== selectedType) return false;
-      if (selectedFamily && !produtoTemSubcategoria(p, selectedFamily)) return false;
-      if (selectedBrand && (p.brand ?? "") !== selectedBrand) return false;
-      if (onlyPromotions && !emPromocao(p)) return false;
-      // Mesma regra de `visibleCatalog`. Estava reescrita aqui em duas condicoes
-      // separadas, sem "marcou tudo" e sem a excecao do admin — entao a grade
-      // escondia o que a prateleira mostrava.
+      if (ignorar !== "type" && selectedType && p.type !== selectedType) return false;
+      if (ignorar !== "family" && selectedFamily && !produtoTemSubcategoria(p, selectedFamily)) return false;
+      if (ignorar !== "brand" && selectedBrand && (p.brand ?? "") !== selectedBrand) return false;
+      if (ignorar !== "promo" && onlyPromotions && !emPromocao(p)) return false;
       return podeVer(p, { customerType, todosOsTipos, isAdmin });
-    });
-  }, [products, debouncedSearch, selectedType, selectedFamily, selectedBrand, onlyPromotions, customerType, todosOsTipos, isAdmin]);
+    },
+    [debouncedSearch, selectedType, selectedFamily, selectedBrand, onlyPromotions, customerType, todosOsTipos, isAdmin],
+  );
+
+  const filtered = useMemo(
+    () => products.filter((p) => casaComFiltros(p)),
+    [products, casaComFiltros],
+  );
 
   /**
    * Produtos que o cliente pode ver, antes de qualquer filtro.
@@ -348,13 +364,49 @@ export default function Index() {
     };
   }, []);
 
+  /**
+   * Mantem na lista a opcao que esta marcada, mesmo sem produto.
+   *
+   * Combinacao impossivel acontece: escolher a categoria "Chá" e depois uma
+   * subcategoria que so existe em suplemento. Se a opcao marcada sumisse do
+   * painel, a pessoa veria a grade vazia sem enxergar o que desmarcar — o
+   * filtro continuaria valendo, invisivel. Ela fica, com zero.
+   */
+  const comSelecionada = useCallback(
+    (opcoes: CatalogFilterOption[], selecionada: string | null): CatalogFilterOption[] =>
+      !selecionada || opcoes.some((o) => o.value === selecionada)
+        ? opcoes
+        : [...opcoes, { value: selecionada, count: 0 }],
+    [],
+  );
+
+  /**
+   * As opcoes de cada grupo saem do catalogo cruzado com os **outros** filtros.
+   *
+   * Antes saiam de `visibleCatalog` — o catalogo inteiro, sem filtro nenhum.
+   * O efeito era o relatado: escolher uma categoria e continuar vendo todas as
+   * subcategorias do site, a maioria sem um unico produto naquela categoria.
+   * Clicar numa delas levava a uma grade vazia.
+   *
+   * Cada grupo ignora o proprio filtro (o `ignorar`), e nao os demais. E o que
+   * mantem a promessa da contagem: o numero ao lado da opcao e quantos produtos
+   * aparecem se voce clicar nela **agora**, com o que ja esta marcado.
+   */
   const brandOptions = useMemo(
-    () => countBy((product) => product.brand ?? "")(visibleCatalog),
-    [countBy, visibleCatalog],
+    () =>
+      comSelecionada(
+        countBy((product) => product.brand ?? "")(products.filter((p) => casaComFiltros(p, "brand"))),
+        selectedBrand,
+      ),
+    [countBy, products, casaComFiltros, comSelecionada, selectedBrand],
   );
   const typeOptions = useMemo(
-    () => countBy((product) => product.type)(visibleCatalog),
-    [countBy, visibleCatalog],
+    () =>
+      comSelecionada(
+        countBy((product) => product.type)(products.filter((p) => casaComFiltros(p, "type"))),
+        selectedType,
+      ),
+    [countBy, products, casaComFiltros, comSelecionada, selectedType],
   );
   const familyOptions = useMemo(
     () => {
@@ -362,20 +414,24 @@ export default function Index() {
       // do produto — ele conta uma chave por produto e aqui um produto pode
       // entrar em varias.
       const contagem = new Map<string, number>();
-      for (const product of visibleCatalog) {
+      for (const product of products) {
+        if (!casaComFiltros(product, "family")) continue;
         for (const sub of subcategoriasDoProduto(product)) {
           contagem.set(sub, (contagem.get(sub) ?? 0) + 1);
         }
       }
-      return [...contagem.entries()]
+      const lista = [...contagem.entries()]
         .map(([value, count]) => ({ value, count }))
         .sort((left, right) => right.count - left.count || left.value.localeCompare(right.value, "pt-BR"));
+      return comSelecionada(lista, selectedFamily);
     },
-      [visibleCatalog],
+    [products, casaComFiltros, comSelecionada, selectedFamily],
   );
+  // Pelo mesmo motivo dos grupos acima: com uma categoria escolhida, "Promoção
+  // (57)" prometendo 57 e entregando 3 e a mesma quebra de contrato.
   const promotionCount = useMemo(
-    () => visibleCatalog.filter((product) => emPromocao(product)).length,
-    [visibleCatalog],
+    () => products.filter((p) => casaComFiltros(p, "promo") && emPromocao(p)).length,
+    [products, casaComFiltros],
   );
 
   const activeFilters = useMemo<CatalogActiveFilter[]>(() => {

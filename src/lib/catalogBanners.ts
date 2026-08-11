@@ -1,6 +1,51 @@
 import { normalizeStoragePublicUrl } from "./storageUrls";
+import { slugificar } from "./urlDoProduto";
 
 export const CATALOG_BANNERS_TABLE = "clinic+b2b_catalog_banners";
+
+/**
+ * Nome do arquivo da arte no bucket, a partir do que a pessoa digitou.
+ *
+ * Antes o upload nao passava nome nenhum e o arquivo caia como UUID
+ * (`427e471d-b63a-...webp`). A biblioteca de imagens virava uma parede de
+ * arquivos que ninguem consegue identificar — e quem precisasse trocar uma arte
+ * pelo painel do Supabase nao tinha como saber qual era qual.
+ *
+ * ## O carimbo no fim nao e enfeite
+ *
+ * Sem ele, dois banners com o mesmo nome — "Whey" no topo e "Whey" no par, ou
+ * simplesmente duas campanhas homonimas — cairiam no mesmo caminho. E o upload
+ * usa `upsert: true`, entao a segunda **sobrescreveria a primeira em silencio**:
+ * um banner trocaria de arte sozinho, sem erro em lugar nenhum. Foi exatamente
+ * essa classe de problema que apareceu nas fotos de produto.
+ *
+ * O carimbo tambem resolve o cache de graca: arte nova nasce num caminho novo,
+ * entao nao ha URL antiga guardada apontando para bytes diferentes.
+ *
+ * @param carimbo Segundos desde a epoca. Entra por parametro — e nao de um
+ * `Date.now()` aqui dentro — para o teste conseguir fixar o valor.
+ */
+export function nomeDoArquivoDeBanner(entrada: {
+  label: string;
+  slot: string;
+  /** A arte de celular e um arquivo separado e precisa se distinguir da outra. */
+  variante?: "desktop" | "celular";
+  carimbo: number;
+}): string {
+  const partes = ["banner", slugificar(entrada.slot) || "sem-area"];
+
+  // Nome vazio acontece de verdade: da para escolher a imagem antes de digitar
+  // o nome, porque o campo esta acima mas nada obriga a ordem. Sem o descarte,
+  // o arquivo sairia "banner-topo--1786...", com o traco duplo de um pedaco que
+  // nao existe.
+  const nome = slugificar(entrada.label);
+  if (nome) partes.push(nome);
+
+  if (entrada.variante === "celular") partes.push("celular");
+  partes.push(String(entrada.carimbo));
+
+  return partes.join("-");
+}
 
 export type CatalogBanner = {
   id: string;

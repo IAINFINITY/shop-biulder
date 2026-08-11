@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import type { AdminBanner } from "./adminTypes";
-import { CATALOG_BANNERS_TABLE } from "@/lib/catalogBanners";
+import { CATALOG_BANNERS_TABLE, nomeDoArquivoDeBanner } from "@/lib/catalogBanners";
 import {
   BANNER_SLOTS,
   descreveAparicoes,
@@ -231,6 +231,51 @@ export function AdminBannersSection() {
     [banners],
   );
 
+  /**
+   * Os banners agrupados por area.
+   *
+   * A lista era uma grade unica ordenada so por `sort_order`, e isso misturava
+   * areas na mesma linha. Tres coisas saiam tortas de uma vez:
+   *
+   * 1. **Alturas diferentes lado a lado.** Cada area tem a propria proporcao —
+   *    o topo e 16:5, o par e 5:2, o trio e 16:9. Numa linha com topo e trio
+   *    juntos as imagens tinham alturas bem distintas, e a linha parecia
+   *    desalinhada mesmo estando correta.
+   * 2. **A ordem nao se explicava.** `sort_order` so significa alguma coisa
+   *    *dentro* de uma area: "ordem 11" ao lado de "ordem 21" de outra area
+   *    sugere uma sequencia que nao existe.
+   * 3. A frase no topo da tela diz "cada area usa apenas seus banners ativos",
+   *    mas nada na tela mostrava as areas separadas.
+   *
+   * Agrupando, os cartoes de um grupo compartilham a mesma proporcao e se
+   * alinham sozinhos — o problema 1 sai de graca.
+   *
+   * Area desconhecida (linha antiga, ou `slot` que saiu de `BANNER_SLOTS`) nao
+   * pode sumir da tela: um banner invisivel no painel continuaria aparecendo no
+   * site sem ninguem conseguir desliga-lo. Ela vai para o fim, com o nome cru.
+   */
+  const gruposDeBanners = useMemo(() => {
+    const porArea = new Map<string, AdminBanner[]>();
+    for (const banner of sortedBanners) {
+      const atual = porArea.get(banner.slot);
+      if (atual) atual.push(banner);
+      else porArea.set(banner.slot, [banner]);
+    }
+
+    const conhecidas = BANNER_SLOTS.filter((slot) => porArea.has(slot.id)).map((slot) => ({
+      id: slot.id,
+      nome: slot.nome,
+      medida: formatEntrega(slot),
+      itens: porArea.get(slot.id)!,
+    }));
+
+    const desconhecidas = [...porArea.keys()]
+      .filter((id) => !BANNER_SLOTS.some((slot) => slot.id === id))
+      .map((id) => ({ id, nome: id, medida: "", itens: porArea.get(id)! }));
+
+    return [...conhecidas, ...desconhecidas];
+  }, [sortedBanners]);
+
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["catalog-banners"] });
   };
@@ -285,7 +330,16 @@ export function AdminBannersSection() {
     setUploading(true);
     // A arte de celular tem medida propria, guardada na propria area.
     const maxSize = findBannerSlot(draft?.slot ?? "topo")?.arteDeCelular?.largura ?? 800;
-    const result = await uploadProductImageFile(file, { maxSize, quality: BANNER_IMAGE_QUALITY });
+    const result = await uploadProductImageFile(file, {
+      maxSize,
+      quality: BANNER_IMAGE_QUALITY,
+      nome: nomeDoArquivoDeBanner({
+        label: draft?.label ?? "",
+        slot: draft?.slot ?? "topo",
+        variante: "celular",
+        carimbo: Math.floor(Date.now() / 1000),
+      }),
+    });
     setUploading(false);
 
     if (!result.ok) {
@@ -311,7 +365,18 @@ export function AdminBannersSection() {
     // 3840 e o par guarda 1600. Com um teto so, ou as pecas grandes ficavam
     // ampliadas ou as pequenas guardavam o dobro do necessario.
     const maxSize = findBannerSlot(draft?.slot ?? "topo")?.entrega.largura ?? BANNER_IMAGE_MAX_SIZE;
-    const result = await uploadProductImageFile(file, { maxSize, quality: BANNER_IMAGE_QUALITY });
+    // O nome do arquivo sai do nome do banner. Ver `nomeDoArquivoDeBanner`:
+    // sem isso o arquivo caia como UUID e a biblioteca de imagens virava uma
+    // parede de nomes que ninguem consegue identificar.
+    const result = await uploadProductImageFile(file, {
+      maxSize,
+      quality: BANNER_IMAGE_QUALITY,
+      nome: nomeDoArquivoDeBanner({
+        label: draft?.label ?? "",
+        slot: draft?.slot ?? "topo",
+        carimbo: Math.floor(Date.now() / 1000),
+      }),
+    });
     setUploading(false);
 
     if (!result.ok) {
@@ -328,7 +393,16 @@ export function AdminBannersSection() {
       if (!current) return current;
       return { ...current, imageUrl: result.publicUrl };
     });
-    toast.success("Imagem enviada!");
+
+    // O nome do arquivo e decidido no envio, nao no salvamento — renomear
+    // depois exigiria mover o objeto no storage. Entao quem enviou a arte antes
+    // de nomear o banner precisa saber disso agora, enquanto ainda da para
+    // reenviar: depois a arte ja esta la com o nome generico.
+    toast.success(
+      draft?.label?.trim()
+        ? "Imagem enviada!"
+        : "Imagem enviada. Para o arquivo receber o nome do banner, preencha o nome antes de enviar a arte.",
+    );
   };
 
   const saveBanner = async () => {
@@ -497,96 +571,108 @@ export function AdminBannersSection() {
             Nenhum banner cadastrado ainda.
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {sortedBanners.map((banner) => (
-              <div
-                key={banner.id}
-                className={cn(
-                  "overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
-                  !banner.active && "opacity-70",
-                )}
-              >
-                {/* A area vem antes da arte: e o que diz onde aquele banner cai
-                    na pagina, e com seis areas o nome do banner sozinho nao
-                    responde mais isso. */}
-                <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
-                  <span className="truncate text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {findBannerSlot(banner.slot)?.nome ?? banner.slot}
-                  </span>
-                  <span className="shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground/70">
-                    {(() => {
-                      const slot = findBannerSlot(banner.slot);
-                      return slot ? formatEntrega(slot) : "";
-                    })()}
-                  </span>
-                </div>
-                <div className={cn(BANNER_PREVIEW_FRAME_CLASS, previewAspect(banner.slot), !banner.image_url && "bg-muted/20")}>
-                  {banner.image_url ? (
-                    <img src={banner.image_url} alt={banner.label} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
-                    </div>
-                  )}
+          <div className="space-y-8">
+            {gruposDeBanners.map((grupo) => (
+              <section key={grupo.id} className="space-y-3">
+                {/* O nome da area sai do cartao e vira cabecalho do grupo: com
+                    os banners ja separados, repeti-lo em cada cartao era ruido,
+                    e a medida de entrega e a mesma para o grupo inteiro. */}
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-border/60 pb-2">
+                  <h3 className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-foreground">
+                    {grupo.nome}
+                  </h3>
+                  <p className="text-[0.6875rem] text-muted-foreground">
+                    {grupo.medida ? `${grupo.medida} · ` : ""}
+                    {grupo.itens.length} banner{grupo.itens.length === 1 ? "" : "s"}
+                  </p>
                 </div>
 
-                <div className="space-y-3 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{banner.label}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Ordem {banner.sort_order}{banner.link_url ? " • com link" : " • sem link"}
-                      </p>
-                    </div>
-                    <Badge variant={banner.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
-                      {banner.active ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </div>
-
-                  {banner.link_url ? (
-                    <div className="flex items-center gap-2 rounded-[1rem] border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                      <LinkIcon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{banner.link_url}</span>
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
-                      onClick={() => openEdit(banner)}
+                {/* `items-stretch` com o cartao em `h-full`: sem isso um cartao
+                    com link fica mais alto que o vizinho sem link, e as fileiras
+                    de botoes param em alturas diferentes. */}
+                <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {grupo.itens.map((banner) => (
+                    <div
+                      key={banner.id}
+                      className={cn(
+                        "flex h-full flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+                        !banner.active && "opacity-70",
+                      )}
                     >
-                      <Pencil className="h-4 w-4" />
-                      Editar
-                    </Button>
+                      <div className={cn(BANNER_PREVIEW_FRAME_CLASS, previewAspect(banner.slot), !banner.image_url && "bg-muted/20")}>
+                        {banner.image_url ? (
+                          <img src={banner.image_url} alt={banner.label} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
+                          </div>
+                        )}
+                      </div>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
-                      onClick={() => toggleActive(banner)}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      {banner.active ? "Desativar" : "Ativar"}
-                    </Button>
+                      {/* `flex-1` faz o corpo ocupar a sobra, e o `mt-auto` da
+                          fileira de botoes empurra ela para o rodape. E o que
+                          alinha os botoes de todos os cartoes da linha, tenham
+                          eles link ou nao. */}
+                      <div className="flex flex-1 flex-col gap-3 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">{banner.label}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Ordem {banner.sort_order}{banner.link_url ? " • com link" : " • sem link"}
+                            </p>
+                          </div>
+                          <Badge variant={banner.active ? "secondary" : "outline"} className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
+                            {banner.active ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </div>
 
-                    <ConfirmActionDialog
-                      trigger={
-                        <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-xs text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                          Excluir
-                        </Button>
-                      }
-                      title="Excluir banner"
-                      description={`Deseja excluir "${banner.label}"? O banner sairá do catálogo imediatamente.`}
-                      confirmLabel="Excluir"
-                      destructive
-                      onConfirm={() => deleteBanner(banner.id)}
-                    />
-                  </div>
+                        {banner.link_url ? (
+                          <div className="flex items-center gap-2 rounded-[1rem] border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                            <LinkIcon className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{banner.link_url}</span>
+                          </div>
+                        ) : null}
+
+                        <div className="mt-auto flex flex-wrap gap-2 pt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
+                            onClick={() => openEdit(banner)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Editar
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem] sm:text-xs"
+                            onClick={() => toggleActive(banner)}
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            {banner.active ? "Desativar" : "Ativar"}
+                          </Button>
+
+                          <ConfirmActionDialog
+                            trigger={
+                              <Button type="button" variant="outline" className="h-10 sm:h-9 rounded-full px-3 text-xs text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                                Excluir
+                              </Button>
+                            }
+                            title="Excluir banner"
+                            description={`Deseja excluir "${banner.label}"? O banner sairá do catálogo imediatamente.`}
+                            confirmLabel="Excluir"
+                            destructive
+                            onConfirm={() => deleteBanner(banner.id)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         )}

@@ -19,7 +19,7 @@ import {
   type CustomerAddress,
   type CustomerAddressFormData,
 } from "@/lib/customerAddresses";
-import { profileAddressToForm, type CustomerProfile } from "@/lib/customerProfile";
+import { profileAddressToForm, saveCustomerProfileAddress, type CustomerProfile } from "@/lib/customerProfile";
 import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
 import { cn } from "@/lib/utils";
 
@@ -174,7 +174,7 @@ function AddressEditor({
 }
 
 export function ClientAddressesSection() {
-  const { user, customerProfile } = useAuth();
+  const { user, customerProfile, refreshCustomerProfile } = useAuth();
   const { data: addresses = [], isLoading, saveAddress, deleteAddress, setDefaultAddress } = useCustomerAddresses(user?.id ?? null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -203,6 +203,45 @@ export function ClientAddressesSection() {
     setEditingId(address.id);
     setDraft(customerAddressFormFromAddress(address));
     setEditorOpen(true);
+  };
+
+  /**
+   * Copia o endereco padrao para as colunas de endereco do perfil.
+   *
+   * ## Por que isso e preciso
+   *
+   * O projeto tem **dois** lugares guardando endereco, e ate agora sem ligacao
+   * nenhuma entre eles:
+   *
+   * - `clinic+b2b_customer_addresses` — esta tela, ate cinco enderecos, um
+   *   marcado como padrao;
+   * - `customer_profiles.address_*` — o que "Dados da empresa" mostra, o que o
+   *   painel do admin le na ficha do cliente, e o que preenche o checkout.
+   *
+   * O unico lugar que escrevia nas colunas do perfil era o **fechamento de
+   * pedido**. Ou seja: quem cadastrava endereco aqui e nao tinha comprado ainda
+   * continuava aparecendo como "Endereço não cadastrado" para si mesmo e para o
+   * admin. Foi o relato.
+   *
+   * Espelhar aqui conserta os tres de uma vez, e sem inventar um terceiro
+   * lugar: o perfil continua sendo a fonte que todo mundo ja lia, e passa a ser
+   * mantido tambem por esta tela.
+   *
+   * Falha aqui **nao derruba o salvamento**: o endereco em si ja foi gravado, e
+   * transformar isso em erro faria a pessoa achar que perdeu o que digitou. O
+   * `console.error` fica para alguem notar se virar rotina.
+   */
+  const espelharNoPerfil = async (endereco: AddressFormData) => {
+    if (!user) return;
+    try {
+      await saveCustomerProfileAddress(user.id, endereco);
+      // Sem isto o "Dados da empresa" so mostraria o endereco novo depois de um
+      // recarregamento da pagina — o perfil vive no contexto de autenticacao e
+      // nao sabe sozinho que a linha mudou.
+      await refreshCustomerProfile(user.id);
+    } catch (erro) {
+      console.error("[endereco] não foi possível espelhar no perfil da empresa:", erro);
+    }
   };
 
   const handleSave = async () => {
@@ -243,6 +282,14 @@ export function ClientAddressesSection() {
       }
     }
 
+    // Espelha quando este endereco e o padrao — seja porque a pessoa acabou de
+    // marca-lo, seja porque ela editou o que ja era. Sem a segunda condicao,
+    // corrigir o numero da rua do endereco padrao nao chegaria ao perfil.
+    const ehOPadrao = draft.is_default || (editingId && addresses.some((a) => a.id === editingId && a.is_default));
+    if (ehOPadrao && data) {
+      await espelharNoPerfil(data);
+    }
+
     toast.success(editingId ? "Endereço atualizado." : "Endereço salvo.");
     setSaving(false);
     setEditorOpen(false);
@@ -265,6 +312,7 @@ export function ClientAddressesSection() {
       toast.error("Não foi possível definir o endereço padrão");
       return;
     }
+    await espelharNoPerfil(address);
     toast.success("Endereço padrão atualizado.");
   };
 

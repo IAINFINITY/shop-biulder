@@ -667,8 +667,17 @@ export default function Account() {
             <div className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6">
               <div className="flex items-center gap-2">
                 <MapPinned className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">Endereço</h2>
+                <h2 className="text-lg font-semibold text-foreground">Endereço da empresa</h2>
               </div>
+
+              {/* Dizer de onde vem evita a leitura errada: sem isto, alguem
+                  olha um endereco que nao reconhece e conclui que o cadastro
+                  esta furado — quando e o registro oficial da empresa, que
+                  costuma ser a sede e nao o lugar onde a encomenda chega. */}
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Endereço de registro da empresa, buscado na Receita pelo CNPJ. Para escolher onde
+                receber os pedidos, use <strong className="font-medium text-foreground">Meus endereços</strong>.
+              </p>
 
               {customerProfile.address_cep ? (
                 <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -682,8 +691,8 @@ export default function Account() {
               ) : (
                 <div className="mt-5">
                   <EmptyPanel
-                    title="Endereço não cadastrado"
-                    description="Quando os dados de endereço forem salvos no perfil, eles aparecem aqui para consulta do cliente."
+                    title="Endereço não encontrado na Receita"
+                    description="Este é o endereço de registro da empresa, buscado pelo CNPJ. Para escolher onde receber os pedidos, use Meus endereços."
                   />
                 </div>
               )}

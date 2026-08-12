@@ -2,12 +2,14 @@ import { createContext, createElement, useCallback, useContext, useEffect, useRe
 import type { User } from "@supabase/supabase-js";
 import {
   CUSTOMER_PROFILES_TABLE,
+  saveCustomerProfileAddress,
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType } from "@/lib/pricing";
+import { buscarEnderecoDaReceita } from "@/lib/enderecoDaReceita";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { translateAuthErrorMessage as translateAuthErrorMessageShared } from "@/lib/authErrors";
 import {
@@ -236,6 +238,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       writeAuthBootstrap({ user: userRef.current, isAdmin: isAdminRef.current });
     }
 
+    /**
+     * Endereco da empresa vazio: busca na Receita pelo CNPJ, uma vez.
+     *
+     * As colunas `address_*` do perfil sao o **endereco cadastral da empresa** —
+     * o que "Dados da empresa" mostra e o que o painel do admin le na ficha do
+     * cliente. Elas nao tem relacao com os enderecos de entrega, que vivem em
+     * `clinic+b2b_customer_addresses` e podem ser ate cinco.
+     *
+     * Ate agora so o fechamento de pedido escrevia aqui, entao quem nunca
+     * comprou aparecia como "Endereço não cadastrado" — e quem comprou ficava
+     * com o endereco de **entrega** no campo da empresa, que e pior: a ficha
+     * cadastral passa a mentir.
+     *
+     * A consulta ja e feita no cadastro para validar o CNPJ e trazer a razao
+     * social; o endereco vinha junto e era descartado.
+     *
+     * **Uma tentativa por sessao, e nunca em lote.** O limite da BrasilAPI e
+     * real e foi medido: quatro chamadas seguidas da mesma origem devolveram
+     * `429` e depois `403`. Preenchendo quando a pessoa entra, as consultas se
+     * espalham sozinhas no tempo. A trava tambem impede o laco de um CNPJ sem
+     * endereco utilizavel na Receita, que deixaria a condicao verdadeira para
+     * sempre.
+     */
+    if (
+      !normalizedProfile.address_cep &&
+      normalizedProfile.cnpj &&
+      !enderecoReceitaTentadoRef.current.has(userId)
+    ) {
+      const documentDigits = onlyDigits(normalizedProfile.cnpj);
+      if (documentDigits.length === 14) {
+        enderecoReceitaTentadoRef.current.add(userId);
+        // Sem `await`: isto enriquece a ficha, e a tela nao deve esperar por
+        // uma API de terceiro para aparecer.
+        void buscarEnderecoDaReceita(documentDigits)
+          .then(async (endereco) => {
+            if (!endereco) return;
+            await saveCustomerProfileAddress(userId, endereco);
+            await fetchCustomerProfileRef.current?.(userId);
+          })
+          .catch((erro) => {
+            console.error("[perfil] não foi possível preencher o endereço da empresa:", erro);
+          });
+      }
+    }
+
     // Perfil sem vinculo com o Proxis: liga agora, uma vez.
     //
     // O vinculo e o que traz a tabela de preco negociada (`proxis_tpr_id`). Ele
@@ -268,6 +315,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Quem ja teve a sincronia com o ERP tentada nesta sessao. */
   const proxisSyncAttemptedRef = useRef<Set<string>>(new Set());
+
+  /** Quem ja teve o endereco da empresa buscado na Receita nesta sessao. */
+  const enderecoReceitaTentadoRef = useRef<Set<string>>(new Set());
 
   // O `fetchCustomerProfile` precisa se rechamar depois da sincronia, para a
   // tela receber o `proxis_tpr_id` que acabou de ser gravado. A `ref` evita a

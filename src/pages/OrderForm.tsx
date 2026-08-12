@@ -27,7 +27,7 @@ import { calculateCartSubtotal, DEFAULT_CUSTOMER_TYPE, EMPTY_PRICE_MAP, resolveP
 import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
 import { apiFetch } from "@/lib/apiFetch";
-import { profileAddressToForm, saveCustomerProfileAddress } from "@/lib/customerProfile";
+import { profileAddressToForm } from "@/lib/customerProfile";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 import { newSubmissionKey } from "@/lib/proxisOrderStatus";
@@ -247,16 +247,23 @@ export default function OrderForm() {
         }
       }
 
-      try {
-        await saveCustomerProfileAddress(user.id, checkoutAddress);
-      } catch (error) {
-        if (notify) {
-          console.error("Erro ao salvar endereço no perfil", error);
-          toast.error("Não foi possível salvar o endereço no perfil do cliente");
-        }
-        return { ok: false as const, saved: false as const };
-      }
-
+      /**
+       * O checkout **nao** escreve mais no endereco da empresa.
+       *
+       * Aqui havia um `saveCustomerProfileAddress(user.id, checkoutAddress)`,
+       * que copiava o endereco de entrega deste pedido para as colunas
+       * `address_*` do perfil. Aquelas colunas sao o endereco **cadastral** da
+       * empresa — o que a ficha do cliente mostra no painel do admin — e passavam
+       * a valer o ultimo lugar para onde a pessoa pediu entrega.
+       *
+       * Sete contas estavam nesse estado quando isto foi corrigido, e o efeito
+       * se repetia a cada pedido novo.
+       *
+       * O endereco de entrega ja e guardado logo acima, em
+       * `clinic+b2b_customer_addresses`, que e onde ele pertence e de onde a
+       * proxima compra vai busca-lo. O da empresa vem da Receita pelo CNPJ —
+       * ver `enderecoDaReceita.ts`.
+       */
       setManualAddressEdit(false);
 
       if (notify) {

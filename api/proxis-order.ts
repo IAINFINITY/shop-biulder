@@ -3,6 +3,7 @@ import { canActForCnpj } from "../src/lib/apiAuth.js";
 import { mapearComLimite } from "../src/lib/concorrencia.js";
 import { escolherRepresentante } from "../src/lib/rodizioDeRepresentante.js";
 import { mascararCnpj } from "../src/lib/pii.js";
+import { buscarIbgePorCep, faltaApenasOIbge } from "../src/lib/ibgePorCep.js";
 import { urlDoProxyN8n } from "./_proxis.js";
 import { requireAuth } from "./_auth.js";
 import { aplicarRateLimit } from "./_rateLimit.js";
@@ -815,7 +816,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const normalizedAddress = normalizeAddressInput(body.address ?? null);
+  /**
+   * Ultima chance de completar o IBGE antes de recusar o pedido.
+   *
+   * O ERP exige o codigo do municipio; quem o preenche e a consulta ao ViaCEP
+   * no navegador de quem compra — e a pessoa nunca ve esse campo nem teria como
+   * saber o numero. Quando aquela consulta falha (CSP, digitacao manual,
+   * endereco salvo antes do campo existir), o pedido chega aqui completo e sem
+   * IBGE, e era recusado com uma mensagem que manda "preencher" algo invisivel.
+   *
+   * Aqui nao ha CSP e nao dependemos do que o navegador conseguiu fazer. So
+   * completamos quando **falta apenas o IBGE**: endereco sem rua ou cidade e
+   * problema de preenchimento e continua voltando para a tela.
+   */
+  let enderecoDeEntrada = body.address ?? null;
+  if (faltaApenasOIbge(enderecoDeEntrada)) {
+    const ibge = await buscarIbgePorCep(String(enderecoDeEntrada?.cep ?? ""));
+    if (ibge) {
+      enderecoDeEntrada = { ...enderecoDeEntrada, ibge };
+      console.info("[proxis-order] IBGE ausente resolvido pelo CEP no servidor.");
+    } else {
+      console.warn("[proxis-order] IBGE ausente e o CEP nao resolveu; o pedido sera recusado.");
+    }
+  }
+
+  const normalizedAddress = normalizeAddressInput(enderecoDeEntrada);
   if (!normalizedAddress) {
     const detail = "Endereço incompleto: preencha CEP, rua, número, bairro, cidade, UF e IBGE.";
     await registrarDesfecho(PROXIS_SYNC_ERROR, detail);

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { caminhoDoProxis, urlDoProxyN8n } from "./_proxis.js";
 import { requireAuth } from "./_auth.js";
 import { aplicarRateLimit } from "./_rateLimit.js";
 
@@ -48,13 +49,12 @@ async function checkProxisDirect(): Promise<{ connected: boolean; error: string 
 }
 
 async function checkProxisViaN8n(): Promise<{ connected: boolean; error: string | null }> {
-  const n8nProxy = (process.env.N8N_WEBHOOK_BASE_URL || "").trim();
-  if (!n8nProxy) {
-    return { connected: false, error: "N8N_WEBHOOK_BASE_URL nao configurado" };
+  const proxyUrl = urlDoProxyN8n();
+  if (!proxyUrl) {
+    return { connected: false, error: "Proxy do n8n nao esta habilitado" };
   }
 
   const auth = buildAuthHeader();
-  const proxyUrl = `${n8nProxy.replace(/\/$/, "")}/proxis-proxy`;
 
   try {
     const controller = new AbortController();
@@ -126,9 +126,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ connected: false, error: "Proxsis nao configurado no servidor" });
   }
 
-  const n8nProxy = (process.env.N8N_WEBHOOK_BASE_URL || "").trim();
+  /**
+   * Testa o caminho que as demais rotas usam de verdade — nao um caminho
+   * paralelo.
+   *
+   * Antes esta rota decidia sozinha e sempre preferia o n8n quando havia
+   * `N8N_WEBHOOK_BASE_URL`, enquanto o envio de pedido ia direto. Com o
+   * workflow do n8n fora do ar, o painel acusava desconexao **enquanto os
+   * pedidos saiam normalmente** — e quem foi investigar procurou no lugar
+   * errado.
+   */
+  const via = caminhoDoProxis();
+  const result = via === "n8n" ? await checkProxisViaN8n() : await checkProxisDirect();
 
-  const result = n8nProxy ? await checkProxisViaN8n() : await checkProxisDirect();
-
-  return res.status(200).json(result);
+  // `via` no corpo para a tela poder dizer o que foi medido. Sem isso, "sem
+  // conexao" nao responde a primeira pergunta que alguem faz: conexao com quem?
+  return res.status(200).json({ ...result, via });
 }

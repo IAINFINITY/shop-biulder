@@ -3,6 +3,7 @@ import { canActForCnpj } from "../src/lib/apiAuth.js";
 import { mapearComLimite } from "../src/lib/concorrencia.js";
 import { escolherRepresentante } from "../src/lib/rodizioDeRepresentante.js";
 import { mascararCnpj } from "../src/lib/pii.js";
+import { urlDoProxyN8n } from "./_proxis.js";
 import { requireAuth } from "./_auth.js";
 import { aplicarRateLimit } from "./_rateLimit.js";
 import { isServerPriceEnforced, resolveServerPrices } from "./_pricing.js";
@@ -194,12 +195,13 @@ async function proxsisRequest(
   endpointName: string,
   options: { body: unknown; extraHeaders: Record<string, string> }
 ): Promise<unknown> {
-  // The proxy path is intentionally disabled while the direct Proxis route is in use.
-  // eslint-disable-next-line prefer-const
-  let n8nProxy = "";
+  // O caminho vem de `_proxis.ts`, igual para todas as rotas. Aqui havia um
+  // `let n8nProxy = ""` fixado, com comentario e `eslint-disable` para explicar
+  // que era proposital — o que so era preciso porque a decisao morava solta
+  // dentro de cada rota.
+  const proxyUrl = urlDoProxyN8n();
 
-  if (n8nProxy) {
-    const proxyUrl = `${n8nProxy.replace(/\/$/, "")}/proxis-proxy`;
+  if (proxyUrl) {
     const allHeaders: Record<string, string> = { ...baseHeaders(), ...(options.extraHeaders || {}) };
 
     const res = await fetch(proxyUrl, {

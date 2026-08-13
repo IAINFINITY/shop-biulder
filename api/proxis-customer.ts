@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { canActForCnpj } from "../src/lib/apiAuth.js";
 import { mascararCnpj } from "../src/lib/pii.js";
+import { urlDoProxyN8n } from "./_proxis.js";
 import { requireAuth } from "./_auth.js";
 import { aplicarRateLimit } from "./_rateLimit.js";
 import { safeNumericFilter, safeQuotedLiteral } from "../src/lib/proxisFilter.js";
@@ -52,10 +53,10 @@ async function proxsisRequest(
   endpointName: string,
   options: { extraHeaders: Record<string, string> },
 ): Promise<unknown> {
-  const n8nProxy = (process.env.N8N_WEBHOOK_BASE_URL || "").trim();
+  // Uma decisao so para todas as rotas do Proxsys. Ver `_proxis.ts`.
+  const proxyUrl = urlDoProxyN8n();
 
-  if (n8nProxy) {
-    const proxyUrl = `${n8nProxy.replace(/\/$/, "")}/proxis-proxy`;
+  if (proxyUrl) {
     const allHeaders: Record<string, string> = { ...baseHeaders(), ...(options.extraHeaders || {}) };
 
     const res = await fetch(proxyUrl, {

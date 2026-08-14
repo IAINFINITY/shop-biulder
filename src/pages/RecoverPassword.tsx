@@ -206,10 +206,12 @@ export default function RecoverPassword() {
               <div className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
                 <div className="flex items-center gap-2 font-medium">
                   <CheckCircle2 className="h-4 w-4" />
-                  Recuperação liberada
+                  {deveTrocarSenha ? "Senha provisória" : "Recuperação liberada"}
                 </div>
                 <p className="mt-1 text-sm">
-                  Defina uma nova senha para finalizar o acesso e voltar ao login com segurança.
+                  {deveTrocarSenha
+                    ? "A senha provisória serve só para este primeiro acesso. Defina a sua para continuar."
+                    : "Defina uma nova senha para finalizar o acesso e voltar ao login com segurança."}
                 </p>
               </div>
 
@@ -234,6 +236,28 @@ export default function RecoverPassword() {
               <Button type="submit" className="h-12 w-full rounded-2xl text-sm font-semibold" disabled={savingPassword}>
                 {savingPassword ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Salvar nova senha
+              </Button>
+
+              {/* A saída que faltava.
+                  Esta tela bloqueia o site inteiro até a troca — e sem um jeito
+                  de sair, quem entrou por engano (ou num usuário de teste que
+                  não quer levar adiante) ficava preso: sem menu, sem voltar, sem
+                  logout. O bloqueio continua valendo; o que não pode é a pessoa
+                  não ter como desistir e sair da conta.
+
+                  `type="button"` é obrigatório aqui dentro do `form`: sem isso o
+                  clique dispararia o submit em vez do logout. */}
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-11 rounded-2xl text-sm font-medium text-muted-foreground"
+                disabled={savingPassword}
+                onClick={async () => {
+                  await signOut().catch(() => undefined);
+                  navigate("/login", { replace: true, viewTransition: true });
+                }}
+              >
+                Sair sem trocar a senha
               </Button>
             </form>
           </div>

@@ -54,13 +54,19 @@ export default {
       }
 
       const body = await req.json();
-      const { name, phone, email, password, cpf, linkedCompanyCnpj } = body as {
-        name?: string; phone?: string; email?: string; password?: string;
+      // `password` saiu da desestruturacao: esta funcao **ignora** o que vem no
+      // corpo e usa a senha provisoria da configuracao. Exigir o campo obrigava
+      // o painel a mandar um valor que seria jogado fora — e foi o que fez o
+      // formulario pedir, validar e descartar uma senha, criando a conta com
+      // outra. Corpo antigo que ainda mande `password` continua funcionando: o
+      // campo simplesmente nao e lido.
+      const { name, phone, email, cpf, linkedCompanyCnpj } = body as {
+        name?: string; phone?: string; email?: string;
         cpf?: string; linkedCompanyCnpj?: string;
       };
 
-      if (!name || !phone || !email || !password || !cpf || !linkedCompanyCnpj) {
-        return new Response(JSON.stringify({ error: "Nome, telefone, e-mail, senha, CPF e empresa vinculada são obrigatórios" }), {
+      if (!name || !phone || !email || !cpf || !linkedCompanyCnpj) {
+        return new Response(JSON.stringify({ error: "Nome, telefone, e-mail, CPF e empresa vinculada são obrigatórios" }), {
           status: 400,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },
         });

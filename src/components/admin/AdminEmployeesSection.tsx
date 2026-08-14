@@ -46,8 +46,6 @@ import {
 } from "@/lib/employeeBulkImport";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { MODAL_TELA_CHEIA } from "@/lib/modais";
-import { validarSenha } from "@/lib/validarSenha";
-import { MIN_SEM_MFA } from "@/lib/senha";
 
 export function AdminEmployeesSection() {
   const { user } = useAuth();
@@ -59,9 +57,6 @@ export function AdminEmployeesSection() {
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newCpf, setNewCpf] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [creating, setCreating] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -169,12 +164,8 @@ export function AdminEmployeesSection() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName || !newPhone || !newEmail || !newCpf || !newPassword) {
+    if (!newName || !newPhone || !newEmail || !newCpf) {
       toast.error("Preencha todos os campos");
-      return;
-    }
-    if (newPassword !== newPasswordConfirm) {
-      toast.error("As senhas não conferem");
       return;
     }
     const cpfDigits = onlyDigits(newCpf);
@@ -182,20 +173,16 @@ export function AdminEmployeesSection() {
       toast.error("CPF inválido. Preencha 11 dígitos.");
       return;
     }
-    // Politica unica em `src/lib/senha.ts`; as regras de composicao que estavam
-    // aqui sao proibidas pela §10 do padrao de autenticacao.
-    const validacaoDeSenha = await validarSenha(newPassword);
-    if (!validacaoDeSenha.ok) {
-      toast.error(validacaoDeSenha.problema!);
-      return;
-    }
+    // Sem validar senha: quem a define e o servidor, a partir da configuracao.
+    // Validar aqui checava um valor que seria jogado fora — e chegou a **barrar
+    // o cadastro** por a senha digitada constar em vazamento, enquanto a conta
+    // seria criada com outra senha de qualquer jeito.
     setCreating(true);
     try {
       const { userId } = await createEmployeeUser({
         name: newName.trim(),
         phone: newPhone.trim(),
         email: newEmail.trim(),
-        password: newPassword,
         cpf: cpfDigits,
       });
 
@@ -207,10 +194,6 @@ export function AdminEmployeesSection() {
       setNewPhone("");
       setNewEmail("");
       setNewCpf("");
-      setNewPassword("");
-      setNewPasswordConfirm("");
-      setShowPassword(false);
-      setShowConfirmPassword(false);
       queryClient.invalidateQueries({ queryKey: ["employee_users"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao criar funcionário");
@@ -407,10 +390,6 @@ export function AdminEmployeesSection() {
             setNewPhone("");
             setNewEmail("");
             setNewCpf("");
-            setNewPassword("");
-            setNewPasswordConfirm("");
-            setShowPassword(false);
-            setShowConfirmPassword(false);
           }
         }}
       >
@@ -481,55 +460,20 @@ export function AdminEmployeesSection() {
                 />
               </div>
 
-              <div className="space-y-2">
+              {/* Aqui havia "Senha" e "Confirmar senha".
+                  Saíram porque o valor era **descartado**: a função de borda lê
+                  a senha provisória de `clinic+b2b_config_seguranca` e ignora o
+                  que vem no corpo. O admin digitava uma senha, o sistema
+                  validava contra a política inteira, e depois criava a conta com
+                  outra — quem testava o login descobria isso da pior forma. */}
+              <div className="space-y-2 md:col-span-2">
                 <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Senha
+                  Senha de acesso
                 </Label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
-                    maxLength={64}
-                    required
-                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Confirmar senha
-                </Label>
-                <div className="relative">
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={newPasswordConfirm}
-                    onChange={(e) => setNewPasswordConfirm(e.target.value)}
-                    placeholder="Repita a senha"
-                    maxLength={64}
-                    required
-                    className="h-11 rounded-2xl border-border/70 bg-background pr-10 text-[0.8125rem]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((value) => !value)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3 text-sm leading-6 text-muted-foreground">
+                  Definida pelo sistema, igual para todo funcionário novo, e trocada
+                  obrigatoriamente no primeiro acesso. O valor está em{" "}
+                  <span className="font-mono text-[0.8125rem] text-foreground">clinic+b2b_config_seguranca</span>.
                 </div>
               </div>
             </div>
@@ -549,10 +493,6 @@ export function AdminEmployeesSection() {
                   setNewPhone("");
                   setNewEmail("");
                   setNewCpf("");
-                  setNewPassword("");
-                  setNewPasswordConfirm("");
-                  setShowPassword(false);
-                  setShowConfirmPassword(false);
                 }}
                 className="h-11 rounded-2xl px-5 text-sm"
               >

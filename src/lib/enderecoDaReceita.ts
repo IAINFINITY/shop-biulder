@@ -42,6 +42,8 @@ import { onlyDigits } from "@/lib/brazilianIds";
 
 /** O recorte da resposta da `cnpj.ws` que interessa. Verificado contra a API. */
 export type RespostaDeCnpj = {
+  /** `simples.mei` vem como "Sim"/"Nao" — texto, nao booleano. */
+  simples?: { mei?: string | null } | null;
   estabelecimento?: {
     tipo_logradouro?: string | null;
     logradouro?: string | null;
@@ -97,6 +99,27 @@ export function mapearEnderecoDaReceita(resposta: RespostaDeCnpj | null | undefi
 }
 
 /**
+ * Optante pelo MEI, segundo a Receita.
+ *
+ * Devolve `null` quando a resposta nao traz o bloco — e `null` **nao e**
+ * `false`: um significa "nao sabemos", o outro "sabemos que nao". A tela nao
+ * mostra selo em nenhum dos dois, mas guardar a diferenca evita afirmar o que
+ * nao foi consultado.
+ *
+ * Nao da para deduzir isto do nome da empresa. Medido nos tres Empresarios
+ * Individuais do cadastro: dois sao MEI, um nao e, e os tres tem exatamente o
+ * mesmo formato de razao social.
+ */
+export function lerMeiDaReceita(resposta: RespostaDeCnpj | null | undefined): boolean | null {
+  const bruto = resposta?.simples?.mei;
+  if (typeof bruto !== "string") return null;
+  const valor = bruto.trim().toLowerCase();
+  if (valor === "sim") return true;
+  if (valor === "nao" || valor === "não") return false;
+  return null;
+}
+
+/**
  * Busca o endereço cadastral de um CNPJ.
  *
  * Devolve `null` em qualquer falha — CNPJ inexistente, rede fora, ou limite de
@@ -107,15 +130,30 @@ export function mapearEnderecoDaReceita(resposta: RespostaDeCnpj | null | undefi
  * cerca de vinte segundos entre elas. Por isso o preenchimento acontece uma
  * conta por vez, quando a pessoa abre a própria página — e nunca em lote.
  */
-export async function buscarEnderecoDaReceita(cnpj: string): Promise<AddressFormData | null> {
+export type DadosDaReceita = {
+  endereco: AddressFormData | null;
+  /** `null` = a resposta nao disse; ver `lerMeiDaReceita`. */
+  ehMei: boolean | null;
+};
+
+export async function buscarDadosDaReceita(cnpj: string): Promise<DadosDaReceita | null> {
   const digitos = onlyDigits(cnpj);
   if (digitos.length !== 14) return null;
 
   try {
     const resposta = await fetch(`https://publica.cnpj.ws/cnpj/${digitos}`);
     if (!resposta.ok) return null;
-    return mapearEnderecoDaReceita((await resposta.json()) as RespostaDeCnpj);
+    const dados = (await resposta.json()) as RespostaDeCnpj;
+    // Endereco e MEI saem da **mesma** resposta. Buscar em duas chamadas
+    // dobraria o consumo de uma API cujo limite ja e apertado, para trazer
+    // dados que vieram juntos.
+    return { endereco: mapearEnderecoDaReceita(dados), ehMei: lerMeiDaReceita(dados) };
   } catch {
     return null;
   }
+}
+
+/** Atalho de quem so quer o endereco. */
+export async function buscarEnderecoDaReceita(cnpj: string): Promise<AddressFormData | null> {
+  return (await buscarDadosDaReceita(cnpj))?.endereco ?? null;
 }

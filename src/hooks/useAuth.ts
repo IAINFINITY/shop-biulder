@@ -3,13 +3,14 @@ import type { User } from "@supabase/supabase-js";
 import {
   CUSTOMER_PROFILES_TABLE,
   saveCustomerProfileAddress,
+  salvarMeiDoPerfil,
   type CustomerProfile,
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType } from "@/lib/pricing";
-import { buscarEnderecoDaReceita } from "@/lib/enderecoDaReceita";
+import { buscarDadosDaReceita } from "@/lib/enderecoDaReceita";
 import { onlyDigits } from "@/lib/brazilianIds";
 import { translateAuthErrorMessage as translateAuthErrorMessageShared } from "@/lib/authErrors";
 import {
@@ -261,8 +262,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      * endereco utilizavel na Receita, que deixaria a condicao verdadeira para
      * sempre.
      */
+    // `is_mei === null` tambem dispara: e o estado "ainda nao perguntamos". Um
+    // perfil que ja tem endereco mas nasceu antes da coluna existir precisa da
+    // consulta para o selo aparecer — sem isto, so contas novas ganhariam.
     if (
-      !normalizedProfile.address_cep &&
+      (!normalizedProfile.address_cep || normalizedProfile.is_mei === null || normalizedProfile.is_mei === undefined) &&
       normalizedProfile.cnpj &&
       !enderecoReceitaTentadoRef.current.has(userId)
     ) {
@@ -271,10 +275,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         enderecoReceitaTentadoRef.current.add(userId);
         // Sem `await`: isto enriquece a ficha, e a tela nao deve esperar por
         // uma API de terceiro para aparecer.
-        void buscarEnderecoDaReceita(documentDigits)
-          .then(async (endereco) => {
-            if (!endereco) return;
-            await saveCustomerProfileAddress(userId, endereco);
+        void buscarDadosDaReceita(documentDigits)
+          .then(async (dados) => {
+            if (!dados) return;
+            // Endereco so e gravado quando falta; o MEI, sempre que a resposta
+            // souber. Sao dois dados independentes na mesma resposta.
+            if (dados.endereco && !normalizedProfile.address_cep) {
+              await saveCustomerProfileAddress(userId, dados.endereco);
+            }
+            if (dados.ehMei !== null) {
+              await salvarMeiDoPerfil(userId, dados.ehMei);
+            }
             await fetchCustomerProfileRef.current?.(userId);
           })
           .catch((erro) => {

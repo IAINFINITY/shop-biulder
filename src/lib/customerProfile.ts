@@ -25,6 +25,8 @@ export interface CustomerProfile {
    * define a senha dela. Enquanto for `true`, o site nao deixa fazer mais nada.
    */
   deve_trocar_senha?: boolean;
+  /** Optante pelo MEI, conforme a Receita. `null`/ausente = ainda nao consultado. */
+  is_mei?: boolean | null;
   address_cep: string;
   address_street: string;
   address_number: string;
@@ -113,5 +115,22 @@ export async function saveCustomerProfileAddress(userId: string, address: Addres
 
   if (error) {
     throw new Error(error.message || "Erro ao salvar endereço no perfil");
+  }
+}
+
+/**
+ * Marca (ou desmarca) o perfil como optante pelo MEI.
+ *
+ * Escrito a partir do que a Receita respondeu, nunca de dedução pelo nome — ver
+ * `empresarioIndividual.ts` para por que o nome não serve.
+ */
+export async function salvarMeiDoPerfil(userId: string, ehMei: boolean): Promise<void> {
+  const { error } = await supabase
+    .from(CUSTOMER_PROFILES_TABLE)
+    .update({ is_mei: ehMei } as never)
+    .eq("user_id", userId);
+
+  if (error) {
+    throw new Error(error.message || "Erro ao gravar o enquadramento MEI");
   }
 }

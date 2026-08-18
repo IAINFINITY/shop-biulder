@@ -910,6 +910,7 @@ export type Database = {
           created_at: string
           customer_type: string
           deve_trocar_senha: boolean
+          is_mei?: boolean | null
           email: string | null
           linked_company_cnpj: string | null
           name: string
@@ -938,6 +939,7 @@ export type Database = {
           created_at?: string
           customer_type?: string
           deve_trocar_senha?: boolean
+          is_mei?: boolean | null
           email?: string | null
           linked_company_cnpj?: string | null
           name: string
@@ -966,6 +968,7 @@ export type Database = {
           created_at?: string
           customer_type?: string
           deve_trocar_senha?: boolean
+          is_mei?: boolean | null
           email?: string | null
           linked_company_cnpj?: string | null
           name?: string

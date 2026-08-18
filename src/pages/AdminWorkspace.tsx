@@ -338,6 +338,7 @@ export default function AdminWorkspace() {
         phone: string | null | undefined;
         cnpj: string | null | undefined;
         customerType: AdminCustomerSummary["customerType"];
+        isMei?: boolean | null;
         total: number;
         orders: number;
       }
@@ -353,6 +354,7 @@ export default function AdminWorkspace() {
         phone: profile.phone,
         cnpj: profile.cnpj,
         customerType: normalizeCustomerType(overrideType ?? profile.customer_type),
+        isMei: profile.is_mei ?? null,
         total: 0,
         orders: 0,
       });

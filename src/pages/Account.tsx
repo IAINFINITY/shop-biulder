@@ -26,6 +26,7 @@ import { ClientSectionHeader } from "@/components/client/ClientSectionHeader";
 import { AutenticadoresSection } from "@/components/client/AutenticadoresSection";
 import { AparelhosLembradosSection } from "@/components/client/AparelhosLembradosSection";
 import { ExcluirContaSection } from "@/components/client/ExcluirContaSection";
+import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
 import { ClientAddressesSection } from "@/components/client/ClientAddressesSection";
 import { CatalogNotificationImageFrame } from "@/components/shared/CatalogNotificationImageFrame";
@@ -168,7 +169,8 @@ function AdminAccessNotice({
 
 type InfoTileProps = {
   label: string;
-  value: string;
+  /** `ReactNode` e nao `string`: a empresa precisa exibir o selo de MEI ao lado. */
+  value: ReactNode;
   hint?: string;
   icon: typeof Mail;
 };
@@ -631,7 +633,17 @@ export default function Account() {
                 quebra em tres ou quatro linhas e desalinha os cartoes. */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
               <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
-              <InfoTile label="Empresa" value={customerProfile.company || "—"} icon={Building2} />
+              <InfoTile
+                label="Empresa"
+                value={
+                  <NomeDaEmpresa
+                    company={customerProfile.company}
+                    cnpj={customerProfile.cnpj}
+                    isMei={customerProfile.is_mei}
+                  />
+                }
+                icon={Building2}
+              />
               <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
               <InfoTile label="Documento" value={formatDocumentId(customerProfile.cnpj)} icon={Building2} />
             </div>

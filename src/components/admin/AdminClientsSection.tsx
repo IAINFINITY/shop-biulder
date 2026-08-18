@@ -22,6 +22,7 @@ import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
 import { CUSTOMER_PROFILES_TABLE } from "@/lib/customerProfile";
+import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import type { AdminCustomerSummary } from "./adminTypes";
@@ -454,7 +455,14 @@ export function AdminClientsSection({
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold leading-5 text-foreground">{customer.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">{customer.company || "Sem empresa vinculada"}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          <NomeDaEmpresa
+                            company={customer.company}
+                            cnpj={customer.cnpj}
+                            isMei={customer.isMei}
+                            fallback="Sem empresa vinculada"
+                          />
+                        </p>
                         {(() => {
                           const p = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
                           return p?.email ? <p className="truncate text-[0.6875rem] text-muted-foreground/70">{p.email}</p> : null;
@@ -541,7 +549,14 @@ export function AdminClientsSection({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold tracking-tight text-foreground">{detailsCustomer.name}</h3>
-                        <p className="mt-0.5 text-sm text-muted-foreground">{detailsCustomer.company || "Sem empresa vinculada"}</p>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          <NomeDaEmpresa
+                            company={detailsCustomer.company}
+                            cnpj={detailsCustomer.cnpj}
+                            isMei={detailsCustomer.isMei}
+                            fallback="Sem empresa vinculada"
+                          />
+                        </p>
                       </div>
                       <Badge
                         variant="outline"

@@ -117,6 +117,14 @@ export type AdminCustomerSummary = {
   phone: string | null | undefined;
   cnpj: string | null | undefined;
   customerType: string | null;
+  /**
+   * Optante pelo MEI, conforme a Receita. `null` = ainda nao consultado.
+   *
+   * So vem quando o cliente tem perfil: um resumo montado a partir de pedido
+   * antigo (sem conta) nao tem de onde tirar, e ai o selo simplesmente nao
+   * aparece — melhor que afirmar "nao e MEI" sem saber.
+   */
+  isMei?: boolean | null;
   total: number;
   orders: number;
 };

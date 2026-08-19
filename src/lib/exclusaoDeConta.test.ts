@@ -58,4 +58,30 @@ describe("o que a tela promete", () => {
       expect(titulosRetidos, item.titulo).not.toContain(item.titulo.toLowerCase());
     }
   });
+
+  /**
+   * A conversa de suporte tem `on delete cascade` para `auth.users` nas duas
+   * tabelas (`support_conversations.customer_user_id` e
+   * `support_messages.sender_user_id`). Apagar a conta a leva junto.
+   *
+   * A tela dizia o contrário — que ela ficava vinculada ao CNPJ da empresa — e
+   * uma conta de teste em produção confirmou a cascata em 19/08/2026. Este teste
+   * existe para que a promessa não volte a divergir do banco: se alguém mover a
+   * conversa para a lista de retidos, tem de mexer no FK antes.
+   */
+  it("a conversa de suporte é anunciada como apagada, porque o FK a apaga", () => {
+    const excluidos = DADOS_EXCLUIDOS.map((d) => `${d.titulo} ${d.detalhe}`.toLowerCase());
+    const retidos = DADOS_RETIDOS.map((d) => `${d.titulo} ${d.detalhe}`.toLowerCase());
+
+    expect(excluidos.some((t) => t.includes("suporte"))).toBe(true);
+    expect(retidos.some((t) => t.includes("suporte"))).toBe(false);
+  });
+
+  it("não promete retenção vinculada ao CNPJ para a conversa", () => {
+    // O erro anterior foi exatamente este: justificar a retenção da conversa
+    // pelo vínculo com o CNPJ, que só existe para o pedido.
+    const conversa = DADOS_EXCLUIDOS.find((d) => d.titulo.toLowerCase().includes("suporte"));
+    expect(conversa).toBeDefined();
+    expect(conversa!.detalhe.toLowerCase()).not.toContain("cnpj");
+  });
 });

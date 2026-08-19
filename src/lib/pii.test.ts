@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mascararCnpj } from "@/lib/pii";
+import { mascararCnpj, mascararNome } from "@/lib/pii";
 
 describe("mascararCnpj", () => {
   it("mostra só os quatro últimos dígitos", () => {
@@ -30,5 +30,39 @@ describe("mascararCnpj", () => {
   it("mantém dois CNPJs distintos distinguíveis no log", () => {
     // É o uso real: casar duas linhas do mesmo log entre si.
     expect(mascararCnpj("04163851000106")).not.toBe(mascararCnpj("11222333000181"));
+  });
+});
+
+describe("mascararNome", () => {
+  it("mostra só a inicial e o comprimento", () => {
+    expect(mascararNome("Clinica Boa Saude")).toBe("C*** (17)");
+  });
+
+  it("nunca deixa passar o nome inteiro", () => {
+    const nome = "Farmacia Sao Jorge";
+    const mascarado = mascararNome(nome);
+
+    expect(mascarado).not.toContain(nome);
+    expect(mascarado).not.toContain("Jorge");
+    expect(mascarado).not.toContain("armacia");
+  });
+
+  it("normaliza a inicial, para o mesmo nome não gerar duas formas", () => {
+    expect(mascararNome("clinica teste")).toBe(mascararNome("Clinica teste"));
+  });
+
+  it("ignora espaço nas pontas ao medir", () => {
+    expect(mascararNome("  Clinica  ")).toBe("C*** (7)");
+  });
+
+  it("recusa valor vazio em vez de devolver a entrada crua", () => {
+    expect(mascararNome("")).toBe("<sem nome>");
+    expect(mascararNome("   ")).toBe("<sem nome>");
+    expect(mascararNome(null)).toBe("<sem nome>");
+    expect(mascararNome(undefined)).toBe("<sem nome>");
+  });
+
+  it("mantém nomes diferentes distinguíveis no log", () => {
+    expect(mascararNome("Clinica Alfa")).not.toBe(mascararNome("Drogaria Beta"));
   });
 });

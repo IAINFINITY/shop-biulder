@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { canActForCnpj } from "../src/lib/apiAuth.js";
 import { mapearComLimite } from "../src/lib/concorrencia.js";
 import { escolherRepresentante } from "../src/lib/rodizioDeRepresentante.js";
-import { mascararCnpj } from "../src/lib/pii.js";
+import { mascararCnpj, mascararNome } from "../src/lib/pii.js";
 import { buscarIbgePorCep, faltaApenasOIbge } from "../src/lib/ibgePorCep.js";
 import { urlDoProxyN8n } from "./_proxis.js";
 import { requireAuth } from "./_auth.js";
@@ -899,7 +899,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } else {
       const nomeCliente = body.customer_company || body.customer_name;
-      console.log("[proxis-order] Cliente nao encontrado, criando novo:", nomeCliente);
+      console.log("[proxis-order] Cliente nao encontrado, criando novo:", mascararNome(nomeCliente));
       const novoCliente = await criarCliente(nomeCliente, body.customer_cnpj, normalizedAddress);
       const novoPesId = parsePesId(novoCliente.pes_id);
       if (novoPesId) {

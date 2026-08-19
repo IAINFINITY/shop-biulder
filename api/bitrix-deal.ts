@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { canActForCnpj } from "../src/lib/apiAuth.js";
+import { mascararNome } from "../src/lib/pii.js";
 import { requireAuth } from "./_auth.js";
 import { aplicarRateLimit } from "./_rateLimit.js";
 
@@ -142,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    console.log("[bitrix-deal] Criando deal para:", body.customer_company || body.customer_name, "itens:", body.items.length);
+    console.log("[bitrix-deal] Criando deal para:", mascararNome(body.customer_company || body.customer_name), "itens:", body.items.length);
 
     const dealFields: Record<string, unknown> = {
       TITLE: `Pedido Clinic+ - ${body.customer_company || body.customer_name}`,

@@ -12,12 +12,26 @@
  * ## A decisão que importa
  *
  * Este é um sistema B2B: **o pedido pertence ao CNPJ da empresa, não à conta
- * pessoal**. As tabelas confirmam — `orders` e `support_conversations` são
- * chaveadas por `customer_cnpj`, não por `user_id`.
+ * pessoal**. `orders` confirma — é chaveada por `customer_cnpj`, sem `user_id`.
  *
  * Some-se a isso a guarda fiscal: nota emitida tem prazo legal de retenção. Então
  * apagar a conta **não** apaga o histórico de compras, e dizer o contrário seria
  * exatamente o que a §27 proíbe.
+ *
+ * ## A conversa de suporte NÃO segue essa regra
+ *
+ * Este arquivo afirmava que ela também ficava, vinculada ao CNPJ. Era falso, e a
+ * tabela sempre disse o contrário: `support_conversations.customer_user_id` e
+ * `support_messages.sender_user_id` têm `on delete cascade` para `auth.users`
+ * (migrations `20260701150000` e `20260806160000`). Apagar a conta leva a
+ * conversa inteira junto.
+ *
+ * Confirmado em produção em 19/08/2026: uma conta de teste que abriu a seção de
+ * mensagens criou a conversa, e ela desapareceu com a exclusão da conta.
+ *
+ * O texto foi corrigido para descrever o que acontece. A alternativa seria mudar
+ * o banco para reter a conversa anonimizada — decisão de negócio, ainda em
+ * aberto; enquanto não for tomada, a tela diz a verdade.
  */
 
 export type ItemDeDados = {
@@ -43,6 +57,11 @@ export const DADOS_EXCLUIDOS: ItemDeDados[] = [
     titulo: "Suas avaliações",
     detalhe: "As notas e comentários que você escreveu sobre produtos saem do site.",
   },
+  {
+    titulo: "Suas conversas de suporte",
+    detalhe:
+      "O histórico de atendimento aberto pela sua conta é apagado junto, incluindo as mensagens trocadas. Se precisar guardar alguma informação combinada por ali, salve antes de excluir.",
+  },
 ];
 
 /** Continua existindo — e a tela precisa dizer por quê. */
@@ -51,11 +70,6 @@ export const DADOS_RETIDOS: ItemDeDados[] = [
     titulo: "Seus pedidos",
     detalhe:
       "Pedido é documento fiscal e pertence ao CNPJ da empresa, não à conta pessoal. A legislação exige guarda por prazo determinado, então o histórico permanece — sem ligação com a sua conta.",
-  },
-  {
-    titulo: "Conversas de suporte",
-    detalhe:
-      "Ficam vinculadas ao CNPJ da empresa, para a equipe conseguir retomar um atendimento em aberto.",
   },
   {
     titulo: "Registro de segurança",

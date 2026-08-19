@@ -22,3 +22,24 @@ export function mascararCnpj(value: unknown): string {
   if (digits.length !== 14) return "<cnpj invalido>";
   return `${"*".repeat(10)}${digits.slice(-4)}`;
 }
+
+/**
+ * Nome reduzido a inicial e tamanho: `Clinica Boa Saude` vira `C*** (17)`.
+ *
+ * O CNPJ ja era mascarado nas mesmas linhas de log; o nome ia inteiro. Metade da
+ * minimizacao e pior que nenhuma, porque passa a impressao de que o assunto
+ * esta resolvido.
+ *
+ * A inicial mais o comprimento bastam para o uso real — distinguir duas linhas
+ * do mesmo log e reconhecer o registro depois — sem entregar de quem e. Duas
+ * empresas com a mesma inicial e o mesmo tamanho colidem, e tudo bem: log nao e
+ * chave primaria.
+ *
+ * Valor vazio vira `<sem nome>`; devolver a entrada crua seria vazar justamente
+ * o que a funcao existe para esconder.
+ */
+export function mascararNome(value: unknown): string {
+  const texto = String(value ?? "").trim();
+  if (!texto) return "<sem nome>";
+  return `${texto[0].toUpperCase()}*** (${texto.length})`;
+}

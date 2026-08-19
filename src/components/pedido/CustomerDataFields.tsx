@@ -207,9 +207,13 @@ export function CustomerDataFields({
         {show && cnpjValidation.isDocInvalid && (
           <p className="text-xs text-destructive">CNPJ inválido. Verifique o número informado.</p>
         )}
+        {/* Sem vermelho, e sem "tente novamente": a consulta à Receita é
+            conveniência, não autorização, e desde 19/08/2026 a falha dela não
+            barra o pedido. Pintar de erro o que não impede nada faz a pessoa
+            parar e procurar o que consertar. */}
         {show && cnpjValidation.isDocError && (
-          <p className="text-xs text-destructive">
-            Não foi possível validar o documento agora. Tente novamente.
+          <p className="text-xs text-muted-foreground">
+            Não foi possível consultar a Receita agora. Você pode seguir; confira se os dados da empresa estão certos.
           </p>
         )}
         {show && cnpjValidation.isDocChecking && (

@@ -100,7 +100,27 @@ export function useCnpjValidation(cnpj: string, cnpjTouched: boolean) {
     if (!isValidCnpj(digits)) return "CNPJ inválido. Verifique o número informado.";
     if (status === "checking") return "Validando documento...";
     if (status === "invalid") return "CNPJ inválido. Verifique o número informado.";
-    if (status === "error") return "Não foi possível validar o documento agora. Tente novamente.";
+
+    /**
+     * Consulta fora do ar **não** barra o cadastro.
+     *
+     * Barrava, e era um beco: o campo dizia "não foi possível consultar agora,
+     * você pode preencher a empresa manualmente", a pessoa preenchia, clicava em
+     * Continuar e levava "não foi possível validar o documento agora". A tela
+     * prometia um caminho e o botão recusava.
+     *
+     * Deixar passar é o correto, e não uma concessão: o dígito verificador do
+     * CNPJ já foi conferido aqui mesmo (`isValidCnpj`), e a razão social entra à
+     * mão. A Receita, neste ponto, é conveniência — evita redigitação —, não
+     * autorização. Nada que ela responde decide se a pessoa pode ou não comprar.
+     *
+     * E o custo de barrar caía sobre quem menos podia resolver: a BrasilAPI está
+     * atrás de Cloudflare, e rede móvel usa CGNAT, então o IP compartilhado da
+     * operadora bate em limite muito mais que o IP fixo de um escritório. Na
+     * prática, quem tentava se cadastrar pelo celular era barrado; pelo
+     * computador da empresa, não. Reproduzido em 19/08/2026 com 429, 403 e queda
+     * de conexão — nos três, cadastro travado.
+     */
     return null;
   };
 

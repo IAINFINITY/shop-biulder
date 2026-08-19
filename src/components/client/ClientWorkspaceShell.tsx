@@ -12,6 +12,7 @@ import {
   MapPinned,
   ShoppingBag,
   Settings,
+  ShieldCheck,
   Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,7 @@ export function ClientWorkspaceShell({
       label: "Sistema",
       items: [
         { id: "seguranca" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" },
+        { id: "meus-dados" as const, label: "Meus dados", icon: ShieldCheck, description: "Ver e baixar" },
       ],
     },
   ];

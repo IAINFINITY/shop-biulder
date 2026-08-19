@@ -21,7 +21,7 @@ import { formatDocumentId } from "@/lib/brazilianIds";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
-import { CUSTOMER_PROFILES_TABLE } from "@/lib/customerProfile";
+import { CUSTOMER_PROFILES_TABLE, registrarAcessoAdminAoCadastro } from "@/lib/customerProfile";
 import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -267,6 +267,9 @@ export function AdminClientsSection({
   const openDetails = (customer: AdminCustomerSummary) => {
     setDetailsCustomer(customer);
     setDetailsOpen(true);
+    // Trilha de acesso a dado pessoal: quem abriu a ficha de quem. Não bloqueia
+    // nada e não espera resposta — ver `registrarAcessoAdminAoCadastro`.
+    void registrarAcessoAdminAoCadastro(customer.userId ?? null, customer.cnpj ?? null);
   };
 
   const syncDetailsProxis = async () => {

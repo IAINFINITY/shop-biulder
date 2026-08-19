@@ -42,6 +42,8 @@ import type { Order } from "@/lib/orders";
 import { useOrders } from "@/hooks/useOrders";
 import { useProducts } from "@/hooks/useProducts";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
+import { PreferenciaDeCampanhas } from "@/components/client/PreferenciaDeCampanhas";
+import { MeusDadosSection } from "@/components/client/MeusDadosSection";
 import { useCatalogNotificationReads } from "@/hooks/useCatalogNotificationReads";
 import type { CatalogNotification } from "@/lib/catalogNotifications";
 import { buildOrderEnrichmentMaps } from "@/lib/products";
@@ -71,6 +73,7 @@ const sectionTitle: Record<ClientSection, string> = {
   seguranca: "Configurações",
   mensagens: "Mensagens",
   notificacoes: "Notificações",
+  "meus-dados": "Meus dados",
 };
 
 type CustomerCatalogNotification = CatalogNotification & { isRead: boolean };
@@ -319,7 +322,7 @@ export default function Account() {
 
   useEffect(() => {
     const sectionParam = searchParams.get("section");
-    if (sectionParam === "resumo" || sectionParam === "empresa" || sectionParam === "enderecos" || sectionParam === "pedidos" || sectionParam === "seguranca" || sectionParam === "mensagens" || sectionParam === "notificacoes") {
+    if (sectionParam === "resumo" || sectionParam === "empresa" || sectionParam === "enderecos" || sectionParam === "pedidos" || sectionParam === "seguranca" || sectionParam === "mensagens" || sectionParam === "notificacoes" || sectionParam === "meus-dados") {
       setSection(sectionParam);
     }
   }, [searchParams]);
@@ -1157,6 +1160,8 @@ export default function Account() {
         }
       />
 
+      <PreferenciaDeCampanhas />
+
       {isNotificationsLoading ? (
         <div className="overflow-hidden rounded-xl bg-background/95 ring-1 ring-black/5 shadow-sm">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -1301,6 +1306,7 @@ export default function Account() {
       {section === "seguranca" && securityContent}
       {section === "mensagens" && messagesContent}
       {section === "notificacoes" && notificationsContent}
+      {section === "meus-dados" && <MeusDadosSection />}
     </ClientWorkspaceShell>
   );
 }

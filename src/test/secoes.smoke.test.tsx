@@ -109,6 +109,7 @@ const SECOES_DO_CLIENTE: [string, RegExp][] = [
   ["seguranca", /Configurações/i],
   ["mensagens", /Mensagens/i],
   ["notificacoes", /Notificações/i],
+  ["meus-dados", /Meus dados/i],
 ];
 
 describe("seções da conta do cliente", () => {

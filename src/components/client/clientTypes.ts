@@ -1,6 +1,14 @@
 import type { Json } from "@/integrations/supabase/types";
 
-export type ClientSection = "resumo" | "empresa" | "enderecos" | "pedidos" | "seguranca" | "mensagens" | "notificacoes";
+export type ClientSection =
+  | "resumo"
+  | "empresa"
+  | "enderecos"
+  | "pedidos"
+  | "seguranca"
+  | "mensagens"
+  | "notificacoes"
+  | "meus-dados";
 
 export type ClientOrderRow = {
   id: string;

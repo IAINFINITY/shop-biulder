@@ -105,8 +105,18 @@ export function ChatComposer({
         </Button>
       </div>
 
-      <p className="mt-1.5 hidden px-1 text-[0.625rem] text-muted-foreground sm:block">
-        Enter envia · Shift + Enter quebra linha
+      {/* Aviso de minimização, no ponto onde o dado entra.
+
+          A auditoria de LGPD apontou o corpo da mensagem como o lugar onde dado
+          sensível (art. 11) aparece sem ninguém ter planejado — é texto livre,
+          num negócio de saúde, sem filtro nenhum. Filtrar o conteúdo seria pior:
+          exigiria ler tudo o que se quer justamente não guardar.
+
+          Pedir na entrada custa uma linha e resolve a maior parte: quase todo
+          envio desses é descuido, não intenção. */}
+      <p className="mt-1.5 px-1 text-[0.625rem] leading-relaxed text-muted-foreground">
+        Não envie senhas, dados de cartão ou informações de saúde por aqui.
+        <span className="hidden sm:inline"> · Enter envia · Shift + Enter quebra linha</span>
       </p>
     </div>
   );

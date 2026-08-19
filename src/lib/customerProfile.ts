@@ -27,6 +27,17 @@ export interface CustomerProfile {
   deve_trocar_senha?: boolean;
   /** Optante pelo MEI, conforme a Receita. `null`/ausente = ainda nao consultado. */
   is_mei?: boolean | null;
+  /**
+   * Recebe notificacao de campanha.
+   *
+   * So vale para campanha — a notificacao sem destinatario, que vai para todo
+   * mundo. Aviso endereçado a pessoa continua chegando mesmo com isto desligado,
+   * porque recusar propaganda nao e recusar aviso sobre o proprio pedido.
+   *
+   * Ausente conta como `true`: a base legal e legitimo interesse, entao o
+   * tratamento comeca licito e a pessoa interrompe se quiser.
+   */
+  aceita_campanhas?: boolean;
   address_cep: string;
   address_street: string;
   address_number: string;
@@ -115,6 +126,23 @@ export async function saveCustomerProfileAddress(userId: string, address: Addres
 }
 
 /**
+ * Liga ou desliga o recebimento de campanhas.
+ *
+ * Passa por RPC, e não por `update` na tabela, porque não existe policy de
+ * escrita do dono sobre o próprio perfil — e abrir uma liberaria a linha
+ * inteira quando só uma coluna pode mudar.
+ */
+export async function definirAceiteDeCampanhas(aceita: boolean): Promise<void> {
+  const { error } = await supabase.rpc("clinic_b2b_definir_aceite_campanhas" as never, {
+    p_aceita: aceita,
+  } as never);
+
+  if (error) {
+    throw new Error(error.message || "Erro ao salvar a preferência de campanhas");
+  }
+}
+
+/**
  * Marca (ou desmarca) o perfil como optante pelo MEI.
  *
  * Escrito a partir do que a Receita respondeu, nunca de dedução pelo nome — ver
@@ -128,5 +156,33 @@ export async function salvarMeiDoPerfil(userId: string, ehMei: boolean): Promise
 
   if (error) {
     throw new Error(error.message || "Erro ao gravar o enquadramento MEI");
+  }
+}
+
+/**
+ * Registra que um membro interno abriu o cadastro de um cliente.
+ *
+ * A trilha existe porque a RLS deixa todo admin ler o perfil de qualquer
+ * cliente — o que é correto para o trabalho — mas não havia registro disso. Sem
+ * ele, "quem viu os dados deste cliente" não tinha resposta, e o art. 48 exige
+ * dimensionar o alcance de um incidente.
+ *
+ * Falha em silêncio de propósito: a trilha não pode impedir o atendimento. Se o
+ * registro não gravar, o admin ainda precisa abrir a ficha e resolver o problema
+ * do cliente que está esperando.
+ */
+export async function registrarAcessoAdminAoCadastro(
+  alvoUserId: string | null,
+  alvoCnpj: string | null,
+  acao = "abrir-cadastro",
+): Promise<void> {
+  try {
+    await supabase.rpc("clinic_b2b_registrar_acesso_admin" as never, {
+      p_alvo_user_id: alvoUserId,
+      p_alvo_cnpj: alvoCnpj,
+      p_acao: acao,
+    } as never);
+  } catch {
+    // Ver o comentário acima: silêncio é deliberado.
   }
 }

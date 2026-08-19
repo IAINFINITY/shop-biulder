@@ -1,6 +1,6 @@
 import type { CartItem, Product } from "@/lib/products";
 import { getProductUnitPrice } from "@/lib/products";
-import { aplicarPromocao, precoFinalComPromocao, type ProdutoComPromocao } from "@/lib/promocao";
+import { precoFinalComPromocao, type ProdutoComPromocao } from "@/lib/promocao";
 
 export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor", "funcionario"];
 
@@ -41,10 +41,6 @@ export type CustomerPriceOverride = {
 export function normalizeCustomerType(value: unknown): string {
   if (typeof value === "string" && value.trim()) return value.trim().toLowerCase();
   return DEFAULT_CUSTOMER_TYPE;
-}
-
-export function getCustomerTypeLabel(value: unknown): string {
-  return customerTypeLabel(normalizeCustomerType(value));
 }
 
 function normalizeProductCode(value: string | null | undefined): string {
@@ -134,15 +130,6 @@ function promoDe(product: Partial<ProdutoComPromocao>): ProdutoComPromocao {
     promo_starts_at: product.promo_starts_at ?? null,
     promo_ends_at: product.promo_ends_at ?? null,
   };
-}
-
-/** O "de/por" pronto para a etiqueta, ja com a base do cliente. */
-export function resolvePromocao(
-  product: Pick<Product, "price" | "product_code"> & Partial<ProdutoComPromocao>,
-  priceOverrides: ReadonlyMap<string, number>,
-  agora: Date = new Date(),
-) {
-  return aplicarPromocao(resolvePrecoBase(product, priceOverrides), promoDe(product), agora);
 }
 
 export function calculateCartSubtotal(

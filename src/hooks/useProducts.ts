@@ -100,8 +100,3 @@ export function useProductFamilies() {
   return [...new Set(products.flatMap(subcategoriasDoProduto))].sort();
 }
 
-export function useProductTypes() {
-  const { data: products } = useProducts();
-  if (!products) return [];
-  return [...new Set(products.map((p) => p.type))].sort();
-}

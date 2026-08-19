@@ -152,8 +152,3 @@ export async function buscarDadosDaReceita(cnpj: string): Promise<DadosDaReceita
     return null;
   }
 }
-
-/** Atalho de quem so quer o endereco. */
-export async function buscarEnderecoDaReceita(cnpj: string): Promise<AddressFormData | null> {
-  return (await buscarDadosDaReceita(cnpj))?.endereco ?? null;
-}

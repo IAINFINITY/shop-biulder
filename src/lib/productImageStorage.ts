@@ -40,22 +40,6 @@ function isImageFile(file: File): boolean {
   return ALLOWED_EXT.has(ext);
 }
 
-export async function uploadBlobPreviewUrl(
-  blobUrl: string,
-  shape: UploadImageShape = { frame: PRODUCT_IMAGE_FRAME },
-): Promise<UploadProductImageResult> {
-  try {
-    const res = await fetch(blobUrl);
-    const blob = await res.blob();
-    const file = new File([blob], `produto-${Date.now()}.jpg`, {
-      type: blob.type && blob.type.startsWith("image/") ? blob.type : "image/jpeg",
-    });
-    return uploadProductImageFile(file, shape);
-  } catch {
-    return { ok: false, message: "Não foi possível processar a imagem selecionada." };
-  }
-}
-
 /**
  * @param frame Moldura de destino. O padrao e a foto de produto; banner e
  * notificacao precisam declarar a sua, senao saem esticadas para 4:5 retrato.
@@ -175,10 +159,6 @@ export async function uploadProductImageFile(
   // a URL sairia identica a de antes e o navegador nem chegaria a pedir de
   // novo ao servidor.
   return { ok: true, publicUrl: comCacheBuster(publicUrl) };
-}
-
-export function isBlobPreviewUrl(url: string): boolean {
-  return url.startsWith("blob:");
 }
 
 function extractStoragePath(publicUrl: string): string | null {

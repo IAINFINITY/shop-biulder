@@ -221,8 +221,6 @@ export function buildProductSelectColumns(omit: readonly string[] = []): string 
   return [...PRODUCT_SELECT_REQUIRED, ...optional].join(",");
 }
 
-export const PRODUCT_SELECT_COLUMNS = buildProductSelectColumns();
-
 export function isMissingColumnError(message: string, column: string): boolean {
   return new RegExp(column, "i").test(message) && /(column|schema cache)/i.test(message);
 }
@@ -441,25 +439,6 @@ export function getProductCode(product: Pick<Product, "product_code" | "id">): s
   return product.id.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
-export function buildProductCodeLookup(
-  products: Pick<Product, "id" | "product_code">[],
-): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const product of products) {
-    const code = (product.product_code ?? "").trim();
-    if (code) map.set(product.id, code);
-  }
-  return map;
-}
-
-export function buildProductPriceLookup(products: Pick<Product, "id" | "price">[]): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const product of products) {
-    map.set(product.id, getProductUnitPrice(product));
-  }
-  return map;
-}
-
 export function normalizeProductNameKey(name: string): string {
   return name
     .trim()
@@ -516,10 +495,6 @@ export function buildOrderEnrichmentMaps(
     imageByProductId,
     imageByProductName,
   };
-}
-
-export function getCartSubtotal(cart: CartItem[]): number {
-  return cart.reduce((sum, item) => sum + getProductUnitPrice(item.product) * item.quantity, 0);
 }
 
 export interface CartItem {

@@ -41,10 +41,6 @@ export function normalizeProductBrandFromSupabaseRow(row: unknown): ProductBrand
   };
 }
 
-export function normalizeBrandName(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
 /** Ordena pela posicao definida no admin e, em empate, pelo nome. */
 export function sortProductBrands(brands: ProductBrand[]): ProductBrand[] {
   return [...brands].sort(

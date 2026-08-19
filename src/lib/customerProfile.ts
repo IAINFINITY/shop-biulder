@@ -90,10 +90,6 @@ export async function deleteCustomerRecord(payload: DeleteCustomerRecordPayload)
   if (!res.ok) throw new Error(body.error ?? "Erro ao excluir cliente");
 }
 
-export async function deleteCustomerUser(userId: string): Promise<void> {
-  return deleteCustomerRecord({ userId });
-}
-
 export function addressFormToProfileColumns(address: AddressFormData) {
   return {
     address_cep: address.cep,

@@ -28,14 +28,3 @@ export async function ensureProxisImportId(
 
   return id;
 }
-
-export async function refreshOrderProxisImportId(orderId: string): Promise<number | null> {
-  const { data, error } = await supabase
-    .from(ORDERS_TABLE)
-    .select("proxis_import_id")
-    .eq("id", orderId)
-    .maybeSingle();
-
-  if (error) return null;
-  return data.proxis_import_id ?? null;
-}

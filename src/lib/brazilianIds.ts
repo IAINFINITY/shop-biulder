@@ -84,8 +84,3 @@ export const formatDocumentId = (value: string) => {
   return formatCnpj(digits);
 };
 
-export const formatCnpjDisplay = (digitsOrFormatted: string) => {
-  const digits = onlyDigits(digitsOrFormatted);
-  if (digits.length !== 14) return digitsOrFormatted;
-  return formatCnpj(digits);
-};

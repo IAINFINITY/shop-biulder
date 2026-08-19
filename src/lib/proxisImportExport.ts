@@ -23,9 +23,6 @@ export const PROXIS_IMPORT_DIV_VENDA = "1";
 // FOCCO usa 356 para venda à vista.
 export const PROXIS_IMPORT_COND_PAG_A_VISTA = "356";
 
-export const PROXIS_IMPORT_REP_DEFAULT =
-  "2871,3216,2880,7798,7057,6437,7318,2365,2370";
-
 export const PROXIS_IMPORT_TPR_DEFAULT = DEFAULT_PROXSIS_TPR_ID;
 
 export type ProxisImportOrderInput = {
@@ -88,21 +85,6 @@ function buildLineFields(
     PROXIS_IMPORT_COND_PAG_A_VISTA,
     "",
   ];
-}
-
-export function getProxisImportRep(seed = 0): string {
-  const fromEnv = import.meta.env.VITE_PROXIS_IMPORT_REP?.trim();
-  const raw = fromEnv || PROXIS_IMPORT_REP_DEFAULT;
-  const reps = raw
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  if (reps.length === 0) return "2871";
-  if (reps.length === 1) return reps[0];
-
-  const index = Math.abs(Math.trunc(seed)) % reps.length;
-  return reps[index];
 }
 
 export function buildProxisImportLines(

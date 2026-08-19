@@ -4,8 +4,6 @@ import {
   SUPPORT_CONVERSATIONS_TABLE,
   SUPPORT_MESSAGES_TABLE,
   ensureCurrentCustomerConversation,
-  type InternalStaffRecord,
-  type InternalStaffRole,
   type SupportConversation,
   type SupportMessage,
 } from "@/lib/supportChat";
@@ -100,33 +98,6 @@ export function useSupportMessages(conversationId: string | null, enabled = true
   });
 }
 
-export function useUpdateSupportConversationTyping() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: {
-      conversationId: string;
-      typingRole: "customer" | "admin";
-      isTyping: boolean;
-    }) => {
-      const patch =
-        params.typingRole === "customer"
-          ? { customer_typing_at: params.isTyping ? new Date().toISOString() : null }
-          : { admin_typing_at: params.isTyping ? new Date().toISOString() : null };
-
-      const { error } = await supabase.from(SUPPORT_CONVERSATIONS_TABLE).update(patch).eq("id", params.conversationId);
-
-      if (error) throw error;
-    },
-    onSuccess: async (_, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["support-inbox"] }),
-        queryClient.invalidateQueries({ queryKey: ["support-conversation"] }),
-      ]);
-    },
-  });
-}
-
 export function useSendSupportMessage() {
   const queryClient = useQueryClient();
 
@@ -161,33 +132,3 @@ export function useSendSupportMessage() {
   });
 }
 
-export function useInternalStaff() {
-  return useQuery<InternalStaffRecord[]>({
-    queryKey: ["internal-staff"],
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("list_internal_staff");
-      if (error) throw error;
-      return (data ?? []) as InternalStaffRecord[];
-    },
-  });
-}
-
-export function useSetInternalStaffRole() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: { email: string; role: InternalStaffRole }) => {
-      const { error } = await supabase.rpc("set_internal_staff_role", {
-        p_email: params.email,
-        p_role: params.role,
-      });
-
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["internal-staff"] });
-    },
-  });
-}

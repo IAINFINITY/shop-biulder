@@ -28,10 +28,6 @@ export function isServerPriceEnforced(): boolean {
   return (process.env.PRICING_ENFORCE_SERVER_PRICE || "").trim() === "1";
 }
 
-export function isPricingConfigured(): boolean {
-  return Boolean(SUPABASE_URL && SERVICE_ROLE_KEY);
-}
-
 function admin(): SupabaseClient {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 }

@@ -8,18 +8,6 @@
  * provisoria e troca no primeiro acesso.
  */
 
-/** Senha provisoria. Atende as regras do cadastro: maiuscula, minuscula, numero e simbolo. */
-/**
- * @deprecated A senha provisoria vive em `clinic+b2b_config_seguranca` no banco,
- * lida pela funcao de borda `create-employee-user`. Este valor ficou apenas como
- * texto de apoio ao admin e **nao e mais usado para criar ninguem** — mudar aqui
- * nao muda a senha de nada.
- *
- * Para alterar a senha provisoria de verdade, mude a linha
- * `senha_padrao_funcionario` naquela tabela.
- */
-export const SENHA_PADRAO_EXIBIDA = "a senha provisória configurada";
-
 export const COLUNAS_TXT = ["nome", "email", "telefone", "cpf"] as const;
 
 export type LinhaImportacao = {

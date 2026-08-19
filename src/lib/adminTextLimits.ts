@@ -26,10 +26,6 @@ export function stripHtmlTags(value: string): string {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export function countPlainTextCharacters(value: string): number {
-  return value.length;
-}
-
 export function countRichTextCharacters(value: string): number {
   return stripHtmlTags(value).length;
 }

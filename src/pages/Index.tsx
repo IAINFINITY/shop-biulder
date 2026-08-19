@@ -4,7 +4,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
-import { type CatalogSortMode } from "@/components/catalogo/CatalogFiltersBarStickyFilters";
 import { CatalogThemeSections, type CatalogThemeSection } from "@/components/catalogo/CatalogThemeSections";
 import { CatalogSectionHeader } from "@/components/catalogo/CatalogSectionHeader";
 import { PromoDuo, PromoTrio, PromoUnico } from "@/components/catalogo/PromoBanners";
@@ -110,6 +109,8 @@ function saveCatalogViewState(state: CatalogViewState) {
     // Keep the catalog usable even when session storage is unavailable.
   }
 }
+
+export type CatalogSortMode = "relevance" | "best_sellers" | "price_asc" | "price_desc" | "name_asc";
 
 /** Guarda o valor que vem da URL: `?ordem=qualquer-coisa` nao pode quebrar a tela. */
 const ehModoDeOrdenacao = (valor: string): valor is CatalogSortMode =>

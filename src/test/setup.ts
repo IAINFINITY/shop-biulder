@@ -43,3 +43,24 @@ for (const nome of ["IntersectionObserver", "ResizeObserver"] as const) {
     Object.defineProperty(globalThis, nome, { writable: true, value: ObservadorInerte });
   }
 }
+
+/**
+ * Rolagem: o jsdom nao implementa nenhuma das tres.
+ *
+ * A tira de categorias da ajuda chama `scrollTo` ao montar, e o catalogo chama
+ * `scrollIntoView` ao trocar de filtro. Sem estes dubles, o teste morre com
+ * "scrollTo is not a function" — falha que nao diz nada sobre o codigo, so sobre
+ * o que falta no jsdom.
+ *
+ * Inertes pela mesma razao dos observadores acima: nenhum teste afirma nada
+ * sobre posicao de rolagem, e um duble que fingisse rolar afirmaria o que o
+ * navegador nao garante. O que se mede aqui e que a tela **monta**.
+ */
+for (const metodo of ["scrollTo", "scrollBy", "scrollIntoView"] as const) {
+  if (!(metodo in Element.prototype)) {
+    Object.defineProperty(Element.prototype, metodo, { writable: true, value: () => {} });
+  }
+}
+if (!("scrollTo" in window)) {
+  Object.defineProperty(window, "scrollTo", { writable: true, value: () => {} });
+}

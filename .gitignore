@@ -64,3 +64,10 @@ bucket/
 
 # Workflow n8n local-only
 n8n/
+
+# Saída dos testes de navegador (Playwright)
+test-results/
+playwright-report/
+
+# Manifesto das contas de teste (ids de conta; nunca versionar)
+scripts/.contas-de-teste.json

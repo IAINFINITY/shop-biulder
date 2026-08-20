@@ -104,6 +104,31 @@ export async function authenticate(req: VercelRequest): Promise<AuthContext | nu
  * Guard padrao das rotas. Responde e devolve null quando o chamador nao pode
  * seguir, entao quem chama so precisa de `if (!auth) return;`.
  */
+/**
+ * Ultimo aviso de "admin sem aal2" por usuario, para nao repetir.
+ *
+ * Vive no modulo, entao vale enquanto a instancia serverless viver. Numa
+ * instancia nova o aviso sai de novo — o que e desejavel: o objetivo e saber
+ * **se ainda acontece**, nao contar quantas vezes.
+ */
+const avisoSemAal2 = new Map<string, number>();
+const INTERVALO_DO_AVISO_MS = 60 * 60 * 1000;
+
+function deveAvisarSemAal2(userId: string): boolean {
+  const agora = Date.now();
+  const ultimo = avisoSemAal2.get(userId);
+  if (ultimo && agora - ultimo < INTERVALO_DO_AVISO_MS) return false;
+
+  avisoSemAal2.set(userId, agora);
+  // O mapa nao cresce sem limite: sao poucos admins, e entradas velhas saem.
+  if (avisoSemAal2.size > 50) {
+    for (const [id, quando] of avisoSemAal2) {
+      if (agora - quando >= INTERVALO_DO_AVISO_MS) avisoSemAal2.delete(id);
+    }
+  }
+  return true;
+}
+
 export async function requireAuth(
   req: VercelRequest,
   res: VercelResponse,
@@ -181,9 +206,15 @@ export async function requireAuth(
       });
       return null;
     }
-    if (!exigir && auth.aal !== "aal2" && !comDispositivo) {
+    if (!exigir && auth.aal !== "aal2" && !comDispositivo && deveAvisarSemAal2(auth.userId)) {
       // O log e o que permite saber quando da para ligar a flag sem derrubar
       // ninguem: quando esta linha parar de aparecer, todo admin ja tem fator.
+      //
+      // **Uma vez por admin a cada hora**, e nao por requisicao. Cada tela do
+      // painel dispara varias chamadas, entao a versao anterior repetia a mesma
+      // frase dezenas de vezes por minuto e afogava o resto do log — inclusive
+      // os erros que alguem precisaria ver. Um aviso que ninguem consegue ler
+      // deixa de ser aviso.
       console.warn(
         `[auth] admin ${auth.userId} acessou rota administrativa sem aal2 (aal=${auth.aal}). ` +
           "Com MFA_ADMIN_OBRIGATORIO=1 este acesso seria recusado.",

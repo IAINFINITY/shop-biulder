@@ -21,6 +21,7 @@ describe("politicaDaRota", () => {
       "proxis-item-check",
       "proxis-price-tables",
       "excluir-conta",
+      "cadastros-pendentes",
     ]) {
       expect(POLITICAS[rota], rota).toBeDefined();
     }
@@ -45,7 +46,15 @@ describe("politicaDaRota", () => {
       .filter(([, p]) => p.naFalha === "fechar")
       .map(([rota]) => rota)
       .sort();
-    expect(fecham).toEqual(["dispositivo-confiavel", "excluir-conta", "resumo-produto"]);
+    // `cadastros-pendentes` fecha porque cada chamada dispara e-mail para
+    // terceiro: sem contador funcionando, a rota vira caminho para encher a
+    // caixa de alguem usando o nosso remetente.
+    expect(fecham).toEqual([
+      "cadastros-pendentes",
+      "dispositivo-confiavel",
+      "excluir-conta",
+      "resumo-produto",
+    ]);
   });
 
   it("a exclusão de conta tem o teto mais baixo de todas", () => {

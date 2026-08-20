@@ -78,6 +78,14 @@ export const POLITICAS: Record<string, PoliticaDeLimite> = {
    */
   "excluir-conta": { limite: 5, janelaSegundos: HORA, naFalha: "fechar" },
 
+  /**
+   * Reenvio de confirmacao de cadastro. Teto baixo porque cada chamada dispara
+   * um **e-mail para terceiro**: sem limite, a rota viraria caminho para
+   * encher a caixa de alguem usando o nosso remetente. O proprio Supabase ja
+   * limita, e este teto e a nossa camada.
+   */
+  "cadastros-pendentes": { limite: 30, janelaSegundos: HORA, naFalha: "fechar" },
+
   /** Ferramentas de leitura do painel: quem esta trabalhando consulta muito. */
   "proxis-health": { limite: 240, janelaSegundos: HORA, naFalha: "abrir" },
   "proxis-item-check": { limite: 600, janelaSegundos: HORA, naFalha: "abrir" },

@@ -47,22 +47,6 @@ scripts/auth-config-backup.json
 # navegador. A verdade dos templates é o script; isto é subproduto.
 scripts/previa-emails/
 
-# Documentacao do projeto: versionada desde 19/08/2026.
-#
-# Ficava fora do Git, e o preco apareceu: `AUTH.MD`, `PERFIL-CLINIC-PLUS.md` e
-# `EXCECOES-REGISTRADAS.md` — os tres arquivos que o CLAUDE.md declarava como
-# fonte da verdade da autenticacao — sumiram numa troca de maquina e nao existem
-# mais em disco nenhum.
-#
-# Para a LGPD isso deixou de ser questao de organizacao: o art. 37 e o principio
-# de responsabilizacao se demonstram com documento, e documento que nao sobrevive
-# a uma troca de maquina nao demonstra nada.
-#
-# Conferido antes de versionar: so markdown, 152K no total, sem binario e sem
-# credencial. A pasta `catalogo/`, que tinha planilhas, ja nao existe.
-design/
-.od-skills/
-
 # Supabase local temp files
 supabase/.temp/
 
@@ -82,3 +66,13 @@ playwright-report/
 
 # Manifesto das contas de teste (ids de conta; nunca versionar)
 scripts/.contas-de-teste.json
+
+# Documentacao do projeto: NAO versionada, por decisao do dono do projeto.
+#
+# Ja esteve versionada por um periodo (commit 514f3a1), depois que os documentos
+# de autenticacao se perderam numa troca de maquina justamente por estarem
+# ignorados. A decisao foi revista: a pasta volta a ficar fora do repositorio.
+#
+# O risco continua existindo e e conhecido: o que esta aqui so existe no disco
+# de quem tem a copia. Vale manter um backup fora do git.
+documentation/

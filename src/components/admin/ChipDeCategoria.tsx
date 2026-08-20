@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Eye, EyeOff, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
  *
  * Filtrar e a acao frequente e ocupa a area maior; remover e rara e destrutiva,
  * fica num alvo menor e ainda passa pela confirmacao.
+ *
+ * O olho, quando presente, e uma terceira acao: esconder a categoria da **loja**
+ * sem apagar nada. E o que o time de design pediu — tirar a categoria da
+ * vitrine sem tirar os produtos dela. Sem isso a unica saida era apagar, que
+ * so mexe no seletor de cadastro e nao muda o site.
  */
 export function ChipDeCategoria({
   nome,
@@ -28,6 +33,8 @@ export function ChipDeCategoria({
   tituloRemover,
   descricaoRemover,
   onRemover,
+  visivelNaLoja,
+  onAlternarVisibilidade,
 }: {
   nome: string;
   quantidade: number;
@@ -38,12 +45,18 @@ export function ChipDeCategoria({
   tituloRemover: string;
   descricaoRemover: ReactNode;
   onRemover: () => void;
+  /** `undefined` esconde o botao — subcategoria nao tem esta acao. */
+  visivelNaLoja?: boolean;
+  onAlternarVisibilidade?: () => void;
 }) {
   return (
     <div
       className={cn(
         "inline-flex items-center gap-1 rounded-full border pl-3 pr-1 transition-colors",
         ativo ? "border-primary bg-primary/10" : "border-border/70 bg-secondary",
+        // Oculta na loja fica esmaecida: a lista continua completa, mas da para
+        // varrer os olhos e ver quais nao estao no ar.
+        visivelNaLoja === false && "opacity-60",
       )}
     >
       <button
@@ -64,6 +77,23 @@ export function ChipDeCategoria({
           {quantidade}
         </Badge>
       </button>
+
+      {onAlternarVisibilidade ? (
+        <button
+          type="button"
+          onClick={onAlternarVisibilidade}
+          aria-pressed={visivelNaLoja === false}
+          aria-label={visivelNaLoja === false ? `Mostrar ${nome} na loja` : `Esconder ${nome} da loja`}
+          title={
+            visivelNaLoja === false
+              ? "Escondida da loja — clique para mostrar. Os produtos continuam no catálogo."
+              : "Esconder da loja. Os produtos continuam no catálogo, encontráveis pela busca."
+          }
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+        >
+          {visivelNaLoja === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      ) : null}
 
       <ConfirmActionDialog
         trigger={

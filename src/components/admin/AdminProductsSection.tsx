@@ -96,12 +96,14 @@ type AdminProductsSectionProps = {
   typeOptions: string[];
   newType: string;
   onNewTypeChange: (value: string) => void;
-  adminTypes: Array<{ id: string; name: string }>;
+  /** `visivel` opcional: a coluna pode nao existir ainda, e ausente = visivel. */
+  adminTypes: Array<{ id: string; name: string; visivel?: boolean | null }>;
   uploading: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
   onEditChange: (next: AdminProductFormState) => void;
   onAddType: () => void;
   onDeleteType: (id: string) => void;
+  onToggleTypeVisivel?: (id: string, visivel: boolean) => void;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   onRemoveImageAt: (index: number) => Promise<void>;
   onMoveImageAt: (from: number, to: number) => void;
@@ -133,6 +135,7 @@ export function AdminProductsSection({
   onEditChange,
   onAddType,
   onDeleteType,
+  onToggleTypeVisivel,
   onFileChange,
   onRemoveImageAt,
   onMoveImageAt,
@@ -476,14 +479,47 @@ export function AdminProductsSection({
                     rotuloRemover={`Remover categoria ${type.name}`}
                     tituloRemover="Remover categoria"
                     descricaoRemover={
+                      /**
+                       * O texto muda conforme a categoria tenha produtos, e a
+                       * diferenca e real — nao e enfeite.
+                       *
+                       * A loja monta a lista de categorias a partir do `type` de
+                       * cada produto, e nao desta tabela. Com produtos dentro,
+                       * apagar aqui **nao tira a categoria do site**: ela
+                       * reaparece derivada deles. Foi exatamente isso que o time
+                       * de design viveu antes de perguntar como remover.
+                       *
+                       * Sem produtos, nao ha de onde derivar, e apagar some
+                       * mesmo. Dizer a mesma coisa nos dois casos deixaria um
+                       * dos dois errado.
+                       */
                       <>
                         <span className="block">Deseja remover a categoria "{type.name}"?</span>
-                        <span className="mt-2 block text-muted-foreground">
-                          Isso apenas tira a opção do seletor. Produtos já cadastrados continuam com o tipo salvo.
-                        </span>
+                        {count > 0 ? (
+                          <>
+                            <span className="mt-2 block text-muted-foreground">
+                              Isso tira a opção do seletor de cadastro. Os {count} produto(s) continuam com o
+                              tipo salvo — e por isso a categoria <strong className="font-medium text-foreground">continua
+                              aparecendo na loja</strong>.
+                            </span>
+                            <span className="mt-2 block text-muted-foreground">
+                              Para sumir com ela da loja sem mexer nos produtos, use o botão de olho no chip.
+                            </span>
+                          </>
+                        ) : (
+                          <span className="mt-2 block text-muted-foreground">
+                            Nenhum produto usa esta categoria, então ela sai do seletor e também da loja.
+                          </span>
+                        )}
                       </>
                     }
                     onRemover={() => onDeleteType(type.id)}
+                    visivelNaLoja={type.visivel !== false}
+                    onAlternarVisibilidade={
+                      onToggleTypeVisivel
+                        ? () => onToggleTypeVisivel(type.id, type.visivel === false)
+                        : undefined
+                    }
                   />
                 );
               })

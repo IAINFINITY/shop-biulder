@@ -6,6 +6,13 @@ export interface ProductType {
   id: string;
   name: string;
   created_at: string;
+  /**
+   * `false` esconde a categoria dos filtros da loja.
+   *
+   * Opcional porque a coluna pode nao existir ainda no banco — e nesse caso
+   * `undefined` significa "visivel", nunca "oculta". Ver `categoriasOcultas.ts`.
+   */
+  visivel?: boolean | null;
 }
 
 export function useAdminProductTypes() {

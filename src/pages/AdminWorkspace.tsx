@@ -866,6 +866,31 @@ export default function AdminWorkspace() {
     refreshTypes();
   };
 
+  /**
+   * Esconde ou mostra a categoria na loja, sem tocar em produto nenhum.
+   *
+   * Apagar a categoria (`deleteType`) faz outra coisa, e o texto do painel ja
+   * diz qual: tira a opcao do seletor de cadastro. Isso nunca mudou a vitrine,
+   * porque a lista de categorias do catalogo e montada a partir do `type` de
+   * cada produto — e foi essa confusao que originou o pedido do time.
+   */
+  const toggleTypeVisivel = async (id: string, visivel: boolean) => {
+    const { error } = await supabase.from(PRODUCT_TYPES_TABLE).update({ visivel }).eq("id", id);
+    if (error) {
+      console.error("Erro ao alterar visibilidade da categoria", error);
+      toast.error("Não foi possível alterar a visibilidade.");
+      return;
+    }
+    toast.success(visivel ? "Categoria visível na loja." : "Categoria escondida da loja.");
+    queryClient.setQueryData<ProductType[]>(["product-types"], (current = []) =>
+      current.map((type) => (type.id === id ? { ...type, visivel } : type)),
+    );
+    // A vitrine le a propria consulta; sem isto o catalogo so mudaria depois
+    // de expirar o cache de cinco minutos.
+    queryClient.invalidateQueries({ queryKey: ["categorias-ocultas"] });
+    refreshTypes();
+  };
+
   const deleteOrder = async (id: string) => {
     const { error } = await supabase.from(ORDERS_TABLE).delete().eq("id", id);
     if (error) {
@@ -1048,6 +1073,7 @@ export default function AdminWorkspace() {
           onEditChange={setEditing}
           onAddType={addType}
           onDeleteType={deleteType}
+          onToggleTypeVisivel={toggleTypeVisivel}
           onFileChange={handleImageFile}
           onMoveImageAt={moveImageAt}
           onImageAltChange={setImageAltAt}

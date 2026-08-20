@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
 import { CUSTOMER_PROFILES_TABLE, registrarAcessoAdminAoCadastro } from "@/lib/customerProfile";
 import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
+import { CadastrosPendentesSection } from "@/components/admin/CadastrosPendentesSection";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import type { AdminCustomerSummary } from "./adminTypes";
@@ -348,6 +349,12 @@ export function AdminClientsSection({
 
   return (
     <div className="space-y-3 sm:space-y-4">
+      {/* Antes da lista, e nao depois: quem abre esta aba procurando um cliente
+          que "nao aparece" precisa esbarrar nisto primeiro. A conta existe, so
+          nao confirmou o e-mail — e sem o aviso aqui, a conclusao natural e que
+          o cadastro nao foi feito. */}
+      <CadastrosPendentesSection />
+
       <div className="space-y-3 sm:space-y-4">
         <AdminSectionHeader
           eyebrow="Clientes"

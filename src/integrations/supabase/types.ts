@@ -1272,16 +1272,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          visivel: boolean
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          visivel?: boolean
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          visivel?: boolean
         }
         Relationships: []
       }

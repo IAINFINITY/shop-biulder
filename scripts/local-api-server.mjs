@@ -1,4 +1,5 @@
 import http from "node:http";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { register } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -19,22 +20,33 @@ if (process.env.LOCAL_USE_N8N_PROXY !== "1") {
   process.env.N8N_WEBHOOK_BASE_URL = "";
 }
 
+/**
+ * As rotas saem da pasta, e nao de uma lista escrita a mao.
+ *
+ * Aqui havia um array com os dez caminhos digitados um a um. Ele desandava:
+ * criar `api/cadastros-pendentes.ts` e esquecer de registrar produzia **404 no
+ * servidor local e 200 na Vercel** — que descobre as rotas sozinha. O sintoma
+ * chegava como "a tela nao carrega", e nada no codigo da rota estava errado.
+ *
+ * A regra e a mesma da Vercel: cada arquivo em `api/` vira uma rota, e os que
+ * comecam com `_` sao modulos compartilhados (`_auth`, `_rateLimit`), nao
+ * endpoints.
+ */
+const arquivosDeRota = readdirSync(path.join(rootDir, "api"))
+  .filter((nome) => nome.endsWith(".ts") && !nome.startsWith("_"))
+  .sort();
+
 const handlers = new Map(
   await Promise.all(
-    [
-      ["/api/proxis-order", "api/proxis-order.ts"],
-      ["/api/proxis-health", "api/proxis-health.ts"],
-      ["/api/proxis-customer", "api/proxis-customer.ts"],
-      ["/api/bitrix-deal", "api/bitrix-deal.ts"],
-      ["/api/proxis-price-tables", "api/proxis-price-tables.ts"],
-      ["/api/proxis-item-check", "api/proxis-item-check.ts"],
-      ["/api/resumo-produto", "api/resumo-produto.ts"],
-      ["/api/senha-vazada", "api/senha-vazada.ts"],
-      ["/api/excluir-conta", "api/excluir-conta.ts"],
-      ["/api/dispositivo-confiavel", "api/dispositivo-confiavel.ts"],
-    ].map(async ([route, file]) => [route, (await import(pathToFileURL(path.join(rootDir, file)).href)).default]),
+    arquivosDeRota.map(async (nome) => {
+      const rota = `/api/${nome.replace(/\.ts$/, "")}`;
+      const modulo = await import(pathToFileURL(path.join(rootDir, "api", nome)).href);
+      return [rota, modulo.default];
+    }),
   ),
 );
+
+console.log(`[api] ${handlers.size} rota(s): ${[...handlers.keys()].join(", ")}`);
 
 function readBody(req) {
   return new Promise((resolve, reject) => {

@@ -8,6 +8,8 @@ import { CatalogThemeSections, type CatalogThemeSection } from "@/components/cat
 import { CatalogSectionHeader } from "@/components/catalogo/CatalogSectionHeader";
 import { PromoDuo, PromoTrio, PromoUnico } from "@/components/catalogo/PromoBanners";
 import { CatalogFilterPanel, type CatalogFilterOption } from "@/components/catalogo/CatalogFilterPanel";
+import { useCategoriasOcultas } from "@/hooks/useCategoriasOcultas";
+import { semCategoriasOcultas } from "@/lib/categoriasOcultas";
 import { CatalogActiveFilters, type CatalogActiveFilter } from "@/components/catalogo/CatalogActiveFilters";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { QuickView } from "@/components/catalogo/QuickView";
@@ -185,6 +187,7 @@ export default function Index() {
    * "voltar" do navegador tambem restaura o filtro sozinho, que era o motivo de
    * o `localStorage` guardar isso.
    */
+  const categoriasOcultas = useCategoriasOcultas();
   const [selectedType, setSelectedType] = useFiltroNaUrl("categoria");
   const [selectedFamily, setSelectedFamily] = useFiltroNaUrl("subcategoria");
   const [selectedBrand, setSelectedBrand] = useFiltroNaUrl("marca");
@@ -401,13 +404,22 @@ export default function Index() {
       ),
     [countBy, products, casaComFiltros, comSelecionada, selectedBrand],
   );
+  /**
+   * A lista de Categoria, menos o que o painel escondeu.
+   *
+   * O filtro entra **depois** de `comSelecionada`: uma categoria oculta que
+   * esteja marcada no momento continua na lista, senao o filtro ficaria ativo e
+   * invisivel — a grade mostraria pouca coisa e nao haveria o que desmarcar.
+   * Isso tambem mantem de pe os links diretos (`?categoria=Whey`), inclusive os
+   * de banner.
+   */
   const typeOptions = useMemo(
-    () =>
-      comSelecionada(
-        countBy((product) => product.type)(products.filter((p) => casaComFiltros(p, "type"))),
-        selectedType,
-      ),
-    [countBy, products, casaComFiltros, comSelecionada, selectedType],
+    () => {
+      const todas = countBy((product) => product.type)(products.filter((p) => casaComFiltros(p, "type")));
+      const visiveis = semCategoriasOcultas(todas, categoriasOcultas, (o) => o.value);
+      return comSelecionada(visiveis, selectedType);
+    },
+    [countBy, products, casaComFiltros, comSelecionada, selectedType, categoriasOcultas],
   );
   const familyOptions = useMemo(
     () => {

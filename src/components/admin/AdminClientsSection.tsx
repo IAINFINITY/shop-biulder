@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { KeyRound, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
 import { CadastrosPendentesSection } from "@/components/admin/CadastrosPendentesSection";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { DialogoDeResetDeSenha, type AlvoDoReset } from "./DialogoDeResetDeSenha";
 import type { AdminCustomerSummary } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
 import { deleteCustomerRecord } from "@/lib/customerProfile";
@@ -129,6 +130,13 @@ export function AdminClientsSection({
   const [editType, setEditType] = useState("cliente");
   const [editSaving, setEditSaving] = useState(false);
   const canDeleteCustomer = Boolean(editCustomer?.userId || editCustomer?.cnpj);
+  /**
+   * Quem esta prestes a ter a senha resetada, ou `null`.
+   *
+   * So cliente **com conta**. O cadastro legado nao tem `user_id` — nao ha
+   * credencial para resetar, e o botao apareceria prometendo o que nao existe.
+   */
+  const [alvoDoReset, setAlvoDoReset] = useState<AlvoDoReset | null>(null);
 
   const { data: adminUsers = [] } = useQuery({
     queryKey: ["admin-users"],
@@ -860,6 +868,27 @@ export function AdminClientsSection({
                 {editSaving ? "Salvando..." : "Salvar alterações"}
               </Button>
             </div>
+            {editCustomer?.userId ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-2xl px-4 text-[0.8125rem]"
+                onClick={() =>
+                  setAlvoDoReset({
+                    userId: editCustomer.userId as string,
+                    nome: editCustomer.name ?? "",
+                    // `AdminCustomerSummary` nao carrega e-mail — ele vive no
+                    // perfil. O dialogo usa o endereco para identificar a conta
+                    // na confirmacao, entao vale procurar.
+                    email:
+                      customerProfiles.find((p) => p.user_id === editCustomer.userId)?.email ?? "",
+                  })
+                }
+              >
+                <KeyRound className="mr-1.5 h-4 w-4" />
+                Resetar senha
+              </Button>
+            ) : null}
             {canDeleteCustomer ? (
               <ConfirmActionDialog
                 trigger={
@@ -959,6 +988,13 @@ export function AdminClientsSection({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DialogoDeResetDeSenha
+        alvo={alvoDoReset}
+        onOpenChange={(aberto) => {
+          if (!aberto) setAlvoDoReset(null);
+        }}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   EyeOff,
   Loader2,
   Plus,
+  KeyRound,
   PencilLine,
   Search,
   ShieldAlert,
@@ -27,6 +28,8 @@ import {
 } from "@/components/ui/dialog";
 import { AdminSectionHeader } from "./AdminSectionHeader";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { DialogoDeResetDeSenha, type AlvoDoReset } from "./DialogoDeResetDeSenha";
+import { lerSenhaPadrao } from "@/lib/resetDeSenha";
 import { useAuth } from "@/hooks/useAuth";
 import {
   listEmployees,
@@ -53,6 +56,15 @@ export function AdminEmployeesSection() {
   const [search, setSearch] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
+  /** A senha provisoria, lida do servidor — ver `src/lib/resetDeSenha.ts`. */
+  const { data: senhaPadrao } = useQuery({
+    queryKey: ["senha-padrao"],
+    queryFn: lerSenhaPadrao,
+    staleTime: 30 * 60_000,
+    retry: false,
+  });
+  /** Quem esta prestes a ter a senha resetada, ou `null`. */
+  const [alvoDoReset, setAlvoDoReset] = useState<AlvoDoReset | null>(null);
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -348,6 +360,20 @@ export function AdminEmployeesSection() {
                     <PencilLine className="h-4 w-4" />
                     Editar
                   </Button>
+                  {/* O reset abre um dialogo proprio em vez do `ConfirmActionDialog`
+                      generico: ele precisa mostrar a senha que sera aplicada e
+                      as tres consequencias, e "tem certeza?" nao serve. */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10 rounded-full px-4 text-[0.8125rem]"
+                    onClick={() =>
+                      setAlvoDoReset({ userId: emp.user_id, nome: emp.name, email: emp.email ?? "" })
+                    }
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    Resetar senha
+                  </Button>
                   <ConfirmActionDialog
                     trigger={
                       <Button
@@ -470,10 +496,25 @@ export function AdminEmployeesSection() {
                 <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                   Senha de acesso
                 </Label>
+                {/* O texto anterior dizia onde a senha MORA — "o valor esta em
+                    clinic+b2b_config_seguranca" — e nao qual e. Quem abre esta
+                    tela precisa dizer a senha ao funcionario, nao consultar uma
+                    tabela. Agora o valor vem do servidor e aparece aqui.
+
+                    Continua fora do bundle: quem le o JavaScript da pagina nao
+                    encontra a senha, porque ela chega por `/api/reset-senha`,
+                    que exige admin. Era o ponto da migration 20260808120000. */}
                 <div className="rounded-[1.25rem] border border-border/70 bg-muted/20 px-4 py-3 text-sm leading-6 text-muted-foreground">
-                  Definida pelo sistema, igual para todo funcionário novo, e trocada
-                  obrigatoriamente no primeiro acesso. O valor está em{" "}
-                  <span className="font-mono text-[0.8125rem] text-foreground">clinic+b2b_config_seguranca</span>.
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-foreground">A senha será</span>
+                    <code className="rounded-lg bg-background px-2.5 py-1 font-mono text-sm font-semibold text-foreground">
+                      {senhaPadrao || "…"}
+                    </code>
+                  </div>
+                  <p className="mt-2">
+                    É a mesma para todo funcionário novo. Passe ela ao funcionário: no primeiro
+                    acesso o sistema obriga a criar uma senha própria.
+                  </p>
                 </div>
               </div>
             </div>
@@ -750,6 +791,12 @@ export function AdminEmployeesSection() {
         </DialogContent>
       </Dialog>
 
+      <DialogoDeResetDeSenha
+        alvo={alvoDoReset}
+        onOpenChange={(aberto) => {
+          if (!aberto) setAlvoDoReset(null);
+        }}
+      />
     </div>
   );
 }

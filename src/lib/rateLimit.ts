@@ -86,6 +86,28 @@ export const POLITICAS: Record<string, PoliticaDeLimite> = {
    */
   "cadastros-pendentes": { limite: 30, janelaSegundos: HORA, naFalha: "fechar" },
 
+  /**
+   * Reset de senha para o padrao, feito pelo painel.
+   *
+   * `fechar` na falha: sem contador funcionando, esta rota troca a credencial de
+   * qualquer conta sem teto. A politica padrao e `abrir`, e cair nela aqui seria
+   * o pior default possivel — dai a entrada explicita.
+   *
+   * 20 por hora e folgado para um dia de suporte e muito abaixo do que um
+   * varrimento precisaria. Quem chega aqui ja provou ser superadmin com segundo
+   * fator; o teto e a ultima rede, nao a primeira.
+   */
+  "reset-senha": { limite: 20, janelaSegundos: HORA, naFalha: "fechar" },
+
+  /**
+   * Leitura da senha provisoria pelo painel — contador separado do reset.
+   *
+   * Compartilhar o teto de `reset-senha` faria o painel gastar as 20 chamadas da
+   * hora so abrindo a tela, e o reset de verdade levaria 429. Teto de leitura,
+   * politica de leitura.
+   */
+  "reset-senha-leitura": { limite: 240, janelaSegundos: HORA, naFalha: "abrir" },
+
   /** Ferramentas de leitura do painel: quem esta trabalhando consulta muito. */
   "proxis-health": { limite: 240, janelaSegundos: HORA, naFalha: "abrir" },
   "proxis-item-check": { limite: 600, janelaSegundos: HORA, naFalha: "abrir" },

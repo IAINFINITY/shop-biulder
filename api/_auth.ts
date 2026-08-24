@@ -56,10 +56,10 @@ async function resolveUserId(token: string): Promise<string | null> {
   return typeof user?.id === "string" && user.id ? user.id : null;
 }
 
-async function resolveIsAdmin(userId: string): Promise<boolean> {
+async function temPapel(userId: string, papel: "admin" | "superadmin"): Promise<boolean> {
   const response = await supabaseFetch("/rest/v1/rpc/has_role", {
     method: "POST",
-    body: JSON.stringify({ _user_id: userId, _role: "admin" }),
+    body: JSON.stringify({ _user_id: userId, _role: papel }),
   });
   if (!response.ok) {
     // Erro de schema aqui viraria "nao e admin" em silencio e tiraria o painel
@@ -93,7 +93,7 @@ export async function authenticate(req: VercelRequest): Promise<AuthContext | nu
   const userId = await resolveUserId(token);
   if (!userId) return null;
 
-  const [isAdmin, profile] = await Promise.all([resolveIsAdmin(userId), resolveProfile(userId)]);
+  const [isAdmin, profile] = await Promise.all([temPapel(userId, "admin"), resolveProfile(userId)]);
   // `lerAal` decodifica o payload sem conferir assinatura, e isso so e seguro
   // **aqui**: `resolveUserId` acabou de provar que este token e legitimo. Chamar
   // antes disso seria confiar em texto escrito pelo cliente.
@@ -132,7 +132,7 @@ function deveAvisarSemAal2(userId: string): boolean {
 export async function requireAuth(
   req: VercelRequest,
   res: VercelResponse,
-  options: { adminOnly?: boolean } = {},
+  options: { adminOnly?: boolean; superadminOnly?: boolean } = {},
 ): Promise<AuthContext | null> {
   if (!isAuthConfigured()) {
     console.error("[auth] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes: rota indisponivel.");
@@ -154,8 +154,19 @@ export async function requireAuth(
     return null;
   }
 
-  if (options.adminOnly && !auth.isAdmin) {
+  // Superadmin implica admin: sem isto, uma rota marcada so como
+  // `superadminOnly` pularia a exigencia de segundo fator logo abaixo, que
+  // esta amarrada em `adminOnly`. Justamente a rota mais sensivel ficaria com a
+  // guarda mais fraca.
+  const exigeAdmin = Boolean(options.adminOnly || options.superadminOnly);
+
+  if (exigeAdmin && !auth.isAdmin) {
     res.status(403).json({ error: "Acesso restrito a administradores." });
+    return null;
+  }
+
+  if (options.superadminOnly && !(await temPapel(auth.userId, "superadmin"))) {
+    res.status(403).json({ error: "Acesso restrito ao superadministrador." });
     return null;
   }
 
@@ -175,7 +186,7 @@ export async function requireAuth(
    * conformidade: enquanto a flag estiver desligada, o item 3.2 do
    * PERFIL-CLINIC-PLUS.md continua em aberto.
    */
-  if (options.adminOnly) {
+  if (exigeAdmin) {
     const exigir = process.env.MFA_ADMIN_OBRIGATORIO === "1";
 
     /**

@@ -49,10 +49,15 @@ describe("politicaDaRota", () => {
     // `cadastros-pendentes` fecha porque cada chamada dispara e-mail para
     // terceiro: sem contador funcionando, a rota vira caminho para encher a
     // caixa de alguem usando o nosso remetente.
+    // `reset-senha` fecha porque a rota troca a credencial de outra pessoa: sem
+    // contador funcionando nao haveria teto nenhum para isso. E a unica da lista
+    // cujo caminho de leitura ficou numa chave separada (`reset-senha-leitura`,
+    // que abre) — juntas, o painel gastaria o teto do reset so abrindo a tela.
     expect(fecham).toEqual([
       "cadastros-pendentes",
       "dispositivo-confiavel",
       "excluir-conta",
+      "reset-senha",
       "resumo-produto",
     ]);
   });

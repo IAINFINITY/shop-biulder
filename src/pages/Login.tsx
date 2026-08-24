@@ -14,7 +14,11 @@ import { getSafeReturnToPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { DEFAULT_CUSTOMER_TYPE } from "@/lib/pricing";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
-import { translateAuthErrorMessage } from "@/lib/authErrors";
+import {
+  ErroDeLogin,
+  translateAuthErrorMessage,
+  type TipoDeFalhaDeLogin,
+} from "@/lib/authErrors";
 import { sugerirCorrecaoDeEmail } from "@/lib/emailTypo";
 import { LockKeyhole, Mail, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { validarSenha } from "@/lib/validarSenha";
@@ -230,23 +234,58 @@ export default function Login() {
     };
   }, [authTab, signUpEmail]);
 
+  /**
+   * O que impediu o ultimo login, para a tela oferecer a saida certa.
+   *
+   * A mensagem sozinha nao resolvia: "confira os dados" nao diz se a pessoa
+   * deve recuperar a senha, criar conta ou procurar o e-mail de confirmacao.
+   * Guardando o motivo, cada caso ganha o proprio caminho logo abaixo do
+   * formulario — sem que a mensagem passe a revelar se a conta existe.
+   */
+  const [falhaDoLogin, setFalhaDoLogin] = useState<{ tipo: TipoDeFalhaDeLogin; email: string } | null>(null);
+  const [reenviandoConfirmacao, setReenviandoConfirmacao] = useState(false);
+
+  const reenviarConfirmacao = async () => {
+    if (!falhaDoLogin) return;
+    setReenviandoConfirmacao(true);
+    try {
+      const supabase = await loadSupabaseClient();
+      // Reenvio publico, com a chave anonima: o Supabase responde igual para
+      // e-mail existente e inexistente, e limita a frequencia. O botao so
+      // aparece depois de `email_nao_confirmado`, que exige a senha correta.
+      const { error } = await supabase.auth.resend({ type: "signup", email: falhaDoLogin.email });
+      if (error) {
+        toast.error(translateAuthErrorMessage(error.message || ""));
+        return;
+      }
+      toast.success(`Enviamos um novo link para ${falhaDoLogin.email}. Confira também a caixa de spam.`);
+    } catch (err) {
+      console.error("Erro ao reenviar confirmação", err);
+      toast.error("Erro de conexão. Verifique sua internet e tente novamente.");
+    } finally {
+      setReenviandoConfirmacao(false);
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    const email = signInEmail.trim();
     const startedAt = Date.now();
+    setFalhaDoLogin(null);
     setSubmitting(true);
     try {
-      const error = await signIn(signInEmail.trim(), signInPassword);
+      const error = await signIn(email, signInPassword);
       const elapsed = Date.now() - startedAt;
       if (elapsed < AUTH_FEEDBACK_MIN_MS) {
         await new Promise((resolve) => window.setTimeout(resolve, AUTH_FEEDBACK_MIN_MS - elapsed));
       }
       if (error) {
         console.error("Erro ao fazer login", error);
-        toast.error(
-          translateAuthErrorMessage(error.message || "Erro ao fazer login.", {
-            duplicateEmailText: "Este e-mail já está cadastrado. Entre com sua senha ou recupere o acesso.",
-          }),
-        );
+        // Sem traduzir de novo. `signIn` ja devolve o texto pronto — traduzir a
+        // propria saida era o que jogava toda falha no generico "Nao foi
+        // possivel concluir", e foi o que o cliente relatou.
+        toast.error(error.message);
+        setFalhaDoLogin({ tipo: error instanceof ErroDeLogin ? error.tipo : "desconhecido", email });
       }
     } catch (err) {
       console.error("Exceção ao fazer login", err);
@@ -468,6 +507,54 @@ export default function Login() {
                     Esqueceu a senha?
                   </Link>
                 </div>
+                {/* O caminho de saida, conforme o que impediu a entrada.
+                    A mensagem sozinha nao bastava: "confira os dados" nao diz
+                    se e para recuperar a senha, criar conta ou procurar o
+                    e-mail de confirmacao. Nada aqui revela se a conta existe —
+                    o bloco de credencial oferece as duas saidas justamente
+                    porque nao sabemos qual e o caso. */}
+                {falhaDoLogin?.tipo === "email_nao_confirmado" ? (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                    <p className="font-medium">Falta confirmar seu e-mail.</p>
+                    <p className="mt-1">
+                      Sua senha está correta — só falta clicar no link que enviamos para{" "}
+                      <strong>{falhaDoLogin.email}</strong>. Procure também na caixa de spam.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 h-9 rounded-full border-amber-300 bg-background text-xs"
+                      disabled={reenviandoConfirmacao}
+                      onClick={() => void reenviarConfirmacao()}
+                    >
+                      {reenviandoConfirmacao ? "Enviando…" : "Reenviar e-mail de confirmação"}
+                    </Button>
+                  </div>
+                ) : falhaDoLogin?.tipo === "credencial" ? (
+                  <div className="rounded-2xl border border-border/70 bg-muted/30 px-4 py-3 text-xs leading-5 text-muted-foreground">
+                    <p>
+                      Pode ser a senha, ou este e-mail ainda não ter conta. Se você já tem cadastro,{" "}
+                      <Link to={recoveryLink} className="font-medium text-primary underline underline-offset-2">
+                        recupere o acesso
+                      </Link>
+                      . Se ainda não tem,{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSlideDir("right");
+                          setAuthTab("cadastro");
+                          if (!signUpEmail) setSignUpEmail(falhaDoLogin.email);
+                        }}
+                        className="font-medium text-primary underline underline-offset-2"
+                      >
+                        crie sua conta
+                      </button>
+                      .
+                    </p>
+                  </div>
+                ) : null}
+
 
                 <Button type="submit" className="h-12 w-full rounded-2xl text-sm font-semibold" disabled={submitting}>
                   {submitting ? "Autenticando..." : "Entrar"}

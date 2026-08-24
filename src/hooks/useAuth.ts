@@ -12,7 +12,11 @@ import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType } from "@/lib/pricing";
 import { buscarDadosDaReceita } from "@/lib/enderecoDaReceita";
 import { onlyDigits } from "@/lib/brazilianIds";
-import { translateAuthErrorMessage as translateAuthErrorMessageShared } from "@/lib/authErrors";
+import {
+  ErroDeLogin,
+  classificarFalhaDeLogin,
+  translateAuthErrorMessage as translateAuthErrorMessageShared,
+} from "@/lib/authErrors";
 import {
   PASSWORD_RECOVERY_STORAGE_KEY,
   capturePasswordRecoveryIntent,
@@ -135,40 +139,6 @@ function clearCachedCustomerProfile(): void {
   } catch {
     // noop
   }
-}
-
-function translateAuthErrorMessage(message: string): string {
-  const normalized = message.trim().toLowerCase();
-
-  if (!normalized) return "Erro ao autenticar.";
-  if (normalized.includes("invalid login credentials") || normalized.includes("invalid credentials")) {
-    return "E-mail ou senha incorretos.";
-  }
-  // "Este e-mail ja esta cadastrado" e "Confirme seu e-mail antes de fazer
-  // login" saíram daqui de propósito: as duas contam a quem perguntou que a conta
-  // existe. A §21 exige comportamento observável equivalente para "conta
-  // inexistente", "senha incorreta", "conta suspensa" e "cadastro com
-  // identificador existente" — e uma mensagem diferente é diferença observável.
-  //
-  // Com elas, bastava um formulário e uma lista de e-mails para descobrir quem é
-  // cliente da Clinic+. O cadastro passou a responder igual nos dois casos (ver
-  // `signUpCustomer`), e o login não distingue mais e-mail não confirmado de
-  // credencial errada.
-  if (
-    normalized.includes("user already registered") ||
-    normalized.includes("already registered") ||
-    normalized.includes("email already exists") ||
-    normalized.includes("email exists") ||
-    normalized.includes("email not confirmed") ||
-    normalized.includes("email not verified")
-  ) {
-    return "E-mail ou senha incorretos.";
-  }
-
-  // Mensagem crua do provedor pode descrever estado interno da conta. Sem
-  // tradução conhecida, é melhor um texto genérico do que vazar o original.
-  console.warn("[auth] mensagem sem tradução:", message);
-  return "Não foi possível concluir. Verifique os dados e tente de novo.";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -584,7 +554,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    if (error) return new Error(translateAuthErrorMessageShared(error.message || "Erro ao autenticar."));
+    // O motivo viaja junto: a tela precisa dele para oferecer "reenviar
+    // confirmacao" em vez de repetir "confira os dados". Antes daqui saia um
+    // `Error` com o texto ja traduzido, e o `Login` traduzia de novo — o
+    // portugues nao casava com ramo nenhum e tudo virava o texto generico.
+    if (error) {
+      const codigo = (error as { code?: string }).code;
+      return new ErroDeLogin(classificarFalhaDeLogin(error.message || "", codigo));
+    }
 
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session?.user) {

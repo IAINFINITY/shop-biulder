@@ -50,7 +50,22 @@ const PROXSIS_POR_ID = proxisEnvId("PROXSIS_POR_ID", 1);
 const PROXSIS_DEFAULT_MUN_ID = proxisEnvId("PROXSIS_DEFAULT_MUN_ID", 5555);
 const PROXSIS_DEFAULT_CEP = (process.env.PROXSIS_DEFAULT_CEP ?? "").trim() || "89820000";
 const PROXSIS_DEFAULT_EST_SIGLA = (process.env.PROXSIS_DEFAULT_EST_SIGLA ?? "").trim() || "SC";
-const PROXSIS_DOC_MARCADOR = (process.env.PROXSIS_DOC_MARCADOR ?? "").trim() || "PEDIDO B2B";
+/**
+ * O marcador que carimba o pedido no ERP (`doc_marcador`).
+ *
+ * Era o texto livre `"PEDIDO B2B"`, e ele **quebrava os relatorios do Proxis**
+ * — relatado em 25/08/2026 por quem cuida do ERP. Do lado de la o marcador foi
+ * cadastrado como um registro proprio, de codigo `1726`, e e esse codigo que o
+ * campo espera.
+ *
+ * **String, e nao numero.** Confirmado com o programador do ERP no mesmo dia: o
+ * campo e texto. Mandar `1726` sem aspas seria mudar o tipo junto com o valor.
+ *
+ * O valor mora aqui e nao so na variavel de ambiente porque
+ * `PROXSIS_DOC_MARCADOR` nunca foi definida na Vercel: era este padrao que ia
+ * para producao. Um valor que so existe no `.env.example` nao configura nada.
+ */
+const PROXSIS_DOC_MARCADOR = (process.env.PROXSIS_DOC_MARCADOR ?? "").trim() || "1726";
 
 const SYNC_CREDENTIALS = resolveProxisSyncCredentials(process.env);
 

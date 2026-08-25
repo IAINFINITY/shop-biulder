@@ -1,3 +1,4 @@
+import { TIPO_FUNCIONARIO } from "@/lib/funcionario";
 import type { CartItem, Product } from "@/lib/products";
 import { getProductUnitPrice } from "@/lib/products";
 import { precoFinalComPromocao, type ProdutoComPromocao } from "@/lib/promocao";
@@ -139,4 +140,24 @@ export function calculateCartSubtotal(
   return Math.round(
     cart.reduce((sum, item) => sum + resolveProductPrice(item.product, priceOverrides) * item.quantity, 0) * 100,
   ) / 100;
+}
+
+/**
+ * A tabela do Proxis (TPR) vale para este cliente?
+ *
+ * Duas respostas "nao", por motivos diferentes:
+ *
+ * - **Sem TPR** — o cliente nao tem tabela negociada; so a geral do tipo dele.
+ * - **Funcionario** — a tabela dele **e** a geral. A Clinic 2026 Funcionarios
+ *   nao existe no Proxis (decisao de 25/08/2026: "no PROXIS deixa fora, deixa
+ *   manual"), entao qualquer TPR que chegue num perfil de funcionario e resto de
+ *   sincronizacao antiga, nao politica comercial.
+ *
+ * O segundo caso importa porque a camada do TPR fica **acima** da geral em
+ * `mergePriceLayers`: um unico 8728 esquecido num perfil apaga a tabela nova
+ * item a item, sem erro nenhum — so com o preco errado na etiqueta.
+ */
+export function deveAplicarTabelaDoProxis(customerType: string, proxisTprId: number | null): boolean {
+  if (proxisTprId === null) return false;
+  return normalizeCustomerType(customerType) !== TIPO_FUNCIONARIO;
 }

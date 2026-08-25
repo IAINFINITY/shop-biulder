@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildCustomerPriceMap, calculateCartSubtotal, mergePriceLayers, resolveProductPrice } from "./pricing";
+import {
+  buildCustomerPriceMap,
+  calculateCartSubtotal,
+  deveAplicarTabelaDoProxis,
+  mergePriceLayers,
+  resolveProductPrice,
+} from "./pricing";
 import type { Product } from "./products";
 
 const produto = (overrides: Partial<Product> = {}): Product =>
@@ -119,5 +125,35 @@ describe("camadas de preço", () => {
     // Zero nao entra no mapa, entao a camada de baixo continua valendo.
     const doCliente = buildCustomerPriceMap([{ product_code: "2188", price: 0 }]);
     expect(mergePriceLayers(geral, doCliente).get("2188")).toBe(4.85);
+  });
+});
+
+describe("deveAplicarTabelaDoProxis", () => {
+  it("cliente com tabela negociada usa a do Proxis", () => {
+    expect(deveAplicarTabelaDoProxis("cliente", 8728)).toBe(true);
+  });
+
+  it("sem TPR, só a geral", () => {
+    expect(deveAplicarTabelaDoProxis("cliente", null)).toBe(false);
+  });
+
+  it("funcionário ignora o TPR, mesmo que o perfil tenha um", () => {
+    /**
+     * O caso que motivou a função. Os 96 perfis de funcionário estavam com
+     * `proxis_tpr_id = 8728` — escrito pela sincronização com o Proxis, porque
+     * eles compram sob o CNPJ da Clinic+, que tem essa tabela no ERP.
+     *
+     * A migration de 25/08/2026 zerou a coluna e a RPC parou de regravar. Esta
+     * linha é a terceira trava: a camada do TPR fica **acima** da geral em
+     * `mergePriceLayers`, então um único 8728 que escape apaga a tabela Clinic
+     * 2026 Funcionários item a item, sem erro — só com o preço errado na tela.
+     */
+    expect(deveAplicarTabelaDoProxis("funcionario", 8728)).toBe(false);
+    expect(deveAplicarTabelaDoProxis("  FUNCIONARIO  ", 8745)).toBe(false);
+  });
+
+  it("lojista e distribuidor seguem a regra normal", () => {
+    expect(deveAplicarTabelaDoProxis("lojista", 8744)).toBe(true);
+    expect(deveAplicarTabelaDoProxis("distribuidor", null)).toBe(false);
   });
 });

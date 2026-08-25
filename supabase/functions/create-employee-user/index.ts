@@ -155,6 +155,11 @@ export default {
             cnpj: cpfDigits,
             linked_company_cnpj: linkedCnpjDigits,
             email: email.trim(),
+            // Define o preco que a pessoa ve: `funcionario` liga a tabela Clinic
+            // 2026 Funcionarios, que nao existe no Proxis e mora so no site.
+            // Sem isto o perfil nasce `cliente`, a sincronizacao com o ERP
+            // carimba a tabela 8728 e o funcionario ve preco de representante.
+            customer_type: "funcionario",
             // Senha provisoria conhecida pelo admin: a pessoa troca antes de
             // usar o site. Marcado aqui, no servidor, e nao pelo navegador —
             // quem cria nao deveria poder decidir nao marcar.

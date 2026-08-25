@@ -134,6 +134,9 @@ export default {
             cnpj: cpfDigits,
             linked_company_cnpj: linkedCnpjDigits,
             email: email.trim(),
+            // Mesma razao da funcao de criacao: e o `customer_type` que decide de
+            // qual tabela sai o preco.
+            customer_type: "funcionario",
           },
           { onConflict: "user_id" },
         );

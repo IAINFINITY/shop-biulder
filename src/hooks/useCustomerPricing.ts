@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import {
   CUSTOMER_PRICE_OVERRIDES_TABLE,
+  deveAplicarTabelaDoProxis,
   EMPTY_PRICE_MAP,
   buildCustomerPriceMap,
   mergePriceLayers,
@@ -31,8 +32,9 @@ export function useCustomerPricing(customerType: string | null, proxisTprId: num
       if (erroGeral) throw erroGeral;
       const geral = buildCustomerPriceMap((gerais ?? []) as CustomerPriceOverride[]);
 
-      // Sem TPR, fica so a geral.
-      if (normalizedTprId === null) return geral;
+      // So a geral quando nao ha tabela do Proxis a aplicar — sem TPR, ou
+      // funcionario, cuja tabela **e** a geral. Ver `deveAplicarTabelaDoProxis`.
+      if (!deveAplicarTabelaDoProxis(normalizedType, normalizedTprId)) return geral;
 
       // Camada de cima: a tabela do cliente no Proxis, identificada pelo TPR.
       //

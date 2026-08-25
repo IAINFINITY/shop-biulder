@@ -161,3 +161,40 @@ export function deveAplicarTabelaDoProxis(customerType: string, proxisTprId: num
   if (proxisTprId === null) return false;
   return normalizeCustomerType(customerType) !== TIPO_FUNCIONARIO;
 }
+
+/**
+ * Uma linha da tela de precos esta ativa?
+ *
+ * Tres fontes, nesta ordem: o que o admin acabou de mexer, o que esta gravado no
+ * banco, e `true` para linha que ainda nao existe.
+ *
+ * ## Por que isto virou funcao
+ *
+ * Porque o valor era lido em tres lugares da tela e **so dois** aplicavam o
+ * padrao. O rascunho comeca vazio e nunca era preenchido com o que veio do
+ * banco, entao:
+ *
+ * - o campo de preco caia no preco base — certo;
+ * - a gravacao usava `?? true` — certo;
+ * - o selo lia `draftActive[code]` cru — e `undefined` e falso.
+ *
+ * Resultado: **toda** linha com preco aparecia como "Preco desligado" enquanto o
+ * contador no topo, que le direto do banco, dizia "160 ativos". As 730 linhas
+ * estavam ativas.
+ *
+ * O selo era so cosmetico; o botao ao lado nao. Ele calculava
+ * `!(rascunho ?? true)`, entao o botao escrito "Ativar" gravava `active = false`
+ * — quem tentasse consertar o que via na tela desligava o preco de verdade, e o
+ * produto passava a vender pelo preco de cadastro.
+ *
+ * Uma funcao so, usada nos tres pontos, e o que impede os tres de divergirem de
+ * novo.
+ */
+export function linhaDePrecoAtiva(
+  rascunho: boolean | undefined,
+  gravado: boolean | null | undefined,
+): boolean {
+  if (typeof rascunho === "boolean") return rascunho;
+  if (typeof gravado === "boolean") return gravado;
+  return true;
+}

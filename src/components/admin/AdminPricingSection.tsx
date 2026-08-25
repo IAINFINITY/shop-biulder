@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatBRL, coercePrice, parsePriceInput, priceToAdminInput } from "@/lib/formatMoney";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImageUrls } from "@/lib/products";
-import { CUSTOMER_PRICE_OVERRIDES_TABLE, customerTypeLabel } from "@/lib/pricing";
+import { CUSTOMER_PRICE_OVERRIDES_TABLE, customerTypeLabel, linhaDePrecoAtiva } from "@/lib/pricing";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -54,10 +54,16 @@ function resolveRowKey(scopeMode: PricingScopeMode, customerType: string, proxis
   return `${scopeMode}:${scopeMode === "customer_type" ? customerType : proxisTprId ?? "null"}:${productCode}`;
 }
 
+// `active` junto com o `id`, e nao so o `id`.
+//
+// `persistRow` precisa saber se a linha esta ligada no banco para nao religar
+// uma que o admin desligou de proposito. Trazendo so o `id`, `existing.active`
+// vinha `undefined`, caia no padrao `true`, e salvar um ajuste de preco
+// reativava a linha em silencio.
 async function loadExistingOverride(scopeMode: PricingScopeMode, customerType: string, proxisTprId: number | null, productCode: string) {
   let query = supabase
     .from(CUSTOMER_PRICE_OVERRIDES_TABLE)
-    .select("id")
+    .select("id, active")
     .eq("product_code", productCode);
 
   if (scopeMode === "customer_type") {
@@ -194,8 +200,15 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
       typeof nextPrice === "number"
         ? Math.max(0, Math.round(nextPrice * 100) / 100)
         : Math.max(0, parsePriceInput(draftPrices[normalizedCode] ?? ""));
-    const active = typeof nextActive === "boolean" ? nextActive : draftActive[normalizedCode] ?? true;
+    // `existing` vem antes do `active` de proposito: sem ele, uma linha que esta
+    // desligada no banco e que o admin nao tocou seria **religada** ao salvar um
+    // ajuste de preco. O `?? true` de antes so acertava por acidente, porque
+    // nada estava desligado.
     const existing = await loadExistingOverride(scopeMode, customerType, activeTprId, normalizedCode);
+    const active =
+      typeof nextActive === "boolean"
+        ? nextActive
+        : linhaDePrecoAtiva(draftActive[normalizedCode], existing?.active);
 
     const payload = {
       customer_type: customerType,
@@ -278,7 +291,10 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
             : Math.max(0, Math.round((currentPrice + value) * 100) / 100);
 
         setDraftPrices((current) => ({ ...current, [code]: priceToAdminInput(nextPrice) }));
-        await persistRow(code, nextPrice, draftActive[code] ?? true);
+        // Sem terceiro argumento: quem resolve o "ativo" e o `persistRow`, que
+        // ja consulta o que esta gravado. Repetir a regra aqui era o que fazia
+        // o ajuste em massa religar linha desligada.
+        await persistRow(code, nextPrice);
       }
 
       toast.success("Ajuste em massa aplicado com sucesso.");
@@ -559,6 +575,10 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                 const delta = draftPrice - basePrice;
                 const hasDelta = draftPrice > 0 && Math.abs(delta) >= 0.01;
                 const showDeltaPercent = hasDelta && basePrice > 0;
+                // Uma fonte so para o selo, o botao e a gravacao. Ler
+                // `draftActive[code]` cru era o que mostrava "Preco desligado"
+                // em tudo: o rascunho comeca vazio e `undefined` e falso.
+                const estaAtivo = linhaDePrecoAtiva(draftActive[code], existing?.active);
                 const thumb = getProductImageUrls(product)[0];
 
                 return (
@@ -594,11 +614,11 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                                 produtos. */}
                             {existing ? (
                               <Badge
-                                variant={draftActive[code] ? "secondary" : "destructive"}
+                                variant={estaAtivo ? "secondary" : "destructive"}
                                 className="rounded-full px-2.5 py-0.5 text-[0.6875rem]"
-                                title={draftActive[code] ? "Preço em vigor nesta tabela" : "Preço desligado nesta tabela"}
+                                title={estaAtivo ? "Preço em vigor nesta tabela" : "Preço desligado nesta tabela"}
                               >
-                                {draftActive[code] ? "Preço ativo" : "Preço desligado"}
+                                {estaAtivo ? "Preço ativo" : "Preço desligado"}
                               </Badge>
                             ) : null}
                             {/* Origem do preco deste produto nesta tabela. Sem
@@ -667,11 +687,16 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                             variant="outline"
                             className={cn(
                               "h-11 w-full rounded-2xl px-3 text-[0.8125rem]",
-                              draftActive[code] ? "border-primary/20 bg-primary/5 text-primary" : "border-destructive/20 bg-destructive/5 text-destructive",
+                              estaAtivo ? "border-primary/20 bg-primary/5 text-primary" : "border-destructive/20 bg-destructive/5 text-destructive",
                             )}
-                            onClick={() => setDraftActive((current) => ({ ...current, [code]: !(current[code] ?? true) }))}
+                            onClick={() =>
+                              setDraftActive((current) => ({
+                                ...current,
+                                [code]: !linhaDePrecoAtiva(current[code], existing?.active),
+                              }))
+                            }
                           >
-                            {draftActive[code] ? "Desativar" : "Ativar"}
+                            {estaAtivo ? "Desativar" : "Ativar"}
                           </Button>
                         </div>
 

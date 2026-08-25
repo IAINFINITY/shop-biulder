@@ -3,6 +3,7 @@ import {
   buildCustomerPriceMap,
   calculateCartSubtotal,
   deveAplicarTabelaDoProxis,
+  linhaDePrecoAtiva,
   mergePriceLayers,
   resolveProductPrice,
 } from "./pricing";
@@ -155,5 +156,61 @@ describe("deveAplicarTabelaDoProxis", () => {
   it("lojista e distribuidor seguem a regra normal", () => {
     expect(deveAplicarTabelaDoProxis("lojista", 8744)).toBe(true);
     expect(deveAplicarTabelaDoProxis("distribuidor", null)).toBe(false);
+  });
+});
+
+describe("linhaDePrecoAtiva", () => {
+  /**
+   * O bug que esta função existe para matar.
+   *
+   * A tela de preços lia `draftActive[code]` cru. O rascunho começa vazio e
+   * nunca era preenchido com o que veio do banco, então `undefined` era falso e
+   * **toda** linha com preço aparecia como "Preço desligado" — enquanto o
+   * contador no topo, que lê direto do banco, dizia "160 ativos". As 730 linhas
+   * estavam ativas.
+   */
+  it("linha que o admin não tocou segue o que está no banco", () => {
+    expect(linhaDePrecoAtiva(undefined, true)).toBe(true);
+    expect(linhaDePrecoAtiva(undefined, false)).toBe(false);
+  });
+
+  it("o que o admin acabou de mexer vence o banco", () => {
+    expect(linhaDePrecoAtiva(false, true)).toBe(false);
+    expect(linhaDePrecoAtiva(true, false)).toBe(true);
+  });
+
+  it("linha que ainda não existe nasce ativa", () => {
+    // Preço novo, sem linha gravada: gravar desligado seria criar uma linha que
+    // não faz nada.
+    expect(linhaDePrecoAtiva(undefined, undefined)).toBe(true);
+    expect(linhaDePrecoAtiva(undefined, null)).toBe(true);
+  });
+
+  it("`false` gravado não é confundido com ausência", () => {
+    /**
+     * O detalhe que `??` sozinho acertava e `||` erraria: `false` é um valor
+     * legítimo, não "não sei". Um `gravado || true` devolveria `true` para linha
+     * desligada de propósito e a religaria no próximo salvamento.
+     */
+    expect(linhaDePrecoAtiva(undefined, false)).toBe(false);
+    expect(linhaDePrecoAtiva(false, undefined)).toBe(false);
+  });
+
+  it("o botão inverte o estado visível, e não um padrão fixo", () => {
+    /**
+     * A parte perigosa do bug. O botão calculava `!(rascunho ?? true)`: com o
+     * rascunho vazio isso dava `false`, então o botão **escrito "Ativar"**
+     * gravava `active = false`. Quem tentasse consertar o que via na tela
+     * desligava o preço de verdade, e o produto passava a vender pelo preço de
+     * cadastro.
+     *
+     * Invertendo o estado real, clicar em algo ativo desliga e clicar em algo
+     * desligado liga — que é o que o rótulo promete.
+     */
+    const ativoNoBanco = linhaDePrecoAtiva(undefined, true);
+    expect(!ativoNoBanco).toBe(false);
+
+    const desligadoNoBanco = linhaDePrecoAtiva(undefined, false);
+    expect(!desligadoNoBanco).toBe(true);
   });
 });

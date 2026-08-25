@@ -453,6 +453,12 @@ export default function AdminWorkspace() {
       ? derivedTypes
       : getProductTypes();
   const displayUserLabel = user?.user_metadata?.name?.trim() || user?.email || "Administrador";
+  /** Pode mudar o status de um pedido — mesma permissao que abre a aba Pedidos. */
+  const podeEditarPedidos = canAccessAdminSection("pedidos", {
+    isSuperadmin,
+    permissions: adminPermissions ?? null,
+  });
+
   const allowedSections = useMemo(() => {
     if (isSuperadmin) return null;
     const allowed = new Set(
@@ -1170,7 +1176,13 @@ export default function AdminWorkspace() {
           onExportXlsx={exportOrderXlsx}
           onExportPdf={exportOrderPdf}
           onDelete={deleteOrder}
-          onStatusChange={updateOrderStatus}
+          // Mudar o status exige a permissao `pedidos`, a mesma que abre esta
+          // aba. Sem ela o seletor nem aparece — o cartao mostra o status como
+          // selo. Redundante com o desvio de `allowedSections` hoje, e de
+          // proposito: quem le este arquivo nao deveria precisar deduzir a regra
+          // de outro lugar, e um `section` liberado por engano no futuro nao
+          // deve virar permissao de escrita.
+          onStatusChange={podeEditarPedidos ? updateOrderStatus : undefined}
           customerProfiles={clientProfiles}
         />
       )}

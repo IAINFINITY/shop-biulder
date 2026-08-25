@@ -9,18 +9,33 @@ export const PROXIS_SYNC_PENDING = "pendente";
 export const PROXIS_SYNC_SENT = "enviado";
 export const PROXIS_SYNC_ERROR = "erro";
 export const PROXIS_SYNC_LEGACY = "legado";
+/**
+ * Nao vai ao ERP por decisao, e nao por falha.
+ *
+ * Existe desde 25/08/2026, quando o responsavel pelo Proxis decidiu deixar a
+ * tabela de funcionario fora do ERP ("no PROXIS deixa fora, deixa manual"). Um
+ * pedido com preco de funcionario chegaria la carimbado com a tabela 8728, que e
+ * a que o CNPJ tem — itens abaixo da tabela carimbada, sem documento que
+ * explique.
+ *
+ * Precisa ser status proprio, e nao `pendente`: `pendente` significa "ainda vai",
+ * e esses pedidos ficariam para sempre na fila de reconciliacao do painel.
+ */
+export const PROXIS_SYNC_NAO_APLICAVEL = "nao_aplicavel";
 
 export type ProxisSyncStatus =
   | typeof PROXIS_SYNC_PENDING
   | typeof PROXIS_SYNC_SENT
   | typeof PROXIS_SYNC_ERROR
-  | typeof PROXIS_SYNC_LEGACY;
+  | typeof PROXIS_SYNC_LEGACY
+  | typeof PROXIS_SYNC_NAO_APLICAVEL;
 
 const KNOWN_STATUSES: ProxisSyncStatus[] = [
   PROXIS_SYNC_PENDING,
   PROXIS_SYNC_SENT,
   PROXIS_SYNC_ERROR,
   PROXIS_SYNC_LEGACY,
+  PROXIS_SYNC_NAO_APLICAVEL,
 ];
 
 export function normalizeProxisSyncStatus(value: unknown): ProxisSyncStatus {
@@ -41,6 +56,7 @@ export const PROXIS_SYNC_LABELS: Record<ProxisSyncStatus, string> = {
   [PROXIS_SYNC_SENT]: "No Proxis",
   [PROXIS_SYNC_ERROR]: "Recusado pelo ERP",
   [PROXIS_SYNC_LEGACY]: "Sem registro",
+  [PROXIS_SYNC_NAO_APLICAVEL]: "Não vai ao ERP",
 };
 
 const DOC_PED_WEB_PREFIX = "INFINITY-";

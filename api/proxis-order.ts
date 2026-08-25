@@ -15,6 +15,7 @@ import {
   type PriceCheck,
 } from "../src/lib/serverPricing.js";
 import { safeItemNumber, safeNumericFilter, safeQuotedLiteral } from "../src/lib/proxisFilter.js";
+import { AVISO_PEDIDO_DE_FUNCIONARIO, ehFuncionario } from "../src/lib/funcionario.js";
 import {
   isB2bProxisTprId,
   resolveConfiguredProxisTprId,
@@ -755,6 +756,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // é, não há dimensão melhor que IP — e a §21 diz que IP isolado não serve como
   // controle principal.
   if (!(await aplicarRateLimit(req, res, "proxis-order", auth.userId))) return;
+
+  /**
+   * Pedido de funcionário para aqui. Não vai ao Proxis.
+   *
+   * Decisão de 25/08/2026 do responsável pelo ERP: a tabela Clinic 2026
+   * Funcionários fica fora do Proxis, mantida à mão no site. Sem tabela lá, o
+   * pedido chegaria carimbado com a 8728 — que é o que o CNPJ da Clinic+ tem no
+   * ERP — e com itens abaixo dela, sem documento que explique a diferença.
+   *
+   * **Esta é a trava que vale.** O checkout também não chama esta rota para
+   * funcionário, mas guarda só no navegador é o que a §31 chama de autorização
+   * apenas no frontend: bastaria uma aba antiga em cache para o pedido subir.
+   *
+   * Nada de `registrarDesfecho` aqui: o gatilho `marcar_pedido_de_funcionario`
+   * já gravou `proxis_status = 'nao_aplicavel'` no insert, e registrar por cima
+   * trocaria "não vai por decisão" por "falhou ao enviar".
+   *
+   * Responde 200 de propósito. A rota fez o certo — não há erro a relatar, e um
+   * 4xx faria o checkout de um cliente com bundle antigo registrar falha no
+   * console para um pedido que está perfeito.
+   */
+  if (ehFuncionario(auth.profile)) {
+    console.log("[proxis-order] Pedido de funcionário: não enviado ao ERP.", {
+      userId: auth.userId,
+      submission_key: typeof req.body?.submission_key === "string" ? req.body.submission_key : null,
+    });
+    return res.status(200).json({
+      ok: true,
+      enviadoAoProxis: false,
+      motivo: "funcionario",
+      detalhe: AVISO_PEDIDO_DE_FUNCIONARIO,
+    });
+  }
 
   const body = (req.body ?? {}) as OrderRequestBody;
 

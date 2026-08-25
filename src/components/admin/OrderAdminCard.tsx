@@ -1,5 +1,5 @@
 ﻿import { useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock, RotateCcw, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, RotateCcw, Trash2, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -12,6 +12,7 @@ import {
   PROXIS_SYNC_ERROR,
   PROXIS_SYNC_LABELS,
   PROXIS_SYNC_LEGACY,
+  PROXIS_SYNC_NAO_APLICAVEL,
   PROXIS_SYNC_PENDING,
   PROXIS_SYNC_SENT,
   normalizeProxisSyncStatus,
@@ -42,6 +43,12 @@ const PROXIS_SYNC_BADGE = {
   [PROXIS_SYNC_PENDING]: { icon: Clock, className: "border-amber-200 bg-amber-50 text-amber-800" },
   [PROXIS_SYNC_ERROR]: { icon: AlertTriangle, className: "border-red-200 bg-red-50 text-red-700" },
   [PROXIS_SYNC_LEGACY]: { icon: Clock, className: "border-border/70 bg-muted/30 text-muted-foreground" },
+  // Sem este par o cartao quebra: `syncBadge` viria `undefined` e `syncBadge.icon`
+  // estoura. Status novo no vocabulario precisa entrar aqui junto.
+  //
+  // Cor propria, e nao a de erro nem a de pendente: nao ha nada errado com este
+  // pedido, e ninguem precisa agir sobre ele.
+  [PROXIS_SYNC_NAO_APLICAVEL]: { icon: UserRound, className: "border-indigo-200 bg-indigo-50 text-indigo-700" },
 } as const;
 
 const ORDER_STATUSES = [
@@ -109,6 +116,8 @@ export function OrderAdminCard({
   const syncStatus = normalizeProxisSyncStatus(order.proxis_status);
   const syncBadge = PROXIS_SYNC_BADGE[syncStatus];
   const SyncIcon = syncBadge.icon;
+  /** Nao vai ao ERP por decisao — nao e falha, e nao pede acao de ninguem. */
+  const naoVaiAoErp = syncStatus === PROXIS_SYNC_NAO_APLICAVEL;
   const syncError = order.proxis_error?.trim() ?? "";
   const syncAttempts = typeof order.proxis_attempts === "number" ? order.proxis_attempts : 0;
 
@@ -212,10 +221,15 @@ export function OrderAdminCard({
             <img src="/icons/txt-file.png" alt="" className="h-3.5 w-3.5" />
             {isProxisExporting ? "Gerando..." : "FOCCO .txt"}
           </Button>
-          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisResending} onClick={onResendProxis}>
-            <RotateCcw className="h-3.5 w-3.5" />
-            {isProxisResending ? "Enviando..." : "Reenviar Proxis"}
-          </Button>
+          {/* "Reenviar Proxis" nao aparece em pedido de funcionario: nao ha o
+              que reenviar, e o botao convidaria a desfazer a decisao de 25/08
+              — o pedido subiria carimbado com a 8728. */}
+          {naoVaiAoErp ? null : (
+            <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisResending} onClick={onResendProxis}>
+              <RotateCcw className="h-3.5 w-3.5" />
+              {isProxisResending ? "Enviando..." : "Reenviar Proxis"}
+            </Button>
+          )}
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={onExportXlsx}>
             <img src="/icons/xls.png" alt="" className="h-3.5 w-3.5" /> Excel
           </Button>
@@ -244,7 +258,20 @@ export function OrderAdminCard({
             Telefone: <span className="text-foreground">{order.customer_phone || "—"}</span>
           </p>
 
-          {syncStatus !== PROXIS_SYNC_SENT && syncStatus !== PROXIS_SYNC_LEGACY ? (
+          {naoVaiAoErp ? (
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Pedido de funcionário
+              </p>
+              <p className="mt-1 text-[0.8125rem] leading-6 text-foreground">
+                Preço da tabela <strong>Clinic 2026 Funcionários</strong>, que existe só aqui — não há
+                tabela equivalente no Proxis. Por isso este pedido <strong>não sobe ao ERP</strong> e
+                não entra na fila de reconciliação. Separação e faturamento seguem por fora.
+              </p>
+            </div>
+          ) : null}
+
+          {!naoVaiAoErp && syncStatus !== PROXIS_SYNC_SENT && syncStatus !== PROXIS_SYNC_LEGACY ? (
             <div
               className={cn(
                 "rounded-2xl border p-3",

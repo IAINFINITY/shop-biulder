@@ -28,6 +28,7 @@ import { buildLoginPath } from "@/lib/navigation";
 import { formatCep } from "@/lib/address";
 import { apiFetch } from "@/lib/apiFetch";
 import { profileAddressToForm } from "@/lib/customerProfile";
+import { AVISO_PEDIDO_DE_FUNCIONARIO, ehFuncionario } from "@/lib/funcionario";
 import { customerAddressFormFromAddress, type CustomerAddressFormData } from "@/lib/customerAddresses";
 import { isValidCnpj, onlyDigits } from "@/lib/brazilianIds";
 import { newSubmissionKey } from "@/lib/proxisOrderStatus";
@@ -76,6 +77,14 @@ export default function OrderForm() {
   const allowGuestCheckout = import.meta.env.DEV;
   const customerType = customerProfile?.customer_type ?? null;
   const customerTprId = customerProfile?.proxis_tpr_id ?? null;
+
+  /**
+   * Compra de funcionario — muda preco e destino do pedido.
+   *
+   * O preco vem da tabela Clinic 2026 Funcionarios (camada geral do tipo
+   * `funcionario`), e o pedido nao sobe ao Proxis. Ver `src/lib/funcionario.ts`.
+   */
+  const compraDeFuncionario = ehFuncionario(customerProfile);
   const { data: customerPriceMap = EMPTY_PRICE_MAP } = useCustomerPricing(
     customerType,
     customerTprId,
@@ -439,38 +448,52 @@ export default function OrderForm() {
       // gravado e valido. Se falhar, a propria rota marca o pedido como pendente
       // e ele aparece na fila de reconciliacao do painel. Por isso a falha e
       // apenas registrada no console, sem alarmar quem esta comprando.
-      try {
-        const proxisRes = await apiFetch("/api/proxis-order", {
-          method: "POST",
-          body: JSON.stringify({
-            submission_key: submissionKey,
-            customer_name: form.name.trim(),
-            customer_cnpj: effectiveCnpj,
-            customer_company: form.company.trim(),
-            customer_observation: orderNote.trim() || null,
-            address: addressToProxisPayload(checkoutAddress),
-            items: proxisItems,
-            note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
-          }),
-        });
-
-        if (!proxisRes.ok) {
-          const errBody = await proxisRes.json().catch(() => ({}));
-          console.error("[OrderForm] Pedido pendente de envio ao Proxis", {
-            submissionKey,
-            status: proxisRes.status,
-            body: errBody,
+      //
+      // **Funcionario nao passa por aqui.** Decisao de 25/08/2026 do responsavel
+      // pelo ERP: a tabela Clinic 2026 Funcionarios fica fora do Proxis, mantida
+      // a mao no site. Sem tabela la, o pedido subiria carimbado com a 8728 e com
+      // itens abaixo dela. O pedido ja nasceu com `proxis_status` =
+      // `nao_aplicavel`, gravado pelo gatilho no banco.
+      //
+      // Isto e conveniencia, nao seguranca: quem recusa de verdade e
+      // `api/proxis-order.ts`, que confere o perfil no servidor.
+      if (!compraDeFuncionario) {
+        try {
+          const proxisRes = await apiFetch("/api/proxis-order", {
+            method: "POST",
+            body: JSON.stringify({
+              submission_key: submissionKey,
+              customer_name: form.name.trim(),
+              customer_cnpj: effectiveCnpj,
+              customer_company: form.company.trim(),
+              customer_observation: orderNote.trim() || null,
+              address: addressToProxisPayload(checkoutAddress),
+              items: proxisItems,
+              note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
+            }),
           });
-        }
-      } catch (err) {
-        console.error("[OrderForm] Falha de rede ao enviar pedido ao Proxis", { submissionKey, err });
-      }
 
-      try {
-        const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
-        await syncCustomerProxisLink(effectiveCnpj).catch(() => null);
-      } catch (err) {
-        console.warn("[OrderForm] syncCustomerProxisLink background error:", err);
+          if (!proxisRes.ok) {
+            const errBody = await proxisRes.json().catch(() => ({}));
+            console.error("[OrderForm] Pedido pendente de envio ao Proxis", {
+              submissionKey,
+              status: proxisRes.status,
+              body: errBody,
+            });
+          }
+        } catch (err) {
+          console.error("[OrderForm] Falha de rede ao enviar pedido ao Proxis", { submissionKey, err });
+        }
+
+        // Fora do `if` esta chamada desfaria a tabela de funcionario: ela consulta
+        // o CNPJ da Clinic+ no Proxis, recebe a 8728 e grava no perfil. A RPC ja
+        // recusa gravar TPR de funcionario, mas nem chamar e mais claro.
+        try {
+          const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
+          await syncCustomerProxisLink(effectiveCnpj).catch(() => null);
+        } catch (err) {
+          console.warn("[OrderForm] syncCustomerProxisLink background error:", err);
+        }
       }
 
       try {
@@ -998,6 +1021,15 @@ export default function OrderForm() {
                     <span className="text-xl sm:text-2xl font-semibold text-foreground tabular-nums">{formatBRL(cartSubtotal)}</span>
                   </div>
                 </div>
+                {/* O aviso pedido em 25/08/2026: "vai ter sempre um aviso quando
+                    e um funcionario". Fica junto do total porque e ali que a
+                    pessoa confere o valor — e o valor e justamente o que muda. */}
+                {compraDeFuncionario ? (
+                  <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                    {AVISO_PEDIDO_DE_FUNCIONARIO}
+                  </p>
+                ) : null}
+
               </div>
             </div>
           </div>

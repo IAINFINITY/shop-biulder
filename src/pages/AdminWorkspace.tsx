@@ -132,11 +132,25 @@ export default function AdminWorkspace() {
     queryKey: ["admin_permissions", user?.id],
     enabled: Boolean(user && isAdmin && !isSuperadmin),
     queryFn: async () => {
+      /**
+       * `maybeSingle`, e nao `single`.
+       *
+       * "Nao existe linha" e resposta valida: o admin antigo, de antes das
+       * permissoes, nao tem registro aqui e vale como acesso completo — e o que
+       * `canAccessAdminSection` faz com `null`. Com `single` isso virava **erro**,
+       * indistinguivel de uma falha de leitura de verdade.
+       *
+       * Foi assim que o problema de 25/08/2026 passou despercebido: a policy de
+       * RLS so deixava o superadmin ler a tabela, entao esta consulta falhava
+       * para TODO admin comum. `adminPermissions` ficava `undefined`, e como
+       * `funcionarios` e a unica secao que exige a permissao explicita, ela era
+       * a unica a sumir. O resto aparecia normalmente e ninguem suspeitou.
+       */
       const { data, error } = await supabase
         .from("clinic+b2b_admin_users")
         .select("permissions")
         .eq("user_id", user!.id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return (data?.permissions ?? null) as AdminPermissions | null;
     },

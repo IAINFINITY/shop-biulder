@@ -17,6 +17,14 @@ import {
   PROXIS_SYNC_SENT,
   normalizeProxisSyncStatus,
 } from "@/lib/proxisOrderStatus";
+import {
+  ESTADOS_DO_PEDIDO,
+  ROTULOS,
+  VALORES_GRAVADOS,
+  classeDoStatus,
+  normalizarStatusDoPedido,
+  rotuloDoStatus,
+} from "@/lib/statusDoPedido";
 import { cn } from "@/lib/utils";
 
 export type OrderAdminCardPayload = {
@@ -51,13 +59,11 @@ const PROXIS_SYNC_BADGE = {
   [PROXIS_SYNC_NAO_APLICAVEL]: { icon: UserRound, className: "border-indigo-200 bg-indigo-50 text-indigo-700" },
 } as const;
 
-const ORDER_STATUSES = [
-  "NOVO CARRINHO",
-  "Separando",
-  "Processando",
-  "Entregue",
-  "Cancelado",
-] as const;
+// Os quatro estados vem de `statusDoPedido.ts`. A lista fixa que estava aqui
+// oferecia "NOVO CARRINHO / Separando / Processando / Entregue / Cancelado"
+// enquanto as abas agrupavam em "Em andamento / Concluidos / Cancelados" — quem
+// marcava "Entregue" precisava saber que isso o jogava em "Concluidos". Escolher
+// e ver viraram a mesma coisa.
 
 type Props = {
   order: OrderAdminCardPayload;
@@ -75,25 +81,6 @@ type Props = {
   onDelete: () => void;
   onStatusChange?: (orderId: string, status: string) => void;
 };
-
-function formatOrderStatus(status: string) {
-  const normalized = status.trim().replace(/_/g, " ");
-  if (!normalized) return "Pedido";
-  return normalized
-    .split(/\s+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
-
-function statusClassName(status: string) {
-  const s = status.toLowerCase();
-  if (s.includes("cancel")) return "border-red-200 bg-red-50 text-red-700";
-  if (s.includes("entreg") || s.includes("conclu")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (s.includes("separ") || s.includes("process") || s.includes("prepar") || s.includes("novo")) {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-  return "border-border/70 bg-muted/30 text-foreground";
-}
 
 export function OrderAdminCard({
   order,
@@ -148,27 +135,32 @@ export function OrderAdminCard({
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                 {onStatusChange ? (
-                  <Select value={order.status} onValueChange={(value) => onStatusChange(order.id, value)}>
+                  <Select
+                    value={normalizarStatusDoPedido(order.status)}
+                    onValueChange={(estado) =>
+                      onStatusChange(order.id, VALORES_GRAVADOS[estado as keyof typeof VALORES_GRAVADOS])
+                    }
+                  >
                     <SelectTrigger
                       className={cn(
                         "h-9 sm:h-7 w-auto gap-1 rounded-full border px-2.5 py-0 text-[0.6875rem] font-medium",
-                        statusClassName(order.status),
+                        classeDoStatus(order.status),
                         "[&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-50",
                       )}
                     >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent align="end">
-                      {ORDER_STATUSES.map((status) => (
-                        <SelectItem key={status} value={status} className="text-[0.8125rem]">
-                          {formatOrderStatus(status)}
+                      {ESTADOS_DO_PEDIDO.map((estado) => (
+                        <SelectItem key={estado} value={estado} className="text-[0.8125rem]">
+                          {ROTULOS[estado]}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Badge className={cn("rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium", statusClassName(order.status))}>
-                    {formatOrderStatus(order.status)}
+                  <Badge className={cn("rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-medium", classeDoStatus(order.status))}>
+                    {rotuloDoStatus(order.status)}
                   </Badge>
                 )}
                 <Badge

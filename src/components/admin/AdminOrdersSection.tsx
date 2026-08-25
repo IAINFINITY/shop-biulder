@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CustomerProfile } from "@/lib/customerProfile";
+import {
+  ESTADOS_DO_PEDIDO,
+  ROTULOS_PLURAL,
+  normalizarStatusDoPedido,
+  type StatusDoPedido,
+} from "@/lib/statusDoPedido";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import { formatBRL } from "@/lib/formatMoney";
@@ -37,22 +43,18 @@ type AdminOrdersSectionProps = {
   customerProfiles: CustomerProfile[];
 };
 
-function statusFilterKey(status: string) {
-  const s = status.toLowerCase();
-  if (s.includes("cancel")) return "cancelado";
-  if (s.includes("entreg") || s.includes("conclu")) return "concluido";
-  if (s.includes("separ") || s.includes("process") || s.includes("prepar") || s.includes("novo")) return "em_andamento";
-  return "outros";
-}
-
+// As abas saem dos estados, e nao de uma lista propria.
+//
+// A versao anterior tinha um `statusFilterKey` local com uma gaveta `outros` que
+// **nenhuma aba mostrava**: um status fora do esperado sumia de todas as abas
+// menos "Todos". E faltava "Novo" — pedido recem-chegado e pedido ja sendo
+// separado caiam na mesma aba, e a fila deixava de dizer o que falta fazer.
 const STATUS_FILTERS = [
-  { id: "all", label: "Todos" },
-  { id: "em_andamento", label: "Em andamento" },
-  { id: "concluido", label: "Concluídos" },
-  { id: "cancelado", label: "Cancelados" },
-] as const;
+  { id: "all" as const, label: "Todos" },
+  ...ESTADOS_DO_PEDIDO.map((estado) => ({ id: estado, label: ROTULOS_PLURAL[estado] })),
+];
 
-type StatusFilterId = (typeof STATUS_FILTERS)[number]["id"];
+type StatusFilterId = StatusDoPedido | "all";
 
 export function AdminOrdersSection({
   ordersLoading,
@@ -101,11 +103,12 @@ export function AdminOrdersSection({
   }, [customerProfiles]);
 
   const statusCounts = useMemo(() => {
-    const counts: Record<StatusFilterId, number> = { all: filteredOrders.length, em_andamento: 0, concluido: 0, cancelado: 0 };
-    for (const order of filteredOrders) {
-      const key = statusFilterKey(order.status);
-      if (key in counts) counts[key as StatusFilterId] += 1;
-    }
+    // Zerado a partir dos estados, e nao escrito a mao: a versao anterior
+    // listava as chaves aqui, e acrescentar um estado deixava a contagem dele
+    // silenciosamente fora — a aba apareceria sempre com zero.
+    const counts = { all: filteredOrders.length } as Record<StatusFilterId, number>;
+    for (const estado of ESTADOS_DO_PEDIDO) counts[estado] = 0;
+    for (const order of filteredOrders) counts[normalizarStatusDoPedido(order.status)] += 1;
     return counts;
   }, [filteredOrders]);
 
@@ -114,7 +117,7 @@ export function AdminOrdersSection({
       ? filteredOrders.filter((order) => needsProxisReconciliation(order.proxis_status))
       : filteredOrders;
     if (statusFilter === "all") return byErp;
-    return byErp.filter((order) => statusFilterKey(order.status) === statusFilter);
+    return byErp.filter((order) => normalizarStatusDoPedido(order.status) === statusFilter);
   }, [filteredOrders, onlyPendingErp, statusFilter]);
 
   const summaryTotal = useMemo(() => {

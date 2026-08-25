@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatBRL } from "@/lib/formatMoney";
 import { cn } from "@/lib/utils";
 import type { Order, OrderTableLine } from "@/lib/orders";
+import { classeDoStatus, rotuloDoStatus } from "@/lib/statusDoPedido";
 
 type ClientOrderCardProps = {
   order: Order;
@@ -11,31 +12,19 @@ type ClientOrderCardProps = {
   totalValue: number;
 };
 
-function formatOrderStatus(status: string) {
-  const normalized = status.trim().replace(/_/g, " ");
-  if (!normalized) return "Pedido";
-  return normalized
-    .split(/\s+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
+// Rotulo e cor do status vem de `statusDoPedido.ts`, compartilhado com o painel.
+//
+// Esta tela tinha as proprias copias, e elas discordavam: no painel "conclu"
+// ficava verde, aqui nao. O mesmo pedido saia verde para o atendimento e cinza
+// para o cliente. Agora a regra e uma so.
 
-function getStatusClassName(status: string) {
-  const normalized = status.toLowerCase();
-  if (normalized.includes("cancel")) return "border-destructive/20 bg-destructive/5 text-destructive";
-  if (normalized.includes("entreg")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (normalized.includes("separ") || normalized.includes("process") || normalized.includes("prepar")) {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-  return "border-border/70 bg-muted/30 text-foreground";
-}
 
 export function ClientOrderCard({ order, lines, totalItems, totalValue }: ClientOrderCardProps) {
   const createdAt = new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(order.created_at));
-  const statusLabel = formatOrderStatus(order.status);
+  const statusLabel = rotuloDoStatus(order.status);
   const visibleLines = lines.slice(0, 2);
   const remainingCount = Math.max(lines.length - visibleLines.length, 0);
 
@@ -46,7 +35,7 @@ export function ClientOrderCard({ order, lines, totalItems, totalValue }: Client
           <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pedido</p>
           <p className="text-sm text-foreground">{createdAt}</p>
         </div>
-        <Badge className={cn("rounded-full border px-3 py-1 text-[0.6875rem] font-medium", getStatusClassName(order.status))}>
+        <Badge className={cn("rounded-full border px-3 py-1 text-[0.6875rem] font-medium", classeDoStatus(order.status))}>
           {statusLabel}
         </Badge>
       </div>

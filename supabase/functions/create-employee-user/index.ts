@@ -6,6 +6,70 @@ const corsHeaders = new Headers({
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 });
 
+/**
+ * Quem pode gerir funcionários.
+ *
+ * ## Por que não é só `superadmin`
+ *
+ * Era, e estava errado. O painel decide mostrar a seção Funcionários com
+ * `canAccessAdminSection` (`src/lib/adminUsers.ts`), que aceita **superadmin ou
+ * admin com `permissions.funcionarios === true`**. Esta função exigia
+ * `superadmin` e mais nada.
+ *
+ * O resultado era a tela prometer e o servidor negar: o admin com a permissão
+ * marcada via a seção, via o botão "Novo funcionário", preenchia o formulário
+ * inteiro e levava "Acesso negado" no fim. Sem pista do motivo, porque a
+ * permissão que ele foi conferir no painel estava lá, marcada.
+ *
+ * Aconteceu em 31/08/2026 com `comercial4@botta.com.br`, e atingia três dos onze
+ * admins — todos os que têm a permissão sem serem superadmin.
+ *
+ * ## A regra é copiada de `canAccessAdminSection`, de propósito
+ *
+ * Mesmo teste, mesma ordem, inclusive o `=== true` estrito: para `funcionarios`,
+ * ausência de linha em `clinic+b2b_admin_users` **não** vale como acesso
+ * completo, ao contrário do que acontece nas outras seções. Se a regra mudar de
+ * um lado, tem de mudar aqui — é o mesmo tipo de repetição consciente que
+ * `api/_auth.ts` já registra sobre os nomes de tabela.
+ *
+ * Continua valendo que criar **admin** é outra coisa: `create-admin-user` segue
+ * só para superadmin, porque ali um admin comum estaria criando os próprios
+ * pares.
+ */
+async function podeGerirFuncionarios(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<boolean> {
+  const { data: hasSuper } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "superadmin",
+  });
+  if (hasSuper) return true;
+
+  // O papel `admin` é conferido aqui porque, diferente do painel, esta função
+  // não está atrás de nenhuma outra guarda: ela é uma URL pública.
+  const { data: hasAdmin } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (!hasAdmin) return false;
+
+  const { data, error } = await supabaseAdmin
+    .from("clinic+b2b_admin_users")
+    .select("permissions")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  // Falha de leitura recusa. Deixar passar transformaria um erro de banco em
+  // permissão concedida, que é o pior desfecho possível para uma guarda.
+  if (error) {
+    console.error("[create-employee-user] falha ao ler permissões:", error.message);
+    return false;
+  }
+
+  return (data?.permissions as { funcionarios?: unknown } | null)?.funcionarios === true;
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
     try {
@@ -42,11 +106,7 @@ export default {
       }
 
       const callerUserId = userData.user.id;
-      const { data: hasSuper } = await supabaseAdmin.rpc("has_role", {
-        _user_id: callerUserId,
-        _role: "superadmin",
-      });
-      if (!hasSuper) {
+      if (!(await podeGerirFuncionarios(supabaseAdmin, callerUserId))) {
         return new Response(JSON.stringify({ error: "Acesso negado" }), {
           status: 403,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },

@@ -10,6 +10,43 @@ function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+/**
+ * Quem pode gerir funcionários. Igual a `create-employee-user` — ver lá o porquê.
+ *
+ * Editar segue a mesma permissão de criar: quem cria o funcionário precisa poder
+ * corrigir o e-mail digitado errado. Separar as duas deixaria a lista cheia de
+ * cadastros que só o superadmin conserta.
+ */
+async function podeGerirFuncionarios(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<boolean> {
+  const { data: hasSuper } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "superadmin",
+  });
+  if (hasSuper) return true;
+
+  const { data: hasAdmin } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (!hasAdmin) return false;
+
+  const { data, error } = await supabaseAdmin
+    .from("clinic+b2b_admin_users")
+    .select("permissions")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[update-employee-user] falha ao ler permissões:", error.message);
+    return false;
+  }
+
+  return (data?.permissions as { funcionarios?: unknown } | null)?.funcionarios === true;
+}
+
 export default {
   async fetch(req: Request): Promise<Response> {
     try {
@@ -46,11 +83,7 @@ export default {
       }
 
       const callerUserId = userData.user.id;
-      const { data: hasSuper } = await supabaseAdmin.rpc("has_role", {
-        _user_id: callerUserId,
-        _role: "superadmin",
-      });
-      if (!hasSuper) {
+      if (!(await podeGerirFuncionarios(supabaseAdmin, callerUserId))) {
         return new Response(JSON.stringify({ error: "Acesso negado" }), {
           status: 403,
           headers: { "Content-Type": "application/json", ...Object.fromEntries(corsHeaders) },

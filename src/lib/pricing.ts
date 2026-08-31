@@ -1,6 +1,7 @@
 import { TIPO_FUNCIONARIO } from "@/lib/funcionario";
 import type { CartItem, Product } from "@/lib/products";
 import { getProductUnitPrice } from "@/lib/products";
+import { parsePriceInput, priceToAdminInput } from "@/lib/formatMoney";
 import { precoFinalComPromocao, type ProdutoComPromocao } from "@/lib/promocao";
 
 export const CUSTOMER_TYPES = ["cliente", "lojista", "distribuidor", "funcionario"];
@@ -197,4 +198,62 @@ export function linhaDePrecoAtiva(
   if (typeof rascunho === "boolean") return rascunho;
   if (typeof gravado === "boolean") return gravado;
   return true;
+}
+
+/**
+ * O que o campo de preço da tela de Preços deve mostrar, e o que gravar.
+ *
+ * ## O engano que estas duas funções desfazem
+ *
+ * O campo caía no **preço base do catálogo** quando o rascunho estava vazio.
+ * O comentário de `linhaDePrecoAtiva`, logo acima, chega a registrar isso como
+ * "certo" — e era o que parecia, porque durante meses a única tabela que alguém
+ * abria era a 8728, cujos preços são **idênticos** aos do cadastro em 116
+ * produtos. Preço da tabela e preço base coincidiam, e o campo acertava por
+ * acidente.
+ *
+ * A tabela Clinic 2026 Funcionários foi a primeira em que os dois divergem de
+ * verdade, e aí o engano apareceu inteiro: o painel mostrava R$ 32,99 no
+ * 3 ÔMEGAS enquanto o funcionário via R$ 16,72 na loja. A loja estava certa; a
+ * tela de administração é que lia a coluna errada.
+ *
+ * ## Por que a gravação também estava errada, e pior
+ *
+ * `persistRow` fazia `parsePriceInput(draftPrices[code] ?? "")`, e
+ * `parsePriceInput("")` é **zero**. Quem clicasse em "Salvar" numa linha que não
+ * tivesse digitado gravava R$ 0,00 — não o valor errado que estava na tela, mas
+ * zero. E zero, em `buildCustomerPriceMap`, significa "não precificado": o
+ * produto cairia no preço de cadastro em silêncio.
+ *
+ * Nenhuma linha do banco está zerada hoje, então isso nunca chegou a acontecer.
+ * O botão estava ali, ao lado de um número errado, esperando.
+ *
+ * ## A regra, uma só para os dois usos
+ *
+ * O que vale é, em ordem: o que a pessoa digitou, o preço gravado nesta tabela,
+ * e por último o preço de cadastro. Uma função para exibir e outra para gravar,
+ * lendo a mesma ordem — é o que impede as duas de divergirem como divergiram.
+ */
+export function precoDaLinhaDePreco(
+  rascunho: string | undefined,
+  precoDaTabela: number | null | undefined,
+  precoBase: number,
+): number {
+  if (typeof rascunho === "string" && rascunho.trim() !== "") {
+    return Math.max(0, parsePriceInput(rascunho));
+  }
+  if (typeof precoDaTabela === "number" && Number.isFinite(precoDaTabela) && precoDaTabela > 0) {
+    return precoDaTabela;
+  }
+  return Math.max(0, precoBase);
+}
+
+/** O texto que o campo mostra. Mesma ordem de `precoDaLinhaDePreco`. */
+export function precoExibidoNaLinha(
+  rascunho: string | undefined,
+  precoDaTabela: number | null | undefined,
+  precoBase: number,
+): string {
+  if (typeof rascunho === "string") return rascunho;
+  return priceToAdminInput(precoDaLinhaDePreco(undefined, precoDaTabela, precoBase));
 }

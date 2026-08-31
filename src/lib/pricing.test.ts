@@ -4,6 +4,8 @@ import {
   calculateCartSubtotal,
   deveAplicarTabelaDoProxis,
   linhaDePrecoAtiva,
+  precoDaLinhaDePreco,
+  precoExibidoNaLinha,
   mergePriceLayers,
   resolveProductPrice,
 } from "./pricing";
@@ -212,5 +214,50 @@ describe("linhaDePrecoAtiva", () => {
 
     const desligadoNoBanco = linhaDePrecoAtiva(undefined, false);
     expect(!desligadoNoBanco).toBe(true);
+  });
+});
+
+describe("precoDaLinhaDePreco e precoExibidoNaLinha", () => {
+  // O caso que originou as duas funcoes: 3 OMEGAS na tabela de funcionario.
+  const BASE = 32.99;
+  const TABELA = 16.72;
+
+  it("mostra o preco da tabela, e nao o de cadastro", () => {
+    expect(precoExibidoNaLinha(undefined, TABELA, BASE)).toBe("16,72");
+  });
+
+  it("grava o preco da tabela quando ninguem digitou nada", () => {
+    // Antes isto era `parsePriceInput("")`, ou seja zero: salvar sem digitar
+    // apagava o preco da tabela.
+    expect(precoDaLinhaDePreco(undefined, TABELA, BASE)).toBe(16.72);
+  });
+
+  it("cai no preco de cadastro quando a tabela nao precifica o produto", () => {
+    expect(precoExibidoNaLinha(undefined, null, BASE)).toBe("32,99");
+    expect(precoDaLinhaDePreco(undefined, null, BASE)).toBe(32.99);
+  });
+
+  it("o que a pessoa digitou vence os dois", () => {
+    expect(precoExibidoNaLinha("19,90", TABELA, BASE)).toBe("19,90");
+    expect(precoDaLinhaDePreco("19,90", TABELA, BASE)).toBe(19.9);
+  });
+
+  it("campo apagado pela pessoa continua vazio, mas nao grava zero", () => {
+    // Enquanto digita, a pessoa pode esvaziar o campo. O campo tem de respeitar
+    // isso; a gravacao, nao — zero significaria "produto sem preco".
+    expect(precoExibidoNaLinha("", TABELA, BASE)).toBe("");
+    expect(precoDaLinhaDePreco("", TABELA, BASE)).toBe(16.72);
+  });
+
+  it("preco da tabela zerado ou ausente nao vence o de cadastro", () => {
+    // Zero em tabela de preco quer dizer "nao precificado" — mesma regra de
+    // `buildCustomerPriceMap`.
+    expect(precoDaLinhaDePreco(undefined, 0, BASE)).toBe(32.99);
+    expect(precoDaLinhaDePreco(undefined, undefined, BASE)).toBe(32.99);
+  });
+
+  it("nunca devolve preco negativo", () => {
+    expect(precoDaLinhaDePreco("-5", null, BASE)).toBe(0);
+    expect(precoDaLinhaDePreco(undefined, null, -1)).toBe(0);
   });
 });

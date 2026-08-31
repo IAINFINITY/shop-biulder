@@ -19,7 +19,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatBRL, coercePrice, parsePriceInput, priceToAdminInput } from "@/lib/formatMoney";
 import { supabase } from "@/integrations/supabase/client";
 import { getProductImageUrls } from "@/lib/products";
-import { CUSTOMER_PRICE_OVERRIDES_TABLE, customerTypeLabel, linhaDePrecoAtiva } from "@/lib/pricing";
+import {
+  CUSTOMER_PRICE_OVERRIDES_TABLE,
+  customerTypeLabel,
+  linhaDePrecoAtiva,
+  precoDaLinhaDePreco,
+  precoExibidoNaLinha,
+} from "@/lib/pricing";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -54,16 +60,19 @@ function resolveRowKey(scopeMode: PricingScopeMode, customerType: string, proxis
   return `${scopeMode}:${scopeMode === "customer_type" ? customerType : proxisTprId ?? "null"}:${productCode}`;
 }
 
-// `active` junto com o `id`, e nao so o `id`.
+// `active` e `price` junto com o `id`, e nao so o `id`.
 //
 // `persistRow` precisa saber se a linha esta ligada no banco para nao religar
 // uma que o admin desligou de proposito. Trazendo so o `id`, `existing.active`
 // vinha `undefined`, caia no padrao `true`, e salvar um ajuste de preco
 // reativava a linha em silencio.
+//
+// `price` entrou pelo mesmo motivo, um nivel adiante: salvar uma linha sem ter
+// digitado nada precisa reescrever o preco que ja esta gravado, e nao zero.
 async function loadExistingOverride(scopeMode: PricingScopeMode, customerType: string, proxisTprId: number | null, productCode: string) {
   let query = supabase
     .from(CUSTOMER_PRICE_OVERRIDES_TABLE)
-    .select("id, active")
+    .select("id, active, price")
     .eq("product_code", productCode);
 
   if (scopeMode === "customer_type") {
@@ -139,6 +148,13 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
     [products],
   );
 
+  /** Preço de cadastro por código, para `persistRow` não depender da linha renderizada. */
+  const basePriceByCode = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const product of productsWithCode) map.set(product.normalizedCode, coercePrice(product.price));
+    return map;
+  }, [productsWithCode]);
+
   const overridesQuery = useQuery({
     queryKey: ["admin-price-overrides", scopeMode, customerType, activeTprId],
     enabled: scopeReady,
@@ -169,6 +185,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
     return map;
   }, [overridesQuery.data]);
 
+
   const searchedProducts = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return productsWithCode;
@@ -196,15 +213,22 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
     const normalizedCode = normalizeProductCode(productCode);
     if (!normalizedCode) return;
 
-    const price =
-      typeof nextPrice === "number"
-        ? Math.max(0, Math.round(nextPrice * 100) / 100)
-        : Math.max(0, parsePriceInput(draftPrices[normalizedCode] ?? ""));
     // `existing` vem antes do `active` de proposito: sem ele, uma linha que esta
     // desligada no banco e que o admin nao tocou seria **religada** ao salvar um
     // ajuste de preco. O `?? true` de antes so acertava por acidente, porque
     // nada estava desligado.
+    //
+    // Agora ele vem antes do **preco** tambem, e pelo mesmo motivo: salvar uma
+    // linha sem ter digitado nada gravava `parsePriceInput("")`, que e zero.
     const existing = await loadExistingOverride(scopeMode, customerType, activeTprId, normalizedCode);
+    const price =
+      typeof nextPrice === "number"
+        ? Math.max(0, Math.round(nextPrice * 100) / 100)
+        : precoDaLinhaDePreco(
+            draftPrices[normalizedCode],
+            existing ? coercePrice(existing.price) : null,
+            basePriceByCode.get(normalizedCode) ?? 0,
+          );
     const active =
       typeof nextActive === "boolean"
         ? nextActive
@@ -514,6 +538,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
           Escopo atual: <span className="font-semibold">{scopeLabel}</span>. Os preços são salvos por produto e respeitam a tabela ERP quando houver TPR vinculado.
         </div>
 
+
       {!scopeReady ? (
         <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
           Selecione uma tabela Proxsys para carregar os preços.
@@ -571,7 +596,12 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                 const existing = overrideMap.get(code);
                 const key = resolveRowKey(scopeMode, customerType, activeTprId, code);
                 const basePrice = coercePrice(product.price);
-                const draftPrice = parsePriceInput(draftPrices[code] ?? "");
+                // O preço gravado NESTA tabela, que é o que a tela precisa
+                // mostrar. Antes o campo caía direto no `basePrice` e escondia
+                // justamente o número que o admin veio conferir.
+                const precoDaTabela = existing ? coercePrice(existing.price) : null;
+                const valorNoCampo = precoExibidoNaLinha(draftPrices[code], precoDaTabela, basePrice);
+                const draftPrice = parsePriceInput(valorNoCampo);
                 const delta = draftPrice - basePrice;
                 const hasDelta = draftPrice > 0 && Math.abs(delta) >= 0.01;
                 const showDeltaPercent = hasDelta && basePrice > 0;
@@ -663,7 +693,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                         <div>
                           <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
                           <Input
-                            value={draftPrices[code] ?? priceToAdminInput(basePrice)}
+                            value={valorNoCampo}
                             onChange={(e) =>
                               setDraftPrices((current) => ({
                                 ...current,

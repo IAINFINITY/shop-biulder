@@ -62,7 +62,7 @@ export function PreferenciaDeCampanhas({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-xl bg-background/95 p-4 ring-1 ring-black/5 shadow-sm sm:items-center",
+        "flex items-start gap-3 rounded-[1.25rem] bg-background/95 p-4 border border-border/70 shadow-sm sm:items-center",
         className,
       )}
     >

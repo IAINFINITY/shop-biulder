@@ -23,7 +23,7 @@ export function useCatalogNotificationReads(userId: string | null | undefined) {
 
       const { data, error } = await supabase
         .from(CATALOG_NOTIFICATION_READS_TABLE)
-        .select("id,user_id,notification_id,read_at,created_at,updated_at")
+        .select("id,user_id,notification_id,read_at,dispensado_em,created_at,updated_at")
         .eq("user_id", userId)
         .order("read_at", { ascending: false });
 
@@ -60,9 +60,41 @@ export function useCatalogNotificationReads(userId: string | null | undefined) {
     },
   });
 
+  /**
+   * Limpar a lista.
+   *
+   * Grava `dispensado_em` junto com `read_at`: quem tira um aviso não lido da
+   * lista não quer continuar com o contador aceso por causa de algo que sumiu da
+   * tela. Não apaga a notificação — ela é da loja e vale para todo mundo; ver a
+   * migration `20260901180000`.
+   */
+  const dispensarMutation = useMutation({
+    mutationFn: async (notificationIds: string[]) => {
+      if (!userId || notificationIds.length === 0) return;
+
+      const agora = new Date().toISOString();
+      const { error } = await supabase.from(CATALOG_NOTIFICATION_READS_TABLE).upsert(
+        notificationIds.map((notificationId) => ({
+          user_id: userId,
+          notification_id: notificationId,
+          read_at: agora,
+          dispensado_em: agora,
+        })),
+        { onConflict: "user_id,notification_id" },
+      );
+
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["catalog-notification-reads", userId ?? "anonymous"] });
+    },
+  });
+
   return {
     ...query,
     markAsRead: markAsReadMutation.mutateAsync,
     isMarkingRead: markAsReadMutation.isPending,
+    dispensar: dispensarMutation.mutateAsync,
+    isDispensando: dispensarMutation.isPending,
   };
 }

@@ -11,6 +11,8 @@ export type CatalogNotification = {
   cta_label: string | null;
   cta_url: string | null;
   target_user_id: string | null;
+  /** Ver `avisosDoCliente.ts`: decide o ícone e o tom. */
+  tipo: string;
   active: boolean;
   priority: number;
   starts_at: string | null;
@@ -45,6 +47,7 @@ export function normalizeCatalogNotificationFromSupabaseRow(row: unknown): Catal
     cta_label: normalizeOptionalText(record.cta_label),
     cta_url: normalizeOptionalText(record.cta_url),
     target_user_id: normalizeOptionalText(record.target_user_id),
+    tipo: typeof record.tipo === "string" && record.tipo.trim() ? record.tipo.trim() : "campanha",
     active: Boolean(record.active),
     priority: Number.isFinite(Number(record.priority)) ? Math.trunc(Number(record.priority)) : 0,
     starts_at: normalizeDate(record.starts_at),

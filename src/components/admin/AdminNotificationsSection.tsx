@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { CatalogNotificationImageFrame } from "@/components/shared/CatalogNotificationImageFrame";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { AdminListaPadrao } from "./AdminListaPadrao";
 import { CATALOG_NOTIFICATIONS_TABLE, type CatalogNotification } from "@/lib/catalogNotifications";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
 import { useAdminCustomerProfiles } from "@/hooks/useAdminCustomerProfiles";
@@ -897,11 +898,28 @@ export function AdminNotificationsSection() {
     await refresh();
   };
 
+  const [busca, setBusca] = useState("");
+
   const activeCount = sortedNotifications.filter((notification) => notification.active).length;
+
+  /**
+   * A busca que faltava.
+   *
+   * Era a única seção do painel sem nenhuma: para achar uma campanha antiga a
+   * pessoa rolava a grade inteira. Cobre título e resumo, que é como se lembra
+   * de uma notificação.
+   */
+  const notificacoesFiltradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return sortedNotifications;
+    return sortedNotifications.filter((n) =>
+      `${n.title} ${n.summary}`.toLowerCase().includes(termo),
+    );
+  }, [sortedNotifications, busca]);
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
+      <SectionHeader
         eyebrow="Notificações"
         title="Campanhas e avisos do catálogo"
         description="Publique mensagens para aparecer na área de notificações do cliente e organize a prioridade de exibição."
@@ -910,24 +928,28 @@ export function AdminNotificationsSection() {
             <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
               {activeCount} ativa(s)
             </Badge>
-            <Button type="button" className="h-10 rounded-2xl px-4 text-sm" onClick={openNew}>
-              <Plus className="h-4 w-4" />
-              Nova notificação
-            </Button>
           </div>
         }
       />
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-sm text-foreground">O cliente vê apenas as notificações ativas e dentro da janela de início/fim, quando configurada.</p>
-            <p className="text-xs text-muted-foreground">Use prioridade maior para empurrar uma campanha para o topo da lista.</p>
-          </div>
-          <Badge variant="outline" className="rounded-full border-border/70 px-3 py-1 text-[0.6875rem] font-medium">
-            {sortedNotifications.length} notificação(ões)
-          </Badge>
-        </div>
+      <AdminListaPadrao
+        busca={busca}
+        onBuscaChange={setBusca}
+        buscaPlaceholder="Buscar por título ou resumo"
+        contagem={notificacoesFiltradas.length}
+        acaoPrincipal={
+          <Button type="button" className="h-11 rounded-2xl px-4 text-sm" onClick={openNew}>
+            <Plus className="h-4 w-4" />
+            Nova notificação
+          </Button>
+        }
+        filtroAplicado={
+          <p className="text-xs leading-5 text-muted-foreground">
+            O cliente vê apenas as notificações ativas e dentro da janela de início/fim, quando configurada.
+            Prioridade maior empurra a campanha para o topo.
+          </p>
+        }
+      >
 
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -935,13 +957,13 @@ export function AdminNotificationsSection() {
               <div key={index} className="h-64 animate-pulse rounded-[1.25rem] border border-border/70 bg-muted/20" />
             ))}
           </div>
-        ) : sortedNotifications.length === 0 ? (
+        ) : notificacoesFiltradas.length === 0 ? (
           <div className="rounded-[1.25rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
             Nenhuma notificação cadastrada ainda.
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {sortedNotifications.map((notification) => (
+            {notificacoesFiltradas.map((notification) => (
               <NotificationCard
                 key={notification.id}
                 notification={notification}
@@ -953,7 +975,7 @@ export function AdminNotificationsSection() {
             ))}
           </div>
         )}
-      </div>
+      </AdminListaPadrao>
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 

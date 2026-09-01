@@ -5,6 +5,8 @@ export type CatalogNotificationRead = {
   user_id: string;
   notification_id: string;
   read_at: string;
+  /** Quando esta pessoa tirou o aviso da própria lista. */
+  dispensado_em: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -25,6 +27,7 @@ export function normalizeCatalogNotificationReadFromSupabaseRow(row: unknown): C
     user_id: normalizeText(record.user_id),
     notification_id: normalizeText(record.notification_id),
     read_at: normalizeText(record.read_at),
+    dispensado_em: normalizeText(record.dispensado_em) || null,
     created_at: normalizeText(record.created_at),
     updated_at: normalizeText(record.updated_at),
   };

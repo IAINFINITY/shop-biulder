@@ -23,7 +23,7 @@ export function useCatalogNotifications(options?: UseCatalogNotificationsOptions
       let query = supabase
         .from(CATALOG_NOTIFICATIONS_TABLE)
         .select(
-          "id,title,summary,body,image_url,cta_label,cta_url,target_user_id,active,priority,starts_at,ends_at,created_at,updated_at",
+          "id,title,summary,body,image_url,cta_label,cta_url,target_user_id,active,priority,starts_at,ends_at,created_at,updated_at,tipo",
         )
         .order("priority", { ascending: false })
         .order("created_at", { ascending: false });

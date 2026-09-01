@@ -16,15 +16,22 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatBRL } from "@/lib/formatMoney";
-import { customerTypeLabel } from "@/lib/pricing";
-import { formatDocumentId } from "@/lib/brazilianIds";
+import { customerTypeLabel, normalizeCustomerType } from "@/lib/pricing";
+import { formatDocumentId, formatPhone } from "@/lib/brazilianIds";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
+import { lerChaveDeTabela } from "@/lib/tabelasDePreco";
+import { rotuloDaTabela, tabelasOferecidas, useTabelasDePreco } from "@/hooks/useTabelasDePreco";
 import { supabase } from "@/integrations/supabase/client";
 import { CUSTOMER_ADDRESSES_TABLE, customerAddressFromRow, type CustomerAddress } from "@/lib/customerAddresses";
 import { CUSTOMER_PROFILES_TABLE, registrarAcessoAdminAoCadastro } from "@/lib/customerProfile";
 import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
 import { CadastrosPendentesSection } from "@/components/admin/CadastrosPendentesSection";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { useCadastrosPendentes } from "@/hooks/useCadastrosPendentes";
+import { AdminTabelaDePessoas, CelulaDePessoa } from "@/components/admin/AdminTabelaDePessoas";
+import { AdminPaginacao } from "@/components/admin/AdminPaginacao";
+import { paginar } from "@/lib/paginacao";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { AdminListaPadrao } from "./AdminListaPadrao";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { DialogoDeResetDeSenha, type AlvoDoReset } from "./DialogoDeResetDeSenha";
 import type { AdminCustomerSummary } from "./adminTypes";
@@ -41,6 +48,16 @@ type AdminClientsSectionProps = {
   onClientSearchChange: (value: string) => void;
   clientFilter: "all" | "orders" | "revenue";
   onClientFilterChange: (value: "all" | "orders" | "revenue") => void;
+  /**
+   * Tabela de preço em foco, no formato de `tabelasDePreco` (`tipo:funcionario`,
+   * `negociada:8728`). Controlado de fora porque a seção de Preços manda para cá:
+   * "97 contas compram por esta tabela" vira um link, e não uma lista repetida
+   * dentro do editor de preço.
+   */
+  filtroDeTabela: string | null;
+  /** Abre a seção Preços — é lá que tipos e tabelas são criados e apagados. */
+  onIrParaPrecos: () => void;
+  onFiltroDeTabelaChange: (valor: string | null) => void;
   onUpdateCustomerType: (payload: {
     userId: string | null;
     cnpj: string;
@@ -87,40 +104,82 @@ function DetailField({
   );
 }
 
+/**
+ * Uma aba de tipo de conta, com quantos há dentro.
+ *
+ * ⚠️ **Zero aparece.** Ao contrário das abas da caixa de mensagens — onde o
+ * zero era ruído porque as abas eram estados que iam e vinham — aqui elas são
+ * os tipos de conta cadastrados, e "Distribuidor: 0" é uma resposta: o tipo
+ * existe e ninguém o usa. Some-lo esconderia um tipo que alguém criou.
+ */
+function AbaDeTipo({
+  ativo,
+  onClick,
+  total,
+  children,
+}: {
+  ativo: boolean;
+  onClick: () => void;
+  total: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      type="button"
+      variant={ativo ? "default" : "outline"}
+      className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem]"
+      onClick={onClick}
+    >
+      {children}
+      <span
+        className={cn(
+          "ml-1.5 rounded-full px-1.5 py-px text-[0.6875rem] font-semibold tabular-nums",
+          ativo ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+        )}
+      >
+        {total}
+      </span>
+    </Button>
+  );
+}
+
 export function AdminClientsSection({
   customerProfiles,
   customerSummaries,
   clientSearch,
   onClientSearchChange,
   clientFilter,
+  filtroDeTabela,
+  onIrParaPrecos,
+  onFiltroDeTabelaChange,
   onClientFilterChange,
   onUpdateCustomerType,
 }: AdminClientsSectionProps) {
   const NO_REPRESENTATIVE_VALUE = "__none__";
-  const { options: customerTypes, addCustomType } = useCustomerTypes();
+  // `addCustomType` saiu daqui junto com o modal: criar tipo agora é em Preços.
+  const { options: customerTypes } = useCustomerTypes();
 
   /**
-   * `funcionario` existe de verdade em `useCustomerTypes` — precisa continuar
-   * lá, porque alimenta preço por tipo e o "Visível para" do produto (ver
-   * `20260806180000_customer_type_funcionario.sql`). Mas nesta tela ele nao faz
-   * sentido: `clientProfiles`, em `AdminWorkspace.tsx`, ja exclui todo perfil com
-   * `customer_type === "funcionario"` antes de chegar aqui — quem gerencia essas
-   * contas e a aba Funcionarios. O efeito pratico de deixar "Funcionário"
-   * aparecer nos contadores e filtros desta tela e um balde que mostra zero para
-   * sempre, e reclassificar alguem como funcionario por aqui faria a pessoa
-   * sumir da lista no proximo refresh — a contagem bateria, mas pareceria bug.
+   * `funcionario` volta a aparecer aqui — e agora faz sentido.
+   *
+   * Antes esta tela escondia o tipo porque `clientProfiles` filtrava funcionário
+   * fora antes de chegar: o balde mostraria zero para sempre, e reclassificar
+   * alguém como funcionário faria a pessoa sumir no refresh seguinte.
+   *
+   * O que mudou foi a premissa. Esta tela passou a ser o **diretório de quem
+   * compra** — cliente e funcionário —, então o tipo tem conteúdo e ninguém
+   * some ao ser reclassificado.
+   *
+   * A aba Funcionários continua existindo e continua sendo onde funcionário
+   * nasce: é lá que se cria, edita e reseta senha. É a separação que os
+   * catálogos B2B maiores usam — diretórios distintos para operação, um lugar só
+   * para consultar.
    */
-  const clientCustomerTypes = useMemo(
-    () => customerTypes.filter((type) => type.name !== "funcionario"),
-    [customerTypes],
-  );
+  const clientCustomerTypes = customerTypes;
   const queryClient = useQueryClient();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsCustomer, setDetailsCustomer] = useState<AdminCustomerSummary | null>(null);
   const [updatingCustomerKey, setUpdatingCustomerKey] = useState<string | null>(null);
-  const [newTypeOpen, setNewTypeOpen] = useState(false);
-  const [newTypeName, setNewTypeName] = useState("");
-  const [syncingProxis, setSyncingProxis] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editCustomer, setEditCustomer] = useState<AdminCustomerSummary | null>(null);
   const [editName, setEditName] = useState("");
@@ -128,6 +187,17 @@ export function AdminClientsSection({
   const [editEmail, setEditEmail] = useState("");
   const [editObservation, setEditObservation] = useState("");
   const [editType, setEditType] = useState("cliente");
+  /**
+   * A tabela negociada desta conta. `"geral"` = nenhuma, paga pela tabela do tipo.
+   *
+   * ⚠️ **Este campo não existia na tela.** As 38 contas que hoje têm tabela
+   * negociada foram gravadas por SQL direto — não havia como associar uma conta
+   * a uma tabela pelo painel, embora a seção Preços dissesse "para trocar, use a
+   * seção Preços". Era uma instrução para uma porta que não existia.
+   */
+  const [editTabela, setEditTabela] = useState<string>("geral");
+
+  const { data: tabelasDePreco = [] } = useTabelasDePreco();
   const [editSaving, setEditSaving] = useState(false);
   const canDeleteCustomer = Boolean(editCustomer?.userId || editCustomer?.cnpj);
   /**
@@ -147,6 +217,21 @@ export function AdminClientsSection({
   const [representanteSaving, setRepresentanteSaving] = useState(false);
 
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+
+  // A pagina volta ao inicio sempre que o recorte muda: continuar na pagina 4
+  // de uma lista que agora tem duas paginas mostra o vazio de `paginar`, e
+  // parece que o filtro nao achou nada.
+  // ⚠️ Os cadastros pendentes viraram **aba**, e não mais uma caixa acima da
+  // lista. Recolhida ela funcionava com 3; com 100 empurraria o trabalho do dia
+  // inteiro para fora da tela toda vez que alguém a abrisse. Como aba ela usa a
+  // mesma moldura e a mesma busca, e some da frente quando está zerada.
+  const [vendoPendentes, setVendoPendentes] = useState(false);
+  const { data: pendentes = [] } = useCadastrosPendentes();
+
+  const [paginaAtual, setPaginaAtual] = useState(0);
+  useEffect(() => {
+    setPaginaAtual(0);
+  }, [clientSearch, clientFilter, typeFilter, filtroDeTabela]);
 
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = { unknown: 0 };
@@ -190,12 +275,37 @@ export function AdminClientsSection({
       });
     }
 
+    // A tabela por onde a pessoa compra: TPR quando ela tem, senão a geral do
+    // tipo. É a mesma precedência de `contarPessoasPorTabela` — contar de um
+    // jeito na tela de Preços e filtrar de outro aqui faria os dois números
+    // discordarem.
+    const escopo = lerChaveDeTabela(filtroDeTabela);
+    if (escopo) {
+      filtered = filtered.filter((customer) => {
+        const profile = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
+        if (!profile) return false;
+        const tpr = profile.proxis_tpr_id;
+        if (escopo.origem === "negociada") return tpr === escopo.tprId;
+        return (tpr ?? null) === null && normalizeCustomerType(profile.customer_type) === escopo.customerType;
+      });
+    }
+
     return [...filtered].sort((a, b) => {
       if (clientFilter === "orders") return b.orders - a.orders || b.total - a.total;
       if (clientFilter === "revenue") return b.total - a.total || b.orders - a.orders;
       return a.name.localeCompare(b.name, "pt-BR");
     });
-  }, [clientFilter, clientSearch, customerProfilesByKey, customerSummaries, typeFilter]);
+  }, [clientFilter, clientSearch, customerProfilesByKey, customerSummaries, typeFilter, filtroDeTabela]);
+
+  // 46 clientes hoje, e a lista nao tinha pagina nenhuma: era rolar ate achar.
+  const pagina = useMemo(() => paginar(filteredCustomers, paginaAtual), [filteredCustomers, paginaAtual]);
+
+  /** Nome legível da tabela em foco, para a faixa não mostrar `negociada:8728`. */
+  const rotuloDaTabelaFiltrada = useMemo(() => {
+    const escopo = lerChaveDeTabela(filtroDeTabela);
+    if (!escopo) return "";
+    return escopo.origem === "negociada" ? `Proxis ${escopo.tprId}` : customerTypeLabel(escopo.customerType);
+  }, [filtroDeTabela]);
 
   const selectedDetailsProfile = useMemo(() => {
     if (!detailsCustomer) return null;
@@ -212,26 +322,6 @@ export function AdminClientsSection({
   const detailUserId = detailsCustomer?.userId ?? selectedDetailsProfile?.user_id ?? null;
   const detailCnpj = selectedDetailsProfile?.cnpj || detailsCustomer?.cnpj || "";
   const normalizedDetailCnpj = detailCnpj.replace(/\D/g, "");
-
-  const {
-    data: proxisDetails,
-    error: proxisDetailsError,
-    isFetching: proxisDetailsLoading,
-    refetch: refetchProxisDetails,
-  } = useQuery({
-    queryKey: ["admin-proxis-customer", normalizedDetailCnpj],
-    enabled: detailsOpen && normalizedDetailCnpj.length === 14,
-    staleTime: 30_000,
-    retry: 1,
-    queryFn: async () => {
-      const { lookupProxisCustomerByCnpj } = await import("@/lib/proxisCustomer");
-      return lookupProxisCustomerByCnpj(normalizedDetailCnpj);
-    },
-  });
-
-  const proxisFound = proxisDetails?.found ?? Boolean(selectedDetailsProfile?.proxis_found);
-  const displayedProxisPesId = proxisDetails?.pes_id ?? selectedDetailsProfile?.proxis_pes_id ?? null;
-  const displayedProxisTprId = proxisDetails?.tpr_id ?? selectedDetailsProfile?.proxis_tpr_id ?? null;
 
   const { data: detailAddresses = [] } = useQuery({
     queryKey: ["admin-customer-addresses", detailUserId],
@@ -270,6 +360,13 @@ export function AdminClientsSection({
     setEditEmail(profile?.email ?? "");
     setEditObservation(profile?.observation ?? "");
     setEditType(customer.customerType ?? "cliente");
+    setEditTabela(
+      (() => {
+        const perfil = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
+        const tpr = perfil?.proxis_tpr_id;
+        return tpr == null ? "geral" : String(tpr);
+      })(),
+    );
     setEditOpen(true);
   };
 
@@ -281,29 +378,6 @@ export function AdminClientsSection({
     void registrarAcessoAdminAoCadastro(customer.userId ?? null, customer.cnpj ?? null);
   };
 
-  const syncDetailsProxis = async () => {
-    if (normalizedDetailCnpj.length !== 14) {
-      toast.error("CNPJ não encontrado.");
-      return;
-    }
-
-    setSyncingProxis(true);
-    try {
-      const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
-      await syncCustomerProxisLink(normalizedDetailCnpj, detailUserId);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["admin-customer-profiles"] }),
-        refetchProxisDetails(),
-      ]);
-      toast.success("Vínculo Proxsys atualizado.");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[AdminClients] syncCustomerProxisLink error:", err);
-      toast.error(`Erro ao sincronizar com Proxsys: ${message}`);
-    } finally {
-      setSyncingProxis(false);
-    }
-  };
 
   const handleEditSave = async () => {
     if (!editCustomer?.userId) {
@@ -337,6 +411,17 @@ export function AdminClientsSection({
         .eq("user_id", editCustomer.userId);
       if (emailColumnError) throw emailColumnError;
 
+      // A tabela negociada é do perfil, e não do tipo: um cliente e um
+      // distribuidor podem compartilhar a mesma tabela, e dois clientes podem
+      // ter tabelas diferentes. Por isso ela é gravada aqui e não em
+      // `onUpdateCustomerType`.
+      const tprEscolhido = editTabela === "geral" ? null : Number(editTabela);
+      const { error: tabelaError } = await supabase
+        .from(CUSTOMER_PROFILES_TABLE)
+        .update({ proxis_tpr_id: tprEscolhido })
+        .eq("user_id", editCustomer.userId);
+      if (tabelaError) throw tabelaError;
+
       if (editCustomer.cnpj && editType !== editCustomer.customerType) {
         await onUpdateCustomerType({
           userId: editCustomer.userId,
@@ -361,10 +446,9 @@ export function AdminClientsSection({
           que "nao aparece" precisa esbarrar nisto primeiro. A conta existe, so
           nao confirmou o e-mail — e sem o aviso aqui, a conclusao natural e que
           o cadastro nao foi feito. */}
-      <CadastrosPendentesSection />
 
       <div className="space-y-3 sm:space-y-4">
-        <AdminSectionHeader
+        <SectionHeader
           eyebrow="Clientes"
           title="Visão consolidada de quem compra com frequência"
           description="Use a busca para localizar registros e os filtros para organizar a lista."
@@ -375,25 +459,58 @@ export function AdminClientsSection({
           }
         />
 
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {clientCustomerTypes.map((type) => (
-            <Badge key={type.name} variant="outline" className="rounded-full border-primary/15 bg-primary/5 px-2.5 py-1 text-[0.6875rem] text-primary">
-              {type.label}: {typeCounts[type.name] ?? 0}
-            </Badge>
-          ))}
-          <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[0.6875rem] text-muted-foreground">
-            Sem tipo: {typeCounts["unknown"] ?? 0}
-          </Badge>
-        </div>
+        {/* Sem a faixa, o filtro vindo de Preços seria uma armadilha: a lista
+            encolhe e nada na tela diz por quê, nem como voltar. É a mesma
+            faixa que a tela de Produtos usa para o filtro de categoria. */}
+        {filtroDeTabela ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2">
+            <span className="text-[0.8125rem] text-foreground">
+              Mostrando quem compra pela tabela{" "}
+              <strong>{rotuloDaTabelaFiltrada}</strong> — {filteredCustomers.length} conta(s)
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 rounded-full px-3 text-xs text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => onFiltroDeTabelaChange(null)}
+            >
+              Ver todas
+            </Button>
+          </div>
+        ) : null}
 
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <Input
-            placeholder="Pesquisar cliente (nome, empresa, telefone, CNPJ, e-mail)"
-            value={clientSearch}
-            onChange={(e) => onClientSearchChange(e.target.value)}
-            className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background"
-          />
-          <div className="flex flex-wrap gap-2">
+        <AdminListaPadrao
+          busca={clientSearch}
+          onBuscaChange={onClientSearchChange}
+          buscaPlaceholder="Buscar por nome, empresa, telefone, CNPJ ou e-mail"
+          contagem={filteredCustomers.length}
+          filtros={
+            <>
+            {/* O recorte por tabela existia **só** quando alguém chegava vindo de
+                Preços, pela faixa "Mostrando quem compra pela tabela X". Quem
+                entrava direto em Clientes não tinha como fazer essa pergunta —
+                e é ela que responde "quem está na tabela errada?". */}
+            <Select
+              value={filtroDeTabela ?? "todas"}
+              onValueChange={(valor) => onFiltroDeTabelaChange(valor === "todas" ? null : valor)}
+            >
+              <SelectTrigger className="h-10 sm:h-9 w-[13rem] rounded-full text-[0.8125rem]">
+                <SelectValue placeholder="Todas as tabelas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as tabelas</SelectItem>
+                {clientCustomerTypes.map((type) => (
+                  <SelectItem key={`tipo:${type.name}`} value={`tipo:${type.name}`}>
+                    Geral de {type.label}
+                  </SelectItem>
+                ))}
+                {tabelasOferecidas(tabelasDePreco, null).map((tabela) => (
+                  <SelectItem key={`negociada:${tabela.tprId}`} value={`negociada:${tabela.tprId}`}>
+                    {rotuloDaTabela(tabela)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant={clientFilter === "all" ? "default" : "outline"}
@@ -418,61 +535,179 @@ export function AdminClientsSection({
             >
               Maior gasto
             </Button>
-          </div>
-        </div>
+            </>
+          }
+          rodape={vendoPendentes ? null : <AdminPaginacao pagina={pagina} onMudarPagina={setPaginaAtual} />}
+          abas={
+            <>
+          {/* ⚠️ A contagem vive **na aba**.
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant={typeFilter === null ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem]"
-            onClick={() => setTypeFilter(null)}
-          >
+              Havia uma fileira de selos logo acima ("Cliente: 44, Funcionário:
+              97, Sem tipo: 0…") repetindo, como texto, exatamente os tipos que
+              estas abas filtram. Dois lugares para uma informação só — e a
+              mesma duplicação existia em Administradores, com a legenda no
+              rodapé em vez de no topo. Agora as duas telas contam no mesmo
+              lugar: dentro do botão que filtra. */}
+          <AbaDeTipo ativo={typeFilter === null} onClick={() => setTypeFilter(null)} total={customerSummaries.length}>
             Todos
-          </Button>
+          </AbaDeTipo>
           {clientCustomerTypes.map((type) => (
-            <Button
+            <AbaDeTipo
               key={type.name}
-              type="button"
-              variant={typeFilter === type.name ? "default" : "outline"}
-              className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem]"
+              ativo={typeFilter === type.name}
               onClick={() => setTypeFilter(typeFilter === type.name ? null : type.name)}
+              total={typeCounts[type.name] ?? 0}
             >
               {type.label}
-            </Button>
+            </AbaDeTipo>
           ))}
-          <Button
-            type="button"
-            variant={typeFilter === "unknown" ? "default" : "outline"}
-            className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem]"
+          <AbaDeTipo
+            ativo={typeFilter === "unknown"}
             onClick={() => setTypeFilter(typeFilter === "unknown" ? null : "unknown")}
+            total={typeCounts["unknown"] ?? 0}
           >
             Sem tipo
-          </Button>
-        </div>
+          </AbaDeTipo>
 
-        {filteredCustomers.length === 0 ? (
-          <div className="rounded-[1.1rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
-            Nenhum cliente encontrado ainda.
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredCustomers.map((customer) => {
-              const key = getCustomerKey(customer);
-              const isUpdating = updatingCustomerKey === key;
+          {/* Só aparece quando há alguém esperando: uma aba permanente marcando
+              zero ensina a ignorá-la, e é justamente ela que precisa ser notada
+              no dia em que não estiver zerada. */}
+          {pendentes.length > 0 ? (
+            <Button
+              type="button"
+              variant={vendoPendentes ? "default" : "outline"}
+              className="h-10 sm:h-9 rounded-full px-3 text-[0.8125rem]"
+              onClick={() => setVendoPendentes((v) => !v)}
+            >
+              Aguardando confirmação
+              <span
+                className={cn(
+                  "ml-1.5 rounded-full px-1.5 py-px text-[0.6875rem] font-semibold tabular-nums",
+                  vendoPendentes ? "bg-primary-foreground/20" : "bg-warm/15 text-warm",
+                )}
+              >
+                {pendentes.length}
+              </span>
+            </Button>
+          ) : null}
+            </>
+          }
+        >
 
+          {vendoPendentes ? (
+            <CadastrosPendentesSection comoAba />
+          ) : (
+          <AdminTabelaDePessoas
+            itens={pagina.itens}
+            chaveDoItem={getCustomerKey}
+            onAbrirItem={openDetails}
+            vazio="Nenhum cliente encontrado ainda."
+            colunas={[
+              {
+                chave: "nome",
+                rotulo: "Cliente",
+                largura: "28%",
+                celula: (customer) => (
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-semibold text-primary">
+                      {customer.name.charAt(0).toUpperCase()}
+                    </span>
+                    <CelulaDePessoa
+                      nome={customer.name}
+                      detalhe={
+                        <NomeDaEmpresa
+                          company={customer.company}
+                          cnpj={customer.cnpj}
+                          isMei={customer.isMei}
+                          fallback="Sem empresa vinculada"
+                        />
+                      }
+                    />
+                  </div>
+                ),
+              },
+              {
+                chave: "tipo",
+                rotulo: "Tipo",
+                largura: "12%",
+                celula: (customer) =>
+                  customer.customerType ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-full border-primary/20 bg-primary/5 px-2 py-0.5 text-[0.6875rem] text-primary"
+                    >
+                      {customerTypeLabel(customer.customerType)}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  ),
+              },
+              {
+                chave: "contato",
+                rotulo: "Contato",
+                largura: "20%",
+                ocultarAte: "xl",
+                celula: (customer) => {
+                  const perfil = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
+                  return (
+                    <div className="min-w-0 text-xs text-muted-foreground">
+                      <p className="truncate">{perfil?.email || "—"}</p>
+                      {customer.phone ? <p className="truncate">{formatPhone(customer.phone)}</p> : null}
+                    </div>
+                  );
+                },
+              },
+              {
+                chave: "cnpj",
+                rotulo: "CNPJ",
+                largura: "14%",
+                ocultarAte: "xl",
+                celula: (customer) => (
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {customer.cnpj ? formatDocumentId(customer.cnpj) : "—"}
+                  </span>
+                ),
+              },
+              {
+                chave: "pedidos",
+                rotulo: "Pedidos",
+                largura: "8%",
+                alinhamento: "direita",
+                celula: (customer) => <span className="tabular-nums">{customer.orders}</span>,
+              },
+              {
+                chave: "total",
+                rotulo: "Total gasto",
+                largura: "10%",
+                alinhamento: "direita",
+                celula: (customer) => (
+                  <span className="font-mono text-xs font-medium text-foreground">{formatBRL(customer.total)}</span>
+                ),
+              },
+            ]}
+            larguraDasAcoes="8%"
+            acoes={(customer) => (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 rounded-full px-3 text-xs"
+                onClick={() => openEdit(customer)}
+              >
+                <Pencil className="mr-1 h-3 w-3" />
+                Editar
+              </Button>
+            )}
+            cartaoNoCelular={(customer) => {
+              const perfil = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
               return (
-                <div
-                  key={key}
-                  className="min-w-0 rounded-[1.15rem] border border-border/70 bg-card p-3 sm:p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03)]"
-                >
+                <>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-semibold text-primary">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-semibold text-primary">
                         {customer.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold leading-5 text-foreground">{customer.name}</p>
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
                         <p className="truncate text-xs text-muted-foreground">
                           <NomeDaEmpresa
                             company={customer.company}
@@ -481,71 +716,55 @@ export function AdminClientsSection({
                             fallback="Sem empresa vinculada"
                           />
                         </p>
-                        {(() => {
-                          const p = customer.userId ? customerProfilesByKey.get(customer.userId) : null;
-                          return p?.email ? <p className="truncate text-[0.6875rem] text-muted-foreground/70">{p.email}</p> : null;
-                        })()}
+                        {perfil?.email ? (
+                          <p className="truncate text-[0.6875rem] text-muted-foreground/70">{perfil.email}</p>
+                        ) : null}
                       </div>
                     </div>
-
-                    <div className="flex flex-col gap-2 sm:items-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 sm:h-8 rounded-full px-3 text-[0.8125rem] sm:text-xs"
-                        onClick={() => openDetails(customer)}
-                      >
-                        Ver dados
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 sm:h-8 rounded-full px-3 text-[0.8125rem] sm:text-xs"
-                        onClick={() => openEdit(customer)}
-                      >
-                        <Pencil className="mr-1 h-3 w-3" />
-                        Editar
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 shrink-0 rounded-full px-3 text-xs"
+                      onClick={() => openDetails(customer)}
+                    >
+                      Ver dados
+                    </Button>
                   </div>
 
-                  <div className="mt-2.5 sm:mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     {customer.customerType ? (
-                      <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[0.6875rem] text-primary">
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[0.6875rem] text-primary"
+                      >
                         {customerTypeLabel(customer.customerType)}
                       </Badge>
-                    ) : (
-                      <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[0.6875rem] text-muted-foreground">
-                        Sem tipo definido
-                      </Badge>
-                    )}
+                    ) : null}
                     {customer.phone ? (
                       <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-[0.6875rem]">
-                        {customer.phone}
-                      </Badge>
-                    ) : null}
-                    {customer.cnpj ? (
-                      <Badge variant="outline" className="rounded-full px-2.5 py-0.5 font-mono text-[0.6875rem]">
-                         {formatDocumentId(customer.cnpj)}
+                        {formatPhone(customer.phone)}
                       </Badge>
                     ) : null}
                   </div>
 
-                  <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-3 border-t border-border/70 pt-3 sm:pt-4">
+                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border/70 pt-3">
                     <div>
                       <p className="text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">Pedidos</p>
-                      <p className="mt-1 text-base font-semibold tracking-tight text-foreground">{customer.orders}</p>
+                      <p className="mt-1 text-base font-semibold text-foreground">{customer.orders}</p>
                     </div>
                     <div>
                       <p className="text-[0.6875rem] uppercase tracking-[0.18em] text-muted-foreground">Total gasto</p>
-                      <p className="mt-1 font-mono text-[0.8125rem] font-semibold text-foreground">{formatBRL(customer.total)}</p>
+                      <p className="mt-1 font-mono text-[0.8125rem] font-semibold text-foreground">
+                        {formatBRL(customer.total)}
+                      </p>
                     </div>
                   </div>
-                </div>
+                </>
               );
-            })}
-          </div>
-        )}
+            }}
+          />
+          )}
+        </AdminListaPadrao>
       </div>
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
@@ -556,7 +775,7 @@ export function AdminClientsSection({
                 Dados do cliente
               </DialogTitle>
               <DialogDescription className="text-left text-xs sm:text-[0.8125rem] text-muted-foreground">
-                Cadastro, endereço e vínculo com o Proxsys.
+                Cadastro, endereço e tabela de preço.
               </DialogDescription>
             </DialogHeader>
 
@@ -708,74 +927,26 @@ export function AdminClientsSection({
                     </div>
                   ) : null}
 
-                  {normalizedDetailCnpj.length === 14 ? (
-                    <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Vínculo Proxsys</p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-10 sm:h-9 rounded-full px-3 text-xs"
-                          disabled={syncingProxis || proxisDetailsLoading}
-                          onClick={syncDetailsProxis}
-                        >
-                          {syncingProxis || proxisDetailsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          {proxisFound ? "Atualizar vínculo" : "Sincronizar agora"}
-                        </Button>
-                      </div>
+                  {/* O painel "Tabela de preço" saiu em 31/08/2026 com o ERP.
+                      Mostrava PES ID, TPR, condição de pagamento e filial lidos
+                      ao vivo do Proxis, mais um botão de sincronizar.
 
-                      {proxisDetailsLoading && !proxisDetails ? (
-                        <p className="mt-3 text-[0.8125rem] text-muted-foreground">Consultando dados atuais do Proxsys...</p>
-                      ) : proxisFound ? (
-                        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                          <DetailField label="PES ID" value={String(displayedProxisPesId ?? "—")} />
-                          <DetailField
-                            label="Tabela de preço (TPR)"
-                            value={String(displayedProxisTprId ?? "—")}
-                            hint={proxisDetails?.tpr_description ?? undefined}
-                          />
-                          <DetailField
-                            label="Condição (CPA)"
-                            value={String(proxisDetails?.cpa_id ?? "—")}
-                            hint={proxisDetails?.cpa_description ?? undefined}
-                          />
-                          <DetailField
-                            label="Forma (TTI)"
-                            value={String(proxisDetails?.tti_id ?? "—")}
-                            hint={proxisDetails?.tti_description ?? undefined}
-                          />
-                          <DetailField label="Filial" value={String(proxisDetails?.fil_id ?? "—")} />
-                          <DetailField
-                            label="Operação (OIN)"
-                            value={String(proxisDetails?.oin_id ?? "—")}
-                            hint={
-                              proxisDetails?.operation_source === "customer_order"
-                                ? "Último pedido compatível"
-                                : proxisDetails?.operation_source === "price_table_default"
-                                  ? "Padrão da tabela B2B"
-                                  : undefined
-                            }
-                          />
-                          <DetailField label="Portador (POR)" value={String(proxisDetails?.por_id ?? "—")} />
-                          <DetailField
-                            label="Sincronizado no cadastro"
-                            value={formatDateTime(selectedDetailsProfile?.proxis_synced_at)}
-                          />
-                        </div>
-                      ) : (
-                        <p className="mt-3 text-[0.8125rem] leading-6 text-muted-foreground">
-                          Este cliente ainda não está vinculado ao Proxsys.
-                        </p>
-                      )}
-
-                      {proxisDetailsError ? (
-                        <p className="mt-3 text-xs leading-5 text-destructive">
-                          Não foi possível atualizar os detalhes ao vivo. Os dados salvos continuam visíveis.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
+                      A tabela de preço do cliente continua existindo — é o que
+                      define quanto ele paga — mas agora é definida no painel de
+                      Preços, não descoberta perguntando ao ERP. */}
+                  <div className="rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Tabela de preço
+                    </p>
+                    <p className="mt-2 text-[0.8125rem] text-foreground">
+                      {selectedDetailsProfile?.proxis_tpr_id
+                        ? `Tabela ${selectedDetailsProfile.proxis_tpr_id}`
+                        : `Tabela geral de ${customerTypeLabel(normalizeCustomerType(selectedDetailsProfile?.customer_type))}`}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Para trocar, use a seção Preços.
+                    </p>
+                  </div>
 
                 </div>
               </div>
@@ -785,7 +956,9 @@ export function AdminClientsSection({
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={(open) => { if (!open && !editSaving) setEditOpen(false); }}>
-        <DialogContent className="max-w-[32rem] rounded-[1.35rem] sm:rounded-[1.75rem] border-border/70">
+        {/* `overflow-x-hidden`: rede de segurança. Se um campo futuro voltar a
+            ser mais largo que o diálogo, ele quebra em vez de arrastar tudo. */}
+        <DialogContent className="max-h-[92dvh] w-[min(96vw,36rem)] max-w-[36rem] overflow-y-auto overflow-x-hidden rounded-[1.35rem] border-border/70 sm:rounded-[1.75rem]">
           <DialogHeader className="text-left">
             <DialogDescription className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
               Editar cadastro
@@ -822,6 +995,34 @@ export function AdminClientsSection({
               </div>
 
               <div className="space-y-1.5">
+                <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Tabela de preço
+                </Label>
+                <Select value={editTabela} onValueChange={setEditTabela}>
+                  <SelectTrigger className="h-10 rounded-2xl">
+                    <SelectValue placeholder="Selecione a tabela" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* "Geral" primeiro porque é o caso comum: 105 das 143 contas
+                        não têm tabela negociada e pagam pela tabela do tipo. */}
+                    <SelectItem value="geral">Tabela geral de {customerTypeLabel(editType)}</SelectItem>
+                    {tabelasOferecidas(
+                      tabelasDePreco,
+                      editTabela === "geral" ? null : Number(editTabela),
+                    ).map((tabela) => (
+                      <SelectItem key={tabela.tprId} value={String(tabela.tprId)}>
+                        {rotuloDaTabela(tabela)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Uma tabela negociada vale <strong>só para esta conta</strong> e ganha da tabela do tipo. Os preços de
+                  cada tabela continuam sendo editados na seção Preços.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
                 <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Tipo de cliente</Label>
                 <div className="flex gap-2">
                   <Select value={editType} onValueChange={(value) => setEditType(value)}>
@@ -836,16 +1037,21 @@ export function AdminClientsSection({
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* ⚠️ Leva para Preços; não abre mais um modal aqui.
+                      O modal pedia um nome e pronto — e um tipo de conta criado
+                      sem preço é um rótulo que não muda o que ninguém paga. Em
+                      Preços o passo seguinte (dar preço ao tipo) está na mesma
+                      tela, ao lado das tabelas. */}
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-10 w-10 rounded-2xl shrink-0"
                     onClick={() => {
-                      setNewTypeName("");
-                      setNewTypeOpen(true);
+                      setEditOpen(false);
+                      onIrParaPrecos();
                     }}
-                    title="Adicionar novo tipo"
+                    title="Criar ou apagar tipos, em Preços"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -859,8 +1065,16 @@ export function AdminClientsSection({
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between gap-2 pt-2">
-            <div className="flex items-center gap-2">
+          {/* ⚠️ `flex-wrap`, e antes não tinha.
+              Quatro botões numa linha rígida — Cancelar, Salvar, Resetar senha,
+              Excluir — somam ~560px num diálogo de 512px. Eles não encolhiam,
+              então empurravam a largura do conteúdo inteiro e o formulário
+              ficava cortado pela direita, com barra de rolagem horizontal.
+
+              Agora as ações secundárias formam um grupo próprio e descem para a
+              segunda linha quando não cabem, em vez de arrastar o diálogo. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" className="h-10 rounded-2xl px-5 text-sm" onClick={() => setEditOpen(false)} disabled={editSaving}>
                 Cancelar
               </Button>
@@ -868,6 +1082,8 @@ export function AdminClientsSection({
                 {editSaving ? "Salvando..." : "Salvar alterações"}
               </Button>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
             {editCustomer?.userId ? (
               <Button
                 type="button"
@@ -924,68 +1140,8 @@ export function AdminClientsSection({
                 }}
               />
             ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={newTypeOpen} onOpenChange={setNewTypeOpen}>
-        <DialogContent className="max-w-[26rem] rounded-[1.5rem] border-border/70">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold tracking-tight">Novo tipo de cliente</DialogTitle>
-            <DialogDescription className="text-[0.8125rem] leading-6 text-muted-foreground">
-              Crie um novo tipo que ficará disponível para todos os clientes e tabelas de preço.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="new-type-name">Nome do tipo</Label>
-              <Input
-                id="new-type-name"
-                value={newTypeName}
-                onChange={(e) => setNewTypeName(e.target.value)}
-                placeholder="Ex.: Atacadista"
-                className="h-11 rounded-2xl border-border/70 bg-background"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newTypeName.trim()) {
-                    addCustomType(newTypeName);
-                    // Ja seleciona o tipo recem-criado no cliente em edicao, que e o motivo de
-                    // ter aberto o dialogo. O nome antigo (setDraftType) sobrou de uma
-                    // renomeacao e nunca existiu neste arquivo.
-                    setEditType(newTypeName.trim().toLowerCase());
-                    setNewTypeName("");
-                    setNewTypeOpen(false);
-                  }
-                }}
-              />
-              {newTypeName.trim() ? (
-                <p className="text-xs text-muted-foreground">
-                  Será salvo como: <span className="font-semibold text-foreground">{newTypeName.trim().toLowerCase()}</span>
-                </p>
-              ) : null}
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button type="button" variant="outline" className="mt-0 rounded-2xl px-4 text-sm" onClick={() => { setNewTypeOpen(false); setNewTypeName(""); }}>
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              className="mt-0 rounded-2xl px-4 text-sm"
-              disabled={!newTypeName.trim()}
-              onClick={() => {
-                addCustomType(newTypeName);
-                // Ja seleciona o tipo recem-criado no cliente em edicao, que e o motivo de
-                    // ter aberto o dialogo. O nome antigo (setDraftType) sobrou de uma
-                    // renomeacao e nunca existiu neste arquivo.
-                    setEditType(newTypeName.trim().toLowerCase());
-                setNewTypeName("");
-                setNewTypeOpen(false);
-              }}
-            >
-              Criar tipo
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

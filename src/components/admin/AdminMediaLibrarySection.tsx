@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Image as ImageIcon, ImageOff, Layers, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +23,8 @@ import {
 } from "@/lib/mediaLibrary";
 import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { AdminPaginacao } from "./AdminPaginacao";
+import { ITENS_POR_PAGINA_EM_GRADE, paginar } from "@/lib/paginacao";
 
 const BUCKET = "product-images";
 
@@ -152,6 +153,8 @@ export function AdminMediaLibrarySection({ products }: Props) {
   const classified = useMemo(() => classifyMediaFiles(files, sources, BUCKET), [files, sources]);
   const totals = useMemo(() => summarizeMediaFiles(classified), [classified]);
 
+  const [pagina, setPagina] = useState(0);
+
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
     const filtrados = classified.filter((file) => {
@@ -187,6 +190,15 @@ export function AdminMediaLibrarySection({ products }: Props) {
       return esquerda.name.localeCompare(direita.name, "pt-BR");
     });
   }, [classified, statusFilter, search]);
+
+  /**
+   * A biblioteca desenhava todos os arquivos numa grade só.
+   *
+   * São 5 colunas; com algumas centenas de imagens o navegador monta tudo de uma
+   * vez e a rolagem fica longa demais para achar qualquer coisa. Mesma regra de
+   * Produtos e Pedidos, com a mesma função.
+   */
+  const paginaDeArquivos = useMemo(() => paginar(visible, pagina, ITENS_POR_PAGINA_EM_GRADE), [visible, pagina]);
 
   const removable = useMemo(
     () => classified.filter((file) => file.status === "substituida"),
@@ -267,16 +279,15 @@ export function AdminMediaLibrarySection({ products }: Props) {
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
-        eyebrow="Imagens"
-        title="Biblioteca de imagens"
-        description="Tudo que já foi enviado, com o lugar da loja onde cada arquivo aparece."
-        actions={
-          <Badge variant="outline" className={cn(TEXT.caption, "rounded-full border-border/70 bg-background px-3 py-1")}>
-            {totals.total.count} arquivo(s) · {formatBytes(totals.total.bytes)}
-          </Badge>
-        }
-      />
+      {/* Ver a nota em AdminBulkImagesSection: o cabeçalho é da seção, não da aba. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          Tudo que já foi enviado, com o lugar da loja onde cada arquivo aparece.
+        </p>
+        <Badge variant="outline" className={cn(TEXT.caption, "rounded-full border-border/70 bg-background px-3 py-1")}>
+          {totals.total.count} arquivo(s) · {formatBytes(totals.total.bytes)}
+        </Badge>
+      </div>
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
         <div className="relative">
@@ -429,7 +440,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {visible.map((file) => {
+          {paginaDeArquivos.itens.map((file) => {
             const meta = STATUS_META[file.status];
             return (
               <div
@@ -448,10 +459,17 @@ export function AdminMediaLibrarySection({ products }: Props) {
                   aria-label={`Selecionar ${file.name}`}
                   className="relative block aspect-[4/5] w-full bg-muted/20 text-left"
                 >
+                  {/* Sem `loading="lazy"`.
+                      Com a lista paginada em 24, a preguiça deixou de pagar: o
+                      navegador não refaz a busca de uma imagem cuja `src` troca
+                      enquanto ela está fora da vista, e a última do grid ficava
+                      em branco ao mudar de página. A `key` no `src` garante um
+                      elemento novo a cada troca, em vez de reaproveitar um que o
+                      navegador considera resolvido. */}
                   <img
+                    key={file.publicUrl}
                     src={file.publicUrl}
                     alt=""
-                    loading="lazy"
                     decoding="async"
                     className="h-full w-full object-contain p-1.5"
                   />
@@ -463,7 +481,13 @@ export function AdminMediaLibrarySection({ products }: Props) {
                   </span>
                 </button>
 
-                <div className="space-y-1.5 border-t border-border/70 p-2.5">
+                {/* Altura fixa no rodapé do cartão.
+                    O nome do produto ocupa uma ou duas linhas conforme o
+                    tamanho, então as linhas da grade tinham alturas diferentes e
+                    a página inteira mudava de altura ao paginar — a rolagem
+                    escorregava sozinha, mesmo sem ninguém mandar rolar. Com
+                    `min-h` o cartão tem sempre a mesma medida. */}
+                <div className="min-h-[4.75rem] space-y-1.5 border-t border-border/70 p-2.5">
                   <p className={cn(TEXT.caption, "truncate text-muted-foreground")}>{formatBytes(file.sizeBytes)}</p>
 
                   {file.usedBy.length > 0 ? (
@@ -504,6 +528,8 @@ export function AdminMediaLibrarySection({ products }: Props) {
           })}
         </div>
       )}
+
+      <AdminPaginacao pagina={paginaDeArquivos} onMudarPagina={setPagina} />
     </div>
   );
 }

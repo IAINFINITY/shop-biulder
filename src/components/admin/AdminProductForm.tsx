@@ -17,7 +17,6 @@ import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
 import { isRichTextEmpty, stripHtml } from "@/lib/richTextPure";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
-import { useProxisItemCheck } from "@/hooks/useProxisItemCheck";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/apiFetch";
@@ -207,10 +206,6 @@ export function AdminProductForm({
     };
   })();
 
-  // Produto sem cadastro no ERP e descartado em silencio no pedido: o cliente
-  // pede cinco itens e o Proxis recebe quatro. Conferir aqui evita o problema na
-  // origem, enquanto ainda da para corrigir.
-  const proxisCheck = useProxisItemCheck(editing.productCode);
   const saveLabel = editing.id ? "Salvar alterações" : "Adicionar produto";
 
   const missingFields = useMemo(() => {
@@ -221,13 +216,12 @@ export function AdminProductForm({
     if (isRichTextEmpty(editing.description)) missing.push("Descrição");
     if (!editing.productCode.trim()) missing.push("Código");
     if (parsePriceInput(editing.priceInput) <= 0) missing.push("Preço");
-    if (proxisCheck.data?.found === false) missing.push("Código sem cadastro no Proxis");
     if (editing.image_urls.length === 0) missing.push("Foto");
     else if (!editing.image_alts.some((alt) => alt.trim())) missing.push("Descrição da foto");
     return missing;
-  }, [editing, proxisCheck.data]);
+  }, [editing]);
 
-  // Nove pendencias rastreadas, incluindo a correspondencia no Proxis.
+  // As pendencias rastreadas do cadastro.
   const TRACKED_FIELDS = 9;
   const completeness = Math.round(((TRACKED_FIELDS - missingFields.length) / TRACKED_FIELDS) * 100);
 
@@ -318,43 +312,15 @@ export function AdminProductForm({
               </Select>
             </Field>
 
-            <Field id="product-code" label="Código" hint="Liga o produto ao cadastro no Proxis e à foto enviada em lote.">
+            <Field id="product-code" label="Código" hint="Identifica o produto na plataforma e liga com a foto enviada em lote.">
               <Input
                 id="product-code"
                 placeholder="Ex: 12336"
                 value={editing.productCode}
                 onChange={(e) => onChange({ ...editing, productCode: e.target.value.toUpperCase() })}
                 maxLength={ADMIN_TEXT_LIMITS.products.code}
-                className={cn(
-                  inputClass,
-                  "font-mono",
-                  proxisCheck.data?.found === false && "border-amber-400 focus-visible:ring-amber-400/30",
-                )}
+                className={cn(inputClass, "font-mono")}
               />
-              {editing.productCode.trim() ? (
-                <p className={cn(TEXT.caption, "flex items-start gap-1.5 leading-5")}>
-                  {proxisCheck.isFetching ? (
-                    <span className="text-muted-foreground">Conferindo no Proxis…</span>
-                  ) : proxisCheck.data?.found === true ? (
-                    <span className="inline-flex items-start gap-1.5 text-emerald-700">
-                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <span className="min-w-0">Existe no Proxis: {proxisCheck.data.description}</span>
-                    </span>
-                  ) : proxisCheck.data?.found === false ? (
-                    <span className="inline-flex items-start gap-1.5 text-amber-800">
-                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <span className="min-w-0">
-                        Não existe no Proxis. Se ficar ativo, este item será descartado do pedido do cliente.
-                      </span>
-                    </span>
-                  ) : (
-                    // `found: null` e "nao deu para saber", nao "nao existe":
-                    // barrar aqui reprovaria um cadastro correto so porque o ERP
-                    // estava fora do ar.
-                    <span className="text-muted-foreground">Não foi possível conferir no Proxis agora.</span>
-                  )}
-                </p>
-              ) : null}
             </Field>
 
             {/* Trocar a categoria nao limpa a subcategoria: a mesma subcategoria

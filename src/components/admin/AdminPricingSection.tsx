@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { BadgeDollarSign, ImageIcon, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, Undo2, WandSparkles, Info } from "lucide-react";
+import { useCallback, useMemo, useState, useRef } from "react";
+import { ArrowLeft, BadgeDollarSign, ImageIcon, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, Undo2, WandSparkles, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -21,16 +21,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { getProductImageUrls } from "@/lib/products";
 import {
   CUSTOMER_PRICE_OVERRIDES_TABLE,
-  customerTypeLabel,
+  DEFAULT_CUSTOMER_TYPE,
   linhaDePrecoAtiva,
   precoDaLinhaDePreco,
   precoExibidoNaLinha,
 } from "@/lib/pricing";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
+import { useEtapaNaUrl } from "@/hooks/useFiltroNaUrl";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
-import { AdminSectionHeader } from "./AdminSectionHeader";
-import { AdminProxisPriceTables } from "./AdminProxisPriceTables";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { useTabelasDePreco } from "@/hooks/useTabelasDePreco";
+import { CardDeTiposDeConta } from "./CardDeTiposDeConta";
+import { CardDeTabelasDePreco } from "./CardDeTabelasDePreco";
+import { AdminPriceTablesOverview } from "./AdminPriceTablesOverview";
+import { AdminPriceTableAccounts } from "./AdminPriceTableAccounts";
+import { AdminPaginacao } from "./AdminPaginacao";
+import { paginar } from "@/lib/paginacao";
+import {
+  filtrarTabelasNegociadas,
+  lerChaveDeTabela,
+  resumirTabelasNegociadas,
+  resumirTabelasPorTipo,
+  type OverrideParaResumo,
+  type PerfilParaResumo,
+  type ResumoDeTabela,
+} from "@/lib/tabelasDePreco";
+import { CUSTOMER_PROFILES_TABLE } from "@/lib/customerProfile";
 import type { AdminProduct } from "./adminTypes";
 import { apiFetch } from "@/lib/apiFetch";
 
@@ -50,7 +67,12 @@ type AdminPricingSectionProps = {
   products: AdminProduct[];
   onRefreshPricing: () => void;
   onGoToProduct?: (productCode: string) => void;
+  /** Abre a seção de Clientes filtrada nesta tabela. */
+  onVerContasDaTabela: (chaveDaTabela: string) => void;
 };
+
+/** Instância única para "ainda não carregou": `?? []` devolveria array novo a cada render. */
+const TABELAS_VAZIAS: { tprId: number; description: string }[] = [];
 
 function normalizeProductCode(value: string | null | undefined): string {
   return typeof value === "string" ? value.trim().toUpperCase() : "";
@@ -86,11 +108,21 @@ async function loadExistingOverride(scopeMode: PricingScopeMode, customerType: s
   return data ?? null;
 }
 
-export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct }: AdminPricingSectionProps) {
+export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct, onVerContasDaTabela }: AdminPricingSectionProps) {
   const { options: customerTypes, addCustomType } = useCustomerTypes();
-  const [scopeMode, setScopeMode] = useState<PricingScopeMode>("customer_type");
-  const [customerType, setCustomerType] = useState<string>("cliente");
-  const [appliedTprId, setAppliedTprId] = useState<number | null>(null);
+  /**
+   * Qual tabela está aberta vive na URL, e o escopo é consequência dela.
+   *
+   * Antes eram quatro `useState` que precisavam ser mantidos coerentes entre si
+   * a cada clique. Derivando tudo de um parâmetro só, não há o que divergir — é
+   * a mesma razão que fez os filtros do catálogo saírem do `useState` em
+   * `useFiltroNaUrl`.
+   *
+   * E, como é um passo de histórico, o botão "voltar" do mouse fecha a tabela em
+   * vez de sair do painel.
+   */
+  const [chaveDaTabela, definirChaveDaTabela] = useEtapaNaUrl("tabela");
+  const [paginaDePreco, setPaginaDePreco] = useState(0);
   const [search, setSearch] = useState("");
   const [priceFilter, setPriceFilter] = useState<PricingFilterMode>("all");
   const [draftPrices, setDraftPrices] = useState<Record<string, string>>({});
@@ -102,43 +134,41 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
   const [newTypeOpen, setNewTypeOpen] = useState(false);
   const [newTypeName, setNewTypeName] = useState("");
 
-  // As tabelas vem do Proxis, nao de uma lista escrita aqui: uma lista fixa
-  // envelhece calada — a 8729 existia no ERP com 170 itens e nao aparecia.
-  const proxisTablesQuery = useQuery({
-    queryKey: ["proxis-price-tables"],
-    queryFn: async () => {
-      const res = await apiFetch("/api/proxis-price-tables");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()) as { tables: { tprId: number; description: string; usedByCustomers: boolean }[] };
-    },
-    staleTime: 60_000,
-    retry: false,
-  });
-  const proxisTables = proxisTablesQuery.data?.tables ?? [];
+  /**
+   * As tabelas cadastradas.
+   *
+   * ⚠️ **Vem do hook, e não de uma consulta local.**
+   *
+   * Havia aqui uma `useQuery` com a chave `["price-tables"]` selecionando só
+   * `tpr_id, name` — a mesma chave que `useTabelasDePreco` usa, com outro
+   * formato. O react-query dedupe por chave: quem povoasse o cache primeiro
+   * definia a forma do objeto para os dois. Quando esta ganhava, os cartões do
+   * topo recebiam linhas **sem** `ativa` e sem `temPreco`, e liam `undefined`
+   * como falso: as quatro tabelas apareciam "Desativada" e "— sem preços",
+   * enquanto o banco dizia ativas e com 268 preços.
+   *
+   * Duas consultas com a mesma chave e formatos diferentes é sempre isso: a
+   * ordem de montagem da tela decide o que se vê.
+   */
+  const tabelasCadastradasQuery = useTabelasDePreco();
+  const tabelasCadastradas = useMemo(
+    () => tabelasCadastradasQuery.data ?? TABELAS_VAZIAS,
+    [tabelasCadastradasQuery.data],
+  );
 
-  const activeTprId = scopeMode === "proxis_tpr_id" ? appliedTprId : null;
-  const scopeReady = scopeMode === "customer_type" || activeTprId !== null;
-  const selectedProxisTable = proxisTables.find((table) => table.tprId === activeTprId) ?? null;
+  const escopo = useMemo(() => lerChaveDeTabela(chaveDaTabela), [chaveDaTabela]);
+  const scopeMode: PricingScopeMode = escopo?.origem === "negociada" ? "proxis_tpr_id" : "customer_type";
+  const customerType = escopo?.customerType ?? DEFAULT_CUSTOMER_TYPE;
+  const activeTprId = escopo?.origem === "negociada" ? escopo.tprId : null;
+  const scopeReady = escopo !== null;
 
-  // Tabela do Proxis e espelho, nao original.
-  //
-  // A API do ProManager expoe `ObterTabelasPreco` para ler, mas nao tem metodo
-  // de gravacao de preco — `SalvarTabelaPreco`, `SalvarItemTabelaPreco` e
-  // `AtualizarTabelaPreco` respondem "method not found". Sem caminho de volta,
-  // deixar editar aqui criaria a divergencia que a integracao existe para
-  // evitar: o site mostraria um preco que o ERP desconhece, e a proxima
-  // importacao apagaria a alteracao sem aviso.
-  //
-  // Editavel continua sendo a tabela geral do tipo de cliente, que e nossa.
-  const isProxisTable = scopeMode === "proxis_tpr_id";
-  const scopeLabel =
-    scopeMode === "customer_type"
-      ? customerTypeLabel(customerType)
-      : activeTprId !== null
-        ? selectedProxisTable
-          ? `${selectedProxisTable.description} (TPR ${activeTprId})`
-          : `TPR ${activeTprId}`
-        : "Tabela do Proxis";
+  /**
+   * `scopeMode` distingue as duas camadas de preço, não dois sistemas.
+   *
+   * `proxis_tpr_id` e `customer_type` são nomes de coluna, e ficam até a
+   * renomeação do banco (Fase 4 do plano). O que eles significam hoje é: tabela
+   * negociada para um grupo, ou tabela geral do tipo de conta.
+   */
 
   const productsWithCode = useMemo(
     () =>
@@ -154,6 +184,104 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
     for (const product of productsWithCode) map.set(product.normalizedCode, coercePrice(product.price));
     return map;
   }, [productsWithCode]);
+
+  /**
+   * O inventário das tabelas, para a tela de entrada.
+   *
+   * Duas leituras inteiras — todas as linhas de preço e todos os perfis — em vez
+   * de uma contagem por tabela. São ~740 e ~143 linhas, e o custo de trazer tudo
+   * é menor que o de uma consulta por tabela num seletor que não sabe de antemão
+   * quantas tabelas existem.
+   */
+  const inventarioQuery = useQuery({
+    queryKey: ["admin-price-inventario"],
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const [precos, perfis] = await Promise.all([
+        supabase
+          .from(CUSTOMER_PRICE_OVERRIDES_TABLE)
+          .select("customer_type, proxis_tpr_id, product_code, active"),
+        supabase.from(CUSTOMER_PROFILES_TABLE).select("customer_type, proxis_tpr_id"),
+      ]);
+      if (precos.error) throw precos.error;
+      if (perfis.error) throw perfis.error;
+      return {
+        overrides: (precos.data ?? []) as OverrideParaResumo[],
+        perfis: (perfis.data ?? []) as PerfilParaResumo[],
+      };
+    },
+  });
+
+  const tabelasPorTipo = useMemo(
+    () =>
+      resumirTabelasPorTipo(
+        inventarioQuery.data?.overrides ?? [],
+        inventarioQuery.data?.perfis ?? [],
+        customerTypes.map((opcao) => opcao.name),
+      ),
+    [inventarioQuery.data, customerTypes],
+  );
+
+  const tabelasNegociadas = useMemo(
+    () =>
+      filtrarTabelasNegociadas(
+        resumirTabelasNegociadas(
+          inventarioQuery.data?.overrides ?? [],
+          inventarioQuery.data?.perfis ?? [],
+          tabelasCadastradas,
+        ),
+      ),
+    [inventarioQuery.data, tabelasCadastradas],
+  );
+
+  /** Quantas contas usam cada tabela como **negociação individual**. */
+  const contasPorTabela = useMemo(() => {
+    const conta = new Map<number, number>();
+    for (const perfil of inventarioQuery.data?.perfis ?? []) {
+      const tpr = perfil.proxis_tpr_id;
+      if (typeof tpr !== "number") continue;
+      conta.set(tpr, (conta.get(tpr) ?? 0) + 1);
+    }
+    return conta;
+  }, [inventarioQuery.data]);
+
+  /** Abre a tela de preços de uma tabela, vinda dos cards do topo. */
+  const abrirTabelaPorTpr = useCallback(
+    (tprId: number) => definirChaveDaTabela(`negociada:${tprId}`),
+    [definirChaveDaTabela],
+  );
+
+  /** A tabela aberta, só para o cabeçalho. O escopo já saiu da chave, acima. */
+  const tabelaAberta = useMemo(
+    () =>
+      [...tabelasPorTipo, ...tabelasNegociadas.visiveis].find((t) => t.chave === chaveDaTabela) ?? null,
+    [tabelasPorTipo, tabelasNegociadas, chaveDaTabela],
+  );
+
+  /**
+   * Abrir uma tabela é o que define o escopo agora.
+   *
+   * O seletor de escopo saiu: ele pedia uma escolha sem dizer o que havia em
+   * cada opção. Aqui a escolha já foi feita na lista, com os números à vista, e
+   * `scopeMode`/`customerType`/`appliedTprId` passam a ser consequência dela.
+   *
+   * Os rascunhos são limpos junto: preço digitado numa tabela e não salvo não
+   * pode reaparecer em outra, onde significaria outra coisa.
+   */
+  const abrirTabela = (tabela: ResumoDeTabela) => {
+    setDraftPrices({});
+    setDraftActive({});
+    setSearch("");
+    setPriceFilter("all");
+    definirChaveDaTabela(tabela.chave);
+  };
+
+  const voltarParaAsTabelas = () => {
+    setDraftPrices({});
+    setDraftActive({});
+    definirChaveDaTabela(null);
+    inventarioQuery.refetch();
+  };
 
   const overridesQuery = useQuery({
     queryKey: ["admin-price-overrides", scopeMode, customerType, activeTprId],
@@ -205,6 +333,9 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
         return searchedProducts;
     }
   }, [searchedProducts, priceFilter, overrideMap]);
+
+  /** 147 produtos numa rolagem só era o mesmo problema da tela de Produtos. */
+  const paginaDeProdutos = useMemo(() => paginar(filteredProducts, paginaDePreco), [filteredProducts, paginaDePreco]);
 
   const loadedCount = overridesQuery.data?.length ?? 0;
   const activeCount = overridesQuery.data?.filter((row) => row.active).length ?? 0;
@@ -308,7 +439,23 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
     try {
       for (const product of filteredProducts) {
         const code = product.normalizedCode;
-        const currentPrice = parsePriceInput(draftPrices[code] ?? "");
+        /**
+         * O preço de partida vem da mesma regra do campo, e não do rascunho cru.
+         *
+         * `parsePriceInput(draftPrices[code] ?? "")` é **zero** enquanto ninguém
+         * digitou naquela linha — e o rascunho começa vazio. Ou seja: aplicar
+         * "+10%" numa tabela recém-aberta calculava `0 * 1,1` e gravava R$ 0,00
+         * em todos os produtos filtrados de uma vez; no modo de valor fixo,
+         * gravava o próprio incremento como preço.
+         *
+         * É a mesma raiz do defeito que o campo tinha, um nível acima: aqui
+         * escrevia no banco, e em cima da lista inteira.
+         */
+        const currentPrice = precoDaLinhaDePreco(
+          draftPrices[code],
+          overrideMap.has(code) ? coercePrice(overrideMap.get(code)!.price) : null,
+          basePriceByCode.get(code) ?? 0,
+        );
         const nextPrice =
           bulkMode === "percent"
             ? Math.max(0, Math.round(currentPrice * (1 + value / 100) * 100) / 100)
@@ -339,132 +486,83 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
   const bulkLabel = bulkMode === "percent" ? `${bulkValue}%` : `R$ ${bulkValue}`;
   const filterTabs: Array<{ id: PricingFilterMode; label: string; count: number }> = [
     { id: "all", label: "Todos", count: searchedProducts.length },
-    { id: "with_override", label: "Preço da tabela", count: searchedProducts.filter((p) => overrideMap.has(p.normalizedCode)).length },
-    { id: "without_override", label: "Preço de cadastro", count: searchedProducts.filter((p) => !overrideMap.has(p.normalizedCode)).length },
+    { id: "with_override", label: "Com preço aqui", count: searchedProducts.filter((p) => overrideMap.has(p.normalizedCode)).length },
+    { id: "without_override", label: "Sem preço aqui", count: searchedProducts.filter((p) => !overrideMap.has(p.normalizedCode)).length },
   ];
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
+      <SectionHeader
         eyebrow="Preços"
-        title="Preços por tabela"
-        description="As tabelas vêm do Proxis. O que uma tabela não precifica cai na tabela geral do tipo de cliente, e só depois no preço de cadastro."
+        title={tabelaAberta ? tabelaAberta.nome : "Tabelas de preço"}
+        description={
+          tabelaAberta
+            ? tabelaAberta.editavel
+              ? `Preço próprio do site. ${tabelaAberta.pessoas} conta(s) compram por esta tabela. O produto que ela não precifica sai pelo preço de cadastro.`
+              : "Preço negociado para um grupo de contas. Passa por cima da tabela do tipo."
+            : "Cada linha é uma tabela de preço, com quantos produtos tem e quantas contas compram por ela."
+        }
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
-              {loadedCount} item(ns)
-            </Badge>
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem]">
-              {activeCount} ativos
-            </Badge>
-          </div>
+          tabelaAberta ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
+                {loadedCount} item(ns)
+              </Badge>
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem]">
+                {activeCount} ativos
+              </Badge>
+              <Button type="button" variant="ghost" className="h-9 rounded-2xl px-3" onClick={voltarParaAsTabelas}>
+                <ArrowLeft className="h-4 w-4" />
+                Todas as tabelas
+              </Button>
+            </div>
+          ) : null
         }
       />
 
-      {/* Origem dos precos, no topo: a tabela do ERP e a fonte, e a edicao
-          manual abaixo e a excecao. Invertido, quem abria a tela via primeiro a
-          lista de produtos e nao tinha como saber se ela estava em dia. */}
-      {/* So no modo Proxis: vendo tabela por tipo de cliente, a lista de tabelas
-          do ERP nao tem o que fazer ali e confunde a origem do que se edita. */}
-      {isProxisTable ? (
-        <AdminProxisPriceTables
-          onImported={() => overridesQuery.refetch()}
-          activeTprId={activeTprId}
-          onSelectTable={(tprId) => setAppliedTprId(tprId)}
+      {!tabelaAberta ? (
+        <>
+          {/* ⚠️ Antes da lista, e não depois.
+              A hierarquia é de composição: os tipos e as tabelas são **o que
+              define** as linhas que aparecem logo abaixo. Ler a lista primeiro e
+              encontrar no rodapé o lugar onde ela se monta inverte a ordem — e
+              quem chega de Clientes pelo "+" cai no topo da tela, que é onde a
+              ação que ele veio fazer precisa estar. */}
+          {/* ⚠️ Dois cards, e não um com duas colunas.
+              São dois assuntos com ciclos diferentes: um tipo se cria uma vez
+              por ano; uma tabela se ativa e desativa. Espremidos lado a lado
+              dentro do mesmo cartão, pareciam duas metades da mesma coisa. */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            <CardDeTiposDeConta />
+            <CardDeTabelasDePreco contasPorTabela={contasPorTabela} onAbrirTabela={abrirTabelaPorTpr} />
+          </div>
+          <AdminPriceTablesOverview
+            tabelasPorTipo={tabelasPorTipo}
+            tabelasNegociadas={tabelasNegociadas.visiveis}
+            ocultasNegociadas={tabelasNegociadas.ocultas}
+            carregando={inventarioQuery.isLoading}
+            onAbrir={abrirTabela}
+          />
+        </>
+      ) : (
+        <>
+
+      {/* "2 contas compram por esta tabela" sem dizer quais deixava a pergunta
+          seguinte sem resposta dentro da própria tela. */}
+      {tabelaAberta ? (
+        <AdminPriceTableAccounts
+          chaveDaTabela={tabelaAberta.chave}
+          total={tabelaAberta.pessoas}
+          onVerContas={onVerContasDaTabela}
         />
       ) : null}
 
-      {isProxisTable ? (
-        <div className="flex items-start gap-2.5 rounded-[1.25rem] border border-sky-200 bg-sky-50/60 px-4 py-3">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" />
-          <p className="text-[0.8125rem] leading-6 text-sky-900">
-            <strong className="font-medium">Esta tabela é do Proxis e não pode ser editada aqui.</strong> A API do ERP
-            permite ler os preços, mas não gravar — se a alteração fosse aceita neste lado, o site passaria a mostrar um
-            valor que o Proxis desconhece, e a próxima importação a apagaria sem aviso. Altere no Proxis e use{" "}
-            <strong className="font-medium">Importar</strong> acima. Para preço próprio, use a tabela por tipo de cliente.
-          </p>
-        </div>
-      ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-          <div className="rounded-[1.25rem] border border-border/70 bg-card p-3 sm:p-4">
-            <div className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              <BadgeDollarSign className="h-4 w-4 text-primary" />
-              Escopo da tabela
-            </div>
-
-            <div className="mt-4 inline-flex rounded-full border border-border/70 bg-background p-1">
-              <Button
-                type="button"
-                      variant={scopeMode === "customer_type" ? "default" : "ghost"}
-                className="h-10 sm:h-9 rounded-full px-3 text-xs"
-                onClick={() => setScopeMode("customer_type")}
-              >
-                Por tipo de cliente
-              </Button>
-              <Button
-                type="button"
-                      variant={scopeMode === "proxis_tpr_id" ? "default" : "ghost"}
-                className="h-10 sm:h-9 rounded-full px-3 text-xs"
-                onClick={() => setScopeMode("proxis_tpr_id")}
-              >
-                Por tabela Proxsys
-              </Button>
-            </div>
-
-            {scopeMode === "customer_type" ? (
-              <div className="mt-4 space-y-2">
-                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Tipo de cliente
-                </p>
-                <div className="flex gap-2">
-                  <Select value={customerType} onValueChange={(value) => setCustomerType(value)}>
-                    <SelectTrigger className="h-10 sm:h-11 rounded-2xl border-border/70 bg-background flex-1">
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customerTypes.map((type) => (
-                        <SelectItem key={type.name} value={type.name}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-10 sm:h-11 w-10 sm:w-11 rounded-2xl shrink-0"
-                    onClick={() => {
-                      setNewTypeName("");
-                      setNewTypeOpen(true);
-                    }}
-                    title="Adicionar novo tipo de cliente"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-2">
-                <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  Tabela ERP do Proxsys
-                </p>
-                <div className="flex flex-col gap-2">
-                  <p className="text-[0.8125rem] leading-6 text-muted-foreground">
-                    {selectedProxisTable
-                      ? `${selectedProxisTable.tprId} — ${selectedProxisTable.description}`
-                      : "Escolha uma tabela na lista acima para ver os preços dela."}
-                  </p>
-                </div>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Se a tabela já for conhecida, selecione pelo nome. Se não, informe o código técnico do Proxsys.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-[1.25rem] border border-border/70 bg-card p-4">
+      {/* Busca, abas, lista e paginação no mesmo cartão. Antes a busca era um
+          cartão solto acima da lista — a mesma emenda que a tela de Produtos
+          tinha, e que fazia os dois blocos parecerem coisas diferentes. */}
+      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+        <div>
             <div className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               <Search className="h-4 w-4 text-primary" />
               Busca e ajuste rápido
@@ -491,7 +589,21 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
               </div>
             </div>
 
-            <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 rounded-[1rem] border border-dashed border-border/70 bg-background/60 p-3">
+            {/* Sem esta explicação, "Percentual / Valor fixo" era um seletor
+                sem assunto: não dizia sobre o que incide, em quantos produtos,
+                nem que grava direto. */}
+            <div className="mt-4 rounded-[1rem] border border-dashed border-border/70 bg-background/60 p-3">
+              <p className="text-[0.8125rem] font-medium text-foreground">Mudar vários preços de uma vez</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                Aplica sobre o preço atual de cada produto <strong className="font-medium text-foreground">desta tabela</strong>,
+                nos {filteredProducts.length} que estão no filtro agora — inclusive os das outras páginas.{" "}
+                {bulkMode === "percent"
+                  ? "Percentual multiplica: 10 aumenta 10%, -10 diminui 10%."
+                  : "Valor fixo soma: 1,50 aumenta R$ 1,50 em cada um, -1,50 diminui."}{" "}
+                Grava direto, sem passar pelo Salvar de cada linha.
+              </p>
+
+              <div className="mt-3 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
               <Select value={bulkMode} onValueChange={(value) => setBulkMode(value as "percent" | "fixed")}>
                 <SelectTrigger className="h-10 sm:h-11 w-full sm:w-[12rem] rounded-2xl border-border/70 bg-background">
                   <SelectValue placeholder="Tipo de ajuste" />
@@ -515,7 +627,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                     disabled={!scopeReady}
                   >
                     {bulkSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-                    Aplicar aos visíveis
+                    Aplicar aos {filteredProducts.length}
                   </Button>
                 }
                 title="Aplicar ajuste em massa"
@@ -530,18 +642,16 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                 confirmLabel="Aplicar"
                 onConfirm={applyBulkAdjustment}
               />
+              </div>
             </div>
           </div>
-        </div>
+        <div className="my-5 border-t border-border/70" />
 
-        <div className="mt-4 rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 sm:px-4 py-3 text-xs sm:text-[0.8125rem] leading-5 sm:leading-6 text-foreground">
-          Escopo atual: <span className="font-semibold">{scopeLabel}</span>. Os preços são salvos por produto e respeitam a tabela ERP quando houver TPR vinculado.
-        </div>
 
 
       {!scopeReady ? (
         <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
-          Selecione uma tabela Proxsys para carregar os preços.
+          Escolha uma tabela na lista para ver e ajustar os preços.
         </div>
       ) : overridesQuery.isLoading ? (
         <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 bg-background p-4">
@@ -584,14 +694,14 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
           {filteredProducts.length === 0 ? (
             <div className="rounded-[1.25rem] border border-dashed border-border/70 bg-background p-8 text-center text-muted-foreground">
               {priceFilter === "with_override"
-                ? "Nenhum produto tem preço nesta tabela. Importe a tabela do Proxis acima."
+                ? "Nenhum produto tem preço nesta tabela. Use a busca acima para achar um produto e definir o preço."
                 : priceFilter === "without_override"
                   ? "Esta tabela precifica todos os produtos do catálogo."
                   : "Nenhum produto encontrado com esse filtro."}
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredProducts.map((product) => {
+              {paginaDeProdutos.itens.map((product) => {
                 const code = product.normalizedCode;
                 const existing = overrideMap.get(code);
                 const key = resolveRowKey(scopeMode, customerType, activeTprId, code);
@@ -609,6 +719,16 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                 // `draftActive[code]` cru era o que mostrava "Preco desligado"
                 // em tudo: o rascunho comeca vazio e `undefined` e falso.
                 const estaAtivo = linhaDePrecoAtiva(draftActive[code], existing?.active);
+                /**
+                 * Nada nesta linha foi ao banco até alguém apertar "Salvar" —
+                 * nem o preço digitado, nem o "Desativar", que só marca o
+                 * rascunho. A tela não dizia isso: o botão trocava de rótulo na
+                 * hora e parecia que já tinha aplicado.
+                 */
+                const precoSalvo = precoDaLinhaDePreco(undefined, precoDaTabela, basePrice);
+                const temPendencia =
+                  Math.abs(draftPrice - precoSalvo) >= 0.01 ||
+                  (typeof draftActive[code] === "boolean" && draftActive[code] !== (existing?.active ?? true));
                 const thumb = getProductImageUrls(product)[0];
 
                 return (
@@ -685,11 +805,16 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                             ) : existing ? (
                               <span className="text-muted-foreground">Sem alteração</span>
                             ) : null}
+                            {temPendencia ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-warm/10 px-2 py-0.5 font-medium text-warm">
+                                não salvo
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[10rem_auto_auto_auto] lg:w-[38rem] lg:shrink-0">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[10rem_9rem_minmax(0,1fr)] lg:w-[34rem] lg:shrink-0">
                         <div>
                           <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Preço</p>
                           <Input
@@ -700,8 +825,6 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                                 [code]: e.target.value,
                               }))
                             }
-                            readOnly={isProxisTable}
-                            title={isProxisTable ? "Preço vem do Proxis. Altere no ERP e importe de novo." : undefined}
                             inputMode="decimal"
                             className={cn(
                               "h-11 rounded-2xl border-border/70 bg-background font-mono text-[0.8125rem]",
@@ -730,28 +853,52 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                           </Button>
                         </div>
 
-                        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-1">
-                          {hasDelta ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-11 w-11 rounded-2xl text-muted-foreground hover:text-foreground"
-                              onClick={() => handleResetRow(code, basePrice)}
-                              title="Resetar ao preço base"
-                            >
-                              <Undo2 className="h-4 w-4" />
-                            </Button>
-                          ) : null}
+                        <div className="flex items-end justify-end gap-2 sm:col-span-2 lg:col-span-1">
+                          {/* O slot fica reservado mesmo sem alteração: some,
+                              ele empurrava Salvar, excluir e editar para a
+                              esquerda só naquela linha, e as linhas deixavam de
+                              se alinhar entre si. */}
                           <Button
                             type="button"
-                            className="h-11 rounded-2xl px-4"
-                            onClick={() => handleSaveRow(code)}
-                            disabled={Boolean(savingKeys[key]) || isProxisTable}
+                            variant="ghost"
+                            size="icon"
+                            aria-hidden={!hasDelta}
+                            tabIndex={hasDelta ? 0 : -1}
+                            className={cn(
+                              "h-11 w-11 shrink-0 rounded-2xl text-muted-foreground hover:text-foreground",
+                              !hasDelta && "pointer-events-none invisible",
+                            )}
+                            onClick={() => handleResetRow(code, basePrice)}
+                            title="Voltar ao preço do catálogo"
                           >
-                            {savingKeys[key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            Salvar
+                            <Undo2 className="h-4 w-4" />
                           </Button>
+                          {/* Salvar é o momento em que o preço muda para quem
+                              compra — e é o único. O "Desativar" ao lado só
+                              marca o rascunho; nada vai ao banco sem passar
+                              por aqui. */}
+                          <ConfirmActionDialog
+                            trigger={
+                              <Button
+                                type="button"
+                                className="h-11 rounded-2xl px-4"
+                                disabled={Boolean(savingKeys[key])}
+                              >
+                                {savingKeys[key] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                Salvar
+                              </Button>
+                            }
+                            title="Salvar este preço"
+                            description={
+                              <span>
+                                <strong>{product.name}</strong> passa a custar{" "}
+                                <strong>{formatBRL(draftPrice)}</strong> para quem compra por esta tabela
+                                {estaAtivo ? "" : ", e o preço fica desligado — o produto sai pelo preço do catálogo"}.
+                              </span>
+                            }
+                            confirmLabel="Salvar"
+                            onConfirm={() => handleSaveRow(code)}
+                          />
                           <ConfirmActionDialog
                             trigger={
                               <Button
@@ -763,7 +910,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                               </Button>
                             }
                             title="Remover preço"
-                            description={`Deseja remover o preço customizado de "${product.name}" (${code}) neste escopo? O produto voltará ao preço base do catálogo.`}
+                            description={`Remover o preço de "${product.name}" (${code}) desta tabela? Ele volta a sair pelo preço normal do catálogo.`}
                             confirmLabel="Remover"
                             destructive
                             onConfirm={() => handleDeleteRow(code)}
@@ -788,8 +935,14 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
               })}
             </div>
           )}
-          </div>
         </div>
+        </div>
+      )}
+
+        <AdminPaginacao pagina={paginaDeProdutos} onMudarPagina={setPaginaDePreco} />
+      </div>
+
+        </>
       )}
 
       <Dialog open={newTypeOpen} onOpenChange={setNewTypeOpen}>
@@ -813,7 +966,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newTypeName.trim()) {
                     addCustomType(newTypeName);
-                    setCustomerType(newTypeName.trim().toLowerCase());
+                    definirChaveDaTabela(`tipo:${newTypeName.trim().toLowerCase()}`);
                     setNewTypeName("");
                     setNewTypeOpen(false);
                   }
@@ -836,7 +989,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct 
               disabled={!newTypeName.trim()}
               onClick={() => {
                 addCustomType(newTypeName);
-                setCustomerType(newTypeName.trim().toLowerCase());
+                definirChaveDaTabela(`tipo:${newTypeName.trim().toLowerCase()}`);
                 setNewTypeName("");
                 setNewTypeOpen(false);
               }}

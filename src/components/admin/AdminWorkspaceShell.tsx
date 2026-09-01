@@ -1,18 +1,21 @@
 ﻿import { Link } from "react-router-dom";
 import type { CSSProperties, ReactNode } from "react";
 import { WorkspaceBottomNav, type WorkspaceBottomNavItem } from "@/components/shared/WorkspaceBottomNav";
-import { Menu, ArrowLeft, BadgeDollarSign, Bell, ChevronLeft, ChevronRight, Image, LayoutDashboard, LogOut, MessageSquareText, Package, Settings, Shield, ShoppingBag, Users, Wifi, WifiOff } from "lucide-react";
+import { Menu, ArrowLeft, BadgeDollarSign, Bell, Clock, ChevronLeft, ChevronRight, Image, LayoutDashboard, LogOut, MessageSquareText, Package, Settings, Shield, ShoppingBag, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
-import { useProxisHealth } from "@/hooks/useProxisHealth";
 import type { AdminSection } from "./adminTypes";
+import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
+import { SinoDeAvisos } from "@/components/admin/SinoDeAvisos";
 import { canAccessAdminSection, type AdminPermissions } from "@/lib/adminUsers";
+import { useConversasEsperando } from "@/hooks/useSupportChat";
 
 type AdminWorkspaceShellProps = {
   section: AdminSection;
   title: string;
-  onSectionChange: (section: AdminSection) => void;
+  /** `foco` opcional: leva a tela ate um pedaco dela — ver `setSection`. */
+  onSectionChange: (section: AdminSection, foco?: string) => void;
   onLogout: () => void;
   userLabel: string;
   sidebarOpen: boolean;
@@ -23,53 +26,6 @@ type AdminWorkspaceShellProps = {
   conteudoCheio?: boolean;
   children: ReactNode;
 };
-
-function MenuProxisStatus({ collapsed }: { collapsed: boolean }) {
-  const { connected, error, checking, checkNow } = useProxisHealth();
-  const statusLabel = connected ? "Proxis conectado" : checking ? "Verificando Proxis..." : error || "Erro ao consultar Proxis";
-
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={checkNow}
-        title={statusLabel}
-        aria-label={statusLabel}
-        className="mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-muted/40"
-      >
-        <span className="relative flex h-3 w-3">
-          <span className={cn("absolute inset-0 rounded-full", connected ? "bg-emerald-500" : "bg-red-400", checking && "animate-pulse")} />
-          {connected ? (
-            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
-          ) : null}
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <div className="shrink-0 border-t border-border/70 px-3 pb-2 pt-2.5">
-      <button
-        type="button"
-        onClick={checkNow}
-        className="flex w-full items-center gap-2.5 rounded-[1rem] px-2.5 py-2 text-left transition-colors hover:bg-muted/40"
-      >
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className={cn("absolute inset-0 rounded-full", connected ? "bg-emerald-500" : "bg-red-400", checking && "animate-pulse")} />
-          {connected ? (
-            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
-          ) : null}
-        </span>
-        <span className="text-xs font-medium text-muted-foreground">
-          {connected ? "Proxis conectado" : checking ? "Verificando..." : "Erro no Proxis"}
-        </span>
-        <span className="ml-auto">
-          {connected ? <Wifi className="h-3.5 w-3.5 text-emerald-500" /> : <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50" />}
-        </span>
-      </button>
-    </div>
-  );
-}
 
 export function AdminWorkspaceShell({
   section,
@@ -88,38 +44,65 @@ export function AdminWorkspaceShell({
     return canAccessAdminSection(id, { isSuperadmin, permissions });
   }
 
+  // O aviso de Mensagens acompanha o painel inteiro, e nao so a tela de
+  // mensagens: era esse o buraco — o cliente escrevia e ninguem ficava sabendo
+  // ate alguem entrar na secao por conta propria.
+  const { data: esperando = 0 } = useConversasEsperando(hasPermission("mensagens"));
+
+  /**
+   * A navegação agrupada pelo que a pessoa está fazendo.
+   *
+   * ## O que estava confuso
+   *
+   * "Visão geral" tinha **sete** itens e nada em comum entre eles: Dashboard é
+   * leitura, Produtos/Imagens/Preços é trabalho de catálogo, Pedidos é a
+   * operação do dia, Banners e Notificações são divulgação. O nome do grupo
+   * prometia um resumo e entregava o menu inteiro.
+   *
+   * "Consultas" juntava Clientes com Mensagens, que não é consulta — é
+   * atendimento. E as três listas de gente do painel (Clientes, Funcionários,
+   * Usuários) estavam espalhadas por dois grupos, embora sejam a mesma ideia:
+   * quem tem conta aqui.
+   *
+   * Agora são cinco grupos de até cinco itens, cada um com um assunto só.
+   */
   const navGroups = [
     {
-      label: "Visão geral",
-      items: [
-        { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard, description: "Resumo geral" },
-        ...(hasPermission("banners") ? [{ id: "banners" as const, label: "Banners", icon: Image, description: "Hero do catálogo" }] : []),
-        ...(hasPermission("notificacoes") ? [{ id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" }] : []),
-        ...(hasPermission("produtos") ? [{ id: "produtos" as const, label: "Produtos", icon: Package, description: "Catálogo e edição" }] : []),
-        ...(hasPermission("imagens") ? [{ id: "imagens" as const, label: "Imagens", icon: Image, description: "Envio em lote" }] : []),
-        ...(hasPermission("precos") ? [{ id: "precos" as const, label: "Preços", icon: BadgeDollarSign, description: "Tabelas e ajustes" }] : []),
-        ...(hasPermission("pedidos") ? [{ id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Operação diária" }] : []),
-      ].filter(Boolean),
+      label: "Acompanhar",
+      items: [{ id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard }],
     },
     {
-      label: "Consultas",
+      label: "Catálogo",
       items: [
-        ...(hasPermission("clientes") ? [{ id: "clientes" as const, label: "Clientes", icon: Users, description: "Base cadastrada" }] : []),
-        ...(hasPermission("mensagens") ? [{ id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Inbox interno" }] : []),
-      ].filter(Boolean),
-    },
-    ...(hasPermission("usuarios") || hasPermission("funcionarios") ? [{
-      label: "Administração",
-      items: [
-        ...(hasPermission("usuarios") ? [{ id: "usuarios" as const, label: "Usuários", icon: Shield, description: "Contas e permissões" }] : []),
-        ...(hasPermission("funcionarios") ? [{ id: "funcionarios" as const, label: "Funcionários", icon: Users, description: "Equipe vinculada" }] : []),
+        ...(hasPermission("produtos") ? [{ id: "produtos" as const, label: "Produtos", icon: Package }] : []),
+        ...(hasPermission("precos") ? [{ id: "precos" as const, label: "Preços", icon: BadgeDollarSign }] : []),
+        ...(hasPermission("imagens") ? [{ id: "imagens" as const, label: "Imagens", icon: Image }] : []),
+        ...(hasPermission("banners") ? [{ id: "banners" as const, label: "Banners", icon: Image }] : []),
+        ...(hasPermission("notificacoes") ? [{ id: "notificacoes" as const, label: "Notificações", icon: Bell }] : []),
       ],
-    }] : []),
+    },
+    {
+      label: "Operação",
+      items: [
+        ...(hasPermission("pedidos") ? [{ id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag }] : []),
+        ...(hasPermission("mensagens")
+          ? [{ id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, aviso: esperando }]
+          : []),
+      ],
+    },
+    {
+      label: "Pessoas",
+      items: [
+        ...(hasPermission("clientes") ? [{ id: "clientes" as const, label: "Clientes", icon: Users }] : []),
+        ...(hasPermission("funcionarios") ? [{ id: "funcionarios" as const, label: "Funcionários", icon: Users }] : []),
+        ...(hasPermission("usuarios") ? [{ id: "usuarios" as const, label: "Administradores", icon: Shield }] : []),
+      ],
+    },
     {
       label: "Sistema",
       items: [
-        ...(hasPermission("configuracoes") ? [{ id: "configuracoes" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" }] : []),
-      ].filter(Boolean),
+        ...(hasPermission("configuracoes") ? [{ id: "configuracoes" as const, label: "Configurações", icon: Settings }] : []),
+      ],
     },
   ].filter((g) => g.items.length > 0);
 
@@ -188,31 +171,41 @@ export function AdminWorkspaceShell({
             collapsed ? "justify-center px-0" : "justify-center px-5",
           )}
         >
+          {/* A marca inteira com o menu aberto, o símbolo com ele recolhido —
+              é a forma dos dois CRMs de referência (`BrandLogo` com variante
+              `surface`/`compact`).
+
+              Antes o quadradinho do favicon aparecia nos dois estados: com
+              256px de largura disponíveis, o painel abria mostrando um ícone de
+              40px e nenhum nome. A logo usada é a mesma de `ClinicPlusLogo`, do
+              cabeçalho do catálogo, para o admin não parecer outro site. */}
           <Link
             to="/"
             viewTransition
-            className={cn("inline-flex items-center gap-3", collapsed ? "justify-center" : "justify-center")}
+            aria-label="Voltar ao catálogo Clinic+"
+            className="inline-flex items-center justify-center"
           >
-            <img
-              src="/faviconV2.png"
-              alt="Clinic+"
-              className={cn(
-                "shrink-0 rounded-[0.85rem] border border-primary/15 bg-background p-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300",
-                "h-10 w-10",
-              )}
-            />
+            {collapsed ? (
+              <img
+                src="/faviconV2.png"
+                alt="Clinic+"
+                className="h-10 w-10 shrink-0 rounded-[0.85rem] border border-primary/15 bg-background p-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+              />
+            ) : (
+              <ClinicPlusLogo className="h-9 w-auto max-w-[10.5rem] sm:h-10" />
+            )}
           </Link>
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-2 sm:py-3">
           {navGroups.map((group) => (
-            <div key={group.label} className="mb-3 sm:mb-4">
+            <div key={group.label} className="mb-4">
               {!collapsed ? (
-                <p className="px-3 pb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <p className="px-2.5 pb-1.5 text-[0.625rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">
                   {group.label}
                 </p>
               ) : null}
-              <div className={cn("space-y-1 sm:space-y-1.5", collapsed && "space-y-2")}>
+              <div className={cn("space-y-0.5", collapsed && "space-y-1.5")}>
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const active = section === item.id;
@@ -223,28 +216,60 @@ export function AdminWorkspaceShell({
                       onClick={() => onSectionChange(item.id)}
                       title={item.label}
                       aria-label={item.label}
+                      /* Uma linha por item, sem a legenda e sem o círculo em
+                         volta do ícone. Com doze itens, a segunda linha e a
+                         moldura viravam ruído: o menu ocupava a tela inteira e
+                         nenhuma legenda dizia algo que o rótulo já não dissesse
+                         ("Pedidos · Operação diária"). É a forma dos dois CRMs
+                         que servem de referência. */
                       className={cn(
-                        "group flex w-full items-center gap-2.5 sm:gap-3 rounded-[1rem] px-2.5 sm:px-3 py-2.5 sm:py-3 text-left transition-colors",
-                        collapsed && "mx-auto h-12 w-12 justify-center gap-0 px-0 py-0",
+                        "group flex w-full items-center gap-2.5 rounded-[0.75rem] px-2.5 py-2 text-left text-sm transition-colors",
+                        collapsed && "mx-auto h-10 w-10 justify-center gap-0 px-0 py-0",
                         active
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-foreground/80 hover:bg-muted/40 hover:text-foreground",
+                          ? "bg-primary text-primary-foreground font-medium"
+                          : "text-foreground/75 hover:bg-muted hover:text-foreground",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
-                          collapsed && "h-10 w-10 rounded-[0.9rem]",
-                          active ? "border-white/10 bg-white/15" : "border-border bg-background",
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
+                      <span className="relative shrink-0">
+                        <Icon className={cn("h-[1.125rem] w-[1.125rem]", !active && "text-muted-foreground")} />
+                        {/* Recolhida nao ha onde escrever o numero: fica o ponto,
+                            que e o bastante para levar a pessoa a abrir o menu. */}
+                        {collapsed && item.aviso ? (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ring-2",
+                              active ? "bg-primary-foreground ring-primary" : "bg-primary ring-card",
+                            )}
+                          />
+                        ) : null}
                       </span>
+                      {!collapsed ? <span className="min-w-0 flex-1 truncate leading-5">{item.label}</span> : null}
+                      {!collapsed && item.aviso ? (
+                        <span
+                          /* ⚠️ **Relogio, e nao bolinha de nao-lida.**
 
-                      {!collapsed ? (
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[0.8125rem] sm:text-sm font-medium leading-5">{item.label}</span>
-                          <span className="block text-[0.625rem] sm:text-[0.6875rem] leading-4 opacity-75">{item.description}</span>
+                             Isto e profundidade de fila, nao notificacao: o
+                             numero cai quando alguem **responde** ao cliente,
+                             nao quando alguem abre a conversa. Com a pilha
+                             solida de sempre, ele se lia como "nao lido, clique
+                             para limpar" — e clicar nao limpava nada, o que
+                             parece defeito.
+
+                             O sino da topbar e que e nao-lido de verdade, com
+                             leitura por pessoa. Dois numeros iguais para coisas
+                             diferentes era o que confundia. */
+                          title={`${item.aviso} ${item.aviso === 1 ? "cliente espera" : "clientes esperam"} resposta. Sai da conta quando você responder.`}
+                          aria-label={`${item.aviso} esperando resposta`}
+                          className={cn(
+                            "ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[0.625rem] font-semibold tabular-nums",
+                            active
+                              ? "border-primary-foreground/40 text-primary-foreground"
+                              : "border-primary/40 bg-primary/10 text-primary",
+                          )}
+                        >
+                          <Clock className="h-2.5 w-2.5" />
+                          {item.aviso}
                         </span>
                       ) : null}
                     </button>
@@ -255,7 +280,6 @@ export function AdminWorkspaceShell({
           ))}
         </nav>
 
-        <MenuProxisStatus collapsed={collapsed} />
 
         <div className="shrink-0 border-t border-border/70 p-2.5 sm:p-3 pb-[calc(0.625rem+env(safe-area-inset-bottom,0rem))] sm:pb-[calc(0.75rem+env(safe-area-inset-bottom,0rem))]">
           <div
@@ -355,6 +379,11 @@ export function AdminWorkspaceShell({
               {/* No celular este link vive na barra inferior, junto do "Menu":
                   topo e o canto mais dificil de alcancar com o polegar, e a
                   barra e onde a area de cliente ja poe o caminho de volta. */}
+              {/* O sino ao lado do "Voltar ao catálogo", como pedido — e visível
+                  no celular também, onde o botão de catálogo desce para a barra
+                  de baixo e este canto fica livre. */}
+              <SinoDeAvisos onIrParaSecao={onSectionChange} podeVerSecao={hasPermission} />
+
               <Link to="/" viewTransition className="hidden lg:inline-flex">
                 <Button
                   variant="outline"

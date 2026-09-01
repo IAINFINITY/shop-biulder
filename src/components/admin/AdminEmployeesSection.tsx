@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Eye,
@@ -26,8 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { AdminListaPadrao } from "./AdminListaPadrao";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { AdminTabelaDePessoas, CelulaDePessoa } from "@/components/admin/AdminTabelaDePessoas";
+import { AdminPaginacao } from "@/components/admin/AdminPaginacao";
+import { paginar } from "@/lib/paginacao";
 import { DialogoDeResetDeSenha, type AlvoDoReset } from "./DialogoDeResetDeSenha";
 import { lerSenhaPadrao } from "@/lib/resetDeSenha";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,15 +44,18 @@ import {
   type EmployeeUserRecord,
 } from "@/lib/employeeUsers";
 import { cn } from "@/lib/utils";
-import { formatDocumentId, onlyDigits } from "@/lib/brazilianIds";
+import { formatDocumentId, formatPhone, onlyDigits } from "@/lib/brazilianIds";
 import {
   COLUNAS_TXT,
   EXEMPLO_TXT,
   lerTxtDeFuncionarios,
   type ErroImportacao,
 } from "@/lib/employeeBulkImport";
-import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { MODAL_TELA_CHEIA } from "@/lib/modais";
+
+/** O aviso do diálogo de exclusão. Uma frase só, para as duas telas não divergirem. */
+const EXCLUIR_DESCRICAO = (nome: string) =>
+  `Tem certeza que deseja excluir permanentemente o funcionário "${nome}"? Esta ação não pode ser desfeita.`;
 
 export function AdminEmployeesSection() {
   const { user } = useAuth();
@@ -100,6 +107,15 @@ export function AdminEmployeesSection() {
     );
   }, [search, employees]);
 
+  // ⚠️ 97 funcionários hoje, e a lista não tinha página nenhuma: eram 97 cartões
+  // de ~250px empilhados numa coluna só — cerca de 24 mil pixels de rolagem para
+  // chegar ao último. A tabela paginada mostra 24 por vez.
+  const [paginaAtual, setPaginaAtual] = useState(0);
+  useEffect(() => {
+    setPaginaAtual(0);
+  }, [search]);
+  const pagina = useMemo(() => paginar(filteredEmployees, paginaAtual), [filteredEmployees, paginaAtual]);
+
   function resetEditState() {
     setEditEmployee(null);
     setEditName("");
@@ -146,7 +162,6 @@ export function AdminEmployeesSection() {
           email: linha.email,
           cpf: linha.cpf,
         });
-        await syncCustomerProxisLink(CLINIC_MASTER_CNPJ, userId).catch(() => null);
         criados += 1;
       } catch (err) {
         falhas.push({
@@ -198,8 +213,6 @@ export function AdminEmployeesSection() {
         cpf: cpfDigits,
       });
 
-      await syncCustomerProxisLink(CLINIC_MASTER_CNPJ, userId).catch(() => null);
-
       toast.success("Funcionário criado com sucesso");
       setCreateOpen(false);
       setNewName("");
@@ -250,43 +263,36 @@ export function AdminEmployeesSection() {
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
+      <SectionHeader
         eyebrow="Funcionários"
         title="Equipe vinculada à Clinic+"
         description="Gerencie funcionários que podem fazer pedidos em nome da empresa."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setImportOpen(true)}
-              className="h-10 rounded-2xl px-4 text-sm"
-            >
-              <Upload className="mr-1.5 h-4 w-4" />
-              Importar TXT
-            </Button>
-            <Button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              className="h-10 rounded-2xl px-4 text-sm"
-            >
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              Novo funcionário
-            </Button>
-          </div>
+          <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
+            {filteredEmployees.length} funcionário(s)
+          </Badge>
         }
       />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Pesquisar por nome, telefone ou CPF..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-11 rounded-2xl border-border/70 bg-background pl-9 text-[0.8125rem]"
-        />
-      </div>
-
+      <AdminListaPadrao
+        busca={search}
+        onBuscaChange={setSearch}
+        buscaPlaceholder="Buscar por nome, telefone ou CPF"
+        contagem={filteredEmployees.length}
+        acaoPrincipal={
+          <>
+            <Button type="button" variant="outline" onClick={() => setImportOpen(true)} className="h-11 rounded-2xl px-4 text-sm">
+              <Upload className="h-4 w-4" />
+              Importar TXT
+            </Button>
+            <Button type="button" onClick={() => setCreateOpen(true)} className="h-11 rounded-2xl px-4 text-sm">
+              <UserPlus className="h-4 w-4" />
+              Novo funcionário
+            </Button>
+          </>
+        }
+        rodape={<AdminPaginacao pagina={pagina} onMudarPagina={setPaginaAtual} />}
+      >
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -302,110 +308,178 @@ export function AdminEmployeesSection() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredEmployees.map((emp) => (
-            <div
-              key={emp.user_id}
-              className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-background p-4 shadow-sm"
-            >
+        <AdminTabelaDePessoas
+          itens={pagina.itens}
+          chaveDoItem={(emp) => emp.user_id}
+          onAbrirItem={openEditEmployee}
+          vazio="Nenhum funcionario cadastrado."
+          colunas={[
+            {
+              chave: "nome",
+              rotulo: "Funcionário",
+              largura: "28%",
+              celula: (emp) => (
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-semibold text-primary">
+                    {emp.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <CelulaDePessoa nome={emp.name} detalhe={emp.email || "—"} />
+                </div>
+              ),
+            },
+            {
+              chave: "telefone",
+              rotulo: "Telefone",
+              largura: "14%",
+              ocultarAte: "xl",
+              celula: (emp) => <span className="text-xs text-muted-foreground">{formatPhone(emp.phone) || "—"}</span>,
+            },
+            {
+              chave: "documento",
+              rotulo: "Documento",
+              largura: "16%",
+              celula: (emp) => (
+                <span className="font-mono text-xs text-muted-foreground">{formatDocumentId(emp.cnpj) || "—"}</span>
+              ),
+            },
+            {
+              chave: "vinculo",
+              rotulo: "Vinculado a",
+              largura: "16%",
+              ocultarAte: "xl",
+              celula: (emp) => (
+                <span className="font-mono text-xs text-muted-foreground">
+                  {emp.linked_company_cnpj ? formatDocumentId(emp.linked_company_cnpj) : "—"}
+                </span>
+              ),
+            },
+            {
+              chave: "criado",
+              rotulo: "Criado em",
+              largura: "12%",
+              alinhamento: "direita",
+              celula: (emp) => (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {new Date(emp.created_at).toLocaleDateString("pt-BR")}
+                </span>
+              ),
+            },
+          ]}
+          larguraDasAcoes="14%"
+          acoes={(emp) => (
+            <>
+              {/* ⚠️ Ícone com `title`, e não botão com rótulo.
+                  Três botões escritos ("Editar", "Resetar senha", "Excluir")
+                  ocupavam mais largura que as cinco colunas de dados juntas. Na
+                  linha da tabela o texto vira `title` e `sr-only`: quem usa
+                  mouse vê a dica, quem usa leitor de tela ouve o nome. */}
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8 w-8 rounded-full p-0"
+                title="Editar funcionário"
+                onClick={() => openEditEmployee(emp)}
+              >
+                <PencilLine className="h-4 w-4" />
+                <span className="sr-only">Editar</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-8 w-8 rounded-full p-0"
+                title="Resetar senha"
+                onClick={() => setAlvoDoReset({ userId: emp.user_id, nome: emp.name, email: emp.email ?? "" })}
+              >
+                <KeyRound className="h-4 w-4" />
+                <span className="sr-only">Resetar senha</span>
+              </Button>
+              <ConfirmActionDialog
+                trigger={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-full p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    title="Excluir funcionário"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Excluir</span>
+                  </Button>
+                }
+                title="Excluir funcionário"
+                description={EXCLUIR_DESCRICAO(emp.name)}
+                confirmLabel="Excluir"
+                processingLabel="Apagando..."
+                destructive
+                onConfirm={async () => {
+                  try {
+                    await deleteEmployeeUser(emp.user_id);
+                    toast.success("Funcionário excluído permanentemente");
+                    queryClient.invalidateQueries({ queryKey: ["employee_users"] });
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Erro ao excluir funcionário");
+                  }
+                }}
+              />
+            </>
+          )}
+          cartaoNoCelular={(emp) => (
+            <>
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-semibold text-primary">
-                      {emp.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-foreground">{emp.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{emp.phone || "—"}</p>
-                    </div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-xs font-semibold text-primary">
+                    {emp.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{emp.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{formatPhone(emp.phone) || "—"}</p>
                   </div>
                 </div>
-                <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-2.5 py-1 text-[0.6875rem] text-primary">
+                <Badge
+                  variant="outline"
+                  className="shrink-0 rounded-full border-primary/20 bg-primary/5 px-2.5 py-1 text-[0.6875rem] text-primary"
+                >
                   Funcionário
                 </Badge>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</p>
-                  <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-sm text-foreground">
-                    {emp.phone || "—"}
-                  </div>
+              <dl className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Documento</dt>
+                  <dd className="truncate font-mono text-foreground">{formatDocumentId(emp.cnpj) || "—"}</dd>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Documento</p>
-                  <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-sm text-foreground">
-                    {formatDocumentId(emp.cnpj) || "—"}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Vinculado a</p>
-                  <div className="flex h-11 items-center rounded-2xl border border-border/70 bg-muted/20 px-4 text-sm text-foreground">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Vinculado a</dt>
+                  <dd className="truncate font-mono text-foreground">
                     {emp.linked_company_cnpj ? formatDocumentId(emp.linked_company_cnpj) : "—"}
-                  </div>
+                  </dd>
                 </div>
-              </div>
+              </dl>
 
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <p className="text-[0.6875rem] text-muted-foreground">
-                  Criado em {new Date(emp.created_at).toLocaleDateString("pt-BR")}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 rounded-full px-4 text-[0.8125rem]"
-                    onClick={() => openEditEmployee(emp)}
-                  >
-                    <PencilLine className="h-4 w-4" />
-                    Editar
-                  </Button>
-                  {/* O reset abre um dialogo proprio em vez do `ConfirmActionDialog`
-                      generico: ele precisa mostrar a senha que sera aplicada e
-                      as tres consequencias, e "tem certeza?" nao serve. */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-10 rounded-full px-4 text-[0.8125rem]"
-                    onClick={() =>
-                      setAlvoDoReset({ userId: emp.user_id, nome: emp.name, email: emp.email ?? "" })
-                    }
-                  >
-                    <KeyRound className="h-4 w-4" />
-                    Resetar senha
-                  </Button>
-                  <ConfirmActionDialog
-                    trigger={
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-full border-destructive/40 px-4 text-[0.8125rem] text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Excluir
-                      </Button>
-                    }
-                    title="Excluir funcionário"
-                    description={`Tem certeza que deseja excluir permanentemente o funcionário "${emp.name}"? Esta ação não pode ser desfeita.`}
-                    confirmLabel="Excluir"
-                    processingLabel="Apagando..."
-                    destructive
-                    onConfirm={async () => {
-                      try {
-                        await deleteEmployeeUser(emp.user_id);
-                        toast.success("Funcionário excluído permanentemente");
-                        queryClient.invalidateQueries({ queryKey: ["employee_users"] });
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Erro ao excluir funcionário");
-                      }
-                    }}
-                  />
-                </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-full px-3 text-xs"
+                  onClick={() => openEditEmployee(emp)}
+                >
+                  <PencilLine className="mr-1 h-3.5 w-3.5" />
+                  Editar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9 rounded-full px-3 text-xs"
+                  onClick={() => setAlvoDoReset({ userId: emp.user_id, nome: emp.name, email: emp.email ?? "" })}
+                >
+                  <KeyRound className="mr-1 h-3.5 w-3.5" />
+                  Senha
+                </Button>
               </div>
-            </div>
-          ))}
-        </div>
+            </>
+          )}
+        />
       )}
+      </AdminListaPadrao>
 
       <Dialog
         open={createOpen}

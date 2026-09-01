@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Loader2, Mail, Save, ShieldCheck, UserRound } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, MailWarning, Save, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { TrocarEmailSection } from "@/components/shared/TrocarEmailSection";
+import { PreferenciasDeAvisoSection } from "./PreferenciasDeAvisoSection";
+import type { AdminSection } from "./adminTypes";
 import { useAuth } from "@/hooks/useAuth";
 import { getRoleLabel } from "@/lib/adminUsers";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,12 +46,19 @@ function InfoTile({ label, value, hint, icon: Icon }: InfoTileProps) {
   );
 }
 
-export function AdminSettingsSection() {
+export function AdminSettingsSection({
+  podeVerSecao,
+}: {
+  /** Vem da shell, que ja resolveu a permissao para desenhar o menu. */
+  podeVerSecao?: (secao: AdminSection) => boolean;
+}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [name, setName] = useState(user?.user_metadata?.name ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
+
+
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -154,7 +164,7 @@ export function AdminSettingsSection() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <AdminSectionHeader
+      <SectionHeader
         eyebrow="Configurações"
         title="Senha e perfil"
         description="Gerencie seu perfil, sua função e sua senha de acesso ao painel"
@@ -215,6 +225,10 @@ export function AdminSettingsSection() {
               disabled
               className="h-11 rounded-2xl border-border/70 bg-muted/30 text-[0.8125rem] opacity-60"
             />
+            {/* Campo travado sem explicação se lê como defeito. Ele continua
+                travado aqui de propósito — trocar e-mail exige a senha — e a
+                frase diz onde fica o caminho. */}
+            <p className="text-xs text-muted-foreground">Alterado no bloco abaixo, com a sua senha.</p>
           </div>
         </div>
 
@@ -237,6 +251,8 @@ export function AdminSettingsSection() {
           </Button>
         </div>
       </form>
+
+      <TrocarEmailSection />
 
       <form
         onSubmit={handleSavePassword}
@@ -362,6 +378,11 @@ export function AdminSettingsSection() {
           o admin para ca ("Voce esta logado como admin"). Sem esta secao, quem
           administra nao consegue ativar a protecao nem querendo, que e o
           oposto do que "opcional" deveria significar. */}
+      {/* Antes da seguranca: escolher aviso e a tarefa corriqueira, trocar
+          autenticador e a rara. O que se mexe toda semana vem antes do que se
+          mexe uma vez. */}
+      {podeVerSecao ? <PreferenciasDeAvisoSection podeVerSecao={podeVerSecao} /> : null}
+
       <AutenticadoresSection className="rounded-[1.5rem] border border-border/70 shadow-[0_12px_32px_rgba(16,24,40,0.08)] ring-0" />
       <AparelhosLembradosSection className="rounded-[1.5rem] border border-border/70 shadow-[0_12px_32px_rgba(16,24,40,0.08)] ring-0" />
     </div>

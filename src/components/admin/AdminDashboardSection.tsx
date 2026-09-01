@@ -17,6 +17,8 @@ import { formatBRL, coercePrice } from "@/lib/formatMoney";
 import { getProductImageUrls } from "@/lib/products";
 import { formatDocumentId } from "@/lib/brazilianIds";
 import { AdminStatCard } from "./AdminStatCard";
+import { AdminDashboardItem } from "./AdminDashboardItem";
+import { saudacao } from "@/lib/saudacao";
 import type { AdminCustomerSummary, AdminDashboardOrder, AdminOrderRow, AdminProduct } from "./adminTypes";
 import type { CustomerProfile } from "@/lib/customerProfile";
 import type { CatalogBanner } from "@/lib/catalogBanners";
@@ -46,7 +48,31 @@ type AdminDashboardSectionProps = {
   formatDate: (value: string) => string;
   onGoToOrders: () => void;
   onGoToProducts: () => void;
+  /**
+   * Abre **este** produto, e nao a lista inteira.
+   *
+   * Os cinco itens do resumo chamavam `onGoToProducts` — o mesmo callback do
+   * botao "Gerenciar" ao lado. Clicar num produto especifico levava a lista
+   * completa, sem nada indicando qual deles tinha sido clicado: o gesto mais
+   * preciso da tela dava o resultado menos preciso.
+   */
+  onOpenProduct: (product: AdminProduct) => void;
+  onGoToCustomers: () => void;
+  /** Abre a base de clientes já filtrada nesta pessoa. */
+  onGoToCustomer: (busca: string) => void;
+  onGoToEmployees: () => void;
+  /** Nome de quem está logado, para a saudação. Pode vir e-mail; `saudacao` trata. */
+  nomeDoAdmin: string | null;
+  onGoToMessages: () => void;
+  onGoToNotifications: () => void;
+  onGoToBanners: () => void;
 };
+
+/** "sábado, 31 de agosto" — situa o resumo no tempo sem pedir espaço de cartão. */
+function dataPorExtenso(agora: Date = new Date()): string {
+  const texto = agora.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
 
 export function AdminDashboardSection({
   products,
@@ -72,6 +98,14 @@ export function AdminDashboardSection({
   formatDate,
   onGoToOrders,
   onGoToProducts,
+  onOpenProduct,
+  onGoToCustomers,
+  onGoToCustomer,
+  onGoToEmployees,
+  nomeDoAdmin,
+  onGoToMessages,
+  onGoToNotifications,
+  onGoToBanners,
 }: AdminDashboardSectionProps) {
   const now = Date.now();
 
@@ -140,48 +174,76 @@ export function AdminDashboardSection({
 
   return (
     <div className="space-y-6">
+      {/* A saudação é a primeira coisa da tela por um motivo simples: o painel
+          abria direto num paredão de dez números, sem nada dizendo de quem é
+          aquilo. É o mesmo recurso dos dois CRMs de referência. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            {saudacao(nomeDoAdmin)}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {dataPorExtenso()} · veja como o catálogo está hoje
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 gap-y-4 md:grid-cols-2 xl:grid-cols-6">
         <AdminStatCard
           icon={Package}
           label="Produtos ativos"
-          value={String(activeProductsCount)}
+          value={activeProductsCount}
           tone="primary"
           note={`${products.length} produto(s) no total`}
+          onClick={onGoToProducts}
+          acaoLabel="abrir a lista de produtos"
         />
         <AdminStatCard
           icon={UserCheck}
           label="Clientes com pedidos"
-          value={String(customersWithOrdersCount)}
+          value={customersWithOrdersCount}
           tone="success"
           note={`${customerSummaries.length} cliente(s) na base`}
+          onClick={onGoToCustomers}
+          acaoLabel="abrir a base de clientes"
         />
         <AdminStatCard
           icon={ShoppingBag}
           label="Pedidos recebidos"
-          value={String(recentOrders.length)}
+          value={recentOrders.length}
           tone="success"
           note={`${pendingOrdersCount} em andamento`}
+          onClick={onGoToOrders}
+          acaoLabel="abrir os pedidos"
         />
         <AdminStatCard
           icon={Users}
           label="Clientes sem pedidos"
-          value={String(customersWithoutOrdersCount)}
+          value={customersWithoutOrdersCount}
           tone="muted"
           note="Cadastros ainda sem movimentação"
+          onClick={onGoToCustomers}
+          acaoLabel="abrir a base de clientes"
         />
         <AdminStatCard
           icon={CreditCard}
           label="Receita total"
-          value={formatBRL(totalRevenue)}
+          value={totalRevenue}
+          formatar={formatBRL}
           tone="warn"
           note="Valor consolidado dos pedidos"
+          onClick={onGoToOrders}
+          acaoLabel="abrir os pedidos"
         />
         <AdminStatCard
           icon={TrendingUp}
           label="Ticket médio"
-          value={formatBRL(averageOrderValue)}
+          value={averageOrderValue}
+          formatar={formatBRL}
           tone="primary"
           note={`${inactiveProductsCount} produto(s) inativos`}
+          onClick={onGoToOrders}
+          acaoLabel="abrir os pedidos"
         />
       </div>
 
@@ -189,30 +251,38 @@ export function AdminDashboardSection({
         <AdminStatCard
           icon={UserPlus}
           label="Usuários novos"
-          value={String(newUsersCount)}
+          value={newUsersCount}
           tone="success"
           note="Últimos 7 dias"
+          onClick={onGoToCustomers}
+          acaoLabel="abrir a base de clientes"
         />
         <AdminStatCard
           icon={MessageSquareText}
           label="Conversas abertas"
-          value={String(openConversationsCount)}
+          value={openConversationsCount}
           tone="primary"
           note="Chat interno ativo"
+          onClick={onGoToMessages}
+          acaoLabel="abrir as mensagens"
         />
         <AdminStatCard
           icon={Bell}
           label="Notificações enviadas"
-          value={String(sentNotificationsCount)}
+          value={sentNotificationsCount}
           tone="warn"
           note="Campanhas e avisos"
+          onClick={onGoToNotifications}
+          acaoLabel="abrir as notificações"
         />
         <AdminStatCard
           icon={ImageIcon}
           label="Banners criados"
-          value={String(createdBannersCount)}
+          value={createdBannersCount}
           tone="muted"
           note="Hero do catálogo"
+          onClick={onGoToBanners}
+          acaoLabel="abrir os banners"
         />
       </div>
 
@@ -327,9 +397,10 @@ export function AdminDashboardSection({
           </div>
           <div className="space-y-3">
             {recentCustomers.slice(0, 4).map((customer) => (
-              <div
+              <AdminDashboardItem
                 key={customer.user_id}
-                className="flex items-start justify-between gap-3 rounded-[1.1rem] border border-border/70 bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                onClick={() => onGoToCustomer(customer.cnpj || customer.name || "")}
+                acaoLabel={`Ver ${customer.name} na base de clientes`}
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
@@ -337,9 +408,9 @@ export function AdminDashboardSection({
                   <p className="break-words text-xs text-muted-foreground">Documento {formatDocumentId(customer.cnpj)}</p>
                 </div>
                 <Badge variant={customer.proxis_found ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.6875rem]">
-                  {customer.proxis_found ? "Proxsys ok" : "Sem vínculo"}
+                  {customer.proxis_found ? "Vinculado" : "Sem vínculo"}
                 </Badge>
-              </div>
+              </AdminDashboardItem>
             ))}
           </div>
         </div>
@@ -356,9 +427,10 @@ export function AdminDashboardSection({
           </div>
           <div className="space-y-3">
             {recentEmployees.slice(0, 4).map((employee) => (
-              <div
+              <AdminDashboardItem
                 key={employee.user_id}
-                className="flex items-start justify-between gap-3 rounded-[1.1rem] border border-border/70 bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                onClick={onGoToEmployees}
+                acaoLabel={`Ver ${employee.name} na equipe`}
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="truncate text-sm font-semibold text-foreground">{employee.name}</p>
@@ -371,7 +443,7 @@ export function AdminDashboardSection({
                 <Badge variant={employee.linked_company_cnpj ? "default" : "secondary"} className="shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[0.6875rem]">
                   Funcionário
                 </Badge>
-              </div>
+              </AdminDashboardItem>
             ))}
           </div>
         </div>
@@ -394,9 +466,11 @@ export function AdminDashboardSection({
         </div>
         <div className="space-y-3">
           {products.slice(0, 5).map((product) => (
-            <div
+            <AdminDashboardItem
               key={product.id}
-              className="flex items-center gap-3 rounded-[1.1rem] border border-border/70 bg-card p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+              onClick={() => onOpenProduct(product)}
+              acaoLabel={`Abrir ${product.name}`}
+              className="items-center"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-background">
                 {getProductImageUrls(product)[0] ? (
@@ -422,7 +496,7 @@ export function AdminDashboardSection({
                   {product.active ? "Ativo" : "Inativo"}
                 </Badge>
               </div>
-            </div>
+            </AdminDashboardItem>
           ))}
         </div>
       </div>
@@ -442,30 +516,38 @@ export function AdminDashboardSection({
           <AdminStatCard
             icon={Bell}
             label="Notificações ativas"
-            value={String(liveNotifications.length)}
+            value={liveNotifications.length}
             tone="warn"
             note={`${scheduledNotifications.length} agendada(s)`}
+            onClick={onGoToNotifications}
+            acaoLabel="abrir as notificações"
           />
           <AdminStatCard
             icon={ImageIcon}
             label="Banners ativos"
-            value={String(activeBanners.length)}
+            value={activeBanners.length}
             tone="primary"
             note={`${targetedBanners.length} com público definido`}
+            onClick={onGoToBanners}
+            acaoLabel="abrir os banners"
           />
           <AdminStatCard
             icon={MessageSquareText}
             label="Notificações segmentadas"
-            value={String(targetedNotifications.length)}
+            value={targetedNotifications.length}
             tone="success"
             note="Enviadas para usuário específico"
+            onClick={onGoToNotifications}
+            acaoLabel="abrir as notificações"
           />
           <AdminStatCard
             icon={TrendingUp}
             label="Conteúdos publicados"
-            value={String(liveNotifications.length + activeBanners.length)}
+            value={liveNotifications.length + activeBanners.length}
             tone="muted"
             note="Campanhas e hero do catálogo"
+            onClick={onGoToNotifications}
+            acaoLabel="abrir as notificações"
           />
         </div>
 
@@ -489,7 +571,12 @@ export function AdminDashboardSection({
                   const badgeVariant = !notification.active ? "secondary" : live ? "default" : "outline";
 
                   return (
-                    <div key={notification.id} className="rounded-[1rem] border border-border/70 bg-background p-3">
+                    <AdminDashboardItem
+                      key={notification.id}
+                      onClick={onGoToNotifications}
+                      acaoLabel={`Abrir a notificação ${notification.title}`}
+                      className="flex-col items-stretch gap-2"
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
@@ -505,7 +592,7 @@ export function AdminDashboardSection({
                         <span className="rounded-full border border-border/70 px-2 py-0.5">Prioridade {notification.priority}</span>
                         <span>{formatCompactDateTime(notification.created_at)}</span>
                       </div>
-                    </div>
+                    </AdminDashboardItem>
                   );
                 })
               ) : (
@@ -528,7 +615,25 @@ export function AdminDashboardSection({
             <div className="space-y-3">
               {latestBanners.length > 0 ? (
                 latestBanners.map((banner) => (
-                  <div key={banner.id} className="rounded-[1rem] border border-border/70 bg-background p-3">
+                  <AdminDashboardItem
+                    key={banner.id}
+                    onClick={onGoToBanners}
+                    acaoLabel={`Abrir o banner ${banner.label}`}
+                    className="flex-col items-stretch gap-2"
+                  >
+                    {/* A miniatura, e não só o nome: banner é peça visual, e
+                        "Whey Concentrado + Crea_Banner" não diz qual arte é. */}
+                    {banner.image_url ? (
+                      <div className="h-16 w-full shrink-0 overflow-hidden rounded-[0.75rem] border border-border/70 bg-muted">
+                        <img
+                          src={banner.image_url}
+                          alt={banner.label}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    ) : null}
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-foreground">{banner.label}</p>
@@ -546,7 +651,7 @@ export function AdminDashboardSection({
                       <span className="rounded-full border border-border/70 px-2 py-0.5">Ordem {banner.sort_order}</span>
                       <span>{formatCompactDate(banner.created_at)}</span>
                     </div>
-                  </div>
+                  </AdminDashboardItem>
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground">Nenhum banner cadastrado ainda.</p>
@@ -570,31 +675,39 @@ export function AdminDashboardSection({
         <div className="grid grid-cols-2 gap-3 gap-y-4 md:grid-cols-2 xl:grid-cols-4">
           <AdminStatCard
             icon={UserCheck}
-            label="Clientes vinculados"
-            value={String(linkedCustomers.length)}
+            label="Com tabela própria"
+            value={linkedCustomers.length}
             tone="success"
-            note="Com pes_id reconhecido"
+            note="Compram por uma tabela negociada"
+            onClick={onGoToCustomers}
+            acaoLabel="abrir a base de clientes"
           />
           <AdminStatCard
             icon={Users}
-            label="Clientes sem vínculo"
-            value={String(unlinkedCustomers.length)}
+            label="Sem tabela própria"
+            value={unlinkedCustomers.length}
             tone="warn"
-            note="Aguardam conferência no Proxsys"
+            note="Sem tabela de preço própria"
+            onClick={onGoToCustomers}
+            acaoLabel="abrir a base de clientes"
           />
           <AdminStatCard
             icon={ShoppingBag}
             label="Pedidos exportados"
-            value={String(exportedOrders.length)}
+            value={exportedOrders.length}
             tone="primary"
             note={`${pendingProxisOrders} ainda sem exportação`}
+            onClick={onGoToOrders}
+            acaoLabel="abrir os pedidos"
           />
           <AdminStatCard
             icon={CalendarClock}
             label="Sincronizações recentes"
-            value={String(recentSyncCount)}
+            value={recentSyncCount}
             tone="muted"
             note="Últimos 7 dias"
+            onClick={onGoToCustomers}
+            acaoLabel="abrir a base de clientes"
           />
         </div>
 
@@ -612,7 +725,12 @@ export function AdminDashboardSection({
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {recentlySyncedCustomers.length > 0 ? (
               recentlySyncedCustomers.map((customer) => (
-                <div key={customer.user_id} className="flex h-full flex-col rounded-[1rem] border border-border/70 bg-background p-3">
+                <AdminDashboardItem
+                  key={customer.user_id}
+                  onClick={() => onGoToCustomer(customer.cnpj || customer.name || "")}
+                  acaoLabel={`Ver ${customer.name} na base de clientes`}
+                  className="h-full flex-col items-stretch gap-2"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
@@ -626,7 +744,7 @@ export function AdminDashboardSection({
                     <p className="break-words">Documento {formatDocumentId(customer.cnpj)}</p>
                     <p>Sincronizado em {formatCompactDateTime(customer.proxis_synced_at)}</p>
                   </div>
-                </div>
+                </AdminDashboardItem>
               ))
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma sincronização recente encontrada.</p>

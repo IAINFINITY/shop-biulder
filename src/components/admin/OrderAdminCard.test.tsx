@@ -42,8 +42,6 @@ function montar(status: string, onStatusChange?: (id: string, s: string) => void
       formatDate={() => "25/08"}
       isProxisExporting={false}
       onExportProxis={vi.fn()}
-      isProxisResending={false}
-      onResendProxis={vi.fn()}
       onExportXlsx={vi.fn()}
       onExportPdf={vi.fn()}
       onDelete={vi.fn()}

@@ -1,5 +1,5 @@
 ﻿import { useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ImageIcon, Link as LinkIcon, Pencil, Plus, RefreshCw, Trash2, Upload, Users } from "lucide-react";
+import { ImageIcon, Link as LinkIcon, Pencil, Plus, RefreshCw, Trash2, Upload, Users, Eye, Search } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import type { AdminBanner } from "./adminTypes";
 import { CATALOG_BANNERS_TABLE, nomeDoArquivoDeBanner } from "@/lib/catalogBanners";
 import {
@@ -29,6 +29,7 @@ import { deleteStorageImage, isProductImageStorageUrl, uploadProductImageFile } 
 import { BANNER_IMAGE_MAX_SIZE, BANNER_IMAGE_QUALITY } from "@/lib/productImageNormalization";
 import { ADMIN_TEXT_LIMITS } from "@/lib/adminTextLimits";
 import { cn } from "@/lib/utils";
+import { CARTAO_CLICAVEL, IMAGEM_DO_CARTAO } from "@/lib/interacoes";
 import { useCatalogBanners } from "@/hooks/useCatalogBanners";
 import { useCustomerTypes } from "@/hooks/useCustomerTypes";
 import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
@@ -81,6 +82,9 @@ function SlotCard({ slot }: { slot: BannerSlot }) {
   const quadros = pecasDoSlot(slot);
 
   return (
+    // ⚠️ Sem `CARTAO_CLICAVEL` aqui. Este cartão **explica** onde cada área
+    // aparece na loja; ele não abre nada. Hover num cartão que não leva a lugar
+    // nenhum promete um clique que não existe — ver a nota em `interacoes.ts`.
     <div className="flex flex-col gap-3 rounded-[1.25rem] border border-border/70 bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -220,6 +224,9 @@ export function AdminBannersSection() {
   const { data: banners = [], isLoading } = useCatalogBanners({ activeOnly: false });
   const { options: customerTypeOptions } = useCustomerTypes();
   const [editorOpen, setEditorOpen] = useState(false);
+  const [previaAberta, setPreviaAberta] = useState(false);
+  const [busca, setBusca] = useState("");
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [draft, setDraft] = useState<BannerFormState | null>(null);
@@ -230,6 +237,22 @@ export function AdminBannersSection() {
     () => [...banners].sort((left, right) => left.sort_order - right.sort_order || left.created_at.localeCompare(right.created_at)),
     [banners],
   );
+
+  /**
+   * A lista com a busca aplicada.
+   *
+   * Sem ela, achar um banner era rolar a grade inteira — e o nome de arquivo
+   * ("Whey Concentrado + Crea_Banner") não é o que a pessoa lembra. A busca
+   * cobre também a área do site, que é como se pensa a peça: "o do topo".
+   */
+  const bannersFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return sortedBanners;
+    return sortedBanners.filter((banner) => {
+      const area = findBannerSlot(banner.slot)?.nome ?? banner.slot;
+      return `${banner.label} ${area}`.toLowerCase().includes(termo);
+    });
+  }, [sortedBanners, busca]);
 
   /**
    * Os banners agrupados por area.
@@ -256,7 +279,7 @@ export function AdminBannersSection() {
    */
   const gruposDeBanners = useMemo(() => {
     const porArea = new Map<string, AdminBanner[]>();
-    for (const banner of sortedBanners) {
+    for (const banner of bannersFiltrados) {
       const atual = porArea.get(banner.slot);
       if (atual) atual.push(banner);
       else porArea.set(banner.slot, [banner]);
@@ -274,7 +297,7 @@ export function AdminBannersSection() {
       .map((id) => ({ id, nome: id, medida: "", itens: porArea.get(id)! }));
 
     return [...conhecidas, ...desconhecidas];
-  }, [sortedBanners]);
+  }, [bannersFiltrados]);
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["catalog-banners"] });
@@ -530,7 +553,7 @@ export function AdminBannersSection() {
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
+      <SectionHeader
         eyebrow="Banners"
         title="Banners sob controle do admin"
         description="Cadastre banners para a vitrine principal e confira a medida de cada área."
@@ -539,10 +562,6 @@ export function AdminBannersSection() {
             <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
               {sortedBanners.filter((banner) => banner.active).length} ativo(s)
             </Badge>
-            <Button type="button" className="h-10 rounded-2xl px-4 text-sm" onClick={openNew}>
-              <Plus className="h-4 w-4" />
-              Novo banner
-            </Button>
           </div>
         }
       />
@@ -550,7 +569,27 @@ export function AdminBannersSection() {
       <BannerSlotsPanel />
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {/* Busca e ação no mesmo cartão da lista, como na tela de Produtos. */}
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por nome ou área do site"
+              className="h-11 rounded-2xl border-border/70 bg-background pl-9 pr-16 text-[0.8125rem]"
+            />
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.6875rem] font-medium text-muted-foreground">
+              {bannersFiltrados.length}
+            </div>
+          </div>
+          <Button type="button" className="h-11 rounded-2xl px-4 text-sm" onClick={openNew}>
+            <Plus className="h-4 w-4" />
+            Novo banner
+          </Button>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-5">
           <div className="space-y-1">
             <p className="text-sm text-foreground">Cada área usa apenas seus banners ativos, em ordem crescente.</p>
             <p className="text-xs text-muted-foreground">As imagens podem ser enviadas do computador ou coladas por URL.</p>
@@ -566,9 +605,9 @@ export function AdminBannersSection() {
               <div key={index} className="h-64 animate-pulse rounded-[1.25rem] border border-border/70 bg-muted/20" />
             ))}
           </div>
-        ) : sortedBanners.length === 0 ? (
+        ) : bannersFiltrados.length === 0 ? (
           <div className="rounded-[1.25rem] border border-dashed border-border/70 p-8 text-center text-muted-foreground">
-            Nenhum banner cadastrado ainda.
+            {busca.trim() ? "Nenhum banner com esse nome ou área." : "Nenhum banner cadastrado ainda."}
           </div>
         ) : (
           <div className="space-y-8">
@@ -595,13 +634,18 @@ export function AdminBannersSection() {
                     <div
                       key={banner.id}
                       className={cn(
-                        "flex h-full flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+                        "group flex h-full flex-col overflow-hidden rounded-[1.35rem] border border-border/70 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+                        CARTAO_CLICAVEL,
                         !banner.active && "opacity-70",
                       )}
                     >
                       <div className={cn(BANNER_PREVIEW_FRAME_CLASS, previewAspect(banner.slot), !banner.image_url && "bg-muted/20")}>
                         {banner.image_url ? (
-                          <img src={banner.image_url} alt={banner.label} className="h-full w-full object-cover" />
+                          <img
+                            src={banner.image_url}
+                            alt={banner.label}
+                            className={cn("h-full w-full object-cover", IMAGEM_DO_CARTAO)}
+                          />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
                             <ImageIcon className="h-10 w-10 text-muted-foreground/30" />
@@ -690,22 +734,30 @@ export function AdminBannersSection() {
               <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
                 {draft?.id ? "Editar banner" : "Novo banner"}
               </DialogTitle>
+              <Button
+                type="button"
+                variant="outline"
+                className="absolute right-14 top-3.5 h-10 rounded-full px-4 text-sm sm:right-16"
+                onClick={() => setPreviaAberta(true)}
+                disabled={!draft}
+              >
+                <Eye className="h-4 w-4" />
+                Ver prévia
+              </Button>
               <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
                 Ajuste o conteúdo visual e escolha em qual área ele será exibido.
               </DialogDescription>
             </DialogHeader>
 
-            {/* Uma rolagem so no celular.
+            {/* Uma coluna, de cima para baixo — a forma da tela de Produtos.
 
-                  Em duas colunas (lg) cada lado rola por conta propria, que e o
-                  certo: formulario de um lado, previa do outro, os dois sempre a
-                  vista. Empilhados numa coluna, porem, viravam **duas** areas de
-                  rolagem dividindo a mesma altura — e a previa ainda reservava
-                  320px de piso, entao ela tomava a tela e o formulario ficava
-                  numa fresta. Aqui embaixo quem rola e o container, e a previa
-                  vem depois do formulario, no fluxo. */}
-              <div className="grid min-h-0 flex-1 gap-0 max-lg:overflow-y-auto lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="min-h-0 p-4 sm:p-5 lg:overflow-y-auto">
+                A prévia dividia a largura com o formulário e as duas ficavam
+                apertadas: campo de meia tela ao lado de uma arte reduzida, que é
+                justamente o que a prévia existe para não ser. Agora ela abre em
+                diálogo próprio, no botão "Ver prévia" do cabeçalho, e usa a
+                largura toda. */}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+              <div className="min-h-0 p-4 sm:p-5">
                 {draft ? (
                   <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-background p-4 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
                     {/* Primeiro campo do formulario de proposito: a area decide a
@@ -1051,39 +1103,6 @@ export function AdminBannersSection() {
                 ) : null}
               </div>
 
-              <div className="min-h-0 border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:overflow-y-auto lg:border-l lg:border-t-0">
-                <div className="flex h-full flex-col gap-4 lg:min-h-[320px]">
-                  <div className="space-y-1">
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Pré-visualização
-                    </p>
-                    <p className="text-sm text-foreground/80">
-                      Veja como o banner fica antes de salvar.
-                    </p>
-                  </div>
-
-                  <div className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-background shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-                    {draft?.imageUrl ? (
-                      <div className={cn(BANNER_PREVIEW_FRAME_CLASS, previewAspect(draft?.slot ?? "topo"), !draft?.imageUrl && "bg-muted/20")}>
-                        <img src={draft.imageUrl} alt={draft.label || "Banner"} className="h-full w-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className={cn(BANNER_PREVIEW_FRAME_CLASS, "flex items-center justify-center bg-muted/20")}>
-                        <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
-                      </div>
-                    )}
-                    <div className="space-y-2 p-4">
-                      <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
-                        {draft?.active ? "Ativo" : "Inativo"}
-                      </p>
-                      <p className="text-lg font-semibold text-foreground">{draft?.label || "Nome do banner"}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {draft?.linkUrl?.trim() ? draft.linkUrl : "Sem link configurado"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <DialogFooter className="gap-2 border-t border-border/70 bg-background px-5 py-4 sm:gap-2">
@@ -1095,6 +1114,53 @@ export function AdminBannersSection() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* A prévia num diálogo próprio, e não numa coluna ao lado.
+          Banner é peça de largura inteira: reduzida à metade da tela, ela não
+          responde à pergunta que a prévia existe para responder. */}
+      <Dialog open={previaAberta && Boolean(draft)} onOpenChange={setPreviaAberta}>
+        <DialogContent className="max-h-[92dvh] w-[min(98vw,1280px)] max-w-[1280px] overflow-y-auto rounded-[1.75rem] border-border/70">
+          <DialogHeader>
+            <DialogTitle className="text-left text-lg font-semibold tracking-tight">Prévia do banner</DialogTitle>
+            <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
+              Como a peça vai aparecer no catálogo.
+            </DialogDescription>
+          </DialogHeader>
+                  <div className="min-h-0 border-t border-border/70 bg-muted/15 p-4 sm:p-5 lg:overflow-y-auto lg:border-l lg:border-t-0">
+                    <div className="flex h-full flex-col gap-4 lg:min-h-[320px]">
+                      <div className="space-y-1">
+                        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Pré-visualização
+                        </p>
+                        <p className="text-sm text-foreground/80">
+                          Veja como o banner fica antes de salvar.
+                        </p>
+                      </div>
+
+                      <div className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-background shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+                        {draft?.imageUrl ? (
+                          <div className={cn(BANNER_PREVIEW_FRAME_CLASS, previewAspect(draft?.slot ?? "topo"), !draft?.imageUrl && "bg-muted/20")}>
+                            <img src={draft.imageUrl} alt={draft.label || "Banner"} className="h-full w-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className={cn(BANNER_PREVIEW_FRAME_CLASS, "flex items-center justify-center bg-muted/20")}>
+                            <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        <div className="space-y-2 p-4">
+                          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
+                            {draft?.active ? "Ativo" : "Inativo"}
+                          </p>
+                          <p className="text-lg font-semibold text-foreground">{draft?.label || "Nome do banner"}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {draft?.linkUrl?.trim() ? draft.linkUrl : "Sem link configurado"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
         </DialogContent>
       </Dialog>
     </div>

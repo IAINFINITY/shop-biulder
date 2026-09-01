@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Images, LogOut, ShieldCheck, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richTextPure";
 import { AdminWorkspaceShell } from "@/components/admin/AdminWorkspaceShell";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import { AdminDashboardSection } from "@/components/admin/AdminDashboardSection";
 import { AdminBannersSection } from "@/components/admin/AdminBannersSection";
 import { AdminNotificationsSection } from "@/components/admin/AdminNotificationsSection";
@@ -60,6 +61,7 @@ import { AdminSettingsSection } from "@/components/admin/AdminSettingsSection";
 import { ChatWorkspace } from "@/components/support/ChatWorkspace";
 import { CUSTOMER_PROFILES_TABLE, type CustomerProfile } from "@/lib/customerProfile";
 import { listEmployees } from "@/lib/employeeUsers";
+import { useEtapaNaUrl } from "@/hooks/useFiltroNaUrl";
 import { canAccessAdminSection } from "@/lib/adminUsers";
 import {
   CUSTOMER_TYPE_OVERRIDES_TABLE,
@@ -109,7 +111,10 @@ const ADMIN_SECTION_TITLES: Record<AdminSection, string> = {
   pedidos: "Pedidos",
   clientes: "Clientes",
   mensagens: "Mensagens",
-  usuarios: "Usuários",
+  // O rótulo diz "Administradores"; a chave continua `usuarios` de propósito:
+  // ela está gravada nas permissões de cada conta e na URL, e renomear a
+  // chave tiraria o acesso de quem já o tem.
+  usuarios: "Administradores",
   funcionarios: "Funcionários",
   configuracoes: "Configurações",
 };
@@ -189,9 +194,63 @@ export default function AdminWorkspace() {
   const [isNew, setIsNew] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [newType, setNewType] = useState("");
-  const [section, setSection] = useState<AdminSection>("dashboard");
+  /**
+   * A seção vive na URL, não em `useState`.
+   *
+   * Enquanto era estado local, o painel não existia para o histórico do
+   * navegador: quem estava em Preços e apertava o botão "voltar" do mouse saía
+   * do admin inteiro, porque nenhuma das trocas de seção tinha deixado marca.
+   *
+   * Com `useEtapaNaUrl` cada troca é um passo, e voltar desfaz **um**. De quebra,
+   * a tela passa a ter endereço próprio: dá para mandar `/admin?section=precos`
+   * para alguém.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const section = useMemo<AdminSection>(() => {
+    const bruta = searchParams.get("section");
+    return bruta && bruta in ADMIN_SECTION_TITLES ? (bruta as AdminSection) : "dashboard";
+  }, [searchParams]);
+
+  /**
+   * Uma escrita só, e não duas.
+   *
+   * A primeira versão chamava `definirSecaoNaUrl` e logo depois `setSearchParams`
+   * para limpar `tabela`. As duas eram agendadas no mesmo evento e a segunda
+   * partia dos parâmetros **anteriores**, apagando a seção que a primeira tinha
+   * acabado de gravar — clicar no menu não saía do Dashboard.
+   */
+  const setSection = useCallback(
+    /**
+     * `foco` leva a tela ate um pedaco dela.
+     *
+     * A engrenagem do sino mandava para Configuracoes e parava no topo, com a
+     * secao de avisos tres blocos abaixo — quem clicou em "escolher quais avisos
+     * receber" tinha de procurar o que pediu. Ele viaja na URL, e nao em estado,
+     * porque assim o link pode ser colado e continua caindo no lugar certo.
+     */
+    (proxima: AdminSection, foco?: string) => {
+      setSearchParams(
+        (atuais) => {
+          const copia = new URLSearchParams(atuais);
+          if (proxima === "dashboard") copia.delete("section");
+          else copia.set("section", proxima);
+          if (foco) copia.set("foco", foco);
+          else copia.delete("foco");
+          // Parâmetros que pertencem a uma seção só. Sem limpar, ir ao painel
+          // pelo menu e voltar a Clientes trazia de volta o filtro da tabela
+          // que alguém tinha aberto em Preços meia hora antes.
+          copia.delete("tabela");
+          copia.delete("tabelaDoCliente");
+          return copia;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
   const [orderSearch, setOrderSearch] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+  const [filtroDeTabelaEmClientes, definirFiltroDeTabelaEmClientes] = useEtapaNaUrl("tabelaDoCliente");
   const [clientFilter, setClientFilter] = useState<"all" | "orders" | "revenue">("all");
   // Mesma correcao da area de cliente: a variavel significa "expandida" no
   // desktop e "gaveta aberta" no celular, entao o valor inicial nao pode ser um
@@ -201,7 +260,6 @@ export default function AdminWorkspace() {
     typeof window === "undefined" || window.matchMedia("(min-width: 1024px)").matches;
   const [sidebarOpen, setSidebarOpen] = useState(ehDesktop);
   const [proxisExportingId, setProxisExportingId] = useState<string | null>(null);
-  const [proxisResendingId, setProxisResendingId] = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -212,13 +270,19 @@ export default function AdminWorkspace() {
     [customerTypeOverrides],
   );
   const orderRows = orders as unknown as AdminOrderRow[];
-  const clientProfiles = useMemo(
-    () =>
-      customerProfiles.filter(
-        (profile) => normalizeCustomerType(profile.customer_type) !== "funcionario" && !profile.linked_company_cnpj,
-      ),
-    [customerProfiles],
-  );
+  /**
+   * Quem compra — clientes **e** funcionários.
+   *
+   * Funcionário era filtrado fora daqui, e a seção de Clientes herdava a
+   * exclusão: não havia um lugar só para ver todo mundo que compra, e a tela de
+   * Preços precisava desenhar a própria lista de contas para responder "quem usa
+   * esta tabela".
+   *
+   * O tipo continua distinguindo os dois na tela, e a aba Funcionários continua
+   * sendo onde funcionário nasce — criar, editar e resetar senha é lá. Aqui é
+   * consulta e classificação.
+   */
+  const clientProfiles = customerProfiles;
   const activeCustomerLookup = useMemo(() => {
     const userIdSet = new Set<string>();
     const cnpjSet = new Set<string>();
@@ -459,6 +523,15 @@ export default function AdminWorkspace() {
     permissions: adminPermissions ?? null,
   });
 
+  // A mesma pergunta que a shell faz para desenhar o menu, exposta como funcao:
+  // o sino e as preferencias de aviso precisam dela, e resolver de novo em cada
+  // lugar abriria a porta para os tres discordarem.
+  const canAccessSection = useCallback(
+    (sectionId: AdminSection) =>
+      canAccessAdminSection(sectionId, { isSuperadmin, permissions: adminPermissions ?? null }),
+    [isSuperadmin, adminPermissions],
+  );
+
   const allowedSections = useMemo(() => {
     if (isSuperadmin) return null;
     const allowed = new Set(
@@ -473,7 +546,10 @@ export default function AdminWorkspace() {
     if (allowedSections && !allowedSections.has(section)) {
       setSection("dashboard");
     }
-  }, [allowedSections, section]);
+    // `setSection` entra na lista porque agora ele é um `useCallback` e não mais
+    // o setter estável do `useState`. Ele só muda quando `setSearchParams` muda,
+    // então incluir não faz o efeito rodar à toa.
+  }, [allowedSections, section, setSection]);
 
   if ((!user && loading) || (!user && isResolvingAccess)) {
     return (
@@ -941,70 +1017,20 @@ export default function AdminWorkspace() {
       toast.success(`Arquivo Proxis gerado (ID ${proxisId}).`);
       refreshOrders();
     } catch (err) {
-        console.error("Erro ao exportar para Proxis", err);
-        toast.error("Erro ao exportar para Proxis.");
+        console.error("Erro ao gerar o arquivo", err);
+        toast.error("Erro ao gerar o arquivo.");
     } finally {
       setProxisExportingId(null);
     }
   };
 
-  const resendProxisOrder = async (orderPayload: {
-    id: string;
-    submission_key?: string | null;
-    customer_name: string;
-    customer_cnpj: string;
-    customer_company: string;
-    customer_observation: string | null;
-    address: Parameters<typeof addressToProxisPayload>[0];
-    items: Array<{ product_code: string; quantity: number; unit_price: number; name: string }>;
-    note?: string | null;
-  }) => {
-    const { id, ...payload } = orderPayload;
-    setProxisResendingId(id);
-    console.groupCollapsed(`[Proxis debug] resend order ${id}`);
-    console.log("payload", payload);
-    console.log("items", payload.items);
-    console.log("address", payload.address);
-    try {
-      const response = await sendProxisOrder(payload);
-      console.log("response", response);
-      const sentCount = response.items_count ?? orderPayload.items.length;
-      if (response.already_sent) {
-        toast.info("Este pedido já constava no Proxis. Nada foi duplicado.");
-      } else if (response.failed_products && response.failed_products.length > 0) {
-        console.warn("failed_products", response.failed_products);
-        toast.warning(`Pedido reenviado ao Proxis com ${response.failed_products.length} produto(s) sem correspondência.`);
-      } else {
-        toast.success(`Pedido reenviado ao Proxis (${sentCount} item(ns)).`);
-      }
-    } catch (err) {
-      if (err instanceof ProxisSendError) {
-        const failedEndpoint = err.response.upstream?.endpoint;
-        console.error("Proxis send error", {
-          status: err.status,
-          message: err.message,
-          response: err.response,
-        });
-        if (err.response.failed_products?.length) {
-          console.warn("failed_products", err.response.failed_products);
-        }
-        toast.error(
-          failedEndpoint
-            ? `Erro no Proxis em ${failedEndpoint} (${err.response.upstream?.status ?? err.status}). Veja o console.`
-            : `Erro ao reenviar para Proxis (${err.status}). Veja o console.`,
-        );
-      } else {
-        console.error("Erro ao reenviar pedido ao Proxis", err);
-        toast.error(err instanceof Error ? err.message : "Erro ao reenviar pedido ao Proxis.");
-      }
-    } finally {
-      setProxisResendingId(null);
-      console.groupEnd();
-      // A rota reescreve o status de sincronia em qualquer desfecho, entao o
-      // selo do cartao e a fila de pendentes precisam recarregar dos dois lados.
-      refreshOrders();
-    }
-  };
+  /**
+   * O reenvio ao ERP saiu em 31/08/2026, com o Proxis.
+   *
+   * Ele reivindicava o mesmo documento no ERP pela `submission_key`, de modo que
+   * apertar de novo nunca duplicava. Sem ERP não há para onde reenviar: o pedido
+   * está completo aqui, e a saída são os arquivos TXT, Excel e PDF.
+   */
 
   const exportOrderXlsx = async (exportPayload: OrderExportInput) => {
     const { downloadOrderXlsx } = await import("@/lib/orderExport");
@@ -1024,12 +1050,20 @@ export default function AdminWorkspace() {
       section={section}
       conteudoCheio={section === "mensagens"}
       title={ADMIN_SECTION_TITLES[section]}
-      onSectionChange={(proxima) => {
-        setSection(proxima);
+      onSectionChange={(proxima, foco) => {
+        // ⚠️ O `foco` **precisa** ser repassado. Este handler recebia só
+        // `proxima` e chamava `setSection(proxima)`: o segundo argumento caía no
+        // chão, o parâmetro nunca chegava na URL, e a engrenagem do sino levava
+        // a Configurações e parava no topo — que era exatamente o que ela
+        // deveria evitar.
+        setSection(proxima, foco);
         // No celular a gaveta cobre o conteudo: deixa-la aberta esconderia a
         // secao que a pessoa acabou de escolher.
         if (!ehDesktop()) setSidebarOpen(false);
-        window.scrollTo({ top: 0, behavior: "auto" });
+        // Com `foco`, quem decide onde parar é o bloco de destino. Subir ao topo
+        // aqui competiria com o `scrollIntoView` dele — duas rolagens no mesmo
+        // gesto, e a última a rodar ganha.
+        if (!foco) window.scrollTo({ top: 0, behavior: "auto" });
       }}
       onLogout={signOut}
       userLabel={displayUserLabel}
@@ -1066,6 +1100,31 @@ export default function AdminWorkspace() {
           formatDate={formatDate}
           onGoToOrders={() => setSection("pedidos")}
           onGoToProducts={() => setSection("produtos")}
+          onOpenProduct={(produto) => {
+            // O formulário do produto é um diálogo, então abrir o item certo
+            // não depende de ele estar na primeira página da lista.
+            setSection("produtos");
+            startEdit(produto);
+          }}
+          onGoToCustomers={() => {
+            // Limpa a busca antes de abrir: sem isto, quem tinha clicado num
+            // cliente específico antes voltava para a lista ainda filtrada
+            // naquele nome e via "1 de 44" onde o cartão prometia 40.
+            setClientSearch("");
+            setSection("clientes");
+          }}
+          onGoToCustomer={(busca) => {
+            // A busca da seção de Clientes já é controlada aqui: preencher antes
+            // de trocar de tela leva direto à pessoa, em vez de largar o admin
+            // numa lista de 44 para procurar de novo.
+            setClientSearch(busca);
+            setSection("clientes");
+          }}
+          onGoToEmployees={() => setSection("funcionarios")}
+          nomeDoAdmin={user?.user_metadata?.name ?? user?.email ?? null}
+          onGoToMessages={() => setSection("mensagens")}
+          onGoToNotifications={() => setSection("notificacoes")}
+          onGoToBanners={() => setSection("banners")}
         />
       )}
 
@@ -1129,6 +1188,17 @@ export default function AdminWorkspace() {
           rolava por toda a biblioteca antes de achar a area de envio. */}
       {section === "imagens" && (
         <Tabs defaultValue="enviar" className="space-y-6">
+          {/* O título vem antes das abas, e não depois.
+              Cada aba desenha o próprio cabeçalho lá dentro, então o seletor
+              aparecia acima de qualquer título — a pessoa escolhia entre duas
+              coisas antes de a tela dizer que seção era aquela. */}
+          <SectionHeader
+            eyebrow="Imagens"
+            title="Imagens do catálogo"
+            description="Envie fotos em lote pelo código do produto, ou veja tudo o que já está no ar."
+            actions={null}
+          />
+
           <TabsList className="h-auto w-full justify-start gap-1 rounded-full bg-muted/60 p-1 sm:w-auto">
             <TabsTrigger value="enviar" className="gap-2 rounded-full px-4 py-2 text-[0.8125rem]">
               <Upload className="h-4 w-4" />
@@ -1153,9 +1223,48 @@ export default function AdminWorkspace() {
         <AdminPricingSection
           products={products}
           onRefreshPricing={refreshPricing}
+          onVerContasDaTabela={(chave) => {
+            setClientSearch("");
+            /**
+             * Uma escrita só de `searchParams`, e não duas.
+             *
+             * `definirFiltroDeTabelaEmClientes` seguido de `setSection` são dois
+             * `setSearchParams` no mesmo evento: o segundo parte dos parâmetros
+             * anteriores e apagava o filtro que o primeiro tinha acabado de
+             * gravar. O resultado era a tela de Clientes abrir com o filtro da
+             * tabela anterior e só se acertar no render seguinte — o "demora a
+             * limpar" que você viu. É o mesmo erro que o `setSection` já tinha
+             * tido; agora está nos dois lugares.
+             */
+            setSearchParams(
+              (atuais) => {
+                const copia = new URLSearchParams(atuais);
+                copia.set("section", "clientes");
+                copia.set("tabelaDoCliente", chave);
+                copia.delete("tabela");
+                return copia;
+              },
+              { replace: false },
+            );
+          }}
           onGoToProduct={(productCode) => {
-            setProductSearch(productCode.trim().toUpperCase());
+            /**
+             * Abre o produto, em vez de jogar o código na busca.
+             *
+             * `setProductSearch("5")` para o Chá de Camomila listava tudo que
+             * tem 5 no código ou no nome — o lápis prometia "editar este item" e
+             * entregava uma busca. Achando o produto, o formulário abre nele.
+             *
+             * A busca continua como reserva para o caso de o código não bater
+             * com nada carregado: melhor cair numa lista filtrada do que num
+             * clique que não faz nada.
+             */
+            const alvo = products.find(
+              (produto) => (produto.product_code ?? "").trim().toUpperCase() === productCode.trim().toUpperCase(),
+            );
             setSection("produtos");
+            if (alvo) startEdit(alvo);
+            else setProductSearch(productCode.trim().toUpperCase());
           }}
         />
       )}
@@ -1170,9 +1279,7 @@ export default function AdminWorkspace() {
           orderEnrichment={orderEnrichment}
           formatDate={formatDate}
           proxisExportingId={proxisExportingId}
-          proxisResendingId={proxisResendingId}
           onExportProxis={exportProxisOrder}
-          onResendProxis={resendProxisOrder}
           onExportXlsx={exportOrderXlsx}
           onExportPdf={exportOrderPdf}
           onDelete={deleteOrder}
@@ -1189,10 +1296,13 @@ export default function AdminWorkspace() {
 
       {section === "clientes" && (
         <AdminClientsSection
+          onIrParaPrecos={() => setSection("precos")}
           customerProfiles={clientProfiles}
           customerSummaries={customerSummaries}
           clientSearch={clientSearch}
           onClientSearchChange={setClientSearch}
+          filtroDeTabela={filtroDeTabelaEmClientes}
+          onFiltroDeTabelaChange={definirFiltroDeTabelaEmClientes}
           clientFilter={clientFilter}
           onClientFilterChange={setClientFilter}
           onUpdateCustomerType={updateCustomerType}
@@ -1202,7 +1312,7 @@ export default function AdminWorkspace() {
       {section === "mensagens" && chatContent}
       {section === "usuarios" && <AdminUsersSection />}
       {section === "funcionarios" && <AdminEmployeesSection />}
-      {section === "configuracoes" && <AdminSettingsSection />}
+      {section === "configuracoes" && <AdminSettingsSection podeVerSecao={canAccessSection} />}
     </AdminWorkspaceShell>
   );
 }

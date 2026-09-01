@@ -143,7 +143,9 @@ const SECOES_DO_ADMIN: [string, RegExp][] = [
   ["Pedidos", /Pedidos/i],
   ["Clientes", /Clientes/i],
   ["Mensagens", /Mensagens/i],
-  ["Usuários", /Usuários/i],
+  // O rótulo virou "Administradores" em 31/08/2026; a chave da seção continua
+  // `usuarios`, porque ela está gravada nas permissões de cada conta.
+  ["Administradores", /Administradores/i],
   ["Funcionários", /Funcionários/i],
 ];
 
@@ -176,22 +178,22 @@ describe("seções do painel, como superadmin", () => {
 });
 
 describe("o painel respeita o papel", () => {
-  it("superadmin enxerga Usuários; a seção existe no menu", async () => {
+  it("superadmin enxerga Administradores; a seção existe no menu", async () => {
     ehCliente = false;
     ehAdmin = false;
     ehSuperadmin = true;
     await montar("/admin");
     await waitFor(() => expect(document.body.textContent ?? "").toMatch(/Dashboard/i), { timeout: 20000 });
-    expect(screen.getAllByRole("button", { name: /^Usuários$/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /^Administradores$/i }).length).toBeGreaterThan(0);
   });
 
-  it("admin sem permissão não recebe o menu de Usuários", async () => {
+  it("admin sem permissão não recebe o menu de Administradores", async () => {
     ehCliente = false;
     ehAdmin = true;
     ehSuperadmin = false;
     await montar("/admin");
     await waitFor(() => expect(document.body.textContent ?? "").toMatch(/Dashboard|Visão geral/i), { timeout: 20000 });
-    // `canAccessAdminSection` reserva Usuários ao superadmin — ver adminUsers.ts.
-    expect(screen.queryAllByRole("button", { name: /^Usuários$/i })).toEqual([]);
+    // `canAccessAdminSection` reserva a seção ao superadmin — ver adminUsers.ts.
+    expect(screen.queryAllByRole("button", { name: /^Administradores$/i })).toEqual([]);
   });
 });

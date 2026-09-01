@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useMemo, useRef, useState } from "react";
 import { AlertTriangle, ShoppingBag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,16 @@ import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLin
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
 import type { ProxisOrderRequest } from "@/lib/proxisOrder";
+import { AdminPaginacao } from "./AdminPaginacao";
+import { AdminListaPadrao } from "./AdminListaPadrao";
+import { AdminOrderDetail } from "./AdminOrderDetail";
+import { useEtapaNaUrl } from "@/hooks/useFiltroNaUrl";
+import { paginar } from "@/lib/paginacao";
 import { needsProxisReconciliation } from "@/lib/proxisOrderStatus";
+import { ehFuncionario, TIPO_FUNCIONARIO } from "@/lib/funcionario";
+import { customerTypeLabel, normalizeCustomerType } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import type { AdminOrderRow } from "./adminTypes";
 
 type OrderEnrichmentMaps = Parameters<typeof parseOrderTableLines>[1];
@@ -33,9 +40,7 @@ type AdminOrdersSectionProps = {
   orderEnrichment: OrderEnrichmentMaps;
   formatDate: (value: string) => string;
   proxisExportingId: string | null;
-  proxisResendingId: string | null;
   onExportProxis: (payload: OrderExportInput) => void | Promise<void>;
-  onResendProxis: (payload: ProxisResendPayload) => void | Promise<void>;
   onExportXlsx: (payload: OrderExportInput) => void | Promise<void>;
   onExportPdf: (payload: OrderExportInput) => void | Promise<void>;
   onDelete: (id: string) => void;
@@ -56,6 +61,15 @@ const STATUS_FILTERS = [
 
 type StatusFilterId = StatusDoPedido | "all";
 
+/**
+ * O balde de quem pediu sem ter conta.
+ *
+ * Escondê-los faria a soma dos filtros não bater com o total da lista — e são 10
+ * dos 44 pedidos. "Sem cadastro" também é uma resposta útil para quem atende:
+ * é o pedido que não dá para rastrear pela conta.
+ */
+const SEM_CADASTRO = "__sem_cadastro__";
+
 export function AdminOrdersSection({
   ordersLoading,
   filteredOrders,
@@ -65,9 +79,7 @@ export function AdminOrdersSection({
   orderEnrichment,
   formatDate,
   proxisExportingId,
-  proxisResendingId,
   onExportProxis,
-  onResendProxis,
   onExportXlsx,
   onExportPdf,
   onDelete,
@@ -102,6 +114,70 @@ export function AdminOrdersSection({
     return map;
   }, [customerProfiles]);
 
+  /**
+   * O tipo de conta de quem fez cada pedido.
+   *
+   * Chaveado por `user_id` **e** por CNPJ, como o mapa de tabela acima: o pedido
+   * de funcionário sai com o CNPJ da Clinic+, e o de visitante pode não ter
+   * `user_id`. Duas chaves cobrem os dois caminhos.
+   */
+  const tipoDaContaPorChave = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const profile of customerProfiles) {
+      const tipo = ehFuncionario(profile) ? TIPO_FUNCIONARIO : normalizeCustomerType(profile.customer_type);
+      const userKey = profile.user_id?.trim();
+      const cnpjKey = String(profile.cnpj ?? "").replace(/\D/g, "");
+      if (userKey) map.set(userKey, tipo);
+      // O CNPJ não desempata funcionário: são 97 contas com o mesmo CNPJ da
+      // Clinic+. Só entra quando ainda não há nada, para não sobrescrever o
+      // que veio pelo `user_id`, que é exato.
+      if (cnpjKey && !map.has(cnpjKey)) map.set(cnpjKey, tipo);
+    }
+    return map;
+  }, [customerProfiles]);
+
+  const tipoDoPedido = useMemo(
+    () => (order: AdminOrderRow) => {
+      const porUsuario = order.customer_user_id ? tipoDaContaPorChave.get(order.customer_user_id.trim()) : undefined;
+      if (porUsuario) return porUsuario;
+      const cnpj = String(order.customer_cnpj ?? "").replace(/\D/g, "");
+      return (cnpj && tipoDaContaPorChave.get(cnpj)) || null;
+    },
+    [tipoDaContaPorChave],
+  );
+
+  const [filtroDeTipo, setFiltroDeTipo] = useState<string | null>(null);
+
+  /**
+   * O pedido aberto vive na URL, como a tabela em Preços.
+   *
+   * Assim o botão "voltar" do navegador fecha o detalhe em vez de sair da seção,
+   * e o endereço do pedido pode ser mandado para alguém — que é o pedido mais
+   * comum de quem atende ("dá uma olhada nesse aqui").
+   */
+  const [pedidoAberto, definirPedidoAberto] = useEtapaNaUrl("pedido");
+
+  /**
+   * Só os tipos que têm pedido, com a contagem.
+   *
+   * Listar os quatro tipos sempre daria botões que filtram para nada — e a
+   * pessoa clicaria neles antes de descobrir. A barra some inteira quando só há
+   * um tipo, porque aí não há o que separar.
+   */
+  const tiposComPedido = useMemo(() => {
+    const contagem = new Map<string, number>();
+    for (const order of filteredOrders) {
+      // Sem cadastro é um balde de verdade, não um buraco: são 10 dos 44
+      // pedidos, feitos por quem comprou sem conta. Descartá-los faria as
+      // contagens não fecharem com o total da lista.
+      const tipo = tipoDoPedido(order) ?? SEM_CADASTRO;
+      contagem.set(tipo, (contagem.get(tipo) ?? 0) + 1);
+    }
+    return [...contagem.entries()]
+      .map(([tipo, quantidade]) => ({ tipo, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [filteredOrders, tipoDoPedido]);
+
   const statusCounts = useMemo(() => {
     // Zerado a partir dos estados, e nao escrito a mao: a versao anterior
     // listava as chaves aqui, e acrescentar um estado deixava a contagem dele
@@ -116,9 +192,16 @@ export function AdminOrdersSection({
     const byErp = onlyPendingErp
       ? filteredOrders.filter((order) => needsProxisReconciliation(order.proxis_status))
       : filteredOrders;
-    if (statusFilter === "all") return byErp;
-    return byErp.filter((order) => normalizarStatusDoPedido(order.status) === statusFilter);
-  }, [filteredOrders, onlyPendingErp, statusFilter]);
+    const porTipo = filtroDeTipo
+      ? byErp.filter((order) => (tipoDoPedido(order) ?? SEM_CADASTRO) === filtroDeTipo)
+      : byErp;
+    if (statusFilter === "all") return porTipo;
+    return porTipo.filter((order) => normalizarStatusDoPedido(order.status) === statusFilter);
+  }, [filteredOrders, onlyPendingErp, statusFilter, filtroDeTipo, tipoDoPedido]);
+
+  const [pagina, setPagina] = useState(0);
+  /** A lista de pedidos só cresce; sem paginar, todo pedido já feito era montado. */
+  const paginaDePedidos = useMemo(() => paginar(visibleOrders, pagina), [visibleOrders, pagina]);
 
   const summaryTotal = useMemo(() => {
     let total = 0;
@@ -142,10 +225,42 @@ export function AdminOrdersSection({
     };
   }
 
+  const detalhe = useMemo(() => {
+    if (!pedidoAberto) return null;
+    const indice = visibleOrders.findIndex((order) => order.id === pedidoAberto);
+    // Pedido que não está na lista atual — filtro mudou, link antigo — volta
+    // para a lista em vez de mostrar tela vazia.
+    if (indice === -1) return null;
+    return {
+      order: visibleOrders[indice],
+      lines: parseOrderTableLines(visibleOrders[indice].items, orderEnrichment),
+      numero: visibleOrders.length - indice,
+    };
+  }, [pedidoAberto, visibleOrders, orderEnrichment]);
+
+  if (detalhe) {
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <SectionHeader
+          eyebrow="Pedidos"
+          title="Detalhe do pedido"
+          description="Tudo o que foi pedido, para onde vai, e por onde este pedido passou."
+          actions={null}
+        />
+        <AdminOrderDetail
+          order={detalhe.order}
+          lines={detalhe.lines}
+          numeroDoPedido={detalhe.numero}
+          onVoltar={() => definirPedidoAberto(null)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="space-y-3 sm:space-y-4">
-        <AdminSectionHeader
+        <SectionHeader
           eyebrow="Pedidos"
           title="Operação diária"
           description="Filtre pedidos por cliente, empresa, telefone, CNPJ ou status."
@@ -166,15 +281,45 @@ export function AdminOrdersSection({
             </div>
           }
         />
-        <Input
-          placeholder="Pesquisar pedido (nome, empresa, telefone, CNPJ, status, observação)"
-          value={orderSearch}
-          onChange={(e) => onOrderSearchChange(e.target.value)}
-          className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]"
-        />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <AdminListaPadrao
+        busca={orderSearch}
+        onBuscaChange={onOrderSearchChange}
+        buscaPlaceholder="Buscar por nome, empresa, telefone, CNPJ, status ou observação"
+        contagem={visibleOrders.length}
+        filtros={
+          <>
+            <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Quem pediu
+            </span>
+            <Button
+              type="button"
+              variant={filtroDeTipo === null ? "default" : "outline"}
+              className="h-9 rounded-full px-3 text-xs"
+              onClick={() => setFiltroDeTipo(null)}
+            >
+              Todos
+            </Button>
+            {tiposComPedido.map(({ tipo, quantidade }) => (
+              <Button
+                key={tipo}
+                type="button"
+                variant={filtroDeTipo === tipo ? "default" : "outline"}
+                className="h-9 rounded-full px-3 text-xs"
+                onClick={() => setFiltroDeTipo(filtroDeTipo === tipo ? null : tipo)}
+              >
+                {tipo === SEM_CADASTRO ? "Sem cadastro" : customerTypeLabel(tipo)}
+                <Badge variant="secondary" className="ml-1.5 rounded-full px-1.5 py-0 text-[0.625rem] leading-none">
+                  {quantidade}
+                </Badge>
+              </Button>
+            ))}
+          </>
+        }
+        abas={
+          <>
+
         {STATUS_FILTERS.map((filter) => (
           <Button
             key={filter.id}
@@ -206,14 +351,18 @@ export function AdminOrdersSection({
             {pendingErpCount}
           </Badge>
         </Button>
-      </div>
-
-      {visibleOrders.length > 0 && (
-        <div className="rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 sm:px-4 py-3 text-xs sm:text-[0.8125rem] leading-5 sm:leading-6 text-foreground">
-          <span className="font-semibold">{visibleOrders.length} pedido(s)</span> no filtro atual · Total:{" "}
-          <span className="font-semibold">{formatBRL(summaryTotal)}</span>
-        </div>
-      )}
+          </>
+        }
+        filtroAplicado={
+          visibleOrders.length > 0 ? (
+            <div className="rounded-[1.25rem] border border-border/70 bg-primary/5 px-3 py-2 text-[0.8125rem] leading-6 text-foreground sm:px-4">
+              <span className="font-semibold">{visibleOrders.length} pedido(s)</span> no filtro atual · Total:{" "}
+              <span className="font-semibold">{formatBRL(summaryTotal)}</span>
+            </div>
+          ) : null
+        }
+        rodape={<AdminPaginacao pagina={paginaDePedidos} onMudarPagina={setPagina} />}
+      >
 
       {ordersLoading ? (
         <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 bg-background p-4">
@@ -240,7 +389,7 @@ export function AdminOrdersSection({
           <p className="mt-4 text-sm font-semibold text-foreground">Nenhum pedido encontrado</p>
           <p className="mt-1 text-[0.8125rem] leading-6 text-muted-foreground">
             {onlyPendingErp
-              ? "Nenhum pedido pendente no ERP com os filtros atuais. Tudo que passou por aqui chegou ao Proxis."
+              ? "Nenhum pedido pendente com os filtros atuais."
               : statusFilter !== "all"
                 ? "Nenhum pedido com esse status no filtro atual. Tente outro status ou ajuste a busca."
                 : orderSearch.trim()
@@ -249,9 +398,12 @@ export function AdminOrdersSection({
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {visibleOrders.map((order, index) => {
-            const displayOrderNumber = visibleOrders.length - index;
+        <div className="scroll-mt-6 space-y-3">
+          {paginaDePedidos.itens.map((order, index) => {
+            // O número segue a posição na lista inteira, e não na página: na
+            // página 2 a contagem recomeçaria e dois pedidos diferentes
+            // apareceriam com o mesmo número.
+            const displayOrderNumber = visibleOrders.length - (paginaDePedidos.primeiroItem - 1) - index;
             const lines = parseOrderTableLines(order.items, orderEnrichment);
             const orderTotal = getOrderLinesGrandTotal(lines);
             const orderQty = getOrderLinesQuantityTotal(lines);
@@ -274,6 +426,14 @@ export function AdminOrdersSection({
                 return null;
               })(),
               customer_observation: customerObservation || null,
+              numeroDoPedido: displayOrderNumber,
+              customer_address_cep: order.customer_address_cep ?? null,
+              customer_address_street: order.customer_address_street ?? null,
+              customer_address_number: order.customer_address_number ?? null,
+              customer_address_complement: order.customer_address_complement ?? null,
+              customer_address_neighborhood: order.customer_address_neighborhood ?? null,
+              customer_address_city: order.customer_address_city ?? null,
+              customer_address_state: order.customer_address_state ?? null,
               status: order.status,
               items: order.items,
               proxis_import_id: order.proxis_import_id,
@@ -325,18 +485,19 @@ export function AdminOrdersSection({
                 orderQty={orderQty}
                 formatDate={formatDate}
                 isProxisExporting={proxisExportingId === order.id}
-                isProxisResending={proxisResendingId === order.id}
                 onExportProxis={() => onExportProxis(exportPayload)}
-                onResendProxis={() => onResendProxis(resendPayload)}
                 onExportXlsx={() => onExportXlsx(exportPayload)}
                 onExportPdf={() => onExportPdf(exportPayload)}
                 onDelete={() => onDelete(order.id)}
                 onStatusChange={onStatusChange}
+                onAbrirDetalhe={() => definirPedidoAberto(order.id)}
               />
             );
           })}
         </div>
       )}
+
+      </AdminListaPadrao>
     </div>
   );
 }

@@ -39,7 +39,14 @@ export function ChipDeCategoria({
   nome: string;
   quantidade: number;
   ativo: boolean;
-  onFiltrar: () => void;
+  /**
+   * `undefined` quando não há lista à vista para filtrar.
+   *
+   * É o caso do diálogo "Organizar": o filtro se aplicaria à lista atrás do
+   * diálogo, que a pessoa não está vendo. Clicar em "3 Ômegas" ali e a tela
+   * não mudar — ou mudar escondido — é pior que não ter a ação.
+   */
+  onFiltrar?: () => void;
   /** Vai para o `aria-label` do `x`, que sem isso seria um botao sem nome. */
   rotuloRemover: string;
   tituloRemover: string;
@@ -59,40 +66,59 @@ export function ChipDeCategoria({
         visivelNaLoja === false && "opacity-60",
       )}
     >
-      <button
-        type="button"
-        onClick={onFiltrar}
-        aria-pressed={ativo}
-        title={ativo ? `Mostrar todos de novo` : `Ver só os ${quantidade} de ${nome}`}
-        className="flex h-10 items-center gap-2 text-[0.8125rem] font-medium sm:h-9"
-      >
-        <span className={cn("max-w-[14rem] truncate", ativo && "text-primary")}>{nome}</span>
-        <Badge
-          variant="outline"
-          className={cn(
-            "rounded-full px-2 py-0.5 text-[0.625rem]",
-            ativo ? "border-primary/40 text-primary" : "border-border/70",
-          )}
-        >
-          {quantidade}
-        </Badge>
-      </button>
-
-      {onAlternarVisibilidade ? (
+      {onFiltrar ? (
         <button
           type="button"
-          onClick={onAlternarVisibilidade}
-          aria-pressed={visivelNaLoja === false}
-          aria-label={visivelNaLoja === false ? `Mostrar ${nome} na loja` : `Esconder ${nome} da loja`}
-          title={
-            visivelNaLoja === false
-              ? "Escondida da loja — clique para mostrar. Os produtos continuam no catálogo."
-              : "Esconder da loja. Os produtos continuam no catálogo, encontráveis pela busca."
-          }
-          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+          onClick={onFiltrar}
+          aria-pressed={ativo}
+          title={ativo ? `Mostrar todos de novo` : `Ver só os ${quantidade} de ${nome}`}
+          className="flex h-10 items-center gap-2 text-[0.8125rem] font-medium sm:h-9"
         >
-          {visivelNaLoja === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          <span className={cn("max-w-[14rem] truncate", ativo && "text-primary")}>{nome}</span>
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[0.625rem]",
+              ativo ? "border-primary/40 text-primary" : "border-border/70",
+            )}
+          >
+            {quantidade}
+          </Badge>
         </button>
+      ) : (
+        <span className="flex h-10 items-center gap-2 text-[0.8125rem] font-medium sm:h-9">
+          <span className="max-w-[14rem] truncate">{nome}</span>
+          <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
+            {quantidade}
+          </Badge>
+        </span>
+      )}
+
+      {/* Esconder da loja passa por confirmação, como o `x` ao lado.
+          Era o único dos três botões do chip que agia no primeiro clique — e é
+          uma ação que muda o que o cliente vê no site, com um alvo de 32px
+          colado no de remover. */}
+      {onAlternarVisibilidade ? (
+        <ConfirmActionDialog
+          trigger={
+            <button
+              type="button"
+              aria-pressed={visivelNaLoja === false}
+              aria-label={visivelNaLoja === false ? `Mostrar ${nome} na loja` : `Esconder ${nome} da loja`}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              {visivelNaLoja === false ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          }
+          title={visivelNaLoja === false ? `Mostrar ${nome} na loja` : `Esconder ${nome} da loja`}
+          description={
+            visivelNaLoja === false
+              ? `"${nome}" volta a aparecer na loja para os clientes.`
+              : `"${nome}" deixa de aparecer na loja. Os ${quantidade} produto(s) continuam no catálogo e encontráveis pela busca.`
+          }
+          confirmLabel={visivelNaLoja === false ? "Mostrar" : "Esconder"}
+          onConfirm={onAlternarVisibilidade}
+        />
       ) : null}
 
       <ConfirmActionDialog

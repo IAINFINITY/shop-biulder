@@ -7,6 +7,8 @@ export type WorkspaceBottomNavItem = {
   id: string;
   label: string;
   icon: LucideIcon;
+  /** Pendencias a resolver nessa secao. Vira o numerinho sobre o icone. */
+  aviso?: number;
 };
 
 /**
@@ -78,7 +80,21 @@ export function WorkspaceBottomNav({
                 ativo ? "text-primary" : "text-muted-foreground active:text-foreground",
               )}
             >
-              <Icone className="h-5 w-5" strokeWidth={ativo ? 2.5 : 2} />
+              <span className="relative">
+                <Icone className="h-5 w-5" strokeWidth={ativo ? 2.5 : 2} />
+                {/* No celular a barra e o unico lugar onde o aviso cabe: a
+                    gaveta esta fechada e o rotulo tem espaco para uma palavra
+                    so. Sem isto, quem atende pelo telefone continuaria sem
+                    saber que tem gente esperando. */}
+                {item.aviso ? (
+                  <span
+                    aria-label={`${item.aviso} pendente(s)`}
+                    className="absolute -right-2 -top-1 min-w-[1rem] rounded-full bg-primary px-1 text-center text-[0.5625rem] font-bold leading-4 text-primary-foreground"
+                  >
+                    {item.aviso > 9 ? "9+" : item.aviso}
+                  </span>
+                ) : null}
+              </span>
               <span className={cn("truncate text-[0.6875rem] font-medium leading-none", ativo && "font-semibold")}>
                 {item.label}
               </span>

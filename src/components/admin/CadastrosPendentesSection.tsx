@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ChevronDown, Loader2, MailWarning, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/apiFetch";
+import { useCadastrosPendentes } from "@/hooks/useCadastrosPendentes";
 import { agruparPorEmpresa, type CadastroPendente } from "@/lib/cadastrosPendentes";
 import { formatDocumentId } from "@/lib/brazilianIds";
 import { cn } from "@/lib/utils";
@@ -38,7 +38,7 @@ function dataCurta(iso: string): string {
 /** Linhas mostradas antes do "ver todos". Cabe na tela sem empurrar a lista de clientes. */
 const LIMITE_VISIVEL = 5;
 
-export function CadastrosPendentesSection() {
+export function CadastrosPendentesSection({ comoAba = false }: { comoAba?: boolean }) {
   const [enviando, setEnviando] = useState<string | null>(null);
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
   /**
@@ -51,19 +51,15 @@ export function CadastrosPendentesSection() {
    * O contador no cabecalho continua visivel fechada — que e a informacao que
    * importa quando nao ha ninguem esperando.
    */
-  const [aberta, setAberta] = useState(false);
+  // Como aba ela **é** a tela: nasce aberta e sem teto de linhas. A versão
+  // recolhida existia porque a seção morava acima da lista de clientes, e com
+  // cem pendentes empurraria o trabalho do dia para fora da tela. Virando aba,
+  // esse problema deixou de existir — e com ele o motivo de recolher.
+  const [aberta, setAberta] = useState(comoAba);
   const [busca, setBusca] = useState("");
   const [mostrarTodos, setMostrarTodos] = useState(false);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["cadastros-pendentes"],
-    staleTime: 60_000,
-    queryFn: async () => {
-      const resposta = await apiFetch("/api/cadastros-pendentes");
-      if (!resposta.ok) throw new Error("Não foi possível consultar os cadastros.");
-      return ((await resposta.json()) as { pendentes: CadastroPendente[] }).pendentes ?? [];
-    },
-  });
+  const { data, isLoading, error, refetch } = useCadastrosPendentes();
 
   const pendentes = data ?? [];
   const grupos = agruparPorEmpresa(pendentes);
@@ -76,7 +72,7 @@ export function CadastrosPendentesSection() {
     : pendentes;
   // Com busca ativa, mostra tudo que casou: quem procurou um e-mail especifico
   // nao pode ter o resultado cortado por um teto pensado para navegacao.
-  const visiveis = mostrarTodos || termo ? filtrados : filtrados.slice(0, LIMITE_VISIVEL);
+  const visiveis = comoAba || mostrarTodos || termo ? filtrados : filtrados.slice(0, LIMITE_VISIVEL);
   const escondidos = filtrados.length - visiveis.length;
 
   const reenviar = async (item: CadastroPendente) => {
@@ -101,7 +97,15 @@ export function CadastrosPendentesSection() {
   };
 
   return (
-    <section className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
+    <section
+      className={
+        comoAba
+          ? // Dentro da aba ela já está no cartão da lista: mais uma moldura
+            // seria caixa dentro de caixa.
+            ""
+          : "rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]"
+      }
+    >
       {/* O cabecalho inteiro abre e fecha. Fechada, a secao ocupa uma linha e
           ainda diz o numero — que e a informacao que importa quando nao ha
           ninguem esperando. */}
@@ -109,6 +113,7 @@ export function CadastrosPendentesSection() {
         type="button"
         onClick={() => setAberta((v) => !v)}
         aria-expanded={aberta}
+        hidden={comoAba}
         className="flex w-full flex-wrap items-center justify-between gap-3 text-left"
       >
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">

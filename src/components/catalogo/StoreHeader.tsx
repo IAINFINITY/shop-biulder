@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { CepLocationButton } from "@/components/catalogo/CepLocationButton";
 import { useDeliveryCep } from "@/hooks/useDeliveryCep";
 import { buildLoginPath } from "@/lib/navigation";
+import { useAvisosNaoLidosDoCliente } from "@/hooks/useAvisosNaoLidosDoCliente";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
 
@@ -295,6 +296,7 @@ export function StoreHeader({
   const navigate = useNavigate();
   const { deliveryCep, saveDeliveryCep } = useDeliveryCep();
   const { user } = useAuth();
+  const avisosNaoLidos = useAvisosNaoLidosDoCliente(user?.id);
   const { ids: favoritosIds } = useWishlist();
   const totalFavoritos = favoritosIds.length;
 
@@ -470,12 +472,24 @@ export function StoreHeader({
               // h-10 e a altura do botao do carrinho ao lado: os dois precisam
               // fechar na mesma linha de base.
               <Link
-                to="/conta"
+                to={avisosNaoLidos > 0 ? "/conta?section=notificacoes" : "/conta"}
                 viewTransition
-                className="hidden h-10 items-center gap-2 rounded-md border border-primary/20 px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10 lg:inline-flex"
+                className="relative hidden h-10 items-center gap-2 rounded-md border border-primary/20 px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10 lg:inline-flex"
               >
                 <User className="h-5 w-5" />
                 Minha conta
+                {/* ⚠️ Com aviso pendente, o link **abre em Notificações**.
+                    Levar ao resumo com um número aceso ao lado seria mostrar o
+                    sinal e esconder o que ele anuncia — a pessoa clicaria de
+                    novo procurando. */}
+                {avisosNaoLidos > 0 ? (
+                  <span
+                    aria-label={`${avisosNaoLidos} aviso(s) não lido(s)`}
+                    className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-semibold tabular-nums text-primary-foreground"
+                  >
+                    {avisosNaoLidos > 9 ? "9+" : avisosNaoLidos}
+                  </span>
+                ) : null}
               </Link>
             ) : (
               <Link

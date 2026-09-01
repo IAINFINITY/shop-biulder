@@ -23,7 +23,6 @@ import { PRODUCT_IMAGE_FRAME } from "@/lib/productImageNormalization";
 import { uploadProductImageFile } from "@/lib/productImageStorage";
 import { cn } from "@/lib/utils";
 import { TEXT } from "@/lib/typography";
-import { AdminSectionHeader } from "./AdminSectionHeader";
 
 type Props = {
   products: Product[];
@@ -191,16 +190,16 @@ export function AdminBulkImagesSection({ products }: Props) {
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
-        eyebrow="Imagens"
-        title="Envio em lote"
-        description="Nomeie os arquivos com o código do produto e envie a pasta inteira de uma vez."
-        actions={
-          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
-            {products.length} produto(s) no catálogo
-          </Badge>
-        }
-      />
+      {/* Sem cabeçalho próprio: a seção Imagens tem um só, acima das abas.
+          Dois empilhados repetiam o mesmo "IMAGENS" com dois títulos. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          Nomeie os arquivos com o código do produto e envie a pasta inteira de uma vez.
+        </p>
+        <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
+          {products.length} produto(s) no catálogo
+        </Badge>
+      </div>
 
       {/* Instrucao escrita para quem fotografa, nao para quem programa.
           A versao anterior falava em "sufixo", "posicao" e "o numero apos _ ou

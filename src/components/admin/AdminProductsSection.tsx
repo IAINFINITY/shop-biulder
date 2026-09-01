@@ -1,4 +1,4 @@
-import { Eye, EyeOff, ImageIcon, Pencil, Plus, Sparkles, Star, TrendingUp, Trash2 } from "lucide-react";
+import { Eye, EyeOff, ImageIcon, Pencil, Plus, Sparkles, Star, TrendingUp, Trash2, Search, SlidersHorizontal, Tag, Package } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -30,10 +30,13 @@ import { PRODUCT_IMAGE_MIN_SIZE } from "@/lib/productImageNormalization";
 import { PRODUCT_FAMILIES_TABLE, makeProductFamilyKey, type ProductFamily } from "@/lib/productFamilies";
 import { PRODUCT_BRANDS_TABLE, type ProductBrand } from "@/lib/productBrands";
 import { cn } from "@/lib/utils";
+import { CARTAO_CLICAVEL, IMAGEM_DO_CARTAO } from "@/lib/interacoes";
 import { produtoTemSubcategoria, subcategoriasDoProduto } from "@/lib/subcategorias";
 import { ChipDeCategoria } from "@/components/admin/ChipDeCategoria";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
-import { AdminSectionHeader } from "./AdminSectionHeader";
+import { AdminPaginacao } from "./AdminPaginacao";
+import { paginar } from "@/lib/paginacao";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import { AdminProductForm } from "./AdminProductForm";
 import { AdminProductPreview } from "./AdminProductPreview";
 import { useProductFamilies } from "@/hooks/useProductFamilies";
@@ -55,7 +58,6 @@ type ProductIssue = "sem-imagem" | "imagem-pequena" | "sem-marca" | "sem-codigo"
 
 const ISSUE_FILTERS: Array<{ id: ProductIssue; label: string }> = [
   { id: "sem-imagem", label: "Sem foto" },
-  { id: "imagem-pequena", label: "Foto abaixo do padrão" },
   { id: "sem-descricao-imagem", label: "Sem descrição de imagem" },
   { id: "sem-marca", label: "Sem marca" },
   { id: "sem-codigo", label: "Sem código" },
@@ -158,11 +160,28 @@ export function AdminProductsSection({
   const [newFamily, setNewFamily] = useState("");
   const [newBrand, setNewBrand] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [pagina, setPagina] = useState(0);
+  const [organizarAberto, setOrganizarAberto] = useState(false);
+  const [buscaSubcategoria, setBuscaSubcategoria] = useState("");
+
   const [initialEditing, setInitialEditing] = useState<AdminProductFormState | null>(null);
   const editingRef = useRef<AdminProductFormState | null>(null);
   const queryClient = useQueryClient();
   const editingKey = editing ? editing.id ?? "__new__" : "__none__";
   const { data: productFamilies = [] } = useProductFamilies();
+
+  /**
+   * A lista de subcategorias com a busca aplicada.
+   *
+   * São 40 hoje e o catálogo só cresce; a 100 a lista vira uma parede de
+   * etiquetas onde achar uma é varrer com o olho. Com busca e altura limitada,
+   * a caixa deixa de crescer junto com o cadastro.
+   */
+  const subcategoriasFiltradas = useMemo(() => {
+    const termo = buscaSubcategoria.trim().toLowerCase();
+    if (!termo) return productFamilies;
+    return productFamilies.filter((family) => family.name.toLowerCase().includes(termo));
+  }, [productFamilies, buscaSubcategoria]);
   const { data: productBrands = [] } = useProductBrands();
   const typeUsage = useMemo(() => {
     const usage = new Map<string, number>();
@@ -317,6 +336,15 @@ export function AdminProductsSection({
     return products;
   }, [filteredProducts, filtroFamilia, filtroTipo, productListFilter, salesByProductId]);
 
+  /**
+   * A lista inteira virava 147 cartões numa rolagem só.
+   *
+   * `paginar` prende a página pedida no intervalo válido, então mudar de filtro
+   * com a página 5 aberta não deixa a tela em branco — não é preciso zerar a
+   * página em cada `setFiltro`, que era onde isso costumava ser esquecido.
+   */
+  const paginaDeProdutos = useMemo(() => paginar(visibleProducts, pagina), [visibleProducts, pagina]);
+
   const requestClose = () => {
     if (!editing) return;
     if (hasUnsavedChanges) {
@@ -422,7 +450,7 @@ export function AdminProductsSection({
 
   return (
     <div className="space-y-6">
-      <AdminSectionHeader
+      <SectionHeader
         eyebrow="Produtos"
         title={title}
         description="Pesquise, atualize e cadastre produtos sem sair da mesma tela."
@@ -433,270 +461,76 @@ export function AdminProductsSection({
         }
       />
 
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Categorias do catálogo
-            </p>
-            <p className="text-sm text-foreground">Crie e remova as categorias principais usadas no seletor dos produtos.</p>
-            <p className="text-xs text-muted-foreground">
-              A exclusão remove apenas a opção da lista, não altera os produtos já salvos.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
-              {adminTypes.length} categoria(s)
-            </Badge>
-            <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={onAddType}>
-              <Plus className="h-4 w-4" />
-              Adicionar
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <Input
-            placeholder="Nova categoria"
-            value={newType}
-            onChange={(e) => onNewTypeChange(e.target.value)}
-            className="h-11 rounded-2xl border-border/70 bg-background"
-          />
-
-          <div className="flex flex-wrap gap-2">
-            {adminTypes.length > 0 ? (
-              adminTypes.map((type) => {
-                const count = typeUsage.get(type.name) ?? 0;
-                const ativo = filtroTipo === type.name.trim();
-                return (
-                  <ChipDeCategoria
-                    key={type.id}
-                    nome={type.name}
-                    quantidade={count}
-                    ativo={ativo}
-                    onFiltrar={() => setFiltroTipo(ativo ? null : type.name.trim())}
-                    rotuloRemover={`Remover categoria ${type.name}`}
-                    tituloRemover="Remover categoria"
-                    descricaoRemover={
-                      /**
-                       * O texto muda conforme a categoria tenha produtos, e a
-                       * diferenca e real — nao e enfeite.
-                       *
-                       * A loja monta a lista de categorias a partir do `type` de
-                       * cada produto, e nao desta tabela. Com produtos dentro,
-                       * apagar aqui **nao tira a categoria do site**: ela
-                       * reaparece derivada deles. Foi exatamente isso que o time
-                       * de design viveu antes de perguntar como remover.
-                       *
-                       * Sem produtos, nao ha de onde derivar, e apagar some
-                       * mesmo. Dizer a mesma coisa nos dois casos deixaria um
-                       * dos dois errado.
-                       */
-                      <>
-                        <span className="block">Deseja remover a categoria "{type.name}"?</span>
-                        {count > 0 ? (
-                          <>
-                            <span className="mt-2 block text-muted-foreground">
-                              Isso tira a opção do seletor de cadastro. Os {count} produto(s) continuam com o
-                              tipo salvo — e por isso a categoria <strong className="font-medium text-foreground">continua
-                              aparecendo na loja</strong>.
-                            </span>
-                            <span className="mt-2 block text-muted-foreground">
-                              Para sumir com ela da loja sem mexer nos produtos, use o botão de olho no chip.
-                            </span>
-                          </>
-                        ) : (
-                          <span className="mt-2 block text-muted-foreground">
-                            Nenhum produto usa esta categoria, então ela sai do seletor e também da loja.
-                          </span>
-                        )}
-                      </>
-                    }
-                    onRemover={() => onDeleteType(type.id)}
-                    visivelNaLoja={type.visivel !== false}
-                    onAlternarVisibilidade={
-                      onToggleTypeVisivel
-                        ? () => onToggleTypeVisivel(type.id, type.visivel === false)
-                        : undefined
-                    }
-                  />
-                );
-              })
-            ) : (
-              <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
-                Nenhuma categoria cadastrada
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Subcategorias do catálogo
-            </p>
-            <p className="text-sm text-foreground">
-              Descrevem o que o produto é: Camomila, Creatina, Whey.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              A mesma subcategoria serve qualquer categoria — cadastre uma vez só. Remova apenas
-              depois de reatribuir os produtos que ainda a usam.
-            </p>
-          </div>
+        {/* Busca e filtros numa linha só, e no mesmo cartão da lista.
+            Antes a busca era um cartão e a lista era outro, com categoria,
+            subcategoria e marca em mais três cartões acima — cinco caixas
+            empilhadas antes de chegar no produto, que é o assunto da tela.
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
-              {productFamilies.length} subcategoria(s)
-            </Badge>
-          </div>
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <Input
-            placeholder="Nova subcategoria"
-            value={newFamily}
-            onChange={(e) => setNewFamily(e.target.value)}
-            className="h-11 rounded-2xl border-border/70 bg-background"
-          />
-
-          <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={addFamily}>
-            <Plus className="h-4 w-4" />
-            Adicionar
-          </Button>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {productFamilies.length > 0 ? (
-            productFamilies.map((family) => {
-              const count = familyUsage.get(makeProductFamilyKey(family.name)) ?? 0;
-              const ativo = filtroFamilia === family.name.trim();
-              return (
-                <ChipDeCategoria
-                  key={family.id}
-                  nome={family.name}
-                  quantidade={count}
-                  ativo={ativo}
-                  onFiltrar={() => setFiltroFamilia(ativo ? null : family.name.trim())}
-                  rotuloRemover={`Remover subcategoria ${family.name}`}
-                  tituloRemover="Remover subcategoria"
-                  descricaoRemover={
-                    <>
-                      <span className="block">Deseja remover a subcategoria "{family.name}"?</span>
-                      <span className="mt-2 block text-muted-foreground">
-                        {count > 0
-                          ? `Ela está em uso por ${count} produto(s). Reatribua antes de excluir.`
-                          : "Essa ação remove apenas a opção da lista administrativa."}
-                      </span>
-                    </>
-                  }
-                  onRemover={() => deleteFamily(family)}
-                />
-              );
-            })
-          ) : (
-            <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
-              Nenhuma subcategoria cadastrada
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Marcas do catálogo
-            </p>
-            <p className="text-sm text-foreground">Quem assina o produto: Chá Mais, Clinic Mais.</p>
-            <p className="text-xs text-muted-foreground">
-              A marca é independente da categoria — a mesma marca pode ter chá, cápsula e solúvel.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
-              {productBrands.length} marca(s)
-            </Badge>
-            {productsWithoutBrand > 0 ? (
-              <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[0.6875rem] font-medium text-amber-800">
-                {productsWithoutBrand} produto(s) sem marca
-              </Badge>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-          <Input
-            placeholder="Nova marca"
-            value={newBrand}
-            onChange={(e) => setNewBrand(e.target.value)}
-            className="h-11 rounded-2xl border-border/70 bg-background"
-          />
-
-          <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={addBrand}>
-            <Plus className="h-4 w-4" />
-            Adicionar
-          </Button>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {productBrands.length > 0 ? (
-            productBrands.map((brand) => {
-              const count = brandUsage.get(brand.name.toLowerCase()) ?? 0;
-              return (
-                <ConfirmActionDialog
-                  key={brand.id}
-                  trigger={
-                    <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
-                      <span className="max-w-[14rem] truncate">{brand.name}</span>
-                      <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
-                        {count}
-                      </Badge>
-                    </Button>
-                  }
-                  title="Remover marca"
-                  description={
-                    <>
-                      <span className="block">Deseja remover a marca "{brand.name}"?</span>
-                      <span className="mt-2 block text-muted-foreground">
-                        {count > 0
-                          ? `Ela está em uso por ${count} produto(s). Reatribua antes de excluir.`
-                          : "Essa ação remove apenas a opção da lista administrativa."}
-                      </span>
-                    </>
-                  }
-                  confirmLabel="Remover"
-                  destructive
-                  onConfirm={() => deleteBrand(brand)}
-                />
-              );
-            })
-          ) : (
-            <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
-              Nenhuma marca cadastrada
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            Categoria e subcategoria viraram seletor porque eram parede de
+            etiqueta: são 3 categorias, mas 40 subcategorias, e o catálogo cresce.
+            Etiqueta funciona enquanto cabe numa linha; passando disso, vira
+            texto para varrer com o olho. */}
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-center">
           <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
             <Input
-              placeholder="Pesquisar produto (nome, família, tipo)"
+              placeholder="Buscar por nome, código ou marca"
               value={productSearch}
               onChange={(e) => onProductSearchChange(e.target.value)}
-              className="h-11 rounded-2xl border-border/70 bg-background pr-20 text-[0.8125rem]"
+              className="h-11 rounded-2xl border-border/70 bg-background pl-9 pr-16 text-[0.8125rem]"
             />
             <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[0.6875rem] font-medium text-muted-foreground">
-              {visibleProducts.length} itens
+              {visibleProducts.length}
             </div>
           </div>
 
-          <Button onClick={onStartNew} className="h-10 rounded-2xl px-4 text-sm">
+          <Select
+            value={filtroTipo ?? "__todas__"}
+            onValueChange={(v) => setFiltroTipo(v === "__todas__" ? null : v)}
+          >
+            <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]">
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__todas__">Todas as categorias</SelectItem>
+              {adminTypes.map((type) => (
+                <SelectItem key={type.id} value={type.name.trim()}>
+                  {type.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={filtroFamilia ?? "__todas__"}
+            onValueChange={(v) => setFiltroFamilia(v === "__todas__" ? null : v)}
+          >
+            <SelectTrigger className="h-11 rounded-2xl border-border/70 bg-background text-[0.8125rem]">
+              <SelectValue placeholder="Subcategoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__todas__">Todas as subcategorias</SelectItem>
+              {productFamilies.map((family) => (
+                <SelectItem key={family.id} value={family.name.trim()}>
+                  {family.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setOrganizarAberto(true)}
+            className="h-11 rounded-2xl px-4 text-sm"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Organizar
+          </Button>
+
+          <Button onClick={onStartNew} className="h-11 rounded-2xl px-4 text-sm">
             <Plus className="h-4 w-4" />
             Novo produto
           </Button>
@@ -799,15 +633,7 @@ export function AdminProductsSection({
             ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-foreground">Atualize status, fotos e dados internos com rapidez.</p>
-          <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
-            {visibleProducts.length} produto(s)
-          </Badge>
-        </div>
+        <div className="mt-5 border-t border-border/70 pt-5">
 
         {isLoading ? (
           <div className="space-y-3 rounded-[1.25rem] border border-dashed border-border/70 p-4">
@@ -836,7 +662,7 @@ export function AdminProductsSection({
           </div>
         ) : (
           <div className="space-y-2">
-            {visibleProducts.map((p) => {
+            {paginaDeProdutos.itens.map((p) => {
               const thumb = getProductImageUrls(p)[0];
               const isEditing = editing?.id === p.id;
 
@@ -844,15 +670,17 @@ export function AdminProductsSection({
                 <div
                   key={p.id}
                   className={cn(
-                    "flex flex-col gap-4 rounded-[1.2rem] border p-4 transition-colors sm:flex-row sm:items-center",
-                    isEditing ? "border-primary/30 bg-primary/5" : "border-border/70 bg-card hover:bg-muted/20",
+                    "group flex flex-col gap-4 rounded-[1.2rem] border p-4 sm:flex-row sm:items-center",
+                    // `hover:bg-muted/20` estava aqui e era invisivel: 20% de um
+                    // cinza que ja e quase branco, sobre fundo branco.
+                    isEditing ? "border-primary/30 bg-primary/5" : cn("border-border/70 bg-card", CARTAO_CLICAVEL),
                     !p.active && "opacity-70",
                   )}
                 >
                   <div className="flex items-center gap-3 sm:min-w-0 sm:flex-1">
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border border-border bg-background">
                       {thumb ? (
-                        <img src={thumb} alt={p.name} className="h-full w-full object-contain p-1.5" />
+                        <img src={thumb} alt={p.name} className={cn("h-full w-full object-contain p-1.5", IMAGEM_DO_CARTAO)} />
                       ) : (
                         <ImageIcon className="h-5 w-5 text-muted-foreground/35" />
                       )}
@@ -903,9 +731,26 @@ export function AdminProductsSection({
                   </div>
 
                   <div className="flex items-center gap-2 sm:shrink-0">
-                    <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 rounded-full" onClick={() => onToggleActive(p.id, p.active)}>
-                      {p.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    </Button>
+                    {/* Tirar produto do ar era um clique só, sem volta e sem
+                        aviso: o botão fica ao lado do de editar e a diferença
+                        entre os dois é um ícone. Todo o resto da tela já pede
+                        confirmação para o que muda o que o cliente vê. */}
+                    <ConfirmActionDialog
+                      trigger={
+                        <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 rounded-full">
+                          {p.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </Button>
+                      }
+                      title={p.active ? "Tirar do catálogo" : "Publicar no catálogo"}
+                      description={
+                        p.active
+                          ? `"${p.name}" deixa de aparecer para os clientes. O cadastro e o preço continuam salvos.`
+                          : `"${p.name}" volta a aparecer para os clientes no catálogo.`
+                      }
+                      confirmLabel={p.active ? "Tirar do catálogo" : "Publicar"}
+                      destructive={p.active}
+                      onConfirm={() => onToggleActive(p.id, p.active)}
+                    />
                     <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-9 sm:w-9 rounded-full" onClick={() => onStartEdit(p)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -927,7 +772,283 @@ export function AdminProductsSection({
             })}
           </div>
         )}
+
+        <AdminPaginacao pagina={paginaDeProdutos} onMudarPagina={setPagina} />
+        </div>
       </div>
+
+      {/* Criar e renomear categoria, subcategoria e marca é trabalho ocasional,
+          e ocupava os três primeiros cartões da tela — antes de qualquer
+          produto aparecer. Aqui continua a um clique, sem disputar espaço com o
+          assunto da página. */}
+      <Dialog open={organizarAberto} onOpenChange={setOrganizarAberto}>
+        <DialogContent className="max-h-[88dvh] w-[min(96vw,60rem)] max-w-[60rem] overflow-y-auto rounded-[1.75rem] border-border/70">
+          <DialogHeader>
+            <DialogTitle className="text-left text-lg font-semibold tracking-tight">Organizar catálogo</DialogTitle>
+            <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
+              Categorias, subcategorias e marcas que os produtos usam.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+          <div className="rounded-[1.25rem] border border-border/70 bg-card p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Marcas</p>
+                  <p className="text-xs leading-5 text-muted-foreground">Quem assina o produto. Independe da categoria.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
+                  {productBrands.length} marca(s)
+                </Badge>
+                {productsWithoutBrand > 0 ? (
+                  <Badge className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[0.6875rem] font-medium text-amber-800">
+                    {productsWithoutBrand} produto(s) sem marca
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <Input
+                placeholder="Nova marca"
+                value={newBrand}
+                onChange={(e) => setNewBrand(e.target.value)}
+                className="h-11 rounded-2xl border-border/70 bg-background"
+              />
+
+              <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={addBrand}>
+                <Plus className="h-4 w-4" />
+                Adicionar
+              </Button>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {productBrands.length > 0 ? (
+                productBrands.map((brand) => {
+                  const count = brandUsage.get(brand.name.toLowerCase()) ?? 0;
+                  return (
+                    <ConfirmActionDialog
+                      key={brand.id}
+                      trigger={
+                        <Button type="button" variant="secondary" className="h-10 sm:h-9 gap-2 rounded-full px-3 text-[0.8125rem] sm:text-xs">
+                          <span className="max-w-[14rem] truncate">{brand.name}</span>
+                          <Badge variant="outline" className="rounded-full border-border/70 px-2 py-0.5 text-[0.625rem]">
+                            {count}
+                          </Badge>
+                        </Button>
+                      }
+                      title="Remover marca"
+                      description={
+                        <>
+                          <span className="block">Deseja remover a marca "{brand.name}"?</span>
+                          <span className="mt-2 block text-muted-foreground">
+                            {count > 0
+                              ? `Ela está em uso por ${count} produto(s). Reatribua antes de excluir.`
+                              : "Essa ação remove apenas a opção da lista administrativa."}
+                          </span>
+                        </>
+                      }
+                      confirmLabel="Remover"
+                      destructive
+                      onConfirm={() => deleteBrand(brand)}
+                    />
+                  );
+                })
+              ) : (
+                <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
+                  Nenhuma marca cadastrada
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-[1.25rem] border border-border/70 bg-card p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Package className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Categorias</p>
+                  <p className="text-xs leading-5 text-muted-foreground">Como o produto se consome: chá, cápsula, solúvel.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
+                  {adminTypes.length} categoria(s)
+                </Badge>
+                <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={onAddType}>
+                  <Plus className="h-4 w-4" />
+                  Adicionar
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <Input
+                placeholder="Nova categoria"
+                value={newType}
+                onChange={(e) => onNewTypeChange(e.target.value)}
+                className="h-11 rounded-2xl border-border/70 bg-background"
+              />
+
+              <div className="flex flex-wrap gap-2">
+                {adminTypes.length > 0 ? (
+                  adminTypes.map((type) => {
+                    const count = typeUsage.get(type.name) ?? 0;
+                    const ativo = filtroTipo === type.name.trim();
+                    return (
+                      <ChipDeCategoria
+                        key={type.id}
+                        nome={type.name}
+                        quantidade={count}
+                        ativo={ativo}
+                        rotuloRemover={`Remover categoria ${type.name}`}
+                        tituloRemover="Remover categoria"
+                        descricaoRemover={
+                          /**
+                           * O texto muda conforme a categoria tenha produtos, e a
+                           * diferenca e real — nao e enfeite.
+                           *
+                           * A loja monta a lista de categorias a partir do `type` de
+                           * cada produto, e nao desta tabela. Com produtos dentro,
+                           * apagar aqui **nao tira a categoria do site**: ela
+                           * reaparece derivada deles. Foi exatamente isso que o time
+                           * de design viveu antes de perguntar como remover.
+                           *
+                           * Sem produtos, nao ha de onde derivar, e apagar some
+                           * mesmo. Dizer a mesma coisa nos dois casos deixaria um
+                           * dos dois errado.
+                           */
+                          <>
+                            <span className="block">Deseja remover a categoria "{type.name}"?</span>
+                            {count > 0 ? (
+                              <>
+                                <span className="mt-2 block text-muted-foreground">
+                                  Isso tira a opção do seletor de cadastro. Os {count} produto(s) continuam com o
+                                  tipo salvo — e por isso a categoria <strong className="font-medium text-foreground">continua
+                                  aparecendo na loja</strong>.
+                                </span>
+                                <span className="mt-2 block text-muted-foreground">
+                                  Para sumir com ela da loja sem mexer nos produtos, use o botão de olho no chip.
+                                </span>
+                              </>
+                            ) : (
+                              <span className="mt-2 block text-muted-foreground">
+                                Nenhum produto usa esta categoria, então ela sai do seletor e também da loja.
+                              </span>
+                            )}
+                          </>
+                        }
+                        onRemover={() => onDeleteType(type.id)}
+                        visivelNaLoja={type.visivel !== false}
+                        onAlternarVisibilidade={
+                          onToggleTypeVisivel
+                            ? () => onToggleTypeVisivel(type.id, type.visivel === false)
+                            : undefined
+                        }
+                      />
+                    );
+                  })
+                ) : (
+                  <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
+                    Nenhuma categoria cadastrada
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[1.25rem] border border-border/70 bg-card p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Tag className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">Subcategorias</p>
+                  <p className="text-xs leading-5 text-muted-foreground">O que o produto é: camomila, creatina, whey.</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="rounded-full border-border/70 bg-background px-3 py-1 text-[0.6875rem] font-medium">
+                  {productFamilies.length} subcategoria(s)
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <Input
+                placeholder="Nova subcategoria"
+                value={newFamily}
+                onChange={(e) => setNewFamily(e.target.value)}
+                className="h-11 rounded-2xl border-border/70 bg-background"
+              />
+
+              <Button type="button" variant="outline" className="h-10 rounded-2xl px-4 text-sm" onClick={addFamily}>
+                <Plus className="h-4 w-4" />
+                Adicionar
+              </Button>
+            </div>
+
+            {productFamilies.length > 8 ? (
+              <div className="relative mt-4">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                <Input
+                  value={buscaSubcategoria}
+                  onChange={(e) => setBuscaSubcategoria(e.target.value)}
+                  placeholder={`Buscar entre ${productFamilies.length} subcategorias`}
+                  className="h-10 rounded-2xl border-border/70 bg-background pl-9 text-[0.8125rem]"
+                />
+              </div>
+            ) : null}
+
+            <div className="mt-3 flex max-h-64 flex-wrap gap-2 overflow-y-auto pr-1">
+              {subcategoriasFiltradas.length > 0 ? (
+                subcategoriasFiltradas.map((family) => {
+                  const count = familyUsage.get(makeProductFamilyKey(family.name)) ?? 0;
+                  const ativo = filtroFamilia === family.name.trim();
+                  return (
+                    <ChipDeCategoria
+                      key={family.id}
+                      nome={family.name}
+                      quantidade={count}
+                      ativo={ativo}
+                      rotuloRemover={`Remover subcategoria ${family.name}`}
+                      tituloRemover="Remover subcategoria"
+                      descricaoRemover={
+                        <>
+                          <span className="block">Deseja remover a subcategoria "{family.name}"?</span>
+                          <span className="mt-2 block text-muted-foreground">
+                            {count > 0
+                              ? `Ela está em uso por ${count} produto(s). Reatribua antes de excluir.`
+                              : "Essa ação remove apenas a opção da lista administrativa."}
+                          </span>
+                        </>
+                      }
+                      onRemover={() => deleteFamily(family)}
+                    />
+                  );
+                })
+              ) : (
+                <div className="rounded-full border border-dashed border-border/70 px-4 py-2 text-xs text-muted-foreground">
+                  {buscaSubcategoria.trim() ? "Nenhuma subcategoria com esse nome" : "Nenhuma subcategoria cadastrada"}
+                </div>
+              )}
+            </div>
+          </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(editing)}

@@ -14,7 +14,18 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ConfirmActionDialogProps = {
-  trigger: ReactElement;
+  /**
+   * O elemento que abre o diálogo. Opcional no modo controlado.
+   *
+   * Nem toda confirmação nasce de um botão: mudar o estado de um pedido nasce de
+   * um seletor, e ali a escolha já aconteceu quando o diálogo precisa aparecer.
+   * Sem o modo controlado, a única saída seria um segundo componente de
+   * confirmação — e duas confirmações no mesmo painel divergem.
+   */
+  trigger?: ReactElement;
+  /** Modo controlado: quem chama decide quando abre. */
+  aberto?: boolean;
+  onAbertoChange?: (aberto: boolean) => void;
   title: string;
   description: ReactNode;
   confirmLabel: string;
@@ -26,6 +37,8 @@ type ConfirmActionDialogProps = {
 
 export function ConfirmActionDialog({
   trigger,
+  aberto,
+  onAbertoChange,
   title,
   description,
   confirmLabel = "Confirmar",
@@ -34,8 +47,16 @@ export function ConfirmActionDialog({
   destructive = false,
   onConfirm,
 }: ConfirmActionDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [abertoInterno, setAbertoInterno] = useState(false);
   const [pending, setPending] = useState(false);
+
+  // Controlado quando `aberto` vem de fora; senão, o estado é daqui.
+  const controlado = aberto !== undefined;
+  const open = controlado ? aberto : abertoInterno;
+  const setOpen = (valor: boolean) => {
+    if (controlado) onAbertoChange?.(valor);
+    else setAbertoInterno(valor);
+  };
 
   useEffect(() => {
     if (!open) {
@@ -56,7 +77,7 @@ export function ConfirmActionDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger ? <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger> : null}
 
       <AlertDialogContent className="max-w-[28rem] rounded-[1.5rem] border-border/70">
         <AlertDialogHeader className="text-left">

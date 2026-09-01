@@ -1,8 +1,7 @@
 ﻿import { useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock, RotateCcw, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Eye, FileSpreadsheet, FileText, FileType2, RotateCcw, Trash2, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OrderItemsTable } from "@/components/admin/OrderItemsTable";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
@@ -19,6 +18,8 @@ import {
 } from "@/lib/proxisOrderStatus";
 import {
   ESTADOS_DO_PEDIDO,
+  EXPLICACAO_PARA_O_CLIENTE,
+  type StatusDoPedido,
   ROTULOS,
   VALORES_GRAVADOS,
   classeDoStatus,
@@ -26,6 +27,7 @@ import {
   rotuloDoStatus,
 } from "@/lib/statusDoPedido";
 import { cn } from "@/lib/utils";
+import { CARTAO_CLICAVEL } from "@/lib/interacoes";
 
 export type OrderAdminCardPayload = {
   id: string;
@@ -74,12 +76,12 @@ type Props = {
   formatDate: (value: string) => string;
   isProxisExporting: boolean;
   onExportProxis: () => void;
-  isProxisResending: boolean;
-  onResendProxis: () => void;
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onDelete: () => void;
   onStatusChange?: (orderId: string, status: string) => void;
+  /** Abre a tela do pedido. */
+  onAbrirDetalhe?: () => void;
 };
 
 export function OrderAdminCard({
@@ -91,15 +93,23 @@ export function OrderAdminCard({
   formatDate,
   isProxisExporting,
   onExportProxis,
-  isProxisResending,
-  onResendProxis,
   onExportXlsx,
   onExportPdf,
   onDelete,
   onStatusChange,
+  onAbrirDetalhe,
 }: Props) {
-  const [open, setOpen] = useState(false);
   const itemLabel = lines.length === 1 ? "1 item" : `${lines.length} itens`;
+  /**
+   * O estado que o atendimento escolheu, ainda não gravado.
+   *
+   * Mudar o estado passa a ser uma decisão confirmada, e não um clique no
+   * seletor. O motivo não é o risco de errar o clique: é que a partir de agora
+   * **o cliente vê** — o estado aparece na conta dele com uma explicação do que
+   * significa. Trocar por engano manda uma informação errada para fora.
+   */
+  const [estadoPretendido, setEstadoPretendido] = useState<StatusDoPedido | null>(null);
+
   const syncStatus = normalizeProxisSyncStatus(order.proxis_status);
   const syncBadge = PROXIS_SYNC_BADGE[syncStatus];
   const SyncIcon = syncBadge.icon;
@@ -109,23 +119,21 @@ export function OrderAdminCard({
   const syncAttempts = typeof order.proxis_attempts === "number" ? order.proxis_attempts : 0;
 
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="rounded-[1.25rem] border border-border/70 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-[0_8px_24px_rgba(16,24,40,0.06)]"
+    /* A gaveta saiu em 31/08/2026.
+       Ela abria uma lista de dois itens de um pedido que pode ter dezenas —
+       respondia "quantos", nunca "quais". Quem precisa do pedido inteiro agora
+       vai para a tela dele, em "Ver pedido". Manter as duas seria oferecer uma
+       resposta pela metade ao lado da resposta inteira. */
+    <div
+      className={cn(
+        "group rounded-[1.25rem] border border-border/70 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+        // Tinha `hover:shadow` sozinho: a sombra mudava de 4% para 6% de preto,
+        // uma diferenca que so aparece em captura de tela lado a lado.
+        CARTAO_CLICAVEL,
+      )}
     >
       <div className="space-y-3 p-3 sm:p-4">
         <div className="flex gap-2 sm:gap-3">
-          <CollapsibleTrigger asChild>
-            <button
-              type="button"
-              className="mt-0.5 flex h-10 sm:h-9 w-10 sm:w-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-expanded={open}
-              aria-label={open ? "Recolher pedido" : "Expandir pedido"}
-            >
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")} />
-            </button>
-          </CollapsibleTrigger>
 
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -137,9 +145,7 @@ export function OrderAdminCard({
                 {onStatusChange ? (
                   <Select
                     value={normalizarStatusDoPedido(order.status)}
-                    onValueChange={(estado) =>
-                      onStatusChange(order.id, VALORES_GRAVADOS[estado as keyof typeof VALORES_GRAVADOS])
-                    }
+                    onValueChange={(estado) => setEstadoPretendido(estado as StatusDoPedido)}
                   >
                     <SelectTrigger
                       className={cn(
@@ -208,25 +214,35 @@ export function OrderAdminCard({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 pl-10 sm:pl-11">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* A porta para a tela do pedido.
+              A gaveta abaixo continua, para a espiada rápida; quem precisa
+              conferir o pedido inteiro vem por aqui. */}
+          {onAbrirDetalhe ? (
+            <Button
+              type="button"
+              size="sm"
+              className="h-10 gap-1 rounded-full px-3 text-[0.8125rem] sm:h-8 sm:text-xs"
+              onClick={onAbrirDetalhe}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Ver pedido
+            </Button>
+          ) : null}
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisExporting} onClick={onExportProxis}>
-            <img src="/icons/txt-file.png" alt="" className="h-3.5 w-3.5" />
+            {/* Ícone do sistema, não PNG.
+                Os três arquivos existem em `public/icons` e o caminho estava
+                certo, mas imagem solta some por cache, por 404 silencioso e não
+                acompanha a cor do botão nem o tema. Todo o resto do painel usa
+                lucide; três PNGs de 9KB para um ícone de 14px eram a exceção. */}
+            <FileText className="h-3.5 w-3.5" />
             {isProxisExporting ? "Gerando..." : "FOCCO .txt"}
           </Button>
-          {/* "Reenviar Proxis" nao aparece em pedido de funcionario: nao ha o
-              que reenviar, e o botao convidaria a desfazer a decisao de 25/08
-              — o pedido subiria carimbado com a 8728. */}
-          {naoVaiAoErp ? null : (
-            <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisResending} onClick={onResendProxis}>
-              <RotateCcw className="h-3.5 w-3.5" />
-              {isProxisResending ? "Enviando..." : "Reenviar Proxis"}
-            </Button>
-          )}
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={onExportXlsx}>
-            <img src="/icons/xls.png" alt="" className="h-3.5 w-3.5" /> Excel
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
           </Button>
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={onExportPdf}>
-            <img src="/icons/pdf.png" alt="" className="h-3.5 w-3.5" /> PDF
+            <FileType2 className="h-3.5 w-3.5" /> PDF
           </Button>
           <ConfirmActionDialog
             trigger={
@@ -244,81 +260,41 @@ export function OrderAdminCard({
         </div>
       </div>
 
-      <CollapsibleContent className="border-t border-border/70">
-        <div className="space-y-3 p-3 pt-3 sm:p-4">
-          <p className="text-[0.6875rem] text-muted-foreground">
-            Telefone: <span className="text-foreground">{order.customer_phone || "—"}</span>
-          </p>
+      {/* ⚠️ **Este diálogo não existia.**
+          O seletor gravava `estadoPretendido` e mais nada acontecia: nenhuma
+          confirmação, nenhum salvamento. O comentário na declaração do estado
+          já descrevia o diálogo — ele só nunca chegou a ser escrito, e mudar o
+          estado de um pedido simplesmente não funcionava.
 
-          {naoVaiAoErp ? (
-            <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Pedido de funcionário
-              </p>
-              <p className="mt-1 text-[0.8125rem] leading-6 text-foreground">
-                Preço da tabela <strong>Clinic 2026 Funcionários</strong>, que existe só aqui — não há
-                tabela equivalente no Proxis. Por isso este pedido <strong>não sobe ao ERP</strong> e
-                não entra na fila de reconciliação. Separação e faturamento seguem por fora.
-              </p>
-            </div>
-          ) : null}
-
-          {!naoVaiAoErp && syncStatus !== PROXIS_SYNC_SENT && syncStatus !== PROXIS_SYNC_LEGACY ? (
-            <div
-              className={cn(
-                "rounded-2xl border p-3",
-                syncStatus === PROXIS_SYNC_ERROR
-                  ? "border-red-200 bg-red-50/60"
-                  : "border-amber-200 bg-amber-50/60",
-              )}
-            >
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Sincronia com o Proxis
-              </p>
-              <p className="mt-1 text-[0.8125rem] leading-6 text-foreground">
-                {syncStatus === PROXIS_SYNC_ERROR
-                  ? "O ERP recusou este pedido. Corrija o motivo abaixo antes de reenviar."
-                  : "Este pedido ainda não foi confirmado no ERP. Use “Reenviar Proxis” — o reenvio não duplica."}
-              </p>
-              {syncError ? (
-                <p className="mt-2 whitespace-pre-wrap break-words rounded-xl bg-background/70 p-2 font-mono text-[0.6875rem] leading-5 text-muted-foreground">
-                  {syncError}
-                </p>
-              ) : null}
-              {syncAttempts > 0 ? (
-                <p className="mt-2 text-[0.6875rem] text-muted-foreground">
-                  {syncAttempts} tentativa(s)
-                  {order.proxis_last_attempt_at
-                    ? ` · última em ${formatDate(order.proxis_last_attempt_at)}`
-                    : ""}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {order.proxis_doc_ped_web ? (
-            <p className="text-[0.6875rem] text-muted-foreground">
-              Documento no ERP: <span className="font-mono text-foreground">{order.proxis_doc_ped_web}</span>
-            </p>
-          ) : null}
-          {order.customer_observation?.trim() ? (
-            <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Observação do pedido
-              </p>
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
-                {order.customer_observation.trim()}
-              </p>
-            </div>
-          ) : null}
-          <OrderItemsTable lines={lines} maxBodyHeight="max-h-52" />
-          {order.total_items !== orderQty ? (
-            <p className="text-[0.6875rem] text-muted-foreground">
-              Quantidade registrada no envio: {order.total_items}
-            </p>
-          ) : null}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+          Ele é controlado por `estadoPretendido` em vez de ter `trigger`
+          próprio, porque quem o abre é a escolha no `Select`, e não um botão. */}
+      <ConfirmActionDialog
+        aberto={estadoPretendido !== null}
+        onAbertoChange={(aberto) => {
+          if (!aberto) setEstadoPretendido(null);
+        }}
+        title={`Mudar para "${estadoPretendido ? ROTULOS[estadoPretendido] : ""}"?`}
+        description={
+          <>
+            {/* A frase exata que o cliente vai ler na conta dele. Sem mostrá-la
+                aqui, quem decide o estado nunca vê o que a decisão comunica —
+                e foi essa distância que gerou a reclamação de 31/08. */}
+            O cliente passa a ver, na conta dele:
+            <br />
+            <br />
+            <strong>
+              “{estadoPretendido ? EXPLICACAO_PARA_O_CLIENTE[estadoPretendido] : ""}”
+            </strong>
+          </>
+        }
+        confirmLabel="Mudar estado"
+        processingLabel="Mudando..."
+        onConfirm={async () => {
+          if (!estadoPretendido || !onStatusChange) return;
+          await onStatusChange(order.id, estadoPretendido);
+          setEstadoPretendido(null);
+        }}
+      />
+    </div>
   );
 }

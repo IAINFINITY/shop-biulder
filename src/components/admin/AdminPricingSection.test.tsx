@@ -1,6 +1,7 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 /**
@@ -77,16 +78,52 @@ const PRODUTOS = [
 
 function montar() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // `MemoryRouter` porque a tela guarda a tabela aberta na URL — é o que faz o
+  // botão "voltar" do navegador fechar a tabela em vez de sair do painel.
   return render(
-    <QueryClientProvider client={queryClient}>
-      <AdminPricingSection products={PRODUTOS} onRefreshPricing={vi.fn()} />
-    </QueryClientProvider>,
+    <MemoryRouter initialEntries={["/admin?section=precos"]}>
+      <QueryClientProvider client={queryClient}>
+        <AdminPricingSection products={PRODUTOS} onRefreshPricing={vi.fn()} onVerContasDaTabela={vi.fn()} />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
+/**
+ * A tela agora entra pela lista de tabelas, não pela lista de produtos.
+ *
+ * Antes o seletor de escopo já vinha em "Tipo de cliente / cliente" e a lista de
+ * produtos aparecia de cara. Hoje é preciso escolher a tabela primeiro — foi o
+ * que tirou da tela a pergunta "que escopo é esse?" sem resposta à vista.
+ */
+async function abrirTabelaDeFuncionario() {
+  montar();
+  const linha = await screen.findByRole("button", { name: /Funcionário/ });
+  fireEvent.click(linha);
+}
+
+describe("entrada pela lista de tabelas", () => {
+  it("lista as tabelas com produtos e contas antes de qualquer edição", async () => {
+    montar();
+
+    // A tabela de funcionário tem as duas linhas do banco; a de cliente, nenhuma.
+    await waitFor(() => expect(screen.getByRole("button", { name: /Funcionário/ })).toBeTruthy());
+    expect(screen.getByRole("button", { name: /Cliente/ })).toBeTruthy();
+
+    // Nada de campo de preço enquanto nenhuma tabela foi aberta: era isso que
+    // fazia a tela parecer um editor de algo que ninguém tinha escolhido.
+    expect(screen.queryByText("Preço ativo")).toBeNull();
+  });
+
+  it("abrir uma tabela mostra os produtos dela", async () => {
+    await abrirTabelaDeFuncionario();
+    await waitFor(() => expect(screen.getByText("Creatina Monohidratada")).toBeTruthy());
+  });
+});
+
 describe("selo de preço ativo", () => {
   it("linha ativa no banco aparece como ativa, sem ninguém tocar em nada", async () => {
-    montar();
+    await abrirTabelaDeFuncionario();
 
     // A trava do bug: antes, esta era a asserção que falhava — vinha
     // "Preço desligado" para uma linha com `active: true`.
@@ -96,7 +133,7 @@ describe("selo de preço ativo", () => {
   it("linha desligada no banco continua aparecendo como desligada", async () => {
     // A correção não pode ser "mostrar tudo como ativo": `false` gravado é um
     // valor legítimo e precisa sobreviver ao carregamento.
-    montar();
+    await abrirTabelaDeFuncionario();
     await waitFor(() => expect(screen.getByText("Preço desligado")).toBeTruthy());
   });
 
@@ -105,11 +142,24 @@ describe("selo de preço ativo", () => {
      * O rótulo é o que torna o bug perigoso: com tudo lido como desligado, o
      * botão dizia "Ativar" em toda linha e desligava ao ser clicado.
      */
-    montar();
+    await abrirTabelaDeFuncionario();
     await waitFor(() => expect(screen.getByText("Preço ativo")).toBeTruthy());
 
     // Uma linha ativa (7487) e uma desligada (14210): um "Desativar" e um "Ativar".
     expect(screen.getAllByRole("button", { name: "Desativar" })).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: "Ativar" })).toHaveLength(1);
+  });
+
+  it("o campo mostra o preço da tabela, e não o de cadastro", async () => {
+    /**
+     * A regressão que originou a reformulação: o campo caía sempre no preço de
+     * cadastro. O 7487 vale R$ 34,67 na tabela de funcionário e R$ 27,99 no
+     * catálogo — quem abria via 27,99 e a loja cobrava 34,67.
+     */
+    await abrirTabelaDeFuncionario();
+    await waitFor(() => expect(screen.getByText("Preço ativo")).toBeTruthy());
+
+    const campos = screen.getAllByDisplayValue("34,67");
+    expect(campos.length).toBeGreaterThan(0);
   });
 });

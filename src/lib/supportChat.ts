@@ -15,6 +15,22 @@ export type SupportConversation = {
   status: "open" | "closed" | "archived" | string;
   last_message_preview: string | null;
   last_message_at: string;
+  /**
+   * Quem falou por ultimo: "customer" ou "admin".
+   *
+   * E daqui que sai "esperando resposta". Mantido por gatilho no banco, nunca
+   * pelo navegador — ver a migration 20260831170000.
+   */
+  ultima_mensagem_de: "customer" | "admin" | string | null;
+  /**
+   * Quando o atendimento foi encerrado. `null` = nunca encerrado.
+   *
+   * Encerrada de verdade so enquanto `finalizada_em >= last_message_at` — ver
+   * `estaFinalizada`. E data, e nao booleano, para a resposta do cliente
+   * reabrir a conversa sozinha.
+   */
+  finalizada_em: string | null;
+  finalizada_por: string | null;
   customer_typing_at: string | null;
   admin_typing_at: string | null;
   created_at: string;

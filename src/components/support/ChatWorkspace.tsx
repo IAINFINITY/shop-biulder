@@ -1,17 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Building2, Hash, MessageCircle, MessageSquare, Phone } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { ArrowLeft, Building2, CalendarDays, CheckCircle2, Hash, Mail, MapPin, MessageCircle, MessageSquare, Phone, RotateCcw, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { ChatComposer } from "@/components/support/ChatComposer";
 import { ChatConversationList } from "@/components/support/ChatConversationList";
 import { ChatMessageThread } from "@/components/support/ChatMessageThread";
+import { NovaConversa } from "@/components/support/NovaConversa";
 import { useAuth } from "@/hooks/useAuth";
+import { useDetalhesDoCliente } from "@/hooks/useDetalhesDoCliente";
+import { useLarguraDaLista, VARIAVEL_DA_LARGURA } from "@/hooks/useLarguraDaLista";
 import {
   useCustomerSupportConversation,
+  useFinalizarConversa,
   useSendSupportMessage,
   useSupportInbox,
   useSupportMessages,
 } from "@/hooks/useSupportChat";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
+import { estaFinalizada, iniciaisDoCliente } from "@/lib/caixaDeMensagens";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { formatDocumentId } from "@/lib/brazilianIds";
 import { REPRESENTATIVE_PHONE_DISPLAY, REPRESENTATIVE_PHONE_WHATSAPP_URL } from "@/lib/supportContact";
 import type { SupportConversation } from "@/lib/supportChat";
@@ -37,6 +45,9 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
   const { user, customerProfile } = useAuth();
   const userId = user?.id ?? null;
   const ehAdmin = mode === "admin";
+  const finalizar = useFinalizarConversa();
+  const [confirmandoFim, setConfirmandoFim] = useState(false);
+  const larguraDaLista = useLarguraDaLista();
 
   // Sem perfil de cliente nao existe conversa a criar: a RPC
   // `ensure_support_conversation` levanta "Perfil de cliente nao encontrado" e a
@@ -71,6 +82,14 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
     return caixaDeEntrada.find((conversa) => conversa.id === selecionadaId) ?? null;
   }, [caixaDeEntrada, conversaDoCliente, ehAdmin, selecionadaId]);
 
+  const encerrada = conversaAtiva ? estaFinalizada(conversaAtiva) : false;
+
+  const { data: detalhes, isLoading: carregandoDetalhes } = useDetalhesDoCliente(
+    conversaAtiva?.customer_user_id ?? null,
+    conversaAtiva?.customer_cnpj ?? null,
+    ehAdmin && detalhesAbertos && Boolean(conversaAtiva),
+  );
+
   const { data: mensagens = [], isLoading: carregandoMensagens } = useSupportMessages(
     conversaAtiva?.id ?? null,
     Boolean(conversaAtiva?.id),
@@ -95,14 +114,17 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
   const carregandoFio = ehAdmin ? carregandoMensagens : carregandoCliente || carregandoMensagens;
 
   return (
-    // `h-full min-h-0` e o que faz o chat ocupar tudo o que sobra entre a topbar
-    // e a borda de baixo. Sem o `min-h-0`, o filho rolavel estica o pai e a
-    // pagina inteira passa a rolar em vez do fio.
+    <>
+    {/* `h-full min-h-0` e o que faz o chat ocupar tudo o que sobra entre a
+        topbar e a borda de baixo. Sem o `min-h-0`, o filho rolavel estica o pai
+        e a pagina inteira passa a rolar em vez do fio. */}
     <div className="relative flex h-full min-h-0 overflow-hidden border border-border bg-background text-foreground">
       {ehAdmin ? (
         <aside
+          ref={larguraDaLista.alvo}
+          style={{ [VARIAVEL_DA_LARGURA]: `${larguraDaLista.largura}px` } as CSSProperties}
           className={cn(
-            "h-full min-h-0 w-full shrink-0 flex-col border-r border-border bg-card md:flex md:w-[330px]",
+            "h-full min-h-0 w-full shrink-0 flex-col border-r border-border bg-card md:flex md:w-[var(--largura-lista)]",
             conversaAtiva ? "hidden md:flex" : "flex",
           )}
         >
@@ -114,8 +136,56 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
               setDetalhesAbertos(false);
             }}
             carregando={carregandoCaixa}
+            acaoNovaConversa={<NovaConversa onAbrirConversa={setSelecionadaId} />}
           />
         </aside>
+      ) : null}
+
+      {/* A barra de arraste — a alça que alarga a lista para ler nome de
+          empresa inteiro.
+
+          ⚠️ **Era 1px de `border/60` e ficou invisível.** Enquanto a lista era
+          branca, aquele fio ainda se distinguia; com a zona de controles em
+          cinza ele virou só mais uma borda, e ninguém acha o que não parece um
+          controle. 1px também é alvo quase impossível de acertar com o mouse.
+
+          Agora: 3px de largura visível, `bg-border` cheio, um sulco de pontos
+          que aparece ao passar o mouse, e — o que resolve de fato — um `before`
+          transparente que estende a área de clique para ~15px sem engordar o
+          desenho. Alça fina de ver, larga de pegar.
+
+          `hidden md:block`: no celular a lista ocupa a tela toda e não há o que
+          redimensionar — uma alça ali só roubaria toque da rolagem. */}
+      {ehAdmin ? (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ajustar largura da lista"
+          tabIndex={0}
+          onPointerDown={larguraDaLista.aoPegar}
+          onKeyDown={larguraDaLista.aoTeclar}
+          onDoubleClick={larguraDaLista.reiniciar}
+          title="Arraste para alargar a lista. Dois cliques volta ao padrão."
+          className={cn(
+            "group relative hidden w-[3px] shrink-0 cursor-col-resize bg-border transition-colors md:flex md:items-center md:justify-center",
+            "before:absolute before:inset-y-0 before:-left-1.5 before:-right-1.5 before:content-['']",
+            "hover:bg-primary/50 focus-visible:bg-primary focus-visible:outline-none",
+            larguraDaLista.arrastando && "bg-primary",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none flex h-8 w-[3px] flex-col items-center justify-center gap-[3px] rounded-full opacity-0 transition-opacity",
+              "group-hover:opacity-100 group-focus-visible:opacity-100",
+              larguraDaLista.arrastando && "opacity-100",
+            )}
+          >
+            <span className="h-[3px] w-[3px] rounded-full bg-primary-foreground/80" />
+            <span className="h-[3px] w-[3px] rounded-full bg-primary-foreground/80" />
+            <span className="h-[3px] w-[3px] rounded-full bg-primary-foreground/80" />
+          </span>
+        </div>
       ) : null}
 
       <section
@@ -126,7 +196,10 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
       >
         {conversaAtiva ? (
           <>
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
+            {/* Mesmo tom da zona de controles da lista: cabecalho e compositor
+                sao a moldura, o fio de mensagens e o conteudo. Sem isso os tres
+                eram brancos e o fio nao tinha comeco nem fim visivel. */}
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-2.5">
               {ehAdmin ? (
                 <button
                   type="button"
@@ -138,13 +211,39 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
                 </button>
               ) : null}
 
+              {/* O avatar amarra o cabeçalho à linha da lista: é o mesmo
+                  círculo com as mesmas iniciais, e é o que diz "esta é aquela
+                  conversa" sem precisar reler o nome. */}
+              {ehAdmin ? (
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {iniciaisDoCliente(conversaAtiva.customer_name)}
+                </span>
+              ) : null}
+
               <div className="min-w-0 flex-1">
-                <p className="text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  {ehAdmin ? "Atendimento ao cliente" : "Falar com o consultor"}
+                <p className="truncate text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  {ehAdmin
+                    ? conversaAtiva.customer_company || "Atendimento ao cliente"
+                    : "Falar com o consultor"}
                 </p>
-                <h2 className="truncate text-lg font-semibold text-foreground">
-                  {ehAdmin ? conversaAtiva.customer_name || "Cliente" : conversaAtiva.subject || "Atendimento"}
-                </h2>
+
+                {/* Clicar no nome abre os detalhes: é o gesto que quem atende
+                    tenta primeiro, e até aqui ele não fazia nada. O botão
+                    "Detalhes" continua ali para quem procura um botão. */}
+                {ehAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => setDetalhesAbertos((valor) => !valor)}
+                    title="Ver dados do cliente"
+                    className="block max-w-full truncate text-left text-lg font-semibold text-foreground hover:underline"
+                  >
+                    {conversaAtiva.customer_name || "Cliente"}
+                  </button>
+                ) : (
+                  <h2 className="truncate text-lg font-semibold text-foreground">
+                    {conversaAtiva.subject || "Atendimento"}
+                  </h2>
+                )}
               </div>
 
               {/* O atalho do consultor vivia num cartao acima do chat, que roubava
@@ -159,6 +258,31 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
                   <Phone className="h-3.5 w-3.5" />
                   {REPRESENTATIVE_PHONE_DISPLAY}
                 </a>
+              ) : null}
+
+              {ehAdmin ? (
+                encerrada ? (
+                  <button
+                    type="button"
+                    onClick={() => finalizar.mutate({ conversationId: conversaAtiva.id, finalizar: false, adminUserId: userId })}
+                    disabled={finalizar.isPending}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-60"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reabrir
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmandoFim(true)}
+                    disabled={finalizar.isPending}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1.5 text-xs font-medium text-success transition-colors hover:bg-success/20 disabled:opacity-60"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Finalizar atendimento</span>
+                    <span className="sm:hidden">Finalizar</span>
+                  </button>
+                )
               ) : null}
 
               {ehAdmin ? (
@@ -188,6 +312,22 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
               }
             />
 
+            {/* O estado encerrado precisa aparecer no fio, e nao so na lista:
+                quem abriu a conversa direto pelo link nao passou pela lista, e
+                responderia sem saber que o atendimento ja tinha sido fechado. */}
+            {encerrada ? (
+              <div className="flex shrink-0 items-center gap-2 border-t border-border bg-success/5 px-4 py-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
+                <span className="min-w-0 flex-1">
+                  Atendimento finalizado
+                  {conversaAtiva.finalizada_em
+                    ? ` em ${format(new Date(conversaAtiva.finalizada_em), "dd/MM 'às' HH:mm", { locale: ptBR })}`
+                    : ""}
+                  . {ehAdmin ? "Responder aqui reabre a conversa." : "Se precisar, é só escrever que a conversa reabre."}
+                </span>
+              </div>
+            ) : null}
+
             <ChatComposer
               onEnviar={aoEnviar}
               placeholder={ehAdmin ? "Responder ao cliente..." : "Escreva sua mensagem..."}
@@ -207,7 +347,7 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
              tela e, e o motivo de nao dar para escrever aparece no lugar das
              mensagens em vez de esconder tudo. */
           <>
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="text-[0.625rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                   Falar com o consultor
@@ -274,6 +414,35 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
             {conversaAtiva.customer_name || "Cliente"}
           </h3>
 
+          {/* O tipo de conta vem primeiro porque muda o preco que a pessoa ve —
+              e portanto muda a resposta que se da a ela. */}
+          {detalhes?.tipoDeConta ? (
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[0.6875rem] font-semibold capitalize text-primary">
+              <UserRound className="h-3 w-3" />
+              {detalhes.tipoDeConta}
+              {detalhes.tabelaDePreco ? ` · tabela ${detalhes.tabelaDePreco}` : ""}
+            </span>
+          ) : null}
+
+          {/* "Ja comprou?" e a segunda pergunta de quem atende, e a resposta
+              mudava o tom da conversa inteira sem estar na tela. */}
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-2.5">
+              <p className="text-[0.625rem] text-muted-foreground">Pedidos</p>
+              <p className="mt-0.5 text-base font-semibold tabular-nums text-foreground">
+                {carregandoDetalhes ? "—" : (detalhes?.totalDePedidos ?? 0)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-2.5">
+              <p className="text-[0.625rem] text-muted-foreground">Último</p>
+              <p className="mt-0.5 truncate text-base font-semibold text-foreground">
+                {detalhes?.ultimoPedidoEm
+                  ? format(new Date(detalhes.ultimoPedidoEm), "dd/MM/yy", { locale: ptBR })
+                  : "—"}
+              </p>
+            </div>
+          </div>
+
           <dl className="mt-4 space-y-3 text-sm">
             {conversaAtiva.customer_company ? (
               <div className="flex items-start gap-2">
@@ -306,9 +475,67 @@ export function ChatWorkspace({ mode }: { mode: "customer" | "admin" }) {
                 </div>
               </div>
             ) : null}
+
+            {detalhes?.email ? (
+              <div className="flex items-start gap-2">
+                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <dt className="text-[0.6875rem] text-muted-foreground">E-mail</dt>
+                  <dd className="break-words font-medium text-foreground">{detalhes.email}</dd>
+                </div>
+              </div>
+            ) : null}
+
+            {detalhes?.cidade ? (
+              <div className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <dt className="text-[0.6875rem] text-muted-foreground">Cidade</dt>
+                  <dd className="break-words font-medium text-foreground">
+                    {detalhes.cidade}
+                    {detalhes.estado ? `/${detalhes.estado}` : ""}
+                  </dd>
+                </div>
+              </div>
+            ) : null}
+
+            {detalhes?.clienteDesde ? (
+              <div className="flex items-start gap-2">
+                <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0">
+                  <dt className="text-[0.6875rem] text-muted-foreground">Cliente desde</dt>
+                  <dd className="break-words font-medium text-foreground">
+                    {format(new Date(detalhes.clienteDesde), "dd/MM/yyyy", { locale: ptBR })}
+                  </dd>
+                </div>
+              </div>
+            ) : null}
           </dl>
         </aside>
       ) : null}
     </div>
+
+      <ConfirmActionDialog
+        aberto={confirmandoFim}
+        onAbertoChange={setConfirmandoFim}
+        title="Finalizar este atendimento?"
+        description={
+          <>
+            A conversa sai da caixa e vai para <strong>Finalizadas</strong>. O cliente recebe um aviso na plataforma
+            dizendo que o atendimento foi concluído.
+            <br />
+            <br />
+            Se ele responder depois, a conversa <strong>reabre sozinha</strong> e volta para a fila.
+          </>
+        }
+        confirmLabel="Finalizar atendimento"
+        processingLabel="Finalizando..."
+        onConfirm={async () => {
+          if (!conversaAtiva) return;
+          await finalizar.mutateAsync({ conversationId: conversaAtiva.id, finalizar: true, adminUserId: userId });
+          toast.success("Atendimento finalizado", { description: "O cliente foi avisado na plataforma." });
+        }}
+      />
+    </>
   );
 }

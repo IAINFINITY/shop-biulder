@@ -41,6 +41,46 @@ export function useSupportInbox(enabled = true) {
   });
 }
 
+/**
+ * Quantas conversas estao esperando resposta nossa, agora.
+ *
+ * ## Por que uma consulta separada da caixa
+ *
+ * Este numero aparece na barra lateral do painel **inteiro** — em Produtos, em
+ * Pedidos, em qualquer tela — que e o ponto do pedido: "ninguem e notificado
+ * sobre isso dentro da plataforma". Reaproveitar `useSupportInbox` traria todas
+ * as conversas com previa e datas a cada 4 segundos, o tempo todo, so para
+ * desenhar um numero. Aqui vem `count` com `head: true`: o banco conta e nao
+ * devolve linha nenhuma, e a cada 30 segundos, que e a resolucao util para um
+ * aviso que a pessoa nem esta olhando.
+ *
+ * O criterio e o mesmo de `estadoDaConversa` — aberta, ultima palavra do
+ * cliente, e com mensagem de verdade. **Se um mudar, o outro muda junto**, ou o
+ * aviso passa a discordar da lista que ele manda abrir.
+ */
+export function useConversasEsperando(enabled = true) {
+  return useQuery<number>({
+    queryKey: ["support-esperando"],
+    enabled,
+    staleTime: 20_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: enabled ? 30_000 : false,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from(SUPPORT_CONVERSATIONS_TABLE)
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open")
+        .eq("ultima_mensagem_de", "customer")
+        // A conversa nasce quando o cliente abre a secao, sem escrever nada.
+        // Sem este filtro o aviso ficaria aceso sem ninguem ter falado.
+        .not("last_message_preview", "is", null);
+
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
 export function useSupportMessages(conversationId: string | null, enabled = true) {
   return useQuery<SupportMessage[]>({
     queryKey: ["support-messages", conversationId],
@@ -125,6 +165,10 @@ export function useSendSupportMessage() {
     onSuccess: async (_, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["support-inbox"] }),
+        // Responder tira a conversa da fila. Sem esta linha o aviso da barra
+        // lateral so cairia no proximo ciclo de 30s, e o atendente veria o
+        // numero antigo logo depois de ter resolvido o caso.
+        queryClient.invalidateQueries({ queryKey: ["support-esperando"] }),
         queryClient.invalidateQueries({ queryKey: ["support-conversation"] }),
         queryClient.invalidateQueries({ queryKey: ["support-messages", variables.conversationId] }),
       ]);
@@ -132,3 +176,42 @@ export function useSendSupportMessage() {
   });
 }
 
+
+/**
+ * Encerrar (ou reabrir) o atendimento.
+ *
+ * ## Grava uma data, e nao um booleano
+ *
+ * `finalizada_em = now()` encerra; `null` reabre. A conversa conta como
+ * encerrada so enquanto essa data for **mais recente que a ultima mensagem** —
+ * ver `estaFinalizada`. E o que faz a resposta do cliente reabrir sozinha, sem
+ * ninguem precisar clicar em nada.
+ *
+ * O aviso ao cliente sai de um gatilho no banco, e nao daqui: se dependesse
+ * desta chamada, todo encerramento feito com a aba velha, ou direto no banco,
+ * sairia calado.
+ */
+export function useFinalizarConversa() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: { conversationId: string; finalizar: boolean; adminUserId: string | null }) => {
+      const { error } = await supabase
+        .from(SUPPORT_CONVERSATIONS_TABLE)
+        .update({
+          finalizada_em: params.finalizar ? new Date().toISOString() : null,
+          finalizada_por: params.finalizar ? params.adminUserId : null,
+        })
+        .eq("id", params.conversationId);
+
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["support-inbox"] }),
+        queryClient.invalidateQueries({ queryKey: ["support-esperando"] }),
+        queryClient.invalidateQueries({ queryKey: ["support-conversation"] }),
+      ]);
+    },
+  });
+}

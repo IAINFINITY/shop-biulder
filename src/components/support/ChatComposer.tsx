@@ -71,7 +71,7 @@ export function ChatComposer({
   const podeEnviar = texto.trim().length > 0 && !enviando && !desabilitado;
 
   return (
-    <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
+    <div className="shrink-0 border-t border-border bg-muted/40 px-3 py-3 sm:px-4">
       <div className="flex items-end gap-2">
         <textarea
           ref={campoRef}

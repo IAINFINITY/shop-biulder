@@ -680,7 +680,7 @@ function NotificationEditor({
 export function AdminNotificationsSection() {
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
-  const { data: notifications = [], isLoading } = useCatalogNotifications({ activeOnly: false });
+  const { data: notifications = [], isLoading } = useCatalogNotifications({ activeOnly: false, audiencia: { escopo: "painel" } });
   const { data: customerProfiles = [] } = useAdminCustomerProfiles(Boolean(user && isAdmin));
   const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -25,12 +25,20 @@ import { useCatalogNotificationReads } from "@/hooks/useCatalogNotificationReads
  * consulta a mais.
  */
 export function useAvisosNaoLidosDoCliente(userId: string | null | undefined): number {
-  const { data: avisos = [] } = useCatalogNotifications();
+  // A audiência não é detalhe: sem ela, quem trabalha aqui receberia os avisos
+  // pessoais dos clientes, porque a policy interna da tabela passa por cima do
+  // alvo. Ver a nota em `AudienciaDoAviso`.
+  const { data: avisos = [] } = useCatalogNotifications({ audiencia: { escopo: "usuario", userId } });
   const { data: leituras = [] } = useCatalogNotificationReads(userId ?? null);
 
   return useMemo(() => {
     if (!userId) return 0;
     const lidos = new Set(leituras.map((leitura) => leitura.notification_id));
-    return avisos.filter((aviso) => !lidos.has(aviso.id)).length;
+    // Dispensado sai da conta junto com lido: quem limpou a lista não quer o
+    // número aceso por causa de algo que não está mais em tela nenhuma.
+    const dispensados = new Set(
+      leituras.filter((leitura) => leitura.dispensado_em).map((leitura) => leitura.notification_id),
+    );
+    return avisos.filter((aviso) => !lidos.has(aviso.id) && !dispensados.has(aviso.id)).length;
   }, [avisos, leituras, userId]);
 }

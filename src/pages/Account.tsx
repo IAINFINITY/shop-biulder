@@ -291,7 +291,10 @@ export default function Account() {
     user?.id ?? "customer",
   );
   const { data: products = [] } = useProducts({ includeInactive: true });
-  const { data: notifications = [], isLoading: notificationsLoading } = useCatalogNotifications();
+  // A lista mostra os avisos desta conta e os gerais. Sem a audiência, um admin
+  // abrindo a própria conta lia os avisos de pedido dos clientes — ver a nota em
+  // `AudienciaDoAviso`.
+  const { data: notifications = [], isLoading: notificationsLoading } = useCatalogNotifications({ audiencia: { escopo: "usuario", userId: user?.id } });
   const {
     data: notificationReads = [],
     isLoading: notificationReadsLoading,

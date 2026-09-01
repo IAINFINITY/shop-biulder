@@ -41,12 +41,41 @@
 // processando) fica para quando alguem pedir, como sub-etapa e nao como mais um
 // item na mesma lista.
 
-export type StatusDoPedido = "novo" | "em_andamento" | "concluido" | "cancelado";
+// ## Os dois estados acrescentados em 31/08/2026
+//
+// Uma cliente escreveu: *"fiz um pedido dia 28/08 às 14:40, porém não consigo
+// acompanhar a evolução, também não recebi nenhum e-mail com informações ou
+// formas de pagamento."*
+//
+// O diagnóstico não era falta de e-mail. Era falta de **estado**: o pedido dela
+// estava em "Em andamento" enquanto na verdade esperava o atendente combinar o
+// pagamento — que é como este negócio funciona (ver `CatalogOrderNotice`). Nada
+// na tela dela podia dizer isso, porque o estado não existia.
+//
+// Nova pesquisa, agora em referências de B2B por atacado (b2bwave, OroCommerce,
+// Adobe Commerce), mostra sete estados típicos: Submitted, Approved, Being
+// Prepared, Awaiting Payment, Sent, Complete, Canceled.
+//
+// **Entram dois, não cinco.** `aguardando_pagamento` porque é o buraco que gerou
+// a reclamação, e `enviado` porque é a pergunta seguinte de quem já pagou —
+// "saiu?". Approved e Being Prepared ficam de fora pelo mesmo argumento que já
+// estava escrito aqui: são granularidade de galpão, e este time tem uma pessoa
+// tratando a fila. Estado que ninguém move é estado que mente.
+
+export type StatusDoPedido =
+  | "novo"
+  | "em_andamento"
+  | "aguardando_pagamento"
+  | "enviado"
+  | "concluido"
+  | "cancelado";
 
 /** A ordem em que aparecem na tela — e a ordem do fluxo. */
 export const ESTADOS_DO_PEDIDO: readonly StatusDoPedido[] = [
   "novo",
   "em_andamento",
+  "aguardando_pagamento",
+  "enviado",
   "concluido",
   "cancelado",
 ];
@@ -67,6 +96,8 @@ export const ESTADOS_DO_PEDIDO: readonly StatusDoPedido[] = [
 export const VALORES_GRAVADOS: Record<StatusDoPedido, string> = {
   novo: "NOVO CARRINHO",
   em_andamento: "Em andamento",
+  aguardando_pagamento: "Aguardando pagamento",
+  enviado: "Enviado",
   concluido: "Concluído",
   cancelado: "Cancelado",
 };
@@ -74,6 +105,8 @@ export const VALORES_GRAVADOS: Record<StatusDoPedido, string> = {
 export const ROTULOS: Record<StatusDoPedido, string> = {
   novo: "Novo",
   em_andamento: "Em andamento",
+  aguardando_pagamento: "Aguardando pagamento",
+  enviado: "Enviado",
   concluido: "Concluído",
   cancelado: "Cancelado",
 };
@@ -82,8 +115,31 @@ export const ROTULOS: Record<StatusDoPedido, string> = {
 export const ROTULOS_PLURAL: Record<StatusDoPedido, string> = {
   novo: "Novos",
   em_andamento: "Em andamento",
+  aguardando_pagamento: "Aguardando pagamento",
+  enviado: "Enviados",
   concluido: "Concluídos",
   cancelado: "Cancelados",
+};
+
+/**
+ * O que o cliente lê sobre cada estado, na conta dele.
+ *
+ * É a peça que faltava. A regra do negócio — pagamento combinado com o
+ * atendimento, fora da plataforma — só aparecia **antes** de comprar, no aviso
+ * do catálogo. Depois de enviar o pedido, a pessoa ficava sem nada: nem estado
+ * que explicasse, nem texto que dissesse o que esperar.
+ *
+ * Escrito na segunda pessoa e dizendo **o que acontece a seguir**, não o que
+ * aconteceu. Quem abre a tela quer saber se precisa fazer algo.
+ */
+export const EXPLICACAO_PARA_O_CLIENTE: Record<StatusDoPedido, string> = {
+  novo: "Recebemos seu pedido. Nosso time vai conferir os itens e entrar em contato.",
+  em_andamento: "Estamos preparando seu pedido e conferindo as condições comerciais.",
+  aguardando_pagamento:
+    "Seu pedido está pronto e aguarda o pagamento. Nosso time entra em contato para combinar a forma e as condições — o pagamento não é feito pelo site.",
+  enviado: "Seu pedido saiu para entrega.",
+  concluido: "Pedido concluído. Obrigado pela compra!",
+  cancelado: "Este pedido foi cancelado. Se não foi você quem pediu, fale com o atendimento.",
 };
 
 function semAcento(valor: string): string {
@@ -114,6 +170,13 @@ export function normalizarStatusDoPedido(valor: unknown): StatusDoPedido {
   if (!texto) return "novo";
 
   if (texto.includes("cancel")) return "cancelado";
+  // Só `pagament`, e não `aguardando` solto: "Aguardando retirada" não é
+  // aguardando pagamento, e um teste já existia guardando essa distinção. A
+  // palavra genérica casaria com qualquer espera.
+  if (texto.includes("pagament")) return "aguardando_pagamento";
+  // `enviado` antes de `entreg`: "enviado" e "entregue" são coisas diferentes
+  // aqui, e um pedido enviado não pode ser lido como concluído.
+  if (texto.includes("enviad") || texto.includes("despach")) return "enviado";
   if (texto.includes("conclu") || texto.includes("entreg") || texto.includes("atendid")) return "concluido";
   if (
     texto.includes("andamento") ||
@@ -140,12 +203,16 @@ export function rotuloDoStatus(valor: unknown): string {
 export function classeDoStatus(valor: unknown): string {
   switch (normalizarStatusDoPedido(valor)) {
     case "cancelado":
-      return "border-red-200 bg-red-50 text-red-700";
+      return "border-destructive/25 bg-destructive/10 text-destructive";
     case "concluido":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      return "border-success/25 bg-success/10 text-success";
+    case "enviado":
+      return "border-primary/25 bg-primary/10 text-primary";
+    case "aguardando_pagamento":
+      return "border-warm/30 bg-warm/10 text-warm";
     case "em_andamento":
-      return "border-amber-200 bg-amber-50 text-amber-800";
+      return "border-warm/25 bg-warm/[0.07] text-warm";
     default:
-      return "border-sky-200 bg-sky-50 text-sky-700";
+      return "border-border bg-muted text-muted-foreground";
   }
 }

@@ -53,6 +53,22 @@ export interface Order {
   customer_company: string;
   customer_cnpj: string;
   customer_observation?: string | null;
+  /**
+   * O endereço **gravado no pedido**, e não o do cadastro de hoje.
+   *
+   * Cliente muda de endereço; o pedido de abril foi para o endereço de abril.
+   * Ler do cadastro na hora de mostrar reescreveria a história.
+   *
+   * Opcionais porque pedido antigo pode não ter todos — e porque nem toda
+   * consulta os traz.
+   */
+  customer_address_cep?: string | null;
+  customer_address_street?: string | null;
+  customer_address_number?: string | null;
+  customer_address_complement?: string | null;
+  customer_address_neighborhood?: string | null;
+  customer_address_city?: string | null;
+  customer_address_state?: string | null;
   items: OrderItem[];
   total_items: number;
   status: string;

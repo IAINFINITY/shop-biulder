@@ -4,9 +4,9 @@ import {
   buildProxisImportFileContent,
   buildProxisImportLines,
   formatProxisImportLine,
-} from "@/lib/proxisImportExport";
+} from "@/lib/foccoImportExport";
 
-describe("proxisImportExport", () => {
+describe("foccoImportExport", () => {
   it("formata linha com 13 colunas e campos vazios sem NULL", () => {
     const line = formatProxisImportLine([
       "7",

@@ -8,7 +8,6 @@ import {
   type CustomerRegistrationData,
 } from "@/lib/customerProfile";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
-import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { normalizeCustomerType } from "@/lib/pricing";
 import { buscarDadosDaReceita } from "@/lib/enderecoDaReceita";
 import { onlyDigits } from "@/lib/brazilianIds";
@@ -272,30 +271,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // O perfil passou a ser criado por gatilho (migration 20260808140000), e o
     // gatilho nao tem como falar com o ERP: e uma funcao de banco.
     //
-    // Sem isto, a pessoa navegava com preco padrao ate abrir a propria conta ou
-    // fechar um pedido, que sao os outros pontos onde a sincronia acontece.
-    // **Uma tentativa por sessao.** `syncCustomerProxisLink` nao garante gravar
-    // `proxis_synced_at` — CNPJ que o ERP nao conhece pode deixar o campo nulo.
-    // Sem esta trava, a condicao continuaria verdadeira e cada carregamento de
-    // perfil dispararia uma ida ao ERP, para sempre.
-    if (
-      !normalizedProfile.proxis_synced_at &&
-      normalizedProfile.cnpj &&
-      !proxisSyncAttemptedRef.current.has(userId)
-    ) {
-      const documentDigits = onlyDigits(normalizedProfile.cnpj);
-      if (documentDigits.length === 14) {
-        proxisSyncAttemptedRef.current.add(userId);
-        // Sem `await`: a tela nao deve esperar o ERP para renderizar.
-        void syncCustomerProxisLink(documentDigits)
-          .then(() => fetchCustomerProfileRef.current?.(userId))
-          .catch(() => null);
-      }
-    }
+    // A sincronia com o ERP saiu daqui em 31/08/2026, com o Proxis.
+    //
+    // Ela existia para descobrir a tabela de preço do cliente perguntando o CNPJ
+    // ao ERP a cada primeira visita da sessão. Sem ERP, a tabela é a que está
+    // gravada no perfil — definida no painel, por gente.
   }, []);
-
-  /** Quem ja teve a sincronia com o ERP tentada nesta sessao. */
-  const proxisSyncAttemptedRef = useRef<Set<string>>(new Set());
 
   /** Quem ja teve o endereco da empresa buscado na Receita nesta sessao. */
   const enderecoReceitaTentadoRef = useRef<Set<string>>(new Set());
@@ -600,11 +581,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       p_cnpj: data.cnpj.trim(),
       p_customer_type: normalizeCustomerType(data.customer_type),
     });
-    const documentDigits = onlyDigits(data.cnpj.trim());
     if (!error && user) {
-      if (documentDigits.length === 14) {
-        await syncCustomerProxisLink(documentDigits).catch(() => null);
-      }
       await fetchCustomerProfile(user.id);
     }
     return error;
@@ -671,10 +648,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (profileError) return { error: profileError, needsEmailConfirmation: false };
       if (sessionUser) {
-        const documentDigits = onlyDigits(data.cnpj.trim());
-        if (documentDigits.length === 14) {
-          await syncCustomerProxisLink(documentDigits).catch(() => null);
-        }
         await fetchCustomerProfile(sessionUser.id);
       }
     }

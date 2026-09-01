@@ -76,3 +76,46 @@ export function useFiltroComPadraoNaUrl<T extends string>(
 
   return [valor, definir];
 }
+
+/**
+ * Um **passo de navegacao** guardado na URL. Ao contrario do filtro, ele entra
+ * no historico.
+ *
+ * ## A diferenca entre isto e `useFiltroNaUrl`, e por que ela importa
+ *
+ * Filtro usa `replace`: marcar tres filtros e apertar "voltar" tem de sair da
+ * pagina, nao desfazer filtro por filtro.
+ *
+ * Passo usa `push`, pelo motivo oposto. Abrir a secao Precos e depois abrir uma
+ * tabela dentro dela sao dois passos que a pessoa deu; "voltar" precisa desfazer
+ * **um**. Enquanto isso morava em `useState`, o painel inteiro nao existia para o
+ * historico: quem estava tres niveis dentro do admin e apertava o botao de
+ * voltar do mouse ia parar no catalogo, porque nenhum dos tres passos tinha
+ * deixado marca. Era o "volta mais do que deveria".
+ *
+ * `viewTransition` fica de fora de proposito: o passo troca o conteudo da mesma
+ * tela, e a animacao de rota aqui pisca sem acrescentar nada.
+ */
+export function useEtapaNaUrl(
+  chave: string,
+): [string | null, (valor: string | null) => void] {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const valor = searchParams.get(chave);
+
+  const definir = useCallback(
+    (proximo: string | null) => {
+      setSearchParams(
+        (atuais) => {
+          const copia = new URLSearchParams(atuais);
+          if (proximo && proximo.trim()) copia.set(chave, proximo);
+          else copia.delete(chave);
+          return copia;
+        },
+        { replace: false },
+      );
+    },
+    [chave, setSearchParams],
+  );
+
+  return [valor, definir];
+}

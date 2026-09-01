@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHAVES_DO_PACOTE,
   contarRegistros,
   montarPacoteDeDados,
   nomeDoArquivo,
@@ -14,6 +15,7 @@ const VAZIO: PartesDoPacote = {
   avaliacoes: [],
   favoritos: [],
   conversas: [],
+  mensagens: [],
   aparelhos: [],
 };
 
@@ -31,17 +33,23 @@ describe("montarPacoteDeDados", () => {
     }
   });
 
-  it("cobre as sete origens de dado do titular", () => {
+  it("cobre todas as origens de dado do titular", () => {
+    // Compara com `CHAVES_DO_PACOTE`, e nao com uma lista escrita aqui: uma
+    // secao nova precisa entrar na busca, no pacote e nas colunas do CSV, e uma
+    // lista copiada passaria a mentir na primeira que faltasse.
     const pacote = montarPacoteDeDados(TITULAR, VAZIO);
-    expect(Object.keys(pacote.secoes).sort()).toEqual([
-      "aparelhos",
-      "avaliacoes",
-      "conversas",
-      "enderecos",
-      "favoritos",
-      "pedidos",
-      "perfil",
-    ]);
+    expect(Object.keys(pacote.secoes).sort()).toEqual([...CHAVES_DO_PACOTE].sort());
+  });
+
+  it("traz as mensagens do atendimento, e nao so o resumo da conversa", () => {
+    // O pacote trazia a conversa — assunto, datas, previa da ultima linha — e
+    // nao o que foi escrito nela: a secao com o dado mais pessoal de todas era
+    // a unica que saia como resumo.
+    const pacote = montarPacoteDeDados(TITULAR, {
+      ...VAZIO,
+      mensagens: [{ body: "meu pedido chegou errado", sender_role: "customer" }],
+    });
+    expect(pacote.secoes.mensagens.registros).toHaveLength(1);
   });
 
   it("transforma o perfil, que é uma linha só, em lista", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ESTADOS_DO_PEDIDO,
+  EXPLICACAO_PARA_O_CLIENTE,
   VALORES_GRAVADOS,
   classeDoStatus,
   normalizarStatusDoPedido,
@@ -100,5 +101,39 @@ describe("o valor gravado", () => {
     for (const estado of ESTADOS_DO_PEDIDO) {
       expect(normalizarStatusDoPedido(VALORES_GRAVADOS[estado])).toBe(estado);
     }
+  });
+});
+
+describe("os estados acrescentados em 31/08/2026", () => {
+  it("reconhece aguardando pagamento", () => {
+    expect(normalizarStatusDoPedido("Aguardando pagamento")).toBe("aguardando_pagamento");
+    expect(normalizarStatusDoPedido("aguardando o pagamento do cliente")).toBe("aguardando_pagamento");
+  });
+
+  it("não confunde outra espera com espera de pagamento", () => {
+    // "Aguardando retirada" tem de continuar caindo em `novo`: a palavra
+    // `aguardando` sozinha casaria com qualquer espera.
+    expect(normalizarStatusDoPedido("Aguardando retirada")).toBe("novo");
+  });
+
+  it("enviado não é concluído", () => {
+    // O pedido saiu, mas ninguém confirmou que chegou. Ler `enviado` como
+    // `concluido` fecharia o pedido antes da entrega.
+    expect(normalizarStatusDoPedido("Enviado")).toBe("enviado");
+    expect(normalizarStatusDoPedido("Despachado")).toBe("enviado");
+    expect(normalizarStatusDoPedido("Entregue")).toBe("concluido");
+  });
+
+  it("cada estado tem explicação para o cliente, sem sobrar nem faltar", () => {
+    for (const estado of ESTADOS_DO_PEDIDO) {
+      expect(EXPLICACAO_PARA_O_CLIENTE[estado]).toBeTruthy();
+    }
+    expect(Object.keys(EXPLICACAO_PARA_O_CLIENTE).sort()).toEqual([...ESTADOS_DO_PEDIDO].sort());
+  });
+
+  it("a explicação de aguardando pagamento diz que o pagamento não é pelo site", () => {
+    // É a frase que a reclamação de 31/08 pedia: a regra existia só no aviso do
+    // catálogo, antes da compra, e sumia depois dela.
+    expect(EXPLICACAO_PARA_O_CLIENTE.aguardando_pagamento).toContain("não é feito pelo site");
   });
 });

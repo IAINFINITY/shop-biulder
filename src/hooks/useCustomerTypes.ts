@@ -7,6 +7,14 @@ import { toast } from "sonner";
 export type CustomerTypeOption = {
   name: string;
   label: string;
+  /**
+   * De onde vêm os preços deste tipo. `null` = preços próprios.
+   *
+   * Opcional porque um tipo pode chegar por `distinctQuery` — descoberto a
+   * partir dos perfis, sem linha em `customer_types` — e nesse caso não há o que
+   * apontar. Ver `tabelaDePrecoAplicavel`.
+   */
+  priceTableId?: number | null;
 };
 
 const CUSTOMER_TYPES_TABLE = "clinic+b2b_customer_types";
@@ -30,17 +38,25 @@ export function useCustomerTypes() {
       const supabase = await loadSupabaseClient();
       const { data, error } = await supabase
         .from(CUSTOMER_TYPES_TABLE)
-        .select("name")
+        .select("name, price_table_id")
         .order("name", { ascending: true });
 
       if (error) {
         return defaultTypes();
       }
 
-      const names = (data ?? []).map((row: { name: string }) => row.name.trim().toLowerCase()).filter(Boolean);
-      if (names.length === 0) return defaultTypes();
+      const linhas = (data ?? [])
+        .map((row: { name: string; price_table_id: number | null }) => ({
+          name: row.name.trim().toLowerCase(),
+          // De onde vêm os preços deste tipo: `null` = próprios. Ver
+          // `tabelaDePrecoAplicavel`.
+          priceTableId: typeof row.price_table_id === "number" ? row.price_table_id : null,
+        }))
+        .filter((linha) => Boolean(linha.name));
 
-      return names.map((name) => ({ name, label: customerTypeLabel(name) }));
+      if (linhas.length === 0) return defaultTypes();
+
+      return linhas.map((linha) => ({ ...linha, label: customerTypeLabel(linha.name) }));
     },
     // `placeholderData`, e nao `initialData`.
     //
@@ -118,5 +134,55 @@ export function useCustomerTypes() {
     }
   };
 
-  return { options, addCustomType, isLoading: savedQuery.isLoading };
+  /**
+   * Apaga um tipo de conta.
+   *
+   * ⚠️ **Recusa se houver conta usando.** Apagar o tipo de 44 clientes os
+   * deixaria com um `customer_type` que não existe em lugar nenhum: eles
+   * sumiriam das abas de Clientes, e a tabela de preço do tipo deixaria de
+   * casar — sem erro, só com o preço errado. A checagem é aqui, e não uma
+   * `foreign key`, porque `customer_type` é texto livre no perfil e nunca teve
+   * essa amarra.
+   */
+  const removeCustomType = async (name: string) => {
+    const normalizado = name.trim().toLowerCase();
+    if (!normalizado) return false;
+
+    try {
+      const supabase = await loadSupabaseClient();
+
+      const { count, error: erroDeContagem } = await supabase
+        .from("clinic+b2b_customer_profiles")
+        .select("user_id", { count: "exact", head: true })
+        .eq("customer_type", normalizado);
+
+      if (erroDeContagem) {
+        toast.error("Não foi possível conferir se há contas nesse tipo.");
+        return false;
+      }
+
+      if ((count ?? 0) > 0) {
+        toast.error(`Não dá para apagar: ${count} conta(s) usam "${normalizado}".`, {
+          description: "Mude o tipo dessas contas primeiro, em Clientes.",
+        });
+        return false;
+      }
+
+      const { error } = await supabase.from(CUSTOMER_TYPES_TABLE).delete().eq("name", normalizado);
+      if (error) {
+        toast.error("Não foi possível apagar o tipo.");
+        return false;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["customer-types-saved"] });
+      toast.success(`Tipo "${normalizado}" apagado.`);
+      return true;
+    } catch (err) {
+      console.error("Erro ao apagar tipo de cliente", err);
+      toast.error("Erro ao apagar o tipo.");
+      return false;
+    }
+  };
+
+  return { options, addCustomType, removeCustomType, isLoading: savedQuery.isLoading };
 }

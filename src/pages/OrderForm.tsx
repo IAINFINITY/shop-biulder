@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AddressFields } from "@/components/pedido/AddressFields";
 import { CustomerDataFields } from "@/components/pedido/CustomerDataFields";
 import { useCnpjValidation } from "@/hooks/useCnpjValidation";
-import { assertAddressReady, addressToOrderColumns, addressToProxisPayload, emptyAddressForm } from "@/lib/address";
+import { assertAddressReady, addressToOrderColumns,  emptyAddressForm } from "@/lib/address";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { type CartItem, getProductImageUrls } from "@/lib/products";
@@ -437,64 +437,28 @@ export default function OrderForm() {
         return;
       }
 
-      const proxisItems = orderItems.map((row) => ({
+      // O nome era `proxisItems`; o Bitrix, que fica, usa a mesma forma.
+      const itensParaIntegracao = orderItems.map((row) => ({
         product_code: row.product_code || "",
         quantity: row.quantity,
         unit_price: row.unit_price,
         name: row.name,
       }));
 
-      // O envio ao ERP nao decide o desfecho do checkout: o pedido ja esta
-      // gravado e valido. Se falhar, a propria rota marca o pedido como pendente
-      // e ele aparece na fila de reconciliacao do painel. Por isso a falha e
-      // apenas registrada no console, sem alarmar quem esta comprando.
-      //
-      // **Funcionario nao passa por aqui.** Decisao de 25/08/2026 do responsavel
-      // pelo ERP: a tabela Clinic 2026 Funcionarios fica fora do Proxis, mantida
-      // a mao no site. Sem tabela la, o pedido subiria carimbado com a 8728 e com
-      // itens abaixo dela. O pedido ja nasceu com `proxis_status` =
-      // `nao_aplicavel`, gravado pelo gatilho no banco.
-      //
-      // Isto e conveniencia, nao seguranca: quem recusa de verdade e
-      // `api/proxis-order.ts`, que confere o perfil no servidor.
-      if (!compraDeFuncionario) {
-        try {
-          const proxisRes = await apiFetch("/api/proxis-order", {
-            method: "POST",
-            body: JSON.stringify({
-              submission_key: submissionKey,
-              customer_name: form.name.trim(),
-              customer_cnpj: effectiveCnpj,
-              customer_company: form.company.trim(),
-              customer_observation: orderNote.trim() || null,
-              address: addressToProxisPayload(checkoutAddress),
-              items: proxisItems,
-              note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",
-            }),
-          });
-
-          if (!proxisRes.ok) {
-            const errBody = await proxisRes.json().catch(() => ({}));
-            console.error("[OrderForm] Pedido pendente de envio ao Proxis", {
-              submissionKey,
-              status: proxisRes.status,
-              body: errBody,
-            });
-          }
-        } catch (err) {
-          console.error("[OrderForm] Falha de rede ao enviar pedido ao Proxis", { submissionKey, err });
-        }
-
-        // Fora do `if` esta chamada desfaria a tabela de funcionario: ela consulta
-        // o CNPJ da Clinic+ no Proxis, recebe a 8728 e grava no perfil. A RPC ja
-        // recusa gravar TPR de funcionario, mas nem chamar e mais claro.
-        try {
-          const { syncCustomerProxisLink } = await import("@/lib/proxisCustomer");
-          await syncCustomerProxisLink(effectiveCnpj).catch(() => null);
-        } catch (err) {
-          console.warn("[OrderForm] syncCustomerProxisLink background error:", err);
-        }
-      }
+      /**
+       * O pedido acaba aqui, na plataforma.
+       *
+       * Até 31/08/2026 este trecho empurrava o pedido para o Proxis depois de
+       * gravá-lo. O ERP saiu de uso e a decisão do responsável foi manter o
+       * padrão que já valia para funcionário: o pedido fica na plataforma, e a
+       * saída para quem precisa dele são os arquivos — TXT (FOCCO), XLSX e PDF,
+       * no card do pedido no painel.
+       *
+       * O `insert` acima é o que importa e não mudou. O que saiu foi um empurrão
+       * posterior, que nunca decidiu o desfecho do checkout.
+       *
+       * O Bitrix continua, logo abaixo: é outra integração, por outro caminho.
+       */
 
       try {
         const bitrixRes = await apiFetch("/api/bitrix-deal", {
@@ -514,7 +478,7 @@ export default function OrderForm() {
               city: checkoutAddress.city,
               state: checkoutAddress.state,
             },
-            items: proxisItems,
+            items: itensParaIntegracao,
             total_amount: orderSubtotal,
             source: "clinicplus-b2b",
             note: orderNote.trim() || "Pedido enviado a partir do carrinho do catálogo.",

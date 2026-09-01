@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCnpj, formatPhone, onlyDigits } from "@/lib/brazilianIds";
 import type { CnpjValidationStatus } from "@/hooks/useCnpjValidation";
-import { useCnpjCustomerLookup } from "@/hooks/useCnpjCustomerLookup";
 import {
   CUSTOMER_TYPES,
   customerTypeLabel,
@@ -53,40 +52,14 @@ export function CustomerDataFields({
   const docLabel = "CNPJ";
   const cnpjDigits = onlyDigits(form.cnpj);
   const shouldLookupCustomer = cnpjValidation.status === "valid";
-  const { status: cnpjLookupStatus, suggestion } = useCnpjCustomerLookup(form.cnpj, shouldLookupCustomer);
+  /**
+   * O preenchimento automático pelo CNPJ saiu em 31/08/2026, com o Proxis.
+   *
+   * Ele consultava o ERP e oferecia nome e empresa já cadastrados. Sem ERP não
+   * há de onde tirar — quem compra digita, como já digitava quando o CNPJ era
+   * novo. A validação do CNPJ continua, pela Receita.
+   */
   const autoAppliedCnpjRef = useRef<string | null>(null);
-
-  const suggestionMatchesForm =
-    !suggestion ||
-    (form.name.trim() === suggestion.name.trim() && form.company.trim() === suggestion.company.trim());
-  const showSuggestionCard = shouldLookupCustomer && suggestion && !suggestionMatchesForm;
-
-  useEffect(() => {
-    if (!shouldLookupCustomer || !suggestion) return;
-    if (autoAppliedCnpjRef.current === cnpjDigits) return;
-
-    const patch: Partial<CustomerFormData> = {};
-    if (!form.name.trim() && suggestion.name) {
-      patch.name = suggestion.name;
-    }
-    if (!form.company.trim() && suggestion.company) {
-      patch.company = suggestion.company;
-    }
-
-    if (Object.keys(patch).length > 0) {
-      onChange(patch);
-      autoAppliedCnpjRef.current = cnpjDigits;
-    }
-  }, [cnpjDigits, form.company, form.name, onChange, shouldLookupCustomer, suggestion]);
-
-  const handleApplyLookupSuggestion = () => {
-    if (!suggestion) return;
-    autoAppliedCnpjRef.current = cnpjDigits;
-    onChange({
-      name: suggestion.name || form.name,
-      company: suggestion.company || form.company,
-    });
-  };
 
   return (
     <>
@@ -220,46 +193,6 @@ export function CustomerDataFields({
           <p className="text-xs text-muted-foreground">Validando documento...</p>
         )}
 
-        {cnpjLookupStatus === "loading" ? (
-          <p className="text-xs text-muted-foreground">Consultando dados do CNPJ...</p>
-        ) : null}
-
-        {cnpjLookupStatus === "not_found" && cnpjDigits.length === 14 ? (
-          <p className="text-xs text-muted-foreground">
-            Não encontramos dados automáticos para este CNPJ. Você pode preencher tudo manualmente.
-          </p>
-        ) : null}
-
-        {showSuggestionCard ? (
-          <div className="mt-3 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-semibold text-primary">Dados encontrados para este CNPJ</p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Nome: <span className="font-medium text-foreground">{suggestion.name}</span>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Empresa: <span className="font-medium text-foreground">{suggestion.company}</span>
-                </p>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Você pode usar esses dados agora ou editar tudo manualmente nos campos acima.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 rounded-full border-primary/30 px-4 text-sm"
-                onClick={handleApplyLookupSuggestion}
-              >
-                Usar dados do CNPJ
-              </Button>
-            </div>
-          </div>
-        ) : null}
       </div>
     </>
   );

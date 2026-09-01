@@ -3,6 +3,7 @@ import {
   buildCustomerPriceMap,
   calculateCartSubtotal,
   deveAplicarTabelaDoProxis,
+  tabelaDePrecoAplicavel,
   linhaDePrecoAtiva,
   precoDaLinhaDePreco,
   precoExibidoNaLinha,
@@ -259,5 +260,55 @@ describe("precoDaLinhaDePreco e precoExibidoNaLinha", () => {
   it("nunca devolve preco negativo", () => {
     expect(precoDaLinhaDePreco("-5", null, BASE)).toBe(0);
     expect(precoDaLinhaDePreco(undefined, null, -1)).toBe(0);
+  });
+});
+
+/**
+ * De onde vem o preço, agora que um **tipo** pode apontar para uma tabela.
+ *
+ * O que motivou: só dava para dizer "esta conta paga pela 8729", conta a conta.
+ * Um lojista novo nascia fora da tabela do grupo, em silêncio.
+ */
+describe("tabelaDePrecoAplicavel", () => {
+  it("sem tabela nenhuma, o preço vem dos preços próprios do tipo", () => {
+    expect(tabelaDePrecoAplicavel("cliente", null, null)).toBeNull();
+  });
+
+  it("só a tabela do tipo: ela vale", () => {
+    expect(tabelaDePrecoAplicavel("lojista", null, 8729)).toBe(8729);
+  });
+
+  it("só a tabela da conta: ela vale", () => {
+    expect(tabelaDePrecoAplicavel("cliente", 8728, null)).toBe(8728);
+  });
+
+  // ⚠️ O coração da regra. A tabela do tipo é a regra do grupo; a da conta é uma
+  // negociação individual. O grupo passando por cima do acordo individual
+  // apagaria 35 negociações de uma vez, sem erro — só com o preço errado.
+  it("com as duas, ganha a da CONTA", () => {
+    expect(tabelaDePrecoAplicavel("cliente", 8728, 8729)).toBe(8728);
+  });
+
+  // ⚠️ A guarda do funcionário vale para a CONTA, não para o tipo.
+  //
+  // TPR num perfil de funcionário é resíduo de sincronização com o ERP —
+  // ninguém escolheu, e continua sendo ignorado.
+  it("funcionário ignora o TPR residual do próprio perfil", () => {
+    expect(tabelaDePrecoAplicavel("funcionario", 8728, null)).toBeNull();
+  });
+
+  it("tipo escrito de outro jeito não escapa da guarda da conta", () => {
+    expect(tabelaDePrecoAplicavel("  FUNCIONARIO  ", 8728, null)).toBeNull();
+  });
+
+  // Mas a tabela do TIPO é escolha explícita de alguém em Preços. Barrá-la
+  // deixaria funcionário como o único tipo sem a opção — a exceção que o
+  // pedido rejeitou.
+  it("funcionário USA a tabela escolhida para o tipo dele", () => {
+    expect(tabelaDePrecoAplicavel("funcionario", null, 8729)).toBe(8729);
+  });
+
+  it("com TPR residual na conta e tabela no tipo, vale a do tipo", () => {
+    expect(tabelaDePrecoAplicavel("funcionario", 8728, 8729)).toBe(8729);
   });
 });

@@ -164,6 +164,55 @@ export function deveAplicarTabelaDoProxis(customerType: string, proxisTprId: num
 }
 
 /**
+ * De onde vem o preço de uma conta.
+ *
+ * ## As quatro camadas, do mais específico para o mais geral
+ *
+ *   1. **tabela negociada da conta** — `profiles.proxis_tpr_id`
+ *   2. **tabela do tipo** — `customer_types.price_table_id`
+ *   3. **preços próprios do tipo** — overrides com `proxis_tpr_id = null`
+ *   4. preço de cadastro do produto
+ *
+ * A 2 é nova: antes só dava para dizer "esta conta paga pela tabela 8729", uma
+ * a uma. Agora dá para dizer "todo lojista paga pela 8729" — e um lojista novo
+ * já nasce dentro dela, em vez de fora em silêncio.
+ *
+ * ## ⚠️ A da conta ganha da do tipo
+ *
+ * Se as duas existirem, vale a da conta. Ela é uma negociação individual, feita
+ * caso a caso; a do tipo é a regra do grupo. A regra do grupo passando por cima
+ * do acordo individual apagaria 35 negociações de uma vez, sem erro nenhum — só
+ * com o preço errado na etiqueta.
+ *
+ * ⚠️ **Funcionário continua fora de tabela.** A regra existente
+ * (`deveAplicarTabelaDoProxis`) vale para as duas camadas: para funcionário, a
+ * tabela geral **é** a tabela dele, e um TPR num perfil de funcionário é
+ * resíduo de sincronização antiga, não política comercial.
+ */
+export function tabelaDePrecoAplicavel(
+  customerType: string,
+  /** `profiles.proxis_tpr_id` — a negociação individual. */
+  tabelaDaConta: number | null,
+  /** `customer_types.price_table_id` — a tabela do grupo. */
+  tabelaDoTipo: number | null,
+): number | null {
+  // ⚠️ **A guarda do funcionário vale para a conta, e não para o tipo.**
+  //
+  // `deveAplicarTabelaDoProxis` existe para ignorar TPR **residual** num perfil
+  // de funcionário — lixo de sincronização com o ERP, que ninguém escolheu.
+  //
+  // A tabela do tipo é o oposto disso: alguém abriu Preços e decidiu. Aplicar a
+  // mesma guarda aos dois deixaria funcionário como o único tipo que não pode
+  // usar tabela — uma exceção que a tela não explica e que o pedido rejeitou
+  // ("é pra todas os tipos de cliente terem o mesmo comportamento").
+  if (tabelaDaConta !== null && deveAplicarTabelaDoProxis(customerType, tabelaDaConta)) {
+    return tabelaDaConta;
+  }
+
+  return tabelaDoTipo;
+}
+
+/**
  * Uma linha da tela de precos esta ativa?
  *
  * Tres fontes, nesta ordem: o que o admin acabou de mexer, o que esta gravado no

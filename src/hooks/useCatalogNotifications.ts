@@ -30,8 +30,18 @@ import {
  * compilador pergunta "de quem é esta lista?" antes de deixar a chamada passar.
  */
 export type AudienciaDoAviso =
-  /** Tela administrativa: todos os avisos, inclusive os de outras pessoas. */
-  | { escopo: "painel" }
+  /**
+   * Tela administrativa: **só campanhas**.
+   *
+   * Já se chamou `"painel"` e trazia tudo. O resultado é que "Campanhas e avisos
+   * do catálogo" listava, com botão de Editar e de Excluir, os avisos automáticos
+   * de pedido de um cliente — "Seu pedido foi concluído" ao lado das campanhas,
+   * como se alguém os tivesse escrito.
+   *
+   * Aviso de pedido não é conteúdo: é registro de um fato, escrito por gatilho.
+   * A migration `20260901190000` tirou do painel até o direito de lê-lo.
+   */
+  | { escopo: "campanhas" }
   /** Área do cliente: os avisos desta conta e os gerais. */
   | { escopo: "usuario"; userId: string | null | undefined };
 
@@ -43,13 +53,14 @@ type UseCatalogNotificationsOptions = {
 export function useCatalogNotifications(options: UseCatalogNotificationsOptions) {
   const activeOnly = options.activeOnly !== false;
   const doUsuario = options.audiencia.escopo === "usuario" ? options.audiencia.userId ?? null : null;
+  const somenteCampanhas = options.audiencia.escopo === "campanhas";
 
   return useQuery({
     // ⚠️ O alvo entra na chave. Sem isso a lista do painel (todos os avisos) e a
     // do cliente (os dele) dividiriam o mesmo cache, e quem chegasse primeiro
     // decidiria o que o outro vê — o mesmo defeito que a tela de Preços teve com
     // duas consultas sob `["price-tables"]`.
-    queryKey: ["catalog-notifications", activeOnly ? "active" : "all", doUsuario ?? "painel"],
+    queryKey: ["catalog-notifications", activeOnly ? "active" : "all", doUsuario ?? "campanhas"],
     staleTime: 5 * 60 * 1000,
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
@@ -70,6 +81,14 @@ export function useCatalogNotifications(options: UseCatalogNotificationsOptions)
       if (doUsuario) {
         // `or` do PostgREST: o aviso é desta pessoa, ou é geral (sem alvo).
         query = query.or(`target_user_id.eq.${doUsuario},target_user_id.is.null`);
+      }
+
+      if (somenteCampanhas) {
+        // Redundante com a RLS de propósito: a policy interna já recusa o que
+        // não é campanha. Mas quem lê esta função não vê a policy, e uma tela
+        // que pede "tudo" e recebe "campanhas" parece um bug até alguém abrir o
+        // banco. O filtro escrito diz a intenção no lugar onde ela é lida.
+        query = query.eq("tipo", "campanha");
       }
 
       const { data, error } = await query;

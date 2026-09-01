@@ -117,7 +117,7 @@ export function AdminMediaLibrarySection({ products }: Props) {
   const [isCleaning, setIsCleaning] = useState(false);
 
   const { data: banners = [] } = useCatalogBanners();
-  const { data: notifications = [] } = useCatalogNotifications({ audiencia: { escopo: "painel" } });
+  const { data: notifications = [] } = useCatalogNotifications({ audiencia: { escopo: "campanhas" } });
 
   const {
     data: files = [],

@@ -680,7 +680,7 @@ function NotificationEditor({
 export function AdminNotificationsSection() {
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
-  const { data: notifications = [], isLoading } = useCatalogNotifications({ activeOnly: false, audiencia: { escopo: "painel" } });
+  const { data: notifications = [], isLoading } = useCatalogNotifications({ activeOnly: false, audiencia: { escopo: "campanhas" } });
   const { data: customerProfiles = [] } = useAdminCustomerProfiles(Boolean(user && isAdmin));
   const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -921,8 +921,12 @@ export function AdminNotificationsSection() {
     <div className="space-y-6">
       <SectionHeader
         eyebrow="Notificações"
-        title="Campanhas e avisos do catálogo"
-        description="Publique mensagens para aparecer na área de notificações do cliente e organize a prioridade de exibição."
+        title="Campanhas do catálogo"
+        /* "e avisos" saiu do título: esta tela nunca administrou aviso de
+           pedido, e por um tempo pareceu que sim, porque eles apareciam aqui.
+           Quem chega precisa saber que o que falta desta lista é automático, e
+           não algo que alguém esqueceu de cadastrar. */
+        description="Mensagens que a equipe publica para os clientes. Os avisos de pedido — recebido, em andamento, enviado, concluído — são automáticos e não aparecem aqui."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">

@@ -123,7 +123,7 @@ export default function AdminWorkspace() {
   const { user, isAdmin, isSuperadmin, loading, isResolvingAccess, signOut } = useAuth();
   const { data: products = [], isLoading } = useProducts({ includeInactive: true });
   const { data: orders = [], isLoading: ordersLoading } = useOrders(!loading && !!user && isAdmin, "admin");
-  const { data: notifications = [] } = useCatalogNotifications({ activeOnly: false, audiencia: { escopo: "painel" } });
+  const { data: notifications = [] } = useCatalogNotifications({ activeOnly: false, audiencia: { escopo: "campanhas" } });
   const { data: banners = [] } = useCatalogBanners({ activeOnly: false });
   const { data: inboxConversations = [] } = useSupportInbox(Boolean(user && isAdmin));
   const { data: adminTypes = [] } = useAdminProductTypes();

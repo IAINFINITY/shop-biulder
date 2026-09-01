@@ -88,7 +88,7 @@ export function ExcluirContaSection({ className }: { className?: string } = {}) 
   };
 
   return (
-    <section className={cn("overflow-hidden rounded-xl bg-background/95 shadow-sm ring-1 ring-black/5", className)}>
+    <section className={cn("overflow-hidden rounded-[1.25rem] bg-background/95 shadow-sm border border-border/70", className)}>
       <div className="p-5 sm:p-6">
         {/* Mesmo lugar, tamanho e espacamento dos outros cabecalhos de cartao.
             A cor e que muda: `destructive` em vez de `primary`, porque a forma
@@ -132,7 +132,7 @@ export function ExcluirContaSection({ className }: { className?: string } = {}) 
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+            <div className="rounded-[1.25rem] border border-destructive/30 bg-destructive/5 p-3">
               <p className={cn(TEXT.caption, "flex items-center gap-1.5 font-semibold text-destructive")}>
                 <X className="h-3.5 w-3.5" />O que será apagado
               </p>
@@ -149,7 +149,7 @@ export function ExcluirContaSection({ className }: { className?: string } = {}) 
             {/* A coluna do que fica tem o mesmo peso da de cima de propósito. É o
                 que a §27 chama de explicar "excluído, retido ou anonimizado" — e
                 é a parte que costuma ser escondida. */}
-            <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
+            <div className="rounded-[1.25rem] border border-border/70 bg-muted/30 p-3">
               <p className={cn(TEXT.caption, "flex items-center gap-1.5 font-semibold text-foreground")}>
                 <Check className="h-3.5 w-3.5" />O que continua existindo
               </p>

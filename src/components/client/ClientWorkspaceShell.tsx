@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ClinicPlusLogo } from "@/components/shared/ClinicPlusLogo";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { WorkspaceBottomNav, type WorkspaceBottomNavItem } from "@/components/shared/WorkspaceBottomNav";
 import type { ClientSection } from "./clientTypes";
@@ -51,34 +52,34 @@ export function ClientWorkspaceShell({
     {
       label: "Visão geral",
       items: [
-        { id: "resumo" as const, label: "Resumo", icon: LayoutGrid, description: "Visão geral" },
+        { id: "resumo" as const, label: "Resumo", icon: LayoutGrid },
       ],
     },
     {
       label: "Cadastro",
       items: [
-        { id: "empresa" as const, label: "Empresa", icon: Building2, description: "Dados cadastrados" },
-        { id: "enderecos" as const, label: "Endereços", icon: MapPinned, description: "Locais de entrega" },
+        { id: "empresa" as const, label: "Empresa", icon: Building2 },
+        { id: "enderecos" as const, label: "Endereços", icon: MapPinned },
       ],
     },
     {
       label: "Atividades",
       items: [
-        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag, description: "Acompanhamento" },
-        { id: "notificacoes" as const, label: "Notificações", icon: Bell, description: "Campanhas e avisos" },
+        { id: "pedidos" as const, label: "Pedidos", icon: ShoppingBag },
+        { id: "notificacoes" as const, label: "Notificações", icon: Bell },
       ],
     },
     {
       label: "Atendimento",
       items: [
-        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText, description: "Falar com consultor" },
+        { id: "mensagens" as const, label: "Mensagens", icon: MessageSquareText },
       ],
     },
     {
       label: "Sistema",
       items: [
-        { id: "seguranca" as const, label: "Configurações", icon: Settings, description: "Senha e perfil" },
-        { id: "meus-dados" as const, label: "Meus dados", icon: ShieldCheck, description: "Ver e baixar" },
+        { id: "seguranca" as const, label: "Configurações", icon: Settings },
+        { id: "meus-dados" as const, label: "Meus dados", icon: ShieldCheck },
       ],
     },
   ];
@@ -149,19 +150,28 @@ export function ClientWorkspaceShell({
             collapsed ? "justify-center px-0" : "justify-center px-5",
           )}
         >
+          {/* ⚠️ A marca inteira com o menu aberto; o símbolo só com ele
+              recolhido — a mesma regra do painel.
+
+              Aqui o favicon aparecia nos **dois** estados: com 256px de largura
+              disponíveis, a conta abria mostrando um quadradinho de 40px e nome
+              nenhum. É o mesmo defeito que o painel já tinha corrigido, e que
+              fazia as duas bancadas parecerem sites diferentes. */}
           <Link
             to="/"
             viewTransition
-            className={cn("inline-flex items-center gap-3", collapsed ? "justify-center" : "justify-center")}
+            aria-label="Voltar ao catálogo Clinic+"
+            className="inline-flex items-center justify-center"
           >
-            <img
-              src="/faviconV2.png"
-              alt="Clinic+"
-              className={cn(
-                "shrink-0 rounded-[0.85rem] border border-primary/15 bg-background p-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-all duration-300",
-                "h-10 w-10",
-              )}
-            />
+            {collapsed ? (
+              <img
+                src="/faviconV2.png"
+                alt="Clinic+"
+                className="h-10 w-10 shrink-0 rounded-[0.85rem] border border-primary/15 bg-background p-1.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+              />
+            ) : (
+              <ClinicPlusLogo className="h-9 w-auto max-w-[10.5rem] sm:h-10" />
+            )}
           </Link>
         </div>
 
@@ -173,10 +183,12 @@ export function ClientWorkspaceShell({
                   {group.label}
                 </p>
               ) : null}
-              <div className={cn("space-y-1 sm:space-y-1.5", collapsed && "space-y-2")}> 
+              <div className={cn("space-y-0.5", collapsed && "space-y-1.5")}> 
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const active = section === item.id;
+                  const naoLidas = item.id === "notificacoes" ? unreadNotificationCount : 0;
+
                   return (
                     <button
                       key={item.id}
@@ -184,39 +196,53 @@ export function ClientWorkspaceShell({
                       onClick={() => onSectionChange(item.id)}
                       title={item.label}
                       aria-label={item.label}
-                      className={cn(
-                        "group flex w-full items-center gap-2.5 sm:gap-3 rounded-[1rem] px-2.5 sm:px-3 py-2.5 sm:py-3 text-left transition-colors",
-                        collapsed && "mx-auto h-12 w-12 justify-center gap-0 px-0 py-0",
-                        active
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-foreground/80 hover:bg-muted/40 hover:text-foreground",
-                      )}
-                    >
-                    <span
-                      className={cn(
-                        "relative inline-flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full border transition-colors",
-                        collapsed && "h-10 w-10 rounded-[0.9rem]",
-                        active ? "border-white/10 bg-white/15" : "border-border bg-background",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.id === "notificacoes" && unreadNotificationCount > 0 ? (
-                        <span
-                          className={cn(
-                            "absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border border-background bg-primary px-1 text-[0.625rem] font-semibold leading-none text-primary-foreground shadow-sm",
-                            unreadNotificationCount > 9 && "min-w-6",
-                          )}
-                          aria-label={`${unreadNotificationCount} notificações não lidas`}
-                        >
-                          {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
-                        </span>
-                      ) : null}
-                    </span>
+                      /* ⚠️ Uma linha por item, sem a legenda e sem o círculo em
+                         volta do ícone — a mesma forma do painel.
 
-                      {!collapsed ? (
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[0.8125rem] sm:text-sm font-medium leading-5">{item.label}</span>
-                          <span className="block text-[0.625rem] sm:text-[0.6875rem] leading-4 opacity-75">{item.description}</span>
+                         A área do cliente ficou com o desenho anterior: duas
+                         linhas por item e o ícone dentro de um círculo com
+                         borda. Com oito itens, a segunda linha e a moldura
+                         viram ruído, e nenhuma legenda dizia algo que o rótulo
+                         já não dissesse ("Pedidos · Acompanhamento"). */
+                      className={cn(
+                        "group flex w-full items-center gap-2.5 rounded-[0.75rem] px-2.5 py-2 text-left text-sm transition-colors",
+                        collapsed && "mx-auto h-10 w-10 justify-center gap-0 px-0 py-0",
+                        active
+                          ? "bg-primary font-medium text-primary-foreground"
+                          : "text-foreground/75 hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <span className="relative shrink-0">
+                        <Icon className={cn("h-[1.125rem] w-[1.125rem]", !active && "text-muted-foreground")} />
+                        {/* Recolhida não há onde escrever o número: fica o
+                            ponto, que basta para levar a pessoa a abrir o menu. */}
+                        {collapsed && naoLidas > 0 ? (
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ring-2",
+                              active ? "bg-primary-foreground ring-primary" : "bg-primary ring-card",
+                            )}
+                          />
+                        ) : null}
+                      </span>
+
+                      {!collapsed ? <span className="min-w-0 flex-1 truncate leading-5">{item.label}</span> : null}
+
+                      {/* ⚠️ Pílula sólida, ao contrário da do painel.
+                          Lá o número é profundidade de fila e sai quando alguém
+                          responde; aqui é não-lido de verdade — some quando o
+                          cliente abre o aviso. São coisas diferentes e o desenho
+                          diz isso. */}
+                      {!collapsed && naoLidas > 0 ? (
+                        <span
+                          aria-label={`${naoLidas} notificações não lidas`}
+                          className={cn(
+                            "ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[0.625rem] font-semibold tabular-nums",
+                            active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-primary text-primary-foreground",
+                          )}
+                        >
+                          {naoLidas > 9 ? "9+" : naoLidas}
                         </span>
                       ) : null}
                     </button>
@@ -244,7 +270,7 @@ export function ClientWorkspaceShell({
               <div className="shrink-0 border-t border-border/70 p-2.5 sm:p-3 pb-[calc(0.625rem+env(safe-area-inset-bottom,0rem))] sm:pb-[calc(0.75rem+env(safe-area-inset-bottom,0rem))]">
           <div
             className={cn(
-              "flex items-center gap-3 rounded-xl bg-background/95 ring-1 ring-black/5 px-3 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
+              "flex items-center gap-3 rounded-[1.25rem] bg-background/95 border border-border/70 px-3 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
               collapsed && "justify-between px-2.5 py-2",
             )}
           >

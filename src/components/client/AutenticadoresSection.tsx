@@ -96,7 +96,7 @@ export function AutenticadoresSection({ className }: { className?: string } = {}
   };
 
   return (
-    <section className={cn("overflow-hidden rounded-xl bg-background/95 shadow-sm ring-1 ring-black/5", className)}>
+    <section className={cn("overflow-hidden rounded-[1.25rem] bg-background/95 shadow-sm border border-border/70", className)}>
       <div className="p-5 sm:p-6">
         <h2 className={cn(TEXT.body, "flex items-center gap-2 font-semibold text-foreground")}>
           {/* `h-5 w-5 text-primary`: e a forma dos cabecalhos de cartao no resto

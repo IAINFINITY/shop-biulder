@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { loadSupabaseClient } from "@/lib/loadSupabaseClient";
 import { TEXT } from "@/lib/typography";
 import { cn } from "@/lib/utils";
+import { ListaComBusca } from "@/components/admin/ListaComBusca";
+import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 
 /**
  * Os aparelhos que dispensam o segundo fator.
@@ -94,6 +96,11 @@ export function AparelhosLembradosSection({ className }: { className?: string } 
     } catch (e) {
       console.error("[aparelhos] falha ao revogar:", e);
       setErro("Não foi possível remover este aparelho.");
+      // ⚠️ Repropaga: `ConfirmActionDialog` só fecha quando `onConfirm` resolve.
+      // Engolindo o erro aqui, o diálogo fecharia como se tivesse dado certo e o
+      // aparelho continuaria lembrado — a pior falha possível numa tela de
+      // segurança, porque a pessoa vai embora achando que fechou a porta.
+      throw e;
     } finally {
       setRemovendo(null);
     }
@@ -104,7 +111,7 @@ export function AparelhosLembradosSection({ className }: { className?: string } 
   if (!carregando && aparelhos.length === 0 && !erro) return null;
 
   return (
-    <section className={cn("rounded-2xl bg-background p-5 ring-1 ring-black/5 sm:p-6", className)}>
+    <section className={cn("rounded-[1.5rem] border border-border/70 bg-background p-5 sm:p-6", className)}>
       <div className="flex items-start gap-3 pb-4">
         <MonitorSmartphone className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div className="min-w-0">
@@ -122,15 +129,21 @@ export function AparelhosLembradosSection({ className }: { className?: string } 
           <p className={TEXT.compact}>Carregando…</p>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {aparelhos.map((a) => {
+        // ⚠️ Paginado — e aqui não é precaução: uma conta já tem **13**
+        // aparelhos lembrados. Cada login de um navegador novo acrescenta um, e
+        // a lista só cresce; sem teto ela empurra o resto da tela de segurança
+        // para fora.
+        <ListaComBusca
+          itens={aparelhos}
+          chaveDoItem={(a) => a.id}
+          textoDoItem={(a) => a.rotulo ?? "Aparelho desconhecido"}
+          buscaPlaceholder="Buscar aparelho..."
+          vazio="Nenhum aparelho lembrado."
+          renderizar={(a) => {
             const criado = formatarData(a.criado_em);
             const usado = formatarData(a.ultimo_uso_em);
             return (
-              <li
-                key={a.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/60 px-4 py-3"
-              >
+              <div className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className={cn(TEXT.compact, "font-medium text-foreground")}>
                     {a.rotulo ?? "Aparelho desconhecido"}
@@ -140,25 +153,46 @@ export function AparelhosLembradosSection({ className }: { className?: string } 
                     {usado ? ` · usado em ${usado}` : ""}
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 gap-2 text-destructive hover:text-destructive"
-                  disabled={removendo === a.id}
-                  onClick={() => void revogar(a.id)}
-                >
-                  {removendo === a.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                  Remover
-                </Button>
-              </li>
+                {/* ⚠️ Confirmação, como em toda ação destrutiva do projeto.
+                    Não é medo do clique errado: remover é a única ação da linha,
+                    fica ao lado do nome e não tem como desfazer — a linha some da
+                    lista e o único caminho de volta é entrar de novo naquele
+                    aparelho e refazer o segundo fator. Ninguém adivinha isso pelo
+                    ícone de lixeira. */}
+                <ConfirmActionDialog
+                  title="Remover este aparelho?"
+                  description={
+                    <>
+                      <strong>{a.rotulo ?? "Este aparelho"}</strong> volta a pedir o código do
+                      autenticador na próxima entrada. Não dá para desfazer: para lembrá-lo de novo,
+                      é preciso entrar por ele e confirmar o código.
+                    </>
+                  }
+                  confirmLabel="Remover"
+                  processingLabel="Removendo…"
+                  destructive
+                  onConfirm={() => revogar(a.id)}
+                  trigger={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 gap-2 text-destructive hover:text-destructive"
+                      disabled={removendo === a.id}
+                    >
+                      {removendo === a.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      Remover
+                    </Button>
+                  }
+                />
+              </div>
             );
-          })}
-        </ul>
+          }}
+        />
       )}
 
       {erro ? (

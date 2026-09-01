@@ -1,6 +1,7 @@
-﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import {
+  ArrowRight,
   Building2,
   CalendarClock,
   Eye,
@@ -14,6 +15,7 @@ import {
   Save,
   ShieldCheck,
   ShoppingBag,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,14 +24,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthStatusScreen } from "@/components/auth/AuthStatusScreen";
 import { ClientWorkspaceShell } from "@/components/client/ClientWorkspaceShell";
-import { ClientSectionHeader } from "@/components/client/ClientSectionHeader";
+import { SectionHeader } from "@/components/shared/SectionHeader";
+import { ListaComBusca } from "@/components/admin/ListaComBusca";
 import { AutenticadoresSection } from "@/components/client/AutenticadoresSection";
 import { AparelhosLembradosSection } from "@/components/client/AparelhosLembradosSection";
 import { ExcluirContaSection } from "@/components/client/ExcluirContaSection";
+import { TrocarEmailSection } from "@/components/shared/TrocarEmailSection";
 import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
+import { ClientOrderDetail } from "@/components/client/ClientOrderDetail";
 import { ClientAddressesSection } from "@/components/client/ClientAddressesSection";
 import { CatalogNotificationImageFrame } from "@/components/shared/CatalogNotificationImageFrame";
+import { IconeDoAviso, RotuloDoAviso } from "@/components/client/SeloDoAviso";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { ChatWorkspace } from "@/components/support/ChatWorkspace";
 import type { ClientSection } from "@/components/client/clientTypes";
@@ -39,6 +45,7 @@ import { customerTypeLabel, DEFAULT_CUSTOMER_TYPE, normalizeCustomerType } from 
 import { formatBRL } from "@/lib/formatMoney";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import type { Order } from "@/lib/orders";
+import { useEtapaNaUrl } from "@/hooks/useFiltroNaUrl";
 import { useOrders } from "@/hooks/useOrders";
 import { useProducts } from "@/hooks/useProducts";
 import { useCatalogNotifications } from "@/hooks/useCatalogNotifications";
@@ -54,7 +61,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { syncCustomerProxisLink } from "@/lib/proxisCustomer";
 import { MODAL_TELA_CHEIA, MODAL_TELA_CHEIA_CORPO } from "@/lib/modais";
 import { validarSenha } from "@/lib/validarSenha";
 import { MIN_SEM_MFA } from "@/lib/senha";
@@ -75,6 +81,16 @@ const sectionTitle: Record<ClientSection, string> = {
   notificacoes: "Notificações",
   "meus-dados": "Meus dados",
 };
+
+/**
+ * Se o valor da URL é uma seção que existe.
+ *
+ * Sai de `sectionTitle`, e não de uma lista escrita à mão: era uma cadeia de
+ * oito comparações `===` que precisava ser lembrada a cada seção nova.
+ */
+function ehSecaoDoCliente(valor: string | null): valor is ClientSection {
+  return Boolean(valor) && valor! in sectionTitle;
+}
 
 type CustomerCatalogNotification = CatalogNotification & { isRead: boolean };
 
@@ -117,9 +133,9 @@ function AdminAccessNotice({
   return (
     <div className="min-h-screen bg-muted/40 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center">
-        <div className="w-full rounded-xl bg-card/95 ring-1 ring-black/5 p-6 shadow-[0_12px_32px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
+        <div className="w-full rounded-[1.25rem] bg-card/95 border border-border/70 p-6 shadow-[0_12px_32px_rgba(16,24,40,0.08)] backdrop-blur sm:p-8">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/15 bg-primary/5 text-primary">
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
@@ -132,18 +148,18 @@ function AdminAccessNotice({
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
+          <div className="mt-5 rounded-[1.25rem] border border-primary/15 bg-primary/5 p-5 text-sm leading-6 text-foreground">
             Para acessar a área do cliente, você precisa sair da conta administrativa primeiro. Assim evitamos misturar a
             visualização do admin com o fluxo do cliente.
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Button type="button" className="h-11 rounded-xl px-5 text-sm" onClick={onGoCustomerArea}>
+            <Button type="button" className="h-11 rounded-2xl px-5 text-sm" onClick={onGoCustomerArea}>
               Ir para a área de cliente
             </Button>
             <ConfirmActionDialog
               trigger={
-                <Button type="button" variant="outline" className="h-11 rounded-xl px-5 text-sm">
+                <Button type="button" variant="outline" className="h-11 rounded-2xl px-5 text-sm">
                   <LogOut className="h-4 w-4" />
                   Sair da conta
                 </Button>
@@ -171,6 +187,10 @@ function AdminAccessNotice({
 }
 
 type InfoTileProps = {
+  /** Quando existe, o cartão vira botão e ganha a seta. */
+  onClick?: () => void;
+  /** O que o clique faz — vira a seta e o rótulo de leitor de tela. */
+  acaoLabel?: string;
   label: string;
   /** `ReactNode` e nao `string`: a empresa precisa exibir o selo de MEI ao lado. */
   value: ReactNode;
@@ -178,11 +198,45 @@ type InfoTileProps = {
   icon: typeof Mail;
 };
 
-function InfoTile({ label, value, hint, icon: Icon }: InfoTileProps) {
+/**
+ * Itens por página nas listas da conta.
+ *
+ * Menor que os 24 do painel: quem administra varre listas o dia todo e quer
+ * densidade; o cliente vê a própria conta de vez em quando, e cada pedido aqui
+ * é um cartão alto com itens dentro. Seis cabem sem virar rolagem.
+ */
+const ITENS_POR_PAGINA_DO_CLIENTE = 6;
+
+/**
+ * Um cartão de resumo da conta.
+ *
+ * ## Alinhado ao `AdminStatCard`
+ *
+ * O do painel tem o ícone num círculo **com borda**, raio de `1.25rem` e uma
+ * reação ao mouse. Este tinha um círculo sem borda, `rounded-xl` e nada
+ * acontecia ao passar por cima — as duas bancadas mostravam o mesmo tipo de
+ * informação com duas caras.
+ *
+ * ⚠️ **Sem `cursor-pointer`**: ao contrário dos do painel, estes não abrem nada.
+ * Ganham só borda e sombra no hover; prometer um clique que não existe é pior
+ * que não reagir.
+ */
+function InfoTile({ label, value, hint, icon: Icon, onClick, acaoLabel }: InfoTileProps) {
+  const Elemento = onClick ? "button" : "div";
+
   return (
-    <div className="rounded-xl bg-muted/20 ring-1 ring-black/5 p-4">
+    <Elemento
+      {...(onClick ? { type: "button" as const, onClick, "aria-label": acaoLabel } : {})}
+      className={cn(
+        "group w-full rounded-[1.25rem] border border-border/70 bg-muted/20 p-4 text-left transition-all duration-200",
+        "hover:border-primary/25 hover:bg-primary/[0.03] hover:shadow-[0_4px_16px_rgba(16,24,40,0.06)]",
+        // ⚠️ Cursor e seta **só** quando leva a algum lugar. O cartão que não
+        // abre nada reage à mesma cor, mas não promete um clique.
+        onClick && "cursor-pointer hover:-translate-y-px motion-reduce:hover:translate-y-0",
+      )}
+    >
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/15 bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
         </div>
         <p className="min-w-0 truncate text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -195,7 +249,16 @@ function InfoTile({ label, value, hint, icon: Icon }: InfoTileProps) {
           `nome.sobrenome@empresa.com.br` passava por fora da borda. */}
       <p className="mt-3 break-words text-sm font-medium text-foreground">{value}</p>
       {hint ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{hint}</p> : null}
-    </div>
+
+      {/* A seta aparece ao passar o mouse — é o mesmo gesto dos cartões do
+          Dashboard do painel, e é o que responde "isto abre alguma coisa?". */}
+      {onClick ? (
+        <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+          {acaoLabel}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </span>
+      ) : null}
+    </Elemento>
   );
 }
 
@@ -210,7 +273,7 @@ function EmptyPanel({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-border/70 bg-background/95 p-6 text-sm leading-6 text-muted-foreground">
+    <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-background/95 p-6 text-sm leading-6 text-muted-foreground">
       <p className="font-medium text-foreground">{title}</p>
       <p className="mt-2">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
@@ -218,66 +281,10 @@ function EmptyPanel({
   );
 }
 
-function CustomerNotificationPreview({ notification }: { notification: CustomerCatalogNotification }) {
-  const notificationDateTime = formatCompactDateTime(notification.starts_at ?? notification.created_at);
-  const ctaLabel = notification.cta_label?.trim();
-  const ctaUrl = notification.cta_url?.trim();
-
-  return (
-    <div className="overflow-hidden rounded-xl bg-background ring-1 ring-black/5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
-      <CatalogNotificationImageFrame src={notification.image_url} alt={notification.title} className="aspect-[3/1]" fit="cover" />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={notification.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[0.6875rem]">
-              {notification.isRead ? "Lida" : "Nova"}
-            </Badge>
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem]">
-              Campanha do catálogo
-            </Badge>
-          </div>
-          {notificationDateTime ? (
-            <p className="text-[0.6875rem] text-muted-foreground">
-              {notification.starts_at ? "Início" : "Publicado"} {notificationDateTime.datePart} às {notificationDateTime.timePart}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</p>
-          <p className="text-base font-semibold text-foreground">{notification.title}</p>
-          {notification.summary ? <p className="text-sm text-muted-foreground">{notification.summary}</p> : null}
-        </div>
-
-        {notification.body ? (
-          <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground/90">{notification.body}</p>
-        ) : null}
-
-        {ctaLabel || ctaUrl ? (
-          <div className="mt-auto flex flex-wrap items-center gap-3 rounded-xl bg-muted/20 ring-1 ring-black/5 px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Ação</p>
-              <p className="truncate text-sm font-medium text-foreground">{ctaLabel || "Abrir link"}</p>
-              <p className="truncate text-xs text-muted-foreground">{ctaUrl || "Sem link configurado"}</p>
-            </div>
-            {ctaUrl ? (
-              <Button asChild className="h-10 rounded-xl px-4 text-sm">
-                <a href={ctaUrl} target="_blank" rel="noreferrer">
-                  {ctaLabel || "Abrir link"}
-                </a>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 export default function Account() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAdmin, customerProfile, loading, isResolvingAccess, signOut, refreshCustomerProfile, registerCustomerProfile } = useAuth();
   const { data: orders = [], isLoading: ordersLoading } = useOrders(
     Boolean(user && customerProfile && !isAdmin),
@@ -285,8 +292,117 @@ export default function Account() {
   );
   const { data: products = [] } = useProducts({ includeInactive: true });
   const { data: notifications = [], isLoading: notificationsLoading } = useCatalogNotifications();
-  const { data: notificationReads = [], isLoading: notificationReadsLoading, markAsRead } = useCatalogNotificationReads(user?.id ?? null);
-  const [section, setSection] = useState<ClientSection>("resumo");
+  const {
+    data: notificationReads = [],
+    isLoading: notificationReadsLoading,
+    markAsRead,
+    dispensar: dispensarAvisos,
+    isDispensando,
+  } = useCatalogNotificationReads(user?.id ?? null);
+  /**
+   * A seção aberta — **na URL, e não em estado local**.
+   *
+   * ## ⚠️ O bug que isto conserta
+   *
+   * Havia duas verdades: `section` em `useState` e `?section=` na URL, com um
+   * efeito copiando a URL para o estado a cada mudança de `searchParams`. A
+   * navegação pela barra lateral mexia só no estado, então a URL guardava a
+   * seção **anterior** — e qualquer escrita na URL (abrir um pedido, por
+   * exemplo) fazia o efeito disparar e jogar a pessoa de volta para lá.
+   *
+   * Na prática: quem chegava em Pedidos vindo de um aviso e clicava num cartão
+   * era levado para Notificações, porque era isso que ainda estava em
+   * `?section=`.
+   *
+   * Uma verdade só. E de graça: recarregar a página mantém a seção, e o link
+   * pode ser colado.
+   */
+  const secaoNaUrl = searchParams.get("section");
+  const section: ClientSection = ehSecaoDoCliente(secaoNaUrl) ? secaoNaUrl : "resumo";
+
+  /**
+   * Troca de seção.
+   *
+   * ⚠️ **Uma escrita só nos parâmetros.** Chamar `setSearchParams` duas vezes no
+   * mesmo evento faz a segunda partir dos parâmetros **antigos** e apagar o que
+   * a primeira gravou — foi assim que o menu do painel deixou de sair do
+   * Dashboard, em agosto. Aqui a seção e o pedido aberto mudam juntos.
+   */
+  const setSection = useCallback(
+    (proxima: ClientSection) => {
+      setSearchParams(
+        (atuais) => {
+          const copia = new URLSearchParams(atuais);
+          if (proxima === "resumo") copia.delete("section");
+          else copia.set("section", proxima);
+          // Sair de Pedidos com um detalhe aberto e voltar depois reabriria o
+          // mesmo pedido, sem ninguém ter pedido.
+          copia.delete("pedido");
+          return copia;
+        },
+        { replace: false },
+      );
+    },
+    [setSearchParams],
+  );
+
+  /**
+   * Qual pedido está aberto em tela cheia. `null` = a lista.
+   *
+   * ⚠️ Vive na URL (`?pedido=`), e não só em estado: assim o botão voltar do
+   * navegador fecha o detalhe em vez de sair da conta, e o link de um pedido
+   * pode ser colado. É o mesmo que o painel faz com a seção.
+   */
+  const [pedidoAberto, setPedidoAberto] = useEtapaNaUrl("pedido");
+
+  /**
+   * Leva ao destino de um aviso.
+   *
+   * ⚠️ Os avisos guardam `/conta?section=pedidos` — um caminho **desta mesma
+   * página**. Seguir por `window.location` recarregaria o app inteiro para
+   * chegar a uma aba que já está montada. Quando o destino é de fora, aí sim o
+   * navegador cuida.
+   */
+  /**
+   * Marca um aviso como lido.
+   *
+   * ⚠️ **Avisa quando falha.** Era `markAsRead(id).catch(() => null)` — o
+   * `catch` mudo existia para o clique não virar um alerta vermelho, e engoliu
+   * a única pista de que o `upsert` falhava **sempre**: faltava o índice único
+   * em `(user_id, notification_id)` que o `onConflict` exige. Ninguém marcou
+   * nada como lido desde que a tela existe, e a tela nunca disse nada.
+   *
+   * Falha de rede continua sendo possível; agora ela aparece.
+   */
+  const marcarLido = useCallback(
+    async (id: string) => {
+      try {
+        await markAsRead(id);
+      } catch {
+        toast.error("Não foi possível marcar como lido.", {
+          description: "Tente de novo em instantes.",
+        });
+      }
+    },
+    [markAsRead],
+  );
+
+  const irParaDestinoDoAviso = useCallback((url: string | null | undefined) => {
+    const destino = (url ?? "").trim();
+    if (!destino) return;
+
+    const daPropriaConta = /^\/conta(?:\?section=([\w-]+))?/.exec(destino);
+    if (daPropriaConta) {
+      const alvo = daPropriaConta[1] as ClientSection | undefined;
+      if (alvo) setSection(alvo);
+      return;
+    }
+
+    window.location.assign(destino);
+    // `setSection` entra na lista: ele deixou de ser o setter estável do
+    // `useState` e virou um `useCallback` que depende de `setSearchParams`.
+    // Sem isto, um dia ele fecharia sobre uma versão velha.
+  }, [setSection]);
   /**
    * A mesma variavel significa duas coisas, e por isso o valor inicial nao pode
    * ser um so.
@@ -299,7 +415,6 @@ export default function Account() {
   const ehDesktop = () =>
     typeof window === "undefined" || window.matchMedia("(min-width: 1024px)").matches;
   const [sidebarOpen, setSidebarOpen] = useState(ehDesktop);
-  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
 
   // Profile editing
   const [editingProfile, setEditingProfile] = useState(false);
@@ -320,12 +435,6 @@ export default function Account() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
-  useEffect(() => {
-    const sectionParam = searchParams.get("section");
-    if (sectionParam === "resumo" || sectionParam === "empresa" || sectionParam === "enderecos" || sectionParam === "pedidos" || sectionParam === "seguranca" || sectionParam === "mensagens" || sectionParam === "notificacoes" || sectionParam === "meus-dados") {
-      setSection(sectionParam);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     setAccountName(customerProfile?.name?.trim() || user?.user_metadata?.name?.trim() || "");
@@ -368,17 +477,33 @@ export default function Account() {
   const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
   const orderViews = useMemo(
     () =>
-      customerOrders.map((order) => {
+      customerOrders.map((order, indice) => {
         const lines = parseOrderTableLines(order.items, orderEnrichment);
         return {
           order,
           lines,
+          // O numero e a **posicao na lista**, contada do mais novo para o mais
+          // antigo — o mesmo criterio do painel. Nasce aqui, e nao na tela do
+          // detalhe, para o cartao e o detalhe nao poderem discordar.
+          numero: customerOrders.length - indice,
           totalItems: getOrderLinesQuantityTotal(lines),
           totalValue: getOrderLinesGrandTotal(lines),
         };
       }),
     [customerOrders, orderEnrichment],
   );
+  /**
+   * O pedido aberto, já com o número que a lista mostra.
+   *
+   * O número é a **posição na lista**, e não um campo do pedido — é o mesmo
+   * critério do painel, para as duas telas chamarem o mesmo pedido pelo mesmo
+   * nome.
+   */
+  const pedidoEmFoco = useMemo(
+    () => (pedidoAberto ? orderViews.find((item) => item.order.id === pedidoAberto) ?? null : null),
+    [orderViews, pedidoAberto],
+  );
+
   const totalSpent = useMemo(
     () => orderViews.reduce((sum, item) => sum + item.totalValue, 0),
     [orderViews],
@@ -387,24 +512,31 @@ export default function Account() {
     () => new Set(notificationReads.map((item) => item.notification_id)),
     [notificationReads],
   );
+  /**
+   * Os avisos que esta pessoa tirou da própria lista.
+   *
+   * A notificação continua existindo — ela é da loja e vale para todo mundo. O
+   * que é por pessoa é o `dispensado_em`; ver a migration `20260901180000`.
+   */
+  const dismissedNotificationIds = useMemo(
+    () => new Set(notificationReads.filter((item) => item.dispensado_em).map((item) => item.notification_id)),
+    [notificationReads],
+  );
   const notificationsWithState = useMemo(
     () =>
       [...notifications]
+        .filter((item) => !dismissedNotificationIds.has(item.id))
         .map((item) => ({ ...item, isRead: readNotificationIds.has(item.id) }))
         .sort((left, right) => {
           const readOrder = Number(left.isRead) - Number(right.isRead);
           if (readOrder !== 0) return readOrder;
           return right.priority - left.priority || right.created_at.localeCompare(left.created_at);
         }),
-    [notifications, readNotificationIds],
+    [notifications, readNotificationIds, dismissedNotificationIds],
   );
   const unreadNotificationCount = useMemo(
     () => notificationsWithState.filter((item) => !item.isRead).length,
     [notificationsWithState],
-  );
-  const selectedNotification = useMemo(
-    () => notificationsWithState.find((item) => item.id === selectedNotificationId) ?? null,
-    [notificationsWithState, selectedNotificationId],
   );
   const isNotificationsLoading = notificationsLoading || notificationReadsLoading;
   if (loading || isResolvingAccess) {
@@ -434,7 +566,7 @@ export default function Account() {
 
   const summaryContent = (
     <div className="space-y-4 sm:space-y-6">
-      <ClientSectionHeader
+      <SectionHeader
         eyebrow="Minha conta"
         title="Resumo da conta"
         description="Tenha uma leitura rápida do estado da conta, do acesso e do histórico do cliente."
@@ -449,6 +581,8 @@ export default function Account() {
           value={user.email || "—"}
           hint="Endereço usado no login do cliente."
           icon={Mail}
+          onClick={() => setSection("seguranca")}
+          acaoLabel="Trocar e-mail"
         />
         <InfoTile
           label="Status"
@@ -474,23 +608,31 @@ export default function Account() {
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {/* ⚠️ Clicáveis **só quando há pedido**. Um cartão que abre uma lista
+            vazia é pior que um cartão parado: promete e não entrega. */}
         <InfoTile
           label="Pedidos"
           value={`${orderViews.length} pedido(s)`}
           hint="Histórico liberado para acompanhamento do cliente."
           icon={ShoppingBag}
+          onClick={orderViews.length > 0 ? () => setSection("pedidos") : undefined}
+          acaoLabel="Ver meus pedidos"
         />
         <InfoTile
           label="Valor total"
           value={orderViews.length > 0 ? formatBRL(totalSpent) : "—"}
           hint="Soma dos pedidos encontrados."
           icon={ShoppingBag}
+          onClick={orderViews.length > 0 ? () => setSection("pedidos") : undefined}
+          acaoLabel="Ver meus pedidos"
         />
         <InfoTile
           label="Último pedido"
           value={orderViews[0] ? formatDateTime(orderViews[0].order.created_at) : "—"}
           hint="Data do pedido mais recente vinculado à conta."
           icon={CalendarClock}
+          onClick={orderViews[0] ? () => setSection("pedidos") : undefined}
+          acaoLabel="Abrir o último pedido"
         />
       </div>
 
@@ -516,7 +658,7 @@ export default function Account() {
 
   const companyContent = (
     <div className="space-y-4 sm:space-y-6">
-      <ClientSectionHeader
+      <SectionHeader
         eyebrow="Empresa"
         title="Dados da empresa"
         description="Revise e edite os dados cadastrais associados a sua conta."
@@ -531,189 +673,109 @@ export default function Account() {
                 setEditPhone(customerProfile.phone);
                 setEditCompany(customerProfile.company);
                 setEditCnpj(customerProfile.cnpj);
-                setEditingProfile(!editingProfile);
+                setEditingProfile(true);
               }}
-              className="h-10 rounded-full px-4 text-xs sm:h-8"
+              className="h-10 rounded-2xl px-4 text-xs sm:h-9"
             >
-              {editingProfile ? <Save className="mr-1.5 h-3.5 w-3.5" /> : <Pencil className="mr-1.5 h-3.5 w-3.5" />}
-              {editingProfile ? "Cancelar" : "Editar"}
+              {/* ⚠️ Só abre — não alterna mais.
+                  Era o mesmo botão dizendo "Editar" e depois "Cancelar": e
+                  cancelar o quê, se nada foi mudado ainda? Quem desiste fecha o
+                  diálogo (Esc, clique fora ou o botão lá dentro). */}
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Editar
             </Button>
           ) : undefined
         }
       />
 
       {customerProfile ? (
-        editingProfile ? (
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setSavingProfile(true);
-              try {
-                const documentDigits = onlyDigits(editCnpj);
-                const isDocumentValid = isValidCpf(documentDigits) || isValidCnpj(documentDigits);
-                if (!isDocumentValid) {
-                  toast.error("Informe um CPF ou CNPJ válido.");
-                  setSavingProfile(false);
-                  return;
-                }
-
-                const { error } = await supabase.rpc("update_own_customer_profile", {
-                  p_phone: editPhone.trim(),
-                  p_company: editCompany.trim(),
-                  p_cnpj: documentDigits,
-                });
-                if (error) throw error;
-                if (documentDigits.length === 14) {
-                  await syncCustomerProxisLink(documentDigits).catch(() => null);
-                }
-                toast.success("Perfil atualizado");
-                setEditingProfile(false);
-                if (user) await refreshCustomerProfile(user.id);
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Erro ao atualizar perfil");
-              } finally {
-                setSavingProfile(false);
+        <>
+          {/* Uma coluna no celular: os valores aqui sao e-mail, empresa e
+              documento — cadeia longa que, em duas colunas de ~170px,
+              quebra em tres ou quatro linhas e desalinha os cartoes. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
+            <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
+            <InfoTile
+              label="Empresa"
+              value={
+                <NomeDaEmpresa
+                  company={customerProfile.company}
+                  cnpj={customerProfile.cnpj}
+                  isMei={customerProfile.is_mei}
+                />
               }
-            }}
-            className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6 space-y-4"
-          >
-            <div className="space-y-2">
-              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</Label>
-              <Input
-                value={editPhone}
-                onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
-                className="h-10 rounded-xl text-[0.8125rem]"
-                inputMode="numeric"
-                type="tel"
-                placeholder="(00) 00000-0000"
-                onKeyDown={(e) => {
-                  const allowedKeys = [
-                    "Backspace",
-                    "Delete",
-                    "Tab",
-                    "ArrowLeft",
-                    "ArrowRight",
-                    "Home",
-                    "End",
-                    "Enter",
-                  ];
-                  if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
-                  if (!/^\d$/.test(e.key)) {
-                    e.preventDefault();
-                  }
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</Label>
-              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-xl text-[0.8125rem]" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Documento</Label>
-              <Input
-                value={formatDocumentId(editCnpj)}
-                onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
-                className="h-10 rounded-xl text-[0.8125rem]"
-                inputMode="numeric"
-                maxLength={18}
-                placeholder="00.000.000/0000-00"
-              />
-            </div>
-            <p className="text-[0.6875rem] leading-5 text-muted-foreground">
-              O nome da conta pode ser alterado na seção de configurações. Aqui ficam os dados comerciais do cadastro.
-            </p>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={savingProfile} className="h-10 sm:h-9 rounded-full px-5 text-[0.8125rem]">
-                {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
-                Salvar
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <>
-            {/* Uma coluna no celular: os valores aqui sao e-mail, empresa e
-                documento — cadeia longa que, em duas colunas de ~170px,
-                quebra em tres ou quatro linhas e desalinha os cartoes. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2">
-              <InfoTile label="Nome" value={customerProfile.name || "—"} icon={UserRound} />
-              <InfoTile
-                label="Empresa"
-                value={
-                  <NomeDaEmpresa
-                    company={customerProfile.company}
-                    cnpj={customerProfile.cnpj}
-                    isMei={customerProfile.is_mei}
-                  />
-                }
-                icon={Building2}
-              />
-              <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
-              <InfoTile label="Documento" value={formatDocumentId(customerProfile.cnpj)} icon={Building2} />
-            </div>
+              icon={Building2}
+            />
+            <InfoTile label="Telefone" value={formatPhone(customerProfile.phone) || "—"} icon={Phone} />
+            <InfoTile label="Documento" value={formatDocumentId(customerProfile.cnpj)} icon={Building2} />
+          </div>
 
-            {customerProfile.linked_company_cnpj ? (
-              <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
-                <p className="text-sm font-medium text-foreground">
-                  Funcionário vinculado à Clinic+
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Seus pedidos são emitidos em nome de Clinic+ (CNPJ {formatDocumentId(customerProfile.linked_company_cnpj)}).
-                  A empresa vinculada é gerenciada pelo administrador da plataforma.
-                </p>
-              </div>
-            ) : null}
-
-            {customerProfile.proxis_tpr_id ? (
-              <div className="rounded-xl border border-primary/15 bg-primary/5 p-4">
-                <p className="text-sm font-medium text-foreground">
-                  Tabela de preço
-                </p>
-                {/* O numero da tabela sozinho nao diz nada a quem compra. Junto do
-                    tipo de cliente ele vira uma frase que se entende: **por que**
-                    o preco e esse. */}
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Como <strong>{displayCustomerType}</strong>, você está habilitado na tabela{" "}
-                  <strong>#{customerProfile.proxis_tpr_id}</strong>. Os preços exibidos no catálogo
-                  seguem esta referência.
-                </p>
-              </div>
-            ) : null}
-
-            <div className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6">
-              <div className="flex items-center gap-2">
-                <MapPinned className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">Endereço da empresa</h2>
-              </div>
-
-              {/* Dizer de onde vem evita a leitura errada: sem isto, alguem
-                  olha um endereco que nao reconhece e conclui que o cadastro
-                  esta furado — quando e o registro oficial da empresa, que
-                  costuma ser a sede e nao o lugar onde a encomenda chega. */}
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Endereço de registro da empresa, buscado na Receita pelo CNPJ. Para escolher onde
-                receber os pedidos, use <strong className="font-medium text-foreground">Meus endereços</strong>.
+          {customerProfile.linked_company_cnpj ? (
+            <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
+              <p className="text-sm font-medium text-foreground">
+                Funcionário vinculado à Clinic+
               </p>
-
-              {customerProfile.address_cep ? (
-                <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  <InfoTile label="CEP" value={formatCep(customerProfile.address_cep)} icon={MapPinned} />
-                  <InfoTile label="Rua" value={customerProfile.address_street || "—"} icon={Building2} />
-                  <InfoTile label="Número" value={customerProfile.address_number || "—"} icon={Building2} />
-                  <InfoTile label="Complemento" value={customerProfile.address_complement || "—"} icon={Building2} />
-                  <InfoTile label="Bairro" value={customerProfile.address_neighborhood || "—"} icon={Building2} />
-                  <InfoTile label="Cidade/UF" value={`${customerProfile.address_city || "—"}/${customerProfile.address_state || "—"}`} icon={Building2} />
-                </div>
-              ) : (
-                <div className="mt-5">
-                  <EmptyPanel
-                    title="Endereço não encontrado na Receita"
-                    description="Este é o endereço de registro da empresa, buscado pelo CNPJ. Para escolher onde receber os pedidos, use Meus endereços."
-                  />
-                </div>
-              )}
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Seus pedidos são emitidos em nome de Clinic+ (CNPJ {formatDocumentId(customerProfile.linked_company_cnpj)}).
+                A empresa vinculada é gerenciada pelo administrador da plataforma.
+              </p>
             </div>
-          </>
-        )
+          ) : null}
+
+          {/* ⚠️ **O número da tabela não aparece mais.**
+
+              Dizia "você está habilitado na tabela #8728". `8728` é um
+              identificador do ERP: não significa nada para quem compra, não dá
+              para conferir contra nada, e expõe a numeração interna a quem
+              está do lado de fora. Quem lê quer saber **por que** o preço é
+              aquele — e a resposta é o tipo de conta, não um número.
+
+              E o bloco só aparecia com tabela negociada. Sem ela, o cliente
+              não via nada — embora o tipo continue decidindo o preço dele. É a
+              mesma frase para os dois casos porque, do lado de quem compra, é
+              a mesma situação. */}
+          <div className="rounded-[1.25rem] border border-primary/15 bg-primary/5 p-4">
+            <p className="text-sm font-medium text-foreground">Seus preços</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Você está cadastrado como <strong>{displayCustomerType}</strong>. Os preços do catálogo já saem com a
+              condição do seu tipo de conta aplicada.
+            </p>
+          </div>
+
+          <div className="rounded-[1.25rem] bg-background/95 border border-border/70 p-5 shadow-sm sm:p-6">
+            <div className="flex items-center gap-2">
+              <MapPinned className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Endereço da empresa</h2>
+            </div>
+
+            {/* Dizer de onde vem evita a leitura errada: sem isto, alguem
+                olha um endereco que nao reconhece e conclui que o cadastro
+                esta furado — quando e o registro oficial da empresa, que
+                costuma ser a sede e nao o lugar onde a encomenda chega. */}
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Endereço de registro da empresa, buscado na Receita pelo CNPJ. Para escolher onde
+              receber os pedidos, use <strong className="font-medium text-foreground">Meus endereços</strong>.
+            </p>
+
+            {customerProfile.address_cep ? (
+              <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <InfoTile label="CEP" value={formatCep(customerProfile.address_cep)} icon={MapPinned} />
+                <InfoTile label="Rua" value={customerProfile.address_street || "—"} icon={Building2} />
+                <InfoTile label="Número" value={customerProfile.address_number || "—"} icon={Building2} />
+                <InfoTile label="Complemento" value={customerProfile.address_complement || "—"} icon={Building2} />
+                <InfoTile label="Bairro" value={customerProfile.address_neighborhood || "—"} icon={Building2} />
+                <InfoTile label="Cidade/UF" value={`${customerProfile.address_city || "—"}/${customerProfile.address_state || "—"}`} icon={Building2} />
+              </div>
+            ) : (
+              <div className="mt-5">
+                <EmptyPanel
+                  title="Endereço não encontrado na Receita"
+                  description="Este é o endereço de registro da empresa, buscado pelo CNPJ. Para escolher onde receber os pedidos, use Meus endereços."
+                />
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <form
           onSubmit={async (e) => {
@@ -750,7 +812,7 @@ export default function Account() {
               setSavingProfile(false);
             }
           }}
-          className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6 space-y-4"
+          className="rounded-[1.25rem] bg-background/95 border border-border/70 p-5 shadow-sm sm:p-6 space-y-4"
         >
           <div className="flex items-center gap-2">
             <UserRound className="h-5 w-5 text-primary" />
@@ -763,7 +825,7 @@ export default function Account() {
               <Input
                 value={editPhone}
                 onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
-                className="h-10 rounded-xl text-[0.8125rem]"
+                className="h-10 rounded-2xl text-[0.8125rem]"
                 inputMode="numeric"
                 type="tel"
                 placeholder="(00) 00000-0000"
@@ -787,14 +849,14 @@ export default function Account() {
             </div>
             <div className="space-y-2">
               <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</Label>
-              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-xl text-[0.8125rem]" />
+              <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[0.8125rem]" />
             </div>
             <div className="space-y-2">
               <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Documento</Label>
               <Input
                 value={formatDocumentId(editCnpj)}
                 onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
-                className="h-10 rounded-xl text-[0.8125rem]"
+                className="h-10 rounded-2xl text-[0.8125rem]"
                 inputMode="numeric"
                 maxLength={18}
                 placeholder="00.000.000/0000-00"
@@ -815,14 +877,137 @@ export default function Account() {
           </div>
         </form>
       )}
+
+      {/* ⚠️ Diálogo, e não troca de tela.
+          Clicar em "Editar" substituía a visão inteira pelo formulário — os
+          dados que se queria conferir sumiam justamente na hora de corrigi-los,
+          e a única saída era um botão "Cancelar" que parecia desfazer algo. O
+          diálogo mantém os dados atrás e sai com Esc, clique fora ou Cancelar. */}
+      <Dialog open={editingProfile} onOpenChange={setEditingProfile}>
+        <DialogContent className="max-h-[92dvh] w-[min(96vw,32rem)] overflow-y-auto rounded-[1.35rem] border-border/70 p-0 sm:rounded-[1.75rem]">
+          <DialogHeader className="px-5 pt-5 text-left">
+            <DialogDescription className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">
+              Empresa
+            </DialogDescription>
+            <DialogTitle className="text-xl font-semibold tracking-tight">Editar dados da empresa</DialogTitle>
+          </DialogHeader>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setSavingProfile(true);
+          try {
+            const documentDigits = onlyDigits(editCnpj);
+            const isDocumentValid = isValidCpf(documentDigits) || isValidCnpj(documentDigits);
+            if (!isDocumentValid) {
+              toast.error("Informe um CPF ou CNPJ válido.");
+              setSavingProfile(false);
+              return;
+            }
+
+            const { error } = await supabase.rpc("update_own_customer_profile", {
+              p_phone: editPhone.trim(),
+              p_company: editCompany.trim(),
+              p_cnpj: documentDigits,
+            });
+            if (error) throw error;
+            toast.success("Perfil atualizado");
+            setEditingProfile(false);
+            if (user) await refreshCustomerProfile(user.id);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Erro ao atualizar perfil");
+          } finally {
+            setSavingProfile(false);
+          }
+        }}
+        className="space-y-4 px-5 pb-2"
+      >
+        <div className="space-y-2">
+          <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Telefone</Label>
+          <Input
+            value={editPhone}
+            onChange={(e) => setEditPhone(formatPhone(onlyDigits(e.target.value)))}
+            className="h-10 rounded-2xl text-[0.8125rem]"
+            inputMode="numeric"
+            type="tel"
+            placeholder="(00) 00000-0000"
+            onKeyDown={(e) => {
+              const allowedKeys = [
+                "Backspace",
+                "Delete",
+                "Tab",
+                "ArrowLeft",
+                "ArrowRight",
+                "Home",
+                "End",
+                "Enter",
+              ];
+              if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+              if (!/^\d$/.test(e.key)) {
+                e.preventDefault();
+              }
+            }}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Empresa</Label>
+          <Input value={editCompany} onChange={(e) => setEditCompany(e.target.value)} className="h-10 rounded-2xl text-[0.8125rem]" />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Documento</Label>
+          <Input
+            value={formatDocumentId(editCnpj)}
+            onChange={(e) => setEditCnpj(formatDocumentId(e.target.value))}
+            className="h-10 rounded-2xl text-[0.8125rem]"
+            inputMode="numeric"
+            maxLength={18}
+            placeholder="00.000.000/0000-00"
+          />
+        </div>
+        <p className="text-[0.6875rem] leading-5 text-muted-foreground">
+          O nome da conta pode ser alterado na seção de configurações. Aqui ficam os dados comerciais do cadastro.
+        </p>
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border/70 pt-4">
+          {/* Cancelar à esquerda, ação à direita — a ordem do resto do projeto. */}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 rounded-2xl px-5 text-[0.8125rem]"
+            onClick={() => setEditingProfile(false)}
+            disabled={savingProfile}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={savingProfile} className="h-10 rounded-2xl px-5 text-[0.8125rem]">
+            {savingProfile ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+            Salvar
+          </Button>
+        </div>
+      </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
   const addressesContent = <ClientAddressesSection />;
 
   const ordersContent = (
+    // ⚠️ O detalhe **substitui** a seção, e não abre por cima dela.
+    //
+    // Um pedido de dezesseis linhas com endereço e histórico não cabe num
+    // diálogo sem virar rolagem dentro de rolagem. É a mesma decisão do painel,
+    // e pelo mesmo motivo.
+    pedidoEmFoco ? (
+      <ClientOrderDetail
+        order={pedidoEmFoco.order}
+        lines={pedidoEmFoco.lines}
+        numeroDoPedido={pedidoEmFoco.numero}
+        totalItems={pedidoEmFoco.totalItems}
+        totalValue={pedidoEmFoco.totalValue}
+        onVoltar={() => setPedidoAberto(null)}
+      />
+    ) : (
     <div className="space-y-4 sm:space-y-6">
-      <ClientSectionHeader
+      <SectionHeader
         eyebrow="Pedidos"
         title="Meus pedidos"
         description="Visualize os pedidos vinculados ao mesmo CNPJ do seu cadastro."
@@ -830,35 +1015,52 @@ export default function Account() {
       />
 
       {ordersLoading ? (
-        <div className="space-y-3 rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm">
+        <div className="space-y-3 rounded-[1.25rem] bg-background/95 border border-border/70 p-5 shadow-sm">
           {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="rounded-xl border border-border/60 bg-card p-4">
+            <div key={index} className="rounded-[1.25rem] border border-border/60 bg-card p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Skeleton className="h-5 w-24 rounded-full" />
                 <Skeleton className="h-5 w-20 rounded-full" />
                 <Skeleton className="h-5 w-16 rounded-full" />
               </div>
               <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                <Skeleton className="h-12 rounded-xl" />
-                <Skeleton className="h-12 rounded-xl" />
-                <Skeleton className="h-12 rounded-xl" />
-                <Skeleton className="h-12 rounded-xl" />
+                <Skeleton className="h-12 rounded-2xl" />
+                <Skeleton className="h-12 rounded-2xl" />
+                <Skeleton className="h-12 rounded-2xl" />
+                <Skeleton className="h-12 rounded-2xl" />
               </div>
             </div>
           ))}
         </div>
       ) : orderViews.length > 0 ? (
-        <div className="grid gap-4">
-          {orderViews.map(({ order, lines, totalItems, totalValue }) => (
-            <ClientOrderCard
-              key={order.id}
-              order={order}
-              lines={lines}
-              totalItems={totalItems}
-              totalValue={totalValue}
-            />
-          ))}
-        </div>
+        // ⚠️ Paginado, como as listas do painel.
+        //
+        // Hoje o maior cliente tem 3 pedidos, então nada disso aparece — os
+        // controles surgem sozinhos a partir do sexto. Mas quem compra todo mês
+        // chega a 12 no primeiro ano: sem teto, a página cresce até virar uma
+        // rolagem que não acaba, que foi o defeito de Funcionários no painel.
+        <ListaComBusca
+          itens={orderViews}
+          porPagina={ITENS_POR_PAGINA_DO_CLIENTE}
+          chaveDoItem={({ order }) => order.id}
+          // Busca pelo número e pelo estado: é assim que se procura um pedido
+          // de que se lembra pela metade.
+          textoDoItem={({ order, numero }) => `#${numero} ${order.id} ${order.status ?? ""}`}
+          buscaPlaceholder="Buscar pedido..."
+          vazio="Nenhum pedido encontrado."
+          renderizar={({ order, lines, numero, totalItems, totalValue }) => (
+            <div className="py-2">
+              <ClientOrderCard
+                order={order}
+                lines={lines}
+                numero={numero}
+                totalItems={totalItems}
+                totalValue={totalValue}
+                onAbrir={() => setPedidoAberto(order.id)}
+              />
+            </div>
+          )}
+        />
       ) : (
         <EmptyPanel
           title="Nenhum pedido encontrado"
@@ -866,11 +1068,12 @@ export default function Account() {
         />
       )}
     </div>
+    )
   );
 
   const securityContent = (
     <div className="space-y-4 sm:space-y-6">
-      <ClientSectionHeader
+      <SectionHeader
         eyebrow="Configurações"
         title="Senha e perfil"
         description="Gerencie sua sessão e altere sua senha de acesso."
@@ -910,7 +1113,7 @@ export default function Account() {
             setSavingAccountName(false);
           }
         }}
-        className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6 space-y-4"
+        className="rounded-[1.25rem] bg-background/95 border border-border/70 p-5 shadow-sm sm:p-6 space-y-4"
       >
         <div className="flex items-center gap-2">
           <UserRound className="h-5 w-5 text-primary" />
@@ -930,7 +1133,7 @@ export default function Account() {
           <InfoTile
             label="E-mail"
             value={user.email || "—"}
-            hint="Login usado nesta sessão."
+            hint="Alterado no bloco abaixo, com a sua senha."
             icon={Mail}
           />
           <InfoTile
@@ -950,7 +1153,7 @@ export default function Account() {
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               placeholder="Seu nome"
-              className="h-10 rounded-xl text-[0.8125rem]"
+              className="h-10 rounded-2xl text-[0.8125rem]"
             />
           </div>
 
@@ -994,7 +1197,7 @@ export default function Account() {
             setSavingPassword(false);
           }
         }}
-        className="rounded-xl bg-background/95 ring-1 ring-black/5 p-5 shadow-sm sm:p-6 space-y-4"
+        className="rounded-[1.25rem] bg-background/95 border border-border/70 p-5 shadow-sm sm:p-6 space-y-4"
       >
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
@@ -1016,7 +1219,7 @@ export default function Account() {
               // tela reprovarem em "Senhas nao conferem".
               autoComplete="current-password"
               maxLength={64}
-              className="h-10 rounded-xl pr-10 text-[0.8125rem]"
+              className="h-10 rounded-2xl pr-10 text-[0.8125rem]"
             />
             <button
               type="button"
@@ -1039,7 +1242,7 @@ export default function Account() {
               placeholder={`Mínimo ${MIN_SEM_MFA} caracteres`}
               autoComplete="new-password"
               maxLength={64}
-              className="h-10 rounded-xl pr-10 text-[0.8125rem]"
+              className="h-10 rounded-2xl pr-10 text-[0.8125rem]"
             />
             <button
               type="button"
@@ -1090,7 +1293,7 @@ export default function Account() {
               placeholder="Repita a nova senha"
               autoComplete="new-password"
               maxLength={64}
-              className="h-10 rounded-xl pr-10 text-[0.8125rem]"
+              className="h-10 rounded-2xl pr-10 text-[0.8125rem]"
             />
             <button
               type="button"
@@ -1121,6 +1324,11 @@ export default function Account() {
         </div>
       </form>
 
+      {/* Antes dos autenticadores: trocar e-mail é o que se procura com mais
+          frequência, e é o mesmo componente que o painel usa — uma
+          implementação só para um fluxo de segurança. */}
+      <TrocarEmailSection />
+
       {/* Logo abaixo da troca de senha: quem veio cuidar do acesso encontra as
           duas coisas juntas, que é onde se olha ao desconfiar de invasão. */}
       <AutenticadoresSection />
@@ -1142,10 +1350,10 @@ export default function Account() {
 
   const notificationsContent = (
     <div className="space-y-4 sm:space-y-6">
-      <ClientSectionHeader
+      <SectionHeader
         eyebrow="Comunicação"
         title="Notificações do catálogo"
-        description="Veja campanhas, avisos e destaques que o time quer comunicar dentro do catálogo."
+        description="Atualizações dos seus pedidos, do atendimento e as novidades que o time publica."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {unreadNotificationCount > 0 ? (
@@ -1156,6 +1364,43 @@ export default function Account() {
             <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
               {notificationsWithState.length} ativa(s)
             </Badge>
+            {/* ⚠️ Com confirmação: some tudo de uma vez e a tela não oferece
+                volta. Mesma régua das outras ações destrutivas do projeto. */}
+            {notificationsWithState.length > 0 ? (
+              <ConfirmActionDialog
+                title="Limpar suas notificações?"
+                description={
+                  <>
+                    Os {notificationsWithState.length} avisos saem da <strong>sua</strong> lista.
+                    Nada é apagado do catálogo, e avisos novos continuam chegando.
+                  </>
+                }
+                confirmLabel="Limpar"
+                processingLabel="Limpando…"
+                destructive
+                onConfirm={async () => {
+                  try {
+                    await dispensarAvisos(notificationsWithState.map((item) => item.id));
+                    toast.success("Notificações limpas.");
+                  } catch (erro) {
+                    console.error("[conta] falha ao limpar avisos:", erro);
+                    toast.error("Não foi possível limpar agora. Tente de novo.");
+                    throw erro;
+                  }
+                }}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-8 rounded-2xl px-3 text-xs text-muted-foreground"
+                    disabled={isDispensando}
+                  >
+                    <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    Limpar
+                  </Button>
+                }
+              />
+            ) : null}
           </div>
         }
       />
@@ -1163,7 +1408,7 @@ export default function Account() {
       <PreferenciaDeCampanhas />
 
       {isNotificationsLoading ? (
-        <div className="overflow-hidden rounded-xl bg-background/95 ring-1 ring-black/5 shadow-sm">
+        <div className="overflow-hidden rounded-[1.25rem] bg-background/95 border border-border/70 shadow-sm">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="flex gap-4 border-b border-border/60 p-4 last:border-b-0">
               <Skeleton className="aspect-[16/10] w-20 sm:w-36 shrink-0 rounded-xl" />
@@ -1176,104 +1421,112 @@ export default function Account() {
           ))}
         </div>
       ) : notificationsWithState.length > 0 ? (
-        <div className="overflow-hidden rounded-xl bg-background/95 ring-1 ring-black/5 shadow-sm">
-          {notificationsWithState.map((item) => {
-            const notificationDateTime = formatCompactDateTime(item.starts_at ?? item.created_at);
+        // ⚠️ **Sem modal, e sem cartão gigante.**
+        //
+        // Cada aviso ocupava um bloco com faixa de imagem, três selos, título,
+        // resumo, corpo cortado em duas linhas e um selo de ação — e o texto
+        // completo só aparecia depois de abrir um diálogo. Um aviso de pedido é
+        // uma frase; abrir uma janela para lê-la é cerimônia sobre nada.
+        //
+        // A forma é a do sino do painel, que resolve o mesmo problema: ícone em
+        // círculo, título, uma linha de contexto, a hora. O texto inteiro fica à
+        // vista porque cabe.
+        <div className="overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm">
+          <ListaComBusca
+            itens={notificationsWithState}
+            porPagina={ITENS_POR_PAGINA_DO_CLIENTE}
+            chaveDoItem={(item) => item.id}
+            textoDoItem={(item) => `${item.title} ${item.summary} ${item.body}`}
+            buscaPlaceholder="Buscar aviso..."
+            vazio="Nenhum aviso ainda."
+            className="p-2"
+            renderizar={(item) => {
+              const quando = formatCompactDateTime(item.starts_at ?? item.created_at);
 
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setSelectedNotificationId(item.id);
-                  if (!item.isRead) {
-                    void markAsRead(item.id).catch(() => null);
-                  }
-                }}
-                className={`group flex w-full gap-4 border-b border-border/60 p-4 text-left transition-colors last:border-b-0 hover:bg-muted/35 ${
-                  item.isRead ? "bg-background" : "bg-primary/[0.035]"
-                }`}
-              >
-                <CatalogNotificationImageFrame
-                  src={item.image_url}
-                  alt={item.title}
-                  className="aspect-[16/10] w-20 sm:w-36 shrink-0 rounded-xl border border-border/60"
-                  iconClassName="h-7 w-7 text-muted-foreground/35"
-                  fit="cover"
-                />
+              return (
+                <div
+                  className={cn(
+                    "flex gap-3 rounded-[1rem] p-3 transition-colors",
+                    item.isRead ? "" : "bg-primary/[0.04]",
+                  )}
+                >
+                  <IconeDoAviso tipo={item.tipo} className="h-10 w-10" />
 
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={item.isRead ? "outline" : "default"} className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
-                      {item.isRead ? "Lida" : "Nova"}
-                    </Badge>
-                    <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Campanha</span>
-                    {notificationDateTime ? (
-                      <span className="text-[0.6875rem] text-muted-foreground">
-                        {item.starts_at ? "Início" : "Publicado"} {notificationDateTime.datePart} às {notificationDateTime.timePart}
-                      </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* O ponto no lugar do selo "Nova": um selo escrito tem o
+                          peso de uma ação, e não-lido é só um estado. */}
+                      {!item.isRead ? (
+                        <span aria-label="Não lido" className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                      ) : null}
+                      <RotuloDoAviso tipo={item.tipo} />
+                      {quando ? (
+                        <span className="text-[0.6875rem] text-muted-foreground">
+                          {quando.datePart} às {quando.timePart}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <p
+                      className={cn(
+                        "mt-1 text-sm text-foreground",
+                        item.isRead ? "font-medium" : "font-semibold",
+                      )}
+                    >
+                      {item.title}
+                    </p>
+
+                    {/* Sem `line-clamp`: o texto inteiro cabe, e era ele que o
+                        modal existia para mostrar. */}
+                    {item.body ? (
+                      <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{item.body}</p>
+                    ) : item.summary ? (
+                      <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{item.summary}</p>
                     ) : null}
-                  </div>
 
-                  <div className="min-w-0 space-y-1">
-                    <h2 className="line-clamp-1 text-base font-semibold text-foreground sm:text-lg">{item.title}</h2>
-                    {item.summary ? <p className="text-sm font-medium leading-6 text-foreground">{item.summary}</p> : null}
-                    {item.body ? <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">{item.body}</p> : null}
-                  </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {/* A ação vira botão de verdade e leva direto ao destino.
+                          Antes era um selo cinza que não clicava — o clique
+                          abria o modal, e o botão de verdade estava lá dentro. */}
+                      {item.cta_url ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-8 rounded-2xl px-3 text-xs"
+                          onClick={() => {
+                            if (!item.isRead) void marcarLido(item.id);
+                            irParaDestinoDoAviso(item.cta_url);
+                          }}
+                        >
+                          {item.cta_label || "Abrir"}
+                          <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                        </Button>
+                      ) : null}
 
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className="text-xs font-medium text-primary transition-colors group-hover:text-primary/80">
-                      Ver detalhes
-                    </span>
-                    {item.cta_label ? (
-                      <Badge variant="secondary" className="rounded-full px-3 py-1 text-[0.6875rem] font-medium">
-                        {item.cta_label}
-                      </Badge>
-                    ) : null}
+                      {!item.isRead ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-8 rounded-2xl px-3 text-xs text-muted-foreground"
+                          onClick={() => void marcarLido(item.id)}
+                        >
+                          Marcar como lido
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </button>
-            );
-          })}
+              );
+            }}
+          />
         </div>
       ) : (
         <EmptyPanel
           title="Nenhuma notificação ativa"
-          description="Quando o time publicar uma campanha, ela vai aparecer nesta área da conta do cliente."
+          description="Quando um pedido seu mudar de estado ou o time publicar uma novidade, o aviso aparece aqui."
         />
       )}
 
-      <Dialog
-        open={Boolean(selectedNotification)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedNotificationId(null);
-        }}
-      >
-        <DialogContent className={cn(MODAL_TELA_CHEIA, "max-h-[92dvh] w-[min(96vw,860px)] overflow-hidden rounded-xl border-border/70 p-0")}>
-          {selectedNotification ? (
-            <div className={cn("flex max-h-[92dvh] flex-col overflow-hidden", MODAL_TELA_CHEIA_CORPO)}>
-              <DialogHeader className="border-b border-border/70 px-5 py-4">
-                <DialogTitle className="text-left text-lg font-semibold tracking-tight text-foreground">
-                  Detalhes da notificação
-                </DialogTitle>
-                <DialogDescription className="text-left text-[0.8125rem] text-muted-foreground">
-                  Visualização completa da campanha enviada pelo catálogo.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-                <CustomerNotificationPreview notification={selectedNotification} />
-              </div>
-
-              <DialogFooter className="border-t border-border/70 bg-background px-5 py-4">
-                <Button type="button" variant="outline" className="h-11 rounded-xl px-5 text-sm" onClick={() => setSelectedNotificationId(null)}>
-                  Fechar
-                </Button>
-              </DialogFooter>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 

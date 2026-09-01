@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       _prisma_migrations: {
@@ -493,6 +518,105 @@ export type Database = {
           },
         ]
       }
+      "clinic+b2b_admin_access_events": {
+        Row: {
+          acao: string
+          admin_user_id: string
+          alvo_cnpj: string | null
+          alvo_user_id: string | null
+          id: string
+          ocorrido_em: string
+        }
+        Insert: {
+          acao: string
+          admin_user_id: string
+          alvo_cnpj?: string | null
+          alvo_user_id?: string | null
+          id?: string
+          ocorrido_em?: string
+        }
+        Update: {
+          acao?: string
+          admin_user_id?: string
+          alvo_cnpj?: string | null
+          alvo_user_id?: string | null
+          id?: string
+          ocorrido_em?: string
+        }
+        Relationships: []
+      }
+      "clinic+b2b_admin_event_reads": {
+        Row: {
+          admin_user_id: string
+          dispensado_em: string | null
+          event_id: string
+          lida_em: string
+        }
+        Insert: {
+          admin_user_id: string
+          dispensado_em?: string | null
+          event_id: string
+          lida_em?: string
+        }
+        Update: {
+          admin_user_id?: string
+          dispensado_em?: string | null
+          event_id?: string
+          lida_em?: string
+        }
+        Relationships: []
+      }
+      "clinic+b2b_admin_events": {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          referencia_id: string | null
+          secao: string | null
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          referencia_id?: string | null
+          secao?: string | null
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          referencia_id?: string | null
+          secao?: string | null
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
+      "clinic+b2b_admin_notification_prefs": {
+        Row: {
+          admin_user_id: string
+          ativo: boolean
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          ativo: boolean
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          ativo?: boolean
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       "clinic+b2b_admin_users": {
         Row: {
           created_at: string
@@ -595,6 +719,7 @@ export type Database = {
       "clinic+b2b_catalog_notification_reads": {
         Row: {
           created_at: string
+          dispensado_em: string | null
           id: string
           notification_id: string
           read_at: string
@@ -603,6 +728,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dispensado_em?: string | null
           id?: string
           notification_id: string
           read_at?: string
@@ -611,6 +737,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dispensado_em?: string | null
           id?: string
           notification_id?: string
           read_at?: string
@@ -633,6 +760,7 @@ export type Database = {
           starts_at: string | null
           summary: string
           target_user_id: string | null
+          tipo: string
           title: string
           updated_at: string
         }
@@ -649,6 +777,7 @@ export type Database = {
           starts_at?: string | null
           summary: string
           target_user_id?: string | null
+          tipo?: string
           title: string
           updated_at?: string
         }
@@ -665,6 +794,7 @@ export type Database = {
           starts_at?: string | null
           summary?: string
           target_user_id?: string | null
+          tipo?: string
           title?: string
           updated_at?: string
         }
@@ -897,6 +1027,7 @@ export type Database = {
       }
       "clinic+b2b_customer_profiles": {
         Row: {
+          aceita_campanhas: boolean
           address_cep: string
           address_city: string
           address_complement: string
@@ -910,8 +1041,8 @@ export type Database = {
           created_at: string
           customer_type: string
           deve_trocar_senha: boolean
-          is_mei?: boolean | null
           email: string | null
+          is_mei: boolean | null
           linked_company_cnpj: string | null
           name: string
           observation: string | null
@@ -926,6 +1057,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          aceita_campanhas?: boolean
           address_cep?: string
           address_city?: string
           address_complement?: string
@@ -939,8 +1071,8 @@ export type Database = {
           created_at?: string
           customer_type?: string
           deve_trocar_senha?: boolean
-          is_mei?: boolean | null
           email?: string | null
+          is_mei?: boolean | null
           linked_company_cnpj?: string | null
           name: string
           observation?: string | null
@@ -955,6 +1087,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          aceita_campanhas?: boolean
           address_cep?: string
           address_city?: string
           address_complement?: string
@@ -968,8 +1101,8 @@ export type Database = {
           created_at?: string
           customer_type?: string
           deve_trocar_senha?: boolean
-          is_mei?: boolean | null
           email?: string | null
+          is_mei?: boolean | null
           linked_company_cnpj?: string | null
           name?: string
           observation?: string | null
@@ -1011,16 +1144,22 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          price_table_id: number | null
+          updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          price_table_id?: number | null
+          updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          price_table_id?: number | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1059,6 +1198,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      "clinic+b2b_order_events": {
+        Row: {
+          alterado_por: string | null
+          created_at: string
+          id: string
+          observacao: string | null
+          order_id: string
+          status_anterior: string | null
+          status_novo: string
+        }
+        Insert: {
+          alterado_por?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          order_id: string
+          status_anterior?: string | null
+          status_novo: string
+        }
+        Update: {
+          alterado_por?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          order_id?: string
+          status_anterior?: string | null
+          status_novo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinic+b2b_order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "clinic+b2b_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       "clinic+b2b_orders": {
         Row: {
@@ -1316,6 +1493,9 @@ export type Database = {
           customer_name: string
           customer_phone: string | null
           customer_typing_at: string | null
+          finalizada_em: string | null
+          finalizada_por: string | null
+          ultima_mensagem_de: string | null
           customer_user_id: string
           id: string
           last_message_at: string
@@ -1333,6 +1513,9 @@ export type Database = {
           customer_name: string
           customer_phone?: string | null
           customer_typing_at?: string | null
+          finalizada_em?: string | null
+          finalizada_por?: string | null
+          ultima_mensagem_de?: string | null
           customer_user_id: string
           id?: string
           last_message_at?: string
@@ -1350,6 +1533,9 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           customer_typing_at?: string | null
+          finalizada_em?: string | null
+          finalizada_por?: string | null
+          ultima_mensagem_de?: string | null
           customer_user_id?: string
           id?: string
           last_message_at?: string
@@ -2138,6 +2324,17 @@ export type Database = {
         Returns: boolean
       }
       clinic_b2b_current_email: { Args: never; Returns: string }
+      clinic_b2b_definir_aceite_campanhas: {
+        Args: { p_aceita: boolean }
+        Returns: boolean
+      }
+      clinic_b2b_expurgo_por_retencao: {
+        Args: never
+        Returns: {
+          regra: string
+          removidos: number
+        }[]
+      }
       clinic_b2b_gravar_perfil_do_cliente: {
         Args: {
           p_address_cep?: string
@@ -2167,6 +2364,26 @@ export type Database = {
       clinic_b2b_limpar_dispositivos_confiaveis: {
         Args: never
         Returns: number
+      }
+      clinic_b2b_minhas_avaliacoes: {
+        Args: never
+        Returns: {
+          admin_responded_at: string
+          admin_response: string
+          comment: string
+          created_at: string
+          id: string
+          product_id: string
+          rating: number
+          tags: string[]
+          title: string
+          updated_at: string
+        }[]
+      }
+      clinic_b2b_nome_curto: { Args: { p_nome: string }; Returns: string }
+      clinic_b2b_registrar_acesso_admin: {
+        Args: { p_acao: string; p_alvo_cnpj: string; p_alvo_user_id: string }
+        Returns: undefined
       }
       clinic_b2b_ultimo_uso_dos_fatores: {
         Args: never
@@ -2227,6 +2444,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      record_proxis_order_sync: {
+        Args: {
+          p_doc_ped_web?: string
+          p_error?: string
+          p_status: string
+          p_submission_key: string
+        }
+        Returns: {
+          order_id: string
+          proxis_attempts: number
+          proxis_status: string
+        }[]
+      }
       register_customer_profile: {
         Args: {
           p_address_cep?: string
@@ -2245,6 +2475,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      registrar_tentativa_de_senha: { Args: { event: Json }; Returns: Json }
+      resetar_senha_para_o_padrao: { Args: { alvo: string }; Returns: string }
       set_admin_display_name: {
         Args: { p_display_name: string; p_user_id: string }
         Returns: undefined
@@ -2444,6 +2676,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_auth_role: ["superadmin", "admin"],

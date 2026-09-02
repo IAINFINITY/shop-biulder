@@ -40,6 +40,7 @@ import {
 } from "@/lib/productImageNormalization";
 import { ORDERS_TABLE } from "@/lib/orders";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
+import type { EmpresaDoFocco } from "@/lib/foccoImportExport";
 import { pedidoTemCadastro } from "@/lib/tipoDaContaDoPedido";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1017,12 +1018,14 @@ export default function AdminWorkspace() {
     refreshOrders();
   };
 
-  const exportProxisOrder = async (exportPayload: OrderExportInput) => {
+  const exportProxisOrder = async (exportPayload: OrderExportInput, empresa: EmpresaDoFocco = "hile") => {
     setProxisExportingId(exportPayload.id);
     try {
       const { downloadProxisImportTxt } = await import("@/lib/orderExport");
-      const proxisId = await downloadProxisImportTxt(exportPayload);
-      toast.success(`Arquivo Proxis gerado (ID ${proxisId}).`);
+      const proxisId = await downloadProxisImportTxt(exportPayload, empresa);
+      // A empresa vai no aviso: os dois arquivos têm o mesmo ID de importação,
+      // então sem ela o segundo download parece o primeiro repetido.
+      toast.success(`Arquivo FOCCO-${empresa.toUpperCase()} gerado (ID ${proxisId}).`);
       refreshOrders();
     } catch (err) {
         console.error("Erro ao gerar o arquivo", err);

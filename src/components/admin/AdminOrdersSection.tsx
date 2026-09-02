@@ -12,6 +12,7 @@ import {
   type StatusDoPedido,
 } from "@/lib/statusDoPedido";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
+import type { EmpresaDoFocco } from "@/lib/foccoImportExport";
 import { mapaDeTipoPorConta, tipoDaContaDoPedido } from "@/lib/tipoDaContaDoPedido";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import { formatBRL } from "@/lib/formatMoney";
@@ -40,7 +41,7 @@ type AdminOrdersSectionProps = {
   orderEnrichment: OrderEnrichmentMaps;
   formatDate: (value: string) => string;
   proxisExportingId: string | null;
-  onExportProxis: (payload: OrderExportInput) => void | Promise<void>;
+  onExportProxis: (payload: OrderExportInput, empresa: EmpresaDoFocco) => void | Promise<void>;
   onExportXlsx: (payload: OrderExportInput) => void | Promise<void>;
   onExportPdf: (payload: OrderExportInput) => void | Promise<void>;
   onDelete: (id: string) => void;
@@ -471,7 +472,7 @@ export function AdminOrdersSection({
                 orderQty={orderQty}
                 formatDate={formatDate}
                 isProxisExporting={proxisExportingId === order.id}
-                onExportProxis={() => onExportProxis(exportPayload)}
+                onExportProxis={(empresa) => onExportProxis(exportPayload, empresa)}
                 onExportXlsx={() => onExportXlsx(exportPayload)}
                 onExportPdf={() => onExportPdf(exportPayload)}
                 onDelete={() => onDelete(order.id)}

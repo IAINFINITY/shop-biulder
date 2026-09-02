@@ -28,6 +28,7 @@ import {
 } from "@/lib/statusDoPedido";
 import { cn } from "@/lib/utils";
 import { TIPO_FUNCIONARIO } from "@/lib/funcionario";
+import { DIVISAO_DE_VENDA, NOME_DA_EMPRESA, type EmpresaDoFocco } from "@/lib/foccoImportExport";
 import { CARTAO_CLICAVEL } from "@/lib/interacoes";
 
 export type OrderAdminCardPayload = {
@@ -78,7 +79,7 @@ type Props = {
   orderQty: number;
   formatDate: (value: string) => string;
   isProxisExporting: boolean;
-  onExportProxis: () => void;
+  onExportProxis: (empresa: EmpresaDoFocco) => void;
   onExportXlsx: () => void;
   onExportPdf: () => void;
   onDelete: () => void;
@@ -251,15 +252,35 @@ export function OrderAdminCard({
               Ver pedido
             </Button>
           ) : null}
-          <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" disabled={isProxisExporting} onClick={onExportProxis}>
-            {/* Ícone do sistema, não PNG.
-                Os três arquivos existem em `public/icons` e o caminho estava
-                certo, mas imagem solta some por cache, por 404 silencioso e não
-                acompanha a cor do botão nem o tema. Todo o resto do painel usa
-                lucide; três PNGs de 9KB para um ícone de 14px eram a exceção. */}
-            <FileText className="h-3.5 w-3.5" />
-            {isProxisExporting ? "Gerando..." : "FOCCO .txt"}
-          </Button>
+          {/* Dois arquivos, um por empresa.
+              O conteúdo é idêntico exceto pela divisão de venda: 1 na Hilê, 2 na
+              Net Nature — o mesmo item não pode ficar na divisão 1 das duas
+              dentro do FOCCO. `foccoImportExport.ts` tem o teste que garante que
+              nada além dessa coluna difere.
+
+              ⚠️ Dois botões e não um seletor: quem exporta sabe para qual
+              empresa está mandando, e um seletor no estado errado só se
+              descobre depois, dentro do FOCCO. */}
+          {(["hile", "net"] as const).map((empresa) => (
+            <Button
+              key={empresa}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs"
+              disabled={isProxisExporting}
+              onClick={() => onExportProxis(empresa)}
+              title={`Divisão de venda ${DIVISAO_DE_VENDA[empresa]}`}
+            >
+              {/* Ícone do sistema, não PNG.
+                  Os três arquivos existem em `public/icons` e o caminho estava
+                  certo, mas imagem solta some por cache, por 404 silencioso e não
+                  acompanha a cor do botão nem o tema. Todo o resto do painel usa
+                  lucide; três PNGs de 9KB para um ícone de 14px eram a exceção. */}
+              <FileText className="h-3.5 w-3.5" />
+              {isProxisExporting ? "Gerando..." : `FOCCO-${NOME_DA_EMPRESA[empresa]} .txt`}
+            </Button>
+          ))}
           <Button type="button" variant="outline" size="sm" className="h-10 sm:h-8 gap-1 rounded-full px-3 text-[0.8125rem] sm:text-xs" onClick={onExportXlsx}>
             <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
           </Button>

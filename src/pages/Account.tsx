@@ -31,6 +31,7 @@ import { AparelhosLembradosSection } from "@/components/client/AparelhosLembrado
 import { ExcluirContaSection } from "@/components/client/ExcluirContaSection";
 import { TrocarEmailSection } from "@/components/shared/TrocarEmailSection";
 import { NomeDaEmpresa } from "@/components/shared/NomeDaEmpresa";
+import { pedidosDoTitular } from "@/lib/visibilidadeDoPedido";
 import { ClientOrderCard } from "@/components/client/ClientOrderCard";
 import { ClientOrderDetail } from "@/components/client/ClientOrderDetail";
 import { ClientAddressesSection } from "@/components/client/ClientAddressesSection";
@@ -470,13 +471,22 @@ export default function Account() {
   const displayCustomerType = customerProfile
     ? customerTypeLabel(normalizeCustomerType(customerProfile.customer_type))
     : "Cadastro em processamento";
-  const customerOrders = useMemo(() => {
-    if (!customerProfile) return [] as Order[];
-    const effectiveCnpj = customerProfile.linked_company_cnpj
-      ? onlyDigits(customerProfile.linked_company_cnpj)
-      : onlyDigits(customerProfile.cnpj);
-    return (orders as Order[]).filter((order) => onlyDigits(order.customer_cnpj) === effectiveCnpj);
-  }, [orders, customerProfile]);
+  /**
+   * Os pedidos desta pessoa.
+   *
+   * ⚠️ A regra saiu daqui e virou `pedidosDoTitular`, ao lado do seu teste. O
+   * recorte por CNPJ que morava nesta linha mostrava, a cada funcionário, os
+   * pedidos dos outros 96 — todos compartilham o `linked_company_cnpj` da
+   * Clinic+, porque é a empresa quem fatura a compra deles.
+   *
+   * Quem impede de verdade é a RLS (migration `20260902120000`); este filtro
+   * existe porque a tela também recorta, e as duas regras precisavam parar de
+   * ser escritas em lugares diferentes com palavras diferentes.
+   */
+  const customerOrders = useMemo(
+    () => pedidosDoTitular(orders as Order[], customerProfile, user?.id),
+    [orders, customerProfile, user?.id],
+  );
   const orderEnrichment = useMemo(() => buildOrderEnrichmentMaps(products), [products]);
   const orderViews = useMemo(
     () =>

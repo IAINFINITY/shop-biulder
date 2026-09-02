@@ -73,6 +73,13 @@ export interface Order {
   total_items: number;
   status: string;
   created_at: string;
+  /**
+   * Quem estava logado ao fechar o pedido.
+   *
+   * Nulo em pedido antigo — nesses a visibilidade cai na regra do CNPJ. Ver
+   * `visibilidadeDoPedido.ts`, que é onde a regra mora.
+   */
+  user_id?: string | null;
   proxis_import_id?: number | null;
   /** Desfecho da sincronia com o ERP; ver @/lib/proxisOrderStatus. */
   proxis_status?: string | null;

@@ -418,6 +418,15 @@ export default function OrderForm() {
 
       const payload = {
         submission_key: submissionKey,
+        // ⚠️ Quem comprou.
+        //
+        // É o que separa o pedido de um funcionário do pedido do colega: os
+        // dois são gravados com o CNPJ da Clinic+, que fatura a compra. Sem
+        // esta coluna, a única pista seria o CNPJ, e ele não distingue ninguém.
+        //
+        // A policy de INSERT recusa `user_id` de outra pessoa, então isto não é
+        // um campo em que o navegador possa mentir.
+        user_id: user?.id ?? null,
         customer_name: form.name.trim(),
         customer_phone: form.phone.trim(),
         customer_company: form.company.trim(),

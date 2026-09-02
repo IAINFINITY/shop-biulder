@@ -1264,6 +1264,7 @@ export type Database = {
           proxis_synced_at: string | null
           status: string
           submission_key: string
+          user_id: string | null
           total_items: number
         }
         Insert: {
@@ -1292,6 +1293,7 @@ export type Database = {
           proxis_synced_at?: string | null
           status?: string
           submission_key?: string
+          user_id?: string | null
           total_items?: number
         }
         Update: {
@@ -1320,6 +1322,7 @@ export type Database = {
           proxis_synced_at?: string | null
           status?: string
           submission_key?: string
+          user_id?: string | null
           total_items?: number
         }
         Relationships: []

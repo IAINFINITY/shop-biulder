@@ -27,6 +27,7 @@ import {
   rotuloDoStatus,
 } from "@/lib/statusDoPedido";
 import { cn } from "@/lib/utils";
+import { TIPO_FUNCIONARIO } from "@/lib/funcionario";
 import { CARTAO_CLICAVEL } from "@/lib/interacoes";
 
 export type OrderAdminCardPayload = {
@@ -37,6 +38,8 @@ export type OrderAdminCardPayload = {
   customer_phone: string | null | undefined;
   customer_cnpj: string | null | undefined;
   customer_observation?: string | null;
+  /** `funcionario`, `cliente`, `lojista`… Nulo quando o pedido não tem cadastro. */
+  tipoDaConta?: string | null;
   status: string;
   total_items: number;
   proxis_import_id: number | null;
@@ -110,6 +113,7 @@ export function OrderAdminCard({
    */
   const [estadoPretendido, setEstadoPretendido] = useState<StatusDoPedido | null>(null);
 
+  const ehFuncionario = (order.tipoDaConta ?? "").trim().toLowerCase() === TIPO_FUNCIONARIO;
   const syncStatus = normalizeProxisSyncStatus(order.proxis_status);
   const syncBadge = PROXIS_SYNC_BADGE[syncStatus];
   const SyncIcon = syncBadge.icon;
@@ -138,8 +142,26 @@ export function OrderAdminCard({
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{order.customer_name}</p>
-                <p className="truncate text-xs text-muted-foreground">{order.customer_company || "Sem empresa"}</p>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <p className="truncate text-sm font-semibold text-foreground">{order.customer_name}</p>
+                  {/* ⚠️ A etiqueta substitui a empresa, não acompanha.
+                      A compra do funcionário é gravada com o CNPJ e o nome da
+                      Clinic+, porque é a empresa quem fatura — então a linha de
+                      baixo dizia "Clinic+" em 97 pedidos diferentes, e não
+                      identificava ninguém. Quem comprou está na linha de cima;
+                      o que faltava era dizer em que condição. */}
+                  {ehFuncionario ? (
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 rounded-full border-indigo-200 bg-indigo-50 px-2 py-0 text-[0.625rem] font-medium text-indigo-700"
+                    >
+                      Funcionário
+                    </Badge>
+                  ) : null}
+                </div>
+                {!ehFuncionario ? (
+                  <p className="truncate text-xs text-muted-foreground">{order.customer_company || "Sem empresa"}</p>
+                ) : null}
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
                 {onStatusChange ? (

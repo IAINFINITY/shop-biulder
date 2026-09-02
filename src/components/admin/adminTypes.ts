@@ -24,6 +24,8 @@ export type AdminDashboardOrder = {
   id: string;
   created_at: string;
   customer_user_id?: string | null;
+  /** O dono do pedido, gravado no checkout. Ver `visibilidadeDoPedido.ts`. */
+  user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
@@ -46,6 +48,8 @@ export type AdminOrderRow = {
   proxis_last_attempt_at?: string | null;
   proxis_synced_at?: string | null;
   customer_user_id?: string | null;
+  /** O dono do pedido, gravado no checkout. Ver `visibilidadeDoPedido.ts`. */
+  user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;
@@ -133,6 +137,8 @@ export type AdminRecentOrder = {
   id: string;
   created_at: string;
   customer_user_id?: string | null;
+  /** O dono do pedido, gravado no checkout. Ver `visibilidadeDoPedido.ts`. */
+  user_id?: string | null;
   customer_name: string;
   customer_company: string | null | undefined;
   customer_phone: string | null | undefined;

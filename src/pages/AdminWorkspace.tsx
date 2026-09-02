@@ -40,6 +40,7 @@ import {
 } from "@/lib/productImageNormalization";
 import { ORDERS_TABLE } from "@/lib/orders";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
+import { pedidoTemCadastro } from "@/lib/tipoDaContaDoPedido";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { isRichTextEmpty, sanitizeRichText } from "@/lib/richTextPure";
@@ -307,23 +308,13 @@ export default function AdminWorkspace() {
   }, [clientProfiles]);
   const dashboardOrderRows = useMemo(
     () =>
-      orderRows.filter((order) => {
-        const orderUserId = typeof order.customer_user_id === "string" ? order.customer_user_id.trim() : "";
-        if (orderUserId) {
-          return activeCustomerLookup.userIdSet.has(orderUserId);
-        }
-
-        const orderCnpj = onlyDigits(order.customer_cnpj);
-        if (orderCnpj) {
-          return activeCustomerLookup.cnpjSet.has(orderCnpj);
-        }
-
-        const orderName = normalizeText(order.customer_name);
-        if (orderName && activeCustomerLookup.nameSet.has(orderName)) return true;
-
-        const orderCompany = normalizeText(order.customer_company ?? "");
-        return orderCompany ? activeCustomerLookup.companySet.has(orderCompany) : false;
-      }),
+      // ⚠️ A regra saiu daqui e virou `pedidoTemCadastro`, com teste.
+      //
+      // Ela olhava `customer_user_id` — coluna que nunca existiu na tabela de
+      // pedidos — e caía no CNPJ. O pedido de funcionário sai com o CNPJ da
+      // Clinic+, que não é de perfil nenhum, então onze pedidos sumiam da
+      // "Operação diária": a tela dizia 36 e o banco tinha 47.
+      orderRows.filter((order) => pedidoTemCadastro(order, activeCustomerLookup, normalizeText)),
     [activeCustomerLookup, orderRows],
   );
   const newUsersCount = useMemo(() => {
@@ -422,8 +413,17 @@ export default function AdminWorkspace() {
       }
     >();
 
+    /**
+     * De qual chave é cada pessoa, para o pedido dela cair na linha certa.
+     *
+     * ⚠️ Sem isto, o pedido de funcionário abria uma linha nova: o perfil entra
+     * chaveado pelo CPF e o pedido só conhece o CNPJ da Clinic+.
+     */
+    const chavePorDono = new Map<string, string>();
+
     for (const profile of clientProfiles) {
       const key = onlyDigits(profile.cnpj) || profile.user_id;
+      if (profile.user_id) chavePorDono.set(profile.user_id.trim(), key);
       const overrideType = customerTypeOverrideMap.get(onlyDigits(profile.cnpj));
       customers.set(key, {
         userId: profile.user_id,
@@ -439,7 +439,15 @@ export default function AdminWorkspace() {
     }
 
     for (const order of dashboardOrderRows) {
-      const key = onlyDigits(order.customer_cnpj) || order.customer_name;
+      // ⚠️ O dono vem antes do CNPJ.
+      //
+      // Agrupando só por CNPJ, os pedidos de todos os funcionários viravam **um**
+      // cliente chamado "Clinic+": eles compartilham o CNPJ da empresa, que é
+      // quem fatura a compra. No ranking de clientes isso somava 97 pessoas numa
+      // linha só, e sumia com cada uma delas.
+      const dono = order.user_id?.trim();
+      const key =
+        (dono && chavePorDono.get(dono)) || dono || onlyDigits(order.customer_cnpj) || order.customer_name;
       const current = customers.get(key);
       const orderLines = summarizeOrderItems(order.items, orderEnrichment);
       const orderTotal = getOrderLinesGrandTotal(orderLines);

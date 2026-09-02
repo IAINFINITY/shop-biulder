@@ -12,6 +12,7 @@ import {
   type StatusDoPedido,
 } from "@/lib/statusDoPedido";
 import { OrderAdminCard } from "@/components/admin/OrderAdminCard";
+import { mapaDeTipoPorConta, tipoDaContaDoPedido } from "@/lib/tipoDaContaDoPedido";
 import { getOrderLinesGrandTotal, getOrderLinesQuantityTotal, parseOrderTableLines } from "@/lib/orders";
 import { formatBRL } from "@/lib/formatMoney";
 import type { OrderExportInput } from "@/lib/orderExportTypes";
@@ -22,7 +23,6 @@ import { AdminOrderDetail } from "./AdminOrderDetail";
 import { useEtapaNaUrl } from "@/hooks/useFiltroNaUrl";
 import { paginar } from "@/lib/paginacao";
 import { needsProxisReconciliation } from "@/lib/proxisOrderStatus";
-import { ehFuncionario, TIPO_FUNCIONARIO } from "@/lib/funcionario";
 import { customerTypeLabel, normalizeCustomerType } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import { SectionHeader } from "@/components/shared/SectionHeader";
@@ -117,32 +117,17 @@ export function AdminOrdersSection({
   /**
    * O tipo de conta de quem fez cada pedido.
    *
-   * Chaveado por `user_id` **e** por CNPJ, como o mapa de tabela acima: o pedido
-   * de funcionário sai com o CNPJ da Clinic+, e o de visitante pode não ter
-   * `user_id`. Duas chaves cobrem os dois caminhos.
+   * A regra mora em `tipoDaContaDoPedido.ts`, com teste — ela já errou três
+   * vezes pelo mesmo motivo: a compra do funcionário é gravada com o CNPJ da
+   * Clinic+, que não pertence a perfil nenhum.
    */
-  const tipoDaContaPorChave = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const profile of customerProfiles) {
-      const tipo = ehFuncionario(profile) ? TIPO_FUNCIONARIO : normalizeCustomerType(profile.customer_type);
-      const userKey = profile.user_id?.trim();
-      const cnpjKey = String(profile.cnpj ?? "").replace(/\D/g, "");
-      if (userKey) map.set(userKey, tipo);
-      // O CNPJ não desempata funcionário: são 97 contas com o mesmo CNPJ da
-      // Clinic+. Só entra quando ainda não há nada, para não sobrescrever o
-      // que veio pelo `user_id`, que é exato.
-      if (cnpjKey && !map.has(cnpjKey)) map.set(cnpjKey, tipo);
-    }
-    return map;
-  }, [customerProfiles]);
+  const tipoDaContaPorChave = useMemo(
+    () => mapaDeTipoPorConta(customerProfiles, normalizeCustomerType),
+    [customerProfiles],
+  );
 
   const tipoDoPedido = useMemo(
-    () => (order: AdminOrderRow) => {
-      const porUsuario = order.customer_user_id ? tipoDaContaPorChave.get(order.customer_user_id.trim()) : undefined;
-      if (porUsuario) return porUsuario;
-      const cnpj = String(order.customer_cnpj ?? "").replace(/\D/g, "");
-      return (cnpj && tipoDaContaPorChave.get(cnpj)) || null;
-    },
+    () => (order: AdminOrderRow) => tipoDaContaDoPedido(order, tipoDaContaPorChave),
     [tipoDaContaPorChave],
   );
 
@@ -469,6 +454,7 @@ export function AdminOrdersSection({
                   customer_phone: order.customer_phone,
                   customer_cnpj: order.customer_cnpj,
                   customer_observation: customerObservation || null,
+                  tipoDaConta: tipoDoPedido(order),
                   status: order.status,
                   total_items: order.total_items,
                   proxis_import_id: order.proxis_import_id,

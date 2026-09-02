@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import {
   buildProxisImportFileContent,
   foccoImportFileName,
+  type EmpresaDoFocco,
   type ProxisImportOrderInput,
 } from "@/lib/foccoImportExport";
 import { ensureProxisImportId } from "@/lib/foccoImportId";
@@ -55,7 +56,10 @@ function downloadTextFile(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadProxisImportTxt(order: OrderExportInput): Promise<number> {
+export async function downloadProxisImportTxt(
+  order: OrderExportInput,
+  empresa: EmpresaDoFocco = "hile",
+): Promise<number> {
   const proxisImportId = await ensureProxisImportId(order.id, order.proxis_import_id);
 
   const input: ProxisImportOrderInput = {
@@ -67,7 +71,10 @@ export async function downloadProxisImportTxt(order: OrderExportInput): Promise<
     enrichmentMaps: order.enrichmentMaps,
   };
 
-  const content = buildProxisImportFileContent([input]);
-  downloadTextFile(foccoImportFileName(proxisImportId, order.created_at), content);
+  // O mesmo `proxisImportId` nos dois arquivos, de propósito: é o mesmo pedido,
+  // exportado para duas empresas. Gerar um id novo faria o FOCCO tratá-los como
+  // pedidos diferentes.
+  const content = buildProxisImportFileContent([input], empresa);
+  downloadTextFile(foccoImportFileName(proxisImportId, order.created_at, empresa), content);
   return proxisImportId;
 }

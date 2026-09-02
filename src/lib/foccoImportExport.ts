@@ -18,7 +18,34 @@ export type ProxisImportField =
   | "condPag"
   | "portador";
 
-export const PROXIS_IMPORT_DIV_VENDA = "1";
+/**
+ * A divisão de venda, que é a única coisa que separa os dois arquivos.
+ *
+ * ## Por que dois
+ *
+ * O mesmo item não pode ficar na divisão de venda 1 nas duas empresas dentro do
+ * FOCCO. A Hilê ficou com a 1, que já existia; a Net Nature precisou da 2. Do
+ * pedido para cá não muda mais nada — mesmo CNPJ, mesmos itens, mesma tabela,
+ * mesma data. Só esta coluna.
+ *
+ * Por isso são dois botões e não um seletor: quem exporta sabe para qual
+ * empresa está mandando, e um seletor errado só se descobre no FOCCO.
+ */
+export const DIVISAO_DE_VENDA = {
+  hile: "1",
+  net: "2",
+} as const;
+
+export type EmpresaDoFocco = keyof typeof DIVISAO_DE_VENDA;
+
+/** Como cada empresa se chama na tela e no nome do arquivo. */
+export const NOME_DA_EMPRESA: Record<EmpresaDoFocco, string> = {
+  hile: "HILE",
+  net: "NET",
+};
+
+/** @deprecated Use `DIVISAO_DE_VENDA`. Mantido para não quebrar import antigo. */
+export const PROXIS_IMPORT_DIV_VENDA = DIVISAO_DE_VENDA.hile;
 
 // FOCCO usa 356 para venda à vista.
 export const PROXIS_IMPORT_COND_PAG_A_VISTA = "356";
@@ -67,6 +94,7 @@ function buildLineFields(
   customerTprId: number | null,
   line: OrderTableLine,
   emissionDate: string,
+  empresa: EmpresaDoFocco,
 ): string[] {
   const tabVenda = normalizeProxisTprId(customerTprId) ?? PROXIS_IMPORT_TPR_DEFAULT;
 
@@ -80,7 +108,7 @@ function buildLineFields(
     emissionDate,
     "",
     "",
-    PROXIS_IMPORT_DIV_VENDA,
+    DIVISAO_DE_VENDA[empresa],
     String(tabVenda),
     PROXIS_IMPORT_COND_PAG_A_VISTA,
     "",
@@ -89,6 +117,9 @@ function buildLineFields(
 
 export function buildProxisImportLines(
   order: ProxisImportOrderInput,
+  // Padrão `ile`: é o arquivo que já existia e já está funcionando, então
+  // nenhuma chamada antiga muda de comportamento ao ganhar o parâmetro.
+  empresa: EmpresaDoFocco = "hile",
 ): string[] {
   const cnpjDigits = onlyDigits(order.customerCnpj);
   if (!cnpjDigits) {
@@ -113,24 +144,38 @@ export function buildProxisImportLines(
   const emissionDate = formatProxisImportDate(order.createdAt);
 
   return lines.map((line) =>
-    formatProxisImportLine(buildLineFields(order.proxisImportId, cnpjDigits, order.customerTprId, line, emissionDate)),
+    formatProxisImportLine(
+      buildLineFields(order.proxisImportId, cnpjDigits, order.customerTprId, line, emissionDate, empresa),
+    ),
   );
 }
 
 export function buildProxisImportFileContent(
   orders: ProxisImportOrderInput[],
+  empresa: EmpresaDoFocco = "hile",
 ): string {
   const allLines: string[] = [];
 
   for (let index = 0; index < orders.length; index++) {
     const order = orders[index];
-    allLines.push(...buildProxisImportLines(order));
+    allLines.push(...buildProxisImportLines(order, empresa));
   }
 
   return `${allLines.join("\n")}\n`;
 }
 
-export function foccoImportFileName(proxisImportId: number, createdAt: string): string {
+/**
+ * ⚠️ A empresa entra no nome do arquivo.
+ *
+ * Os dois arquivos do mesmo pedido são idênticos exceto por uma coluna. Com o
+ * nome antigo, o segundo download viraria "pedido-focco-25-2026-09-02 (1).txt"
+ * na pasta de downloads — e ninguém saberia qual é o da Hilê.
+ */
+export function foccoImportFileName(
+  proxisImportId: number,
+  createdAt: string,
+  empresa: EmpresaDoFocco = "hile",
+): string {
   const date = new Date(createdAt).toISOString().slice(0, 10);
-  return `pedido-focco-${proxisImportId}-${date}.txt`;
+  return `pedido-focco-${empresa}-${proxisImportId}-${date}.txt`;
 }

@@ -56,7 +56,7 @@ async function resolveUserId(token: string): Promise<string | null> {
   return typeof user?.id === "string" && user.id ? user.id : null;
 }
 
-async function temPapel(userId: string, papel: "admin" | "superadmin"): Promise<boolean> {
+export async function temPapel(userId: string, papel: "admin" | "superadmin"): Promise<boolean> {
   const response = await supabaseFetch("/rest/v1/rpc/has_role", {
     method: "POST",
     body: JSON.stringify({ _user_id: userId, _role: papel }),
@@ -68,6 +68,43 @@ async function temPapel(userId: string, papel: "admin" | "superadmin"): Promise<
     return false;
   }
   return (await response.json().catch(() => false)) === true;
+}
+
+/**
+ * A permissão de seção de um admin.
+ *
+ * ⚠️ Ausência de linha vale como **acesso completo**: é o admin antigo, de antes
+ * das permissões, e é o mesmo critério que `canAccessAdminSection` aplica no
+ * painel. Tratar `null` como "não pode" tiraria esses admins do ar sem aviso —
+ * foi assim que a seção de funcionários sumiu para todo mundo em 25/08/2026.
+ */
+export async function temPermissaoDeSecao(userId: string, secao: string): Promise<boolean> {
+  const table = encodeURIComponent("clinic+b2b_admin_users");
+  const response = await supabaseFetch(
+    `/rest/v1/${table}?user_id=eq.${encodeURIComponent(userId)}&select=permissions&limit=1`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    console.error("[auth] permissões falharam:", response.status, await response.text().catch(() => ""));
+    return false;
+  }
+
+  const linhas = (await response.json().catch(() => null)) as { permissions?: Record<string, unknown> | null }[] | null;
+  if (!Array.isArray(linhas) || linhas.length === 0) return true;
+
+  const permissoes = linhas[0]?.permissions;
+  if (permissoes === null || permissoes === undefined) return true;
+
+  // `=== true` estrito, como nas funções de borda: um valor estranho na coluna
+  // não deve virar permissão.
+  return (permissoes as Record<string, unknown>)[secao] === true;
+}
+
+/** O tipo de conta do alvo, para decidir sobre quem uma permissão alcança. */
+export async function tipoDeContaDe(userId: string): Promise<string | null> {
+  const perfil = await resolveProfile(userId);
+  return perfil?.customer_type ?? null;
 }
 
 async function resolveProfile(userId: string): Promise<AuthProfile | null> {

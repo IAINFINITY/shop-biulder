@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireAuth } from "./_auth.js";
+import { requireAuth, temPapel, temPermissaoDeSecao, tipoDeContaDe } from "./_auth.js";
+import { podeResetarSenha } from "../src/lib/permissaoDeReset.js";
 import { aplicarRateLimit } from "./_rateLimit.js";
 
 /**
@@ -42,11 +43,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // GET so le o valor; POST troca a credencial de outra pessoa. Dai a diferenca
-  // de exigencia: ler a senha provisoria e o que todo admin precisa para
-  // repassar ao funcionario, e ela ja aparece na tela de cadastro hoje.
-  // Aplica-la sobre uma conta existente e superadmin, igual ao resto do CRUD.
-  const auth = await requireAuth(req, res, req.method === "GET" ? { adminOnly: true } : { superadminOnly: true });
+  // GET so le o valor; POST troca a credencial de outra pessoa. Ler a senha
+  // provisoria e o que todo admin precisa para repassar ao funcionario, e ela ja
+  // aparece na tela de cadastro.
+  //
+  // ⚠️ O POST era `superadminOnly`, e isso estava errado: `create-employee-user`
+  // e `update-employee-user` ja aceitam admin com `permissions.funcionarios`,
+  // entao quem cadastra e edita o funcionario nao conseguia devolve-lo a senha
+  // provisoria. Quem decide agora e `podeResetarSenha`, abaixo, que tambem olha
+  // **quem e o alvo** — sem isso, abrir a rota viraria escada de privilegio.
+  const auth = await requireAuth(req, res, { adminOnly: true });
   if (!auth) return;
 
   // Contadores separados por metodo, e nao um so. Com o teto compartilhado, o
@@ -86,14 +92,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Resetar a própria senha por aqui deixaria o superadmin trancado do lado de
-  // fora: a conta sai com senha provisória e troca obrigatória, e ele perderia a
-  // sessão no mesmo movimento. Para a própria senha existe a tela da conta.
-  if (userId === auth.userId) {
-    res.status(400).json({
-      error: "Não é possível resetar a própria senha por aqui.",
-      detalhe: "Use 'Esqueceu a senha?' ou a troca de senha na sua conta.",
-    });
+  // Os fatos que a regra precisa. Em paralelo porque são quatro leituras
+  // independentes e a rota já é a mais lenta do painel.
+  const [ehSuperadmin, temPermissaoDeFuncionarios, alvoEhSuperadmin, alvoEhAdmin, tipoDoAlvo] =
+    await Promise.all([
+      temPapel(auth.userId, "superadmin"),
+      temPermissaoDeSecao(auth.userId, "funcionarios"),
+      temPapel(userId, "superadmin"),
+      temPapel(userId, "admin"),
+      tipoDeContaDe(userId),
+    ]);
+
+  const decisao = podeResetarSenha({
+    ehSuperadmin,
+    temPermissaoDeFuncionarios,
+    alvoEhFuncionario: (tipoDoAlvo ?? "").trim().toLowerCase() === "funcionario",
+    alvoEhDaEquipe: alvoEhSuperadmin || alvoEhAdmin,
+    ehAPropriaConta: userId === auth.userId,
+  });
+
+  if (!decisao.permitido) {
+    // 400 para "a própria conta", que é erro de uso; 403 para o resto, que é
+    // falta de permissão. O painel mostra a frase que vier.
+    const status = decisao.motivo.includes("própria senha") ? 400 : 403;
+    console.warn("[reset-senha] recusado:", { por: auth.userId, alvo: userId, motivo: decisao.motivo });
+    res.status(status).json({ error: decisao.motivo, detalhe: decisao.detalhe });
     return;
   }
 
@@ -116,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // A função devolve a senha padrão. O painel precisa dela para repassar ao
   // funcionário — é o mesmo valor que a tela de cadastro já mostra, e chega aqui
-  // só depois de o chamador provar que é superadmin.
+  // só depois de `podeResetarSenha` aprovar quem chama e sobre quem.
   const senha = (await resposta.json().catch(() => null)) as string | null;
 
   console.warn("[reset-senha] senha resetada:", { por: auth.userId, alvo: userId });

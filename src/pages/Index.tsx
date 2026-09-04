@@ -3,6 +3,9 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CatalogProductCard } from "@/components/catalogo/CatalogProductCard";
+import { CatalogProductRow } from "@/components/catalogo/CatalogProductRow";
+import { SeletorDeExibicao } from "@/components/catalogo/SeletorDeExibicao";
+import { guardarModoDeExibicao, lerModoDeExibicao, type ModoDeExibicao } from "@/lib/modoDeExibicao";
 import { StoreHeroBanner } from "@/components/catalogo/StoreHeroBanner";
 import { CatalogThemeSections, type CatalogThemeSection } from "@/components/catalogo/CatalogThemeSections";
 import { CatalogSectionHeader } from "@/components/catalogo/CatalogSectionHeader";
@@ -198,6 +201,19 @@ export default function Index() {
     "relevance",
     ehModoDeOrdenacao,
   );
+  /**
+   * Lista ou grade.
+   *
+   * ⚠️ Não vai para a URL, ao contrário dos filtros e da ordenação. Filtro é
+   * recorte — faz sentido mandar por link, "olha esses aqui". Forma de exibição
+   * é preferência de quem lê; herdar a de outra pessoa ao abrir um link seria
+   * trocar a escolha dela sem avisar. Fica no navegador, em `modoDeExibicao.ts`.
+   */
+  const [modoDeExibicao, definirModoDeExibicao] = useState<ModoDeExibicao>(lerModoDeExibicao);
+  const trocarModoDeExibicao = useCallback((modo: ModoDeExibicao) => {
+    definirModoDeExibicao(modo);
+    guardarModoDeExibicao(modo);
+  }, []);
   const [visibleProducts, setVisibleProducts] = useState(
     () => readCatalogViewState()?.visibleProducts ?? INITIAL_PRODUCTS_VISIBLE,
   );
@@ -874,6 +890,7 @@ export default function Index() {
                       </SheetContent>
                     </Sheet>
                     <SortModeControl value={sortMode} onChange={setSortMode} />
+                    <SeletorDeExibicao modo={modoDeExibicao} onModoChange={trocarModoDeExibicao} />
                   </>
                 }
               />
@@ -881,6 +898,16 @@ export default function Index() {
               <CatalogActiveFilters filters={activeFilters} onClearAll={clearAllFilters} />
 
               {isLoading ? (
+                // O esqueleto segue o modo escolhido: um bloco de cartões altos
+                // dando lugar a linhas baixas faz a página saltar quando os
+                // dados chegam.
+                modoDeExibicao === "lista" ? (
+                  <div className="flex flex-col gap-2 sm:gap-2.5">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                      <Skeleton key={index} className="h-[6.5rem] w-full rounded-xl sm:h-[7.5rem]" />
+                    ))}
+                  </div>
+                ) : (
                 <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5 min-[2200px]:grid-cols-6 min-[2500px]:grid-cols-7 min-[3000px]:grid-cols-8">
                   {Array.from({ length: 10 }).map((_, index) => (
                     <div key={index} className="overflow-hidden rounded-xl bg-background/70 ring-1 ring-black/5">
@@ -888,6 +915,7 @@ export default function Index() {
                     </div>
                   ))}
                 </div>
+                )
               ) : filtered.length === 0 ? (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 rounded-xl bg-background/70 px-6 py-16 text-center text-muted-foreground ring-1 ring-black/5">
                   <p className="text-lg font-medium text-foreground">Nenhum produto encontrado</p>
@@ -900,23 +928,43 @@ export default function Index() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Lista ou grade — a escolha fica em `modoDeExibicao.ts`,
+                      junto do porquê de lista ser o padrão. As duas alimentam os
+                      mesmos dados e as mesmas ações; muda o desenho da linha. */}
                   <div
                     ref={gridRef}
-                    className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5 min-[2200px]:grid-cols-6 min-[2500px]:grid-cols-7 min-[3000px]:grid-cols-8"
+                    className={
+                      modoDeExibicao === "lista"
+                        ? "flex flex-col gap-2 sm:gap-2.5"
+                        : "grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 min-[1680px]:grid-cols-5 min-[2200px]:grid-cols-6 min-[2500px]:grid-cols-7 min-[3000px]:grid-cols-8"
+                    }
                   >
-                    {visibleFiltered.map((product) => (
-                      <CatalogProductCard
-                        key={product.id}
-                        product={product}
-                        price={resolveProductPrice(product, customerPriceMap)}
-                        precoBase={resolvePrecoBase(product, customerPriceMap)}
-                        onAdd={handleRequestAdd}
-                        inCart={cartIds.has(product.id)}
-                        compact
-                        isWishlisted={wishlistIds.includes(product.id)}
-                        onToggleWishlist={() => toggleWishlist(product.id)}
-                      />
-                    ))}
+                    {visibleFiltered.map((product) =>
+                      modoDeExibicao === "lista" ? (
+                        <CatalogProductRow
+                          key={product.id}
+                          product={product}
+                          price={resolveProductPrice(product, customerPriceMap)}
+                          precoBase={resolvePrecoBase(product, customerPriceMap)}
+                          onAdd={handleRequestAdd}
+                          inCart={cartIds.has(product.id)}
+                          isWishlisted={wishlistIds.includes(product.id)}
+                          onToggleWishlist={() => toggleWishlist(product.id)}
+                        />
+                      ) : (
+                        <CatalogProductCard
+                          key={product.id}
+                          product={product}
+                          price={resolveProductPrice(product, customerPriceMap)}
+                          precoBase={resolvePrecoBase(product, customerPriceMap)}
+                          onAdd={handleRequestAdd}
+                          inCart={cartIds.has(product.id)}
+                          compact
+                          isWishlisted={wishlistIds.includes(product.id)}
+                          onToggleWishlist={() => toggleWishlist(product.id)}
+                        />
+                      ),
+                    )}
                   </div>
                   {hasMoreProducts ? (
                     <div className="flex flex-col items-center gap-2 py-8">

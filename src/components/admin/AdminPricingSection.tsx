@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useRef } from "react";
-import { ArrowLeft, BadgeDollarSign, ImageIcon, Loader2, Pencil, Plus, RotateCcw, Save, Search, Trash2, Undo2, WandSparkles, Eye } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, ImageIcon, Loader2, Pencil, Plus, RotateCcw, Save, Search, Tag, Trash2, Undo2, WandSparkles, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { useTabelasDePreco } from "@/hooks/useTabelasDePreco";
+import { PrecoEmTodasAsTabelasDialog } from "@/components/admin/PrecoEmTodasAsTabelasDialog";
 import { CardDeTiposDeConta } from "./CardDeTiposDeConta";
 import { CardDeTabelasDePreco } from "./CardDeTabelasDePreco";
 import { AdminPriceTablesOverview } from "./AdminPriceTablesOverview";
@@ -158,6 +159,8 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct,
 
   const escopo = useMemo(() => lerChaveDeTabela(chaveDaTabela), [chaveDaTabela]);
   const scopeMode: PricingScopeMode = escopo?.origem === "negociada" ? "proxis_tpr_id" : "customer_type";
+  /** O diálogo de um produto em todas as tabelas. */
+  const [precoPorProdutoAberto, setPrecoPorProdutoAberto] = useState(false);
   const customerType = escopo?.customerType ?? DEFAULT_CUSTOMER_TYPE;
   const activeTprId = escopo?.origem === "negociada" ? escopo.tprId : null;
   const scopeReady = escopo !== null;
@@ -503,7 +506,21 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct,
             : "Cada linha é uma tabela de preço, com quantos produtos tem e quantas contas compram por ela."
         }
         actions={
-          tabelaAberta ? (
+          !tabelaAberta ? (
+            /* ⚠️ Fora da tabela aberta, e não dentro.
+               O atalho existe justamente para **não** precisar entrar numa
+               tabela: quem sabe o código do produto ajusta os seis escopos daqui
+               sem abrir nenhuma. Dentro de uma tabela ele seria a mesma coisa que
+               a lista já faz, com um caminho a mais. */
+            <Button
+              type="button"
+              className="h-9 gap-1.5 rounded-2xl px-4 text-[0.8125rem]"
+              onClick={() => setPrecoPorProdutoAberto(true)}
+            >
+              <Tag className="h-4 w-4" />
+              Preço por produto
+            </Button>
+          ) : (
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="rounded-full border-primary/20 bg-primary/5 px-3 py-1 text-[0.6875rem] text-primary">
                 {loadedCount} item(ns)
@@ -516,7 +533,7 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct,
                 Todas as tabelas
               </Button>
             </div>
-          ) : null
+          )
         }
       />
 
@@ -999,6 +1016,17 @@ export function AdminPricingSection({ products, onRefreshPricing, onGoToProduct,
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Um produto, todos os escopos. A regra está em
+          `precoEmTodasAsTabelas.ts`, com teste; aqui só a montagem. */}
+      <PrecoEmTodasAsTabelasDialog
+        aberto={precoPorProdutoAberto}
+        onAbertoChange={setPrecoPorProdutoAberto}
+        produtos={products}
+        tiposDeConta={customerTypes}
+        tabelas={tabelasCadastradasQuery.data ?? []}
+        onSalvo={onRefreshPricing}
+      />
     </div>
   );
 }

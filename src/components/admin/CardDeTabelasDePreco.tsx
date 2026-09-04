@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Layers, Loader2, Plus } from "lucide-react";
+import { Layers, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +114,51 @@ export function CardDeTabelasDePreco({
     }
   };
 
+  /**
+   * Apaga a tabela e os preços dela.
+   *
+   * ⚠️ Quem decide se pode é o **banco**, não esta tela. A função
+   * `clinic_b2b_excluir_tabela_de_preco` recusa quando um tipo ou uma conta
+   * depende da tabela, e faz as duas remoções numa transação — sem ela, uma
+   * falha no meio deixaria a tabela sem preço nenhum.
+   *
+   * A tela desabilita o botão pelo mesmo motivo, mas isso é conveniência: ela
+   * pode estar com dado velho, e o vínculo pode ter sido criado há um segundo
+   * por outra pessoa.
+   */
+  const excluir = async (tprId: number, nome: string) => {
+    setMexendo(tprId);
+    try {
+      const { data, error } = await supabase.rpc("clinic_b2b_excluir_tabela_de_preco" as never, {
+        p_tpr_id: tprId,
+      } as never);
+
+      if (error) throw error;
+
+      const removidos = Number((data as { precos_removidos?: number } | null)?.precos_removidos ?? 0);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["price-tables"] }),
+        queryClient.invalidateQueries({ queryKey: ["customer-pricing"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-price-overrides"] }),
+      ]);
+      toast.success(`Tabela “${nome}” excluída.`, {
+        description: removidos > 0 ? `${removidos} preço(s) saíram junto.` : "Ela não tinha preço nenhum.",
+      });
+    } catch (erro) {
+      console.error("[preços] falha ao excluir tabela", erro);
+      // A mensagem do banco diz **quem** depende dela; repeti-la é mais útil
+      // que "não foi possível".
+      const detalhe = erro instanceof Error ? erro.message : "";
+      toast.error("Não foi possível excluir a tabela.", {
+        description: detalhe.includes("em uso")
+          ? "Alguém ainda depende dela. Desative em vez de excluir."
+          : undefined,
+      });
+    } finally {
+      setMexendo(null);
+    }
+  };
+
   return (
     <section className="rounded-[1.5rem] border border-border/70 bg-background p-5 shadow-[0_12px_32px_rgba(16,24,40,0.08)]">
       <div className="flex items-center gap-2.5">
@@ -161,6 +206,9 @@ export function CardDeTabelasDePreco({
             renderizar={(tabela) => {
               const contas = contasPorTabela.get(tabela.tprId) ?? 0;
               const usadaPor = tiposQueUsam(tabela.tprId);
+              // Mesma condição que a função no banco aplica. Aqui é só para não
+              // oferecer um botão que vai ser recusado.
+              const emUso = usadaPor.length > 0 || contas > 0;
 
               return (
             // Grade igual à do card de tipos: nome, estado e ações sempre na
@@ -243,6 +291,51 @@ export function CardDeTabelasDePreco({
                   destructive={tabela.ativa}
                   onConfirm={() => alternar(tabela.tprId, !tabela.ativa)}
                 />
+
+                {/* Excluir de verdade — o que "desativar" nunca fez.
+                    Desativada, a tabela some da escolha e fica na lista para
+                    sempre; quem cria uma para testar acumula entulho. Só é
+                    oferecido quando ninguém depende dela: com tipo ou conta
+                    apontando, apagar mudaria o preço de gente real sem aviso. */}
+                {emUso ? (
+                  <span
+                    title="Desative em vez de excluir: alguém ainda depende desta tabela."
+                    className="cursor-not-allowed rounded-full p-1.5 text-muted-foreground/40"
+                    aria-hidden
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </span>
+                ) : (
+                  <ConfirmActionDialog
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-8 w-8 rounded-full p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        disabled={mexendo === tabela.tprId}
+                        aria-label={`Excluir a tabela ${tabela.description}`}
+                        title="Excluir tabela"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    }
+                    title={`Excluir “${tabela.description}”?`}
+                    description={
+                      <>
+                        A tabela e os preços dela são apagados. <strong>Não dá para desfazer.</strong>
+                        <br />
+                        <br />
+                        Ninguém depende dela hoje — nenhum tipo de conta e nenhuma conta com
+                        negociação individual. Se quiser apenas tirá-la da frente, use{" "}
+                        <strong>Desativar</strong>: os preços ficam guardados.
+                      </>
+                    }
+                    confirmLabel="Excluir"
+                    processingLabel="Excluindo..."
+                    destructive
+                    onConfirm={() => excluir(tabela.tprId, tabela.description)}
+                  />
+                )}
               </div>
               </div>
               );
